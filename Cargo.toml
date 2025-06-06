@@ -1,0 +1,15 @@
+[package]
+name    = "fluent_voice"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Pure-trait DSL for fluent voice synthesis"
+
+[features]
+default       = []
+tokio-runtime = []
+wasm-runtime  = []
+std_async     = []
+
+[dependencies]
+thiserror = "1"
