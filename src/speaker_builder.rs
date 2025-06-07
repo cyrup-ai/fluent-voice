@@ -1,31 +1,43 @@
-//! fluent_voice/src/speaker_builder.rs
-//! -----------------------------------
-//! Speaker builder trait definitions
-
-use core::future::Future;
-
+//! Immutable fluent builder for one speaker turn.
 use crate::{
-    pitch_range::PitchRange,
-    vocal_speed_mod::VocalSpeedMod,
-    voice_error::VoiceError,
-    voice_timber::VoiceTimber,
+    language::Language, pitch_range::PitchRange, speaker::Speaker, vocal_speed::VocalSpeedMod,
+    voice_id::VoiceId,
 };
 
-/* Engine-specific builder implemented in vendor crates */
-pub trait SpeakerBuilder: Send {
-    type Speaker: crate::speaker::Speaker;
+/// Immutable fluent builder for configuring a single speaker turn.
+///
+/// This trait provides a fluent interface for building speaker configurations
+/// with voice settings, text content, and expressive parameters.
+pub trait SpeakerBuilder: Sized {
+    /// Start a builder with a display name.
+    fn named(name: impl Into<String>) -> Self;
 
-    fn with_speed_modifier(self, speed: VocalSpeedMod) -> Self;
-    fn with_pitch_range(self, pitch_range: PitchRange) -> Self;
-    fn with_timber(self, timber: VoiceTimber) -> Self;
+    /// Associate an engine-specific voice ID.
+    fn voice_id(self, id: VoiceId) -> Self;
 
-    fn speak(
-        self,
-        text: impl Into<String>,
-    ) -> impl Future<Output = Result<Self::Speaker, VoiceError>> + Send;
+    /// Override language for this speaker.
+    fn language(self, lang: Language) -> Self;
+
+    /// Optional speaking-rate multiplier.
+    fn with_speed_modifier(self, m: VocalSpeedMod) -> Self;
+
+    /// Optional pitch range.
+    fn with_pitch_range(self, range: PitchRange) -> Self;
+
+    /// Provide text for this speaker to speak.
+    fn speak(self, text: impl Into<String>) -> Self;
+
+    /// The concrete speaker type that will be produced.
+    type Output: Speaker;
+
+    /// Finish and get the concrete `Speaker`.
+    fn build(self) -> Self::Output;
 }
 
-/* Static helper: `Speaker::named("Bob") …` */
+/// Convenience extension for creating speakers.
+///
+/// Allows syntax like `Speaker::speaker("Bob")` to start building.
 pub trait SpeakerExt {
-    fn named(id: impl Into<String>) -> impl SpeakerBuilder;
+    /// Start a fluent speaker builder.
+    fn speaker(name: impl Into<String>) -> impl SpeakerBuilder;
 }

@@ -1,9 +1,11 @@
+[workspace]
+members = ["fluent_voice_macros"]
 [package]
-name    = "fluent_voice"
-version = "0.1.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-description = "Pure-trait DSL for fluent voice synthesis"
+name        = "fluent_voice"
+version     = "1.0.0"
+edition     = "2021"
+license     = "MIT OR Apache-2.0"
+description = "Pure-trait fluent builder API for TTS & STT engines."
 
 [features]
 default       = []
@@ -12,4 +14,11 @@ wasm-runtime  = []
 std_async     = []
 
 [dependencies]
-thiserror = "1"
+thiserror     = "2"
+futures-core  = "0.3"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
+futures = "0.3"
+fluent_voice_macros = { path = "fluent_voice_macros" }

@@ -1,0 +1,104 @@
+//! Multi-speaker conversation builder for TTS.
+use crate::{language::Language, speaker::Speaker, voice_error::VoiceError};
+use core::future::Future;
+use futures_core::Stream;
+
+/// Engine-specific conversation object.
+///
+/// This trait represents a completed TTS conversation that has been
+/// configured and is ready to produce audio output. Engine implementations
+/// provide concrete types that implement this trait.
+pub trait TtsConversation: Send {
+    /// Async audio stream (e.g. PCM i16 samples).
+    ///
+    /// The specific audio format and sample type depends on the engine
+    /// implementation, but typically streams PCM audio samples.
+    type AudioStream: Stream<Item = i16> + Send + Unpin;
+
+    /// Convert this conversation into an audio stream.
+    ///
+    /// This method consumes the conversation and returns the underlying
+    /// audio stream that can be used to play or process the synthesized audio.
+    fn into_stream(self) -> Self::AudioStream;
+}
+
+/// Fluent builder for multi-speaker TTS conversations.
+///
+/// This trait provides the fluent interface for building conversations
+/// with multiple speakers, language settings, and other TTS parameters.
+/// Engine implementations provide concrete builder types.
+pub trait TtsConversationBuilder: Sized + Send {
+    /// Add a speaker turn to the conversation.
+    ///
+    /// Speakers are processed in the order they are added to the conversation.
+    /// Each speaker can have different voice settings, text content, and
+    /// expressive parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `speaker` - A configured speaker instance
+    fn with_speaker<S: Speaker>(self, speaker: S) -> Self;
+
+    /// Set a global language override for the conversation.
+    ///
+    /// This language setting may override individual speaker language
+    /// settings, depending on the engine implementation.
+    ///
+    /// # Arguments
+    ///
+    /// * `lang` - The language specification using BCP-47 format
+    fn language(self, lang: Language) -> Self;
+
+    /// Terminal method that executes synthesis with a matcher closure.
+    ///
+    /// This method terminates the fluent chain and executes the TTS synthesis.
+    /// The matcher closure receives either the conversation object on success
+    /// or a `VoiceError` on failure, and returns the final result.
+    ///
+    /// # Arguments
+    ///
+    /// * `matcher` - Closure that handles success/error cases
+    ///
+    /// # Returns
+    ///
+    /// A future that resolves to the result of the matcher closure.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let audio = conversation
+    ///     .synthesize(|conversation| {
+    ///         Ok => conversation.into_stream(),
+    ///         Err(e) => Err(e),
+    ///     })
+    ///     .await?;
+    /// ```
+    fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static;
+
+    /// The concrete conversation type produced by this builder.
+    type Conversation: TtsConversation;
+}
+
+/// Static entry point for TTS conversations.
+///
+/// This trait provides the static method for starting a new TTS conversation.
+/// Engine implementations typically implement this on a marker struct or
+/// their main engine type.
+///
+/// # Examples
+///
+/// ```ignore
+/// use fluent_voice::prelude::*;
+///
+/// let conversation = FluentVoice::builder();
+/// ```
+pub trait TtsConversationExt {
+    /// Begin a new TTS conversation builder.
+    ///
+    /// # Returns
+    ///
+    /// A new conversation builder instance.
+    fn builder() -> impl TtsConversationBuilder;
+}

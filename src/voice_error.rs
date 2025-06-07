@@ -1,15 +1,13 @@
-//! fluent_voice/src/voice_error.rs
-//! -------------------------------
-//! Voice synthesis error types
-
+//! Unified error for all fluent chains.
 use thiserror::Error;
 
+/// Top-level error covering both TTS & STT operations.
 #[derive(Debug, Error)]
 pub enum VoiceError {
-    #[error("configuration: {0}")]
-    Config(&'static str),
-    #[error("device error: {0}")]
-    Device(&'static str),
-    #[error("synthesis failed: {0}")]
-    Synthesis(&'static str),
+    /// TTS-related failure reason.
+    #[error("tts: {0}")]
+    Tts(&'static str),
+    /// STT-related failure reason.
+    #[error("stt: {0}")]
+    Stt(&'static str),
 }
