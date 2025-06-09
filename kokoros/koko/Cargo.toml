@@ -1,11 +1,11 @@
 [package]
-name = "speakrs_koko"
+name = "fluent_voice_koko"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-speakrs_kokoros = { path = "../speakrs-kokoros" }
-speakrs_openai = { path = "../speakrs-openai" }
+fluent_voice_koko = { path = "../koko" }
+fluent_voice_openai = { path = "../../openai" }
 
 clap = { workspace = true }
 tokio = { workspace = true }

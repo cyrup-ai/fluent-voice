@@ -1,27 +1,23 @@
-[workspace]
-
-
-
 [package]
-name = "speakrs_kokoros"
+name = "fluent_voice_kokoros"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-espeak-rs."0.1.0"
-hound."0.1.0"
-indicatif."0.1.0"
-lazy_static."0.1.0"
-mp3lame-encoder."0.1.0"
-ndarray."0.1.0"
-ndarray-npy."0.1.0"
+espeak-rs = "0.1.9"
+hound = "3.5.1"
+indicatif = "0.17.11"
+lazy_static = "1.5.0"
+mp3lame-encoder = "0.2.1"
+ndarray = "0.16.1"
+ndarray-npy = "0.9.1"
 
 # Base ONNX Runtime configuration
-ort = { "0.1.0" }
-regex."0.1.0"
-reqwest."0.1.0"
-serde_json."0.1.0"
-tokio."0.1.0"
+ort = "1.16.3"
+regex = "1.11.1"
+reqwest = "0.12.19"
+serde_json = "1.0.140"
+tokio = "1.45.1"
 
 [features]
 default = ["cpu"]

@@ -1,9 +1,5 @@
-[workspace]
-
-
-
 [package]
-name = "speakrs-turndetector"
+name = "fluent_voice_vad"
 version = "0.1.0"
 edition = "2024"
 repository = "https://github.com/cyrup-ai/speakrs"

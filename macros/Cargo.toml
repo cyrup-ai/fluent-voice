@@ -1,7 +1,7 @@
 [package]
 name        = "fluent_voice_macros"
 version     = "1.0.0"
-edition     = "2021"
+edition     = "2024"
 license     = "MIT OR Apache-2.0"
 description = "Builder-for-builders macro kit for fluent voice engines"
 repository  = "https://github.com/your-repo/fluent_voice"
@@ -9,7 +9,6 @@ keywords    = ["tts", "stt", "voice", "speech", "macros"]
 categories  = ["multimedia::audio", "api-bindings"]
 
 [dependencies]
-fluent_voice = { path = "..", version = "1.0.0" }
 futures-core = "0.3"
 
 [dev-dependencies]

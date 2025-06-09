@@ -1,9 +1,5 @@
-[workspace]
-
-
-
 [package]
-name = "speaker-livekit"
+name = "fluent_voice_livekit"
 version = "0.1.0"
 edition = "2021"
 description = "Logic for using LiveKit with GPUI"
@@ -26,7 +22,7 @@ test-support = []
 [dependencies]
 tracing = "0.1.41"
 anyhow = "1.0.98"
-cpal = "0.15.3"
+cpal = "0.16.0"
 futures = "0.3.31"
 http_client_tls = { git = "https://github.com/zed-industries/zed", branch = "main" }
 image = "0.25.6"
@@ -35,7 +31,6 @@ log = "0.4.27"
 nanoid = "0.4.0"
 parking_lot = "0.12.4"
 postage = "0.5.0"
-sugarloaf = { path = "../rio/sugarloaf" }
 tokio = "1.45.1"
 tokio-tungstenite = "0.26.2"
 wgpu = "25.0.2"
@@ -53,7 +48,7 @@ scap = "0.0.8"
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10.1"
 core-video = "0.4.3"
-coreaudio-rs = "0.12.1"
+coreaudio-rs = "0.13.0"
 objc = "0.2.7"
 
 [dev-dependencies]

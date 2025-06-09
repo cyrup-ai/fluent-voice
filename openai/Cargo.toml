@@ -1,15 +1,9 @@
-[workspace]
-
-
-
 [package]
-name = "speakrs_openai"
+name = "fluent_voice_openai"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
-speakrs_kokoros = { path = "../speakrs-kokoros" }
-
-axum = { "0.1.0" }
-serde = { "0.1.0" }
-tower-http = { "0.1.0", features = ["cors"] }
+axum = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+tower-http = { version = "0.6", features = ["cors"] }

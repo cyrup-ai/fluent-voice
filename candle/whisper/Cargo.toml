@@ -30,9 +30,9 @@ hound          = "3.5.1"
 
 # — containers / utils —
 arrayvec       = "0.7"
-smallvec       = "1.15"
-indexmap       = "2.2"
-thiserror      = "1.0"
+smallvec       = "2.0.0-alpha.11"
+indexmap       = "2.9"
+thiserror      = "2.0"
 log            = "0.4"
 
 # — serde / misc —

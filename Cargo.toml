@@ -1,0 +1,46 @@
+[workspace]
+resolver = "3"
+members = [
+    "animator",
+    "candle/koffee",
+    "candle/whisper",
+    "elevenlabs",
+    "fluent_voice",
+    "macros",
+    "livekit",
+    "candle/moshi",
+    "kokoros/koko",
+    "kokoros/kokoros",
+    "macros",
+    "openai",
+    "vad",
+    "video"
+]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+description = "Pure-trait fluent builder API for TTS & STT engines."
+keywords = ["voice", "tts", "stt", "speech", "builder", "fluent"]
+categories = ["audio", "speech", "builder", "voice", "rust"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-org/fluent-voice"
+
+[workspace.dependencies]
+env_logger = "0.11.8"
+parking_lot = "0.12.4"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+tokio = { version = "1.45.1", features = ["full"] }
+futures = "0.3.31"
+image = "0.25.6"
+livekit = { version = "0.7.11", features = ["native-tls"] }
+livekit-api = { version = "0.4.3", features = ["default", "native-tls"] }
+wgpu = "25.0.2"
+derive_more = "2.0.1"
+thiserror = "2.0.12"
+rustfft = "6.3.0"
+clap = "4.5.39"
+cpal = "0.16.0"
+ratatui = "0.29.0"
+crossterm = "0.29.0"

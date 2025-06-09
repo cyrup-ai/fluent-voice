@@ -452,7 +452,6 @@ pub trait VideoFrameExtensions {
 #[cfg(target_os = "macos")]
 impl VideoFrameExtensions for RemoteVideoFrame {
     fn to_rgba_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        // Convert to RGBA bytes for sugarloaf
         let width = self.width() as usize;
         let height = self.height() as usize;
         let mut rgba_data = vec![0u8; width * height * 4];

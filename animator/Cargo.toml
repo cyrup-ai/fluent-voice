@@ -1,27 +1,23 @@
-[workspace]
-
-
-
 [package]
 name = "fluent_voice_animator"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-env_logger = { "0.1.0" }
-parking_lot = { "0.1.0" }
-serde = { "0.1.0", features = ["derive"] }
-serde_json = { "0.1.0" }
-tokio = { "0.1.0", features = ["full"] }
-futures = { "0.1.0" }
-image = { "0.1.0" }
-livekit = { "0.1.0", features = ["native-tls"] }
-livekit-api = { "0.1.0", features = ["default", "native-tls"] }
-wgpu = { "0.1.0" }
-derive_more = { "0.1.0" }
-thiserror = { "0.1.0" }
-rustfft = { "0.1.0" }
-clap = { "0.1.0" }
-cpal = { "0.1.0" }
-ratatui = { "0.1.0" }
-crossterm = { "0.1.0" }
+env_logger = "0.11.8"
+parking_lot = "0.12.4"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+tokio = { version = "1.45.1", features = ["full"] }
+futures = "0.3.31"
+image = "0.25.6"
+livekit = { version = "0.7.11", features = ["native-tls"] }
+livekit-api = { version = "0.4.3", features = ["default", "native-tls"] }
+wgpu = "25.0.2"
+derive_more = "2.0.1"
+thiserror = "2.0.12"
+rustfft = "6.3.0"
+clap = "4.5.39"
+cpal = "0.16.0"
+ratatui = "0.29.0"
+crossterm = "0.29.0"
