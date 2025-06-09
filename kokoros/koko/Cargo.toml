@@ -1,0 +1,15 @@
+[package]
+name = "speakrs_koko"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+speakrs_kokoros = { path = "../speakrs-kokoros" }
+speakrs_openai = { path = "../speakrs-openai" }
+
+clap = { workspace = true }
+tokio = { workspace = true }
+
+[[bin]]
+name = "koko"
+path = "src/main.rs"

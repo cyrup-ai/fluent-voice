@@ -1,0 +1,93 @@
+//! src/wakewords/builder.rs  (new file — compile-time only, not yet wired into CLI)
+
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+
+use crate::{
+    wakewords::{WakewordDetector, WakewordModel},
+    Kfc,
+};
+
+/// Single‐use builder for a streaming wake-word detector.
+///
+/// Internally we create a **bounded** channel (so that the audio-thread is
+/// never blocked for long) and give the *sender* to the detector while the
+/// caller only keeps the *receiver*.
+/// ```no_run
+/// use koffee_candle::wakewords::Builder;
+///
+/// let (mut detector, rx) = Builder::new()
+///     .with_model("assets/hey_rust_tiny.kc")   // or multiple calls
+///     .band_size(5)                            // optional fine-tuning …
+///     .build()?;
+///
+/// // ─ push PCM here ─────────────────────────────────────────────
+/// // detector.process_bytes(...);
+///
+/// // ─ consume events elsewhere (GUI, game-loop, …) ──────────────
+/// while let Ok(det) = rx.recv() {
+///     println!("🔥 woke on '{}' (score {:.3})", det.name, det.score);
+/// }
+/// ```
+pub struct Builder {
+    models: Vec<WakewordModel>,
+    band_size: u16,
+    score_ref: f32,
+    channel_cap: usize,
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self {
+            models: Vec::new(),
+            band_size: 5,
+            score_ref: 0.22,
+            channel_cap: 16,
+        }
+    }
+}
+
+impl Builder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Load a compiled *.kc* model (can be called multiple times).
+    pub fn with_model<P: AsRef<std::path::Path>>(mut self, p: P) -> crate::Result<Self> {
+        let m = WakewordModel::load(p)?;
+        self.models.push(m);
+        Ok(self)
+    }
+
+    /* ------------ optional fine-tuning ------------ */
+
+    pub fn band_size(mut self, n: u16) -> Self {
+        self.band_size = n;
+        self
+    }
+    pub fn score_ref(mut self, r: f32) -> Self {
+        self.score_ref = r;
+        self
+    }
+    pub fn channel_capacity(mut self, c: usize) -> Self {
+        self.channel_cap = c;
+        self
+    }
+
+    /* ------------ finaliser ------------ */
+
+    /// Construct the detector **plus** a [`Receiver`] for wake events.
+    pub fn build(self) -> crate::Result<(Kfc, Receiver<crate::KoffeeCandleDetection>)> {
+        // 1.  create bounded channel
+        let (tx, rx): (SyncSender<_>, Receiver<_>) = sync_channel(self.channel_cap);
+
+        // 2.  build detector & register every loaded model
+        let mut det = Kfc::new(&crate::config::KoffeeCandleConfig::default())?;
+        det.update_config(self.score_ref, self.band_size, crate::ScoreMode::Classic);
+
+        for m in self.models {
+            det.add_wakeword_model(m)?; // new helper (see diff below)
+        }
+
+        Ok((det, rx))
+    }
+}

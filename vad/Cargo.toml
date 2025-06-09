@@ -1,0 +1,34 @@
+[workspace]
+
+
+
+[package]
+name = "speakrs-turndetector"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/cyrup-ai/speakrs"
+readme = "README.md"
+keywords = ["speech", "stt","recognition", "voice", "activity", "detection"]
+categories = ["multimedia::audio"]
+
+[dependencies]
+futures = "0.3"
+ndarray = "0.16"
+ort = { version = "2.0.0-rc.10", features = ["ndarray"] }
+pin-project = "1.1"
+thiserror = "2.0"
+typed-builder = "0.21"
+
+[dev-dependencies]
+hound = "3.5"
+itertools = "0.14"
+tokio = { version = "1.45", features = ["full"] }
+tokio-stream = "0.1"
+
+[features]
+async = []
+load-dynamic = ["ort/load-dynamic"]
+
+[lib]
+path = "src/lib.rs"
+name = "speakrs_turndetector"

@@ -1,0 +1,77 @@
+# ---------------------------------------------
+#  koffee-candle workspace / library manifest
+#  — targets desktop (native) by default —
+#      ▸ production-ready build: `cargo build`
+#      ▸ development build:      `cargo build --features dev`
+#      ▸ WASM (browser):         `cargo build --target wasm32-unknown-unknown --features web`
+# ---------------------------------------------
+
+[package]
+name         = "koffee"
+version      = "0.0.1"
+edition      = "2024"
+description  = "Cross-platform wake-word detector: Candle ⚡ KFC front-end"
+license      = "Apache-2.0 OR MIT"
+repository   = "https://github.com/cyrup-ai/cyrup-wake"
+authors      = ["David Maple <david@cyrup.ai>"]
+
+# ------------------------------------------------
+#  Dependencies
+# ------------------------------------------------
+[dependencies]
+# — DSP / NN —
+candle-core    = "0.9.1"
+candle-nn      = "0.9.1"
+
+# — audio / resampling —
+rubato         = { version = "0.16.2", default-features = false, features = ["fft_resampler"] }
+rustfft        = { version = "6.3.0",  default-features = false }
+hound          = "3.5.1"
+
+# — containers / utils —
+arrayvec       = "0.7"
+smallvec       = "1.15"
+indexmap       = "2.2"
+thiserror      = "1.0"
+log            = "0.4"
+
+# — serde / misc —
+serde          = { version = "1.0", features = ["derive"], default-features = false }
+serde_json     = "1.0"
+ciborium       = "0.2.2"
+strum          = { version = "0.27", features = ["derive"] }
+
+# — optional parallelism (desktop only) —
+rayon          = { version = "1.10", optional = true }
+
+# — browser bindings (wasm32 build only) —
+wasm-bindgen   = { version = "0.2",  optional = true }
+js-sys         = { version = "0.3",  optional = true }
+web-sys        = { version = "0.3",  features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+
+# ------------------------------------------------
+#  Feature flags
+# ------------------------------------------------
+[features]
+# ───────────── default: desktop, release-ready ─────────────
+default = ["desktop"]
+
+# --- Core build flavours -----------------------------------
+desktop = ["rayon"]          # native build – includes SIMD & Rayon
+web     = ["wasm-bindgen",
+           "js-sys",
+           "web-sys/Window",
+           "console_error_panic_hook"] # wasm32-unknown-unknown target
+
+# --- Developer conveniences (opt-in) -----------------------
+dev = ["debug", "desktop"]   # ← enable with `--features dev`
+debug = []                   # extra logging / assertions
+
+# --- Optional extended functionality -----------------------
+record = []                  # WAV recording of detection windows
+display = []                 # SVG / terminal visualisations
+audio   = []                 # gate any OS-specific audio I/O that may be added
+
+# Ensure mutually-exclusive defaults:
+# (cargo resolves additive sets – desktop or web must be explicit)
