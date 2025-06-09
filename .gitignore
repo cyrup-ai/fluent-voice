@@ -2,12 +2,12 @@
 # Compiled Files
 # ==============================
 *.lock
-*.[oa]  
+*.[oa]
 *.d
-*.rlib  
-*.rmeta  
-**/*.rmeta  
-.history/  
+*.rlib
+*.rmeta
+**/*.rmeta
+.history/
 *.so
 *.dylib
 *.dll
@@ -50,7 +50,6 @@ develop-eggs/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
