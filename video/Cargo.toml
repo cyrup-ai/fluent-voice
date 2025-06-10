@@ -23,7 +23,7 @@ test-support = []
 tracing = "0.1.41"
 anyhow = "1.0.98"
 async-stream = "0.3.6"
-clap = "4.5.39"
+clap = "4.5.40"
 collections = { git = "https://github.com/zed-industries/zed", branch = "main" }
 futures = "0.3.31"
 image = "0.25.6"

@@ -10,7 +10,7 @@ categories = ["multimedia::audio"]
 [dependencies]
 futures = "0.3"
 ndarray = "0.16"
-ort = { version = "2.0.0-rc.10", features = ["ndarray"] }
+ort = { version = "1", features = ["ndarray"] }
 pin-project = "1.1"
 thiserror = "2.0"
 typed-builder = "0.21"

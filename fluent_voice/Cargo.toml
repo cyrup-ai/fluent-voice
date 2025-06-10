@@ -12,8 +12,21 @@ wasm-runtime  = []
 std_async     = []
 
 [dependencies]
-thiserror     = "2"
+thiserror     = { version = "2", features = ["std"] }
 futures-core  = "0.3"
+clap = { workspace = true, features = ["color"] }
+env_logger = { workspace = true, features = ["auto-color"] }
+parking_lot = { workspace = true, features = ["nightly"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["std"] }
+tokio = { version = "1", features = ["full"] }
+futures = { version = "0.3", features = ["async-await"] }
+image = { workspace = true, features = ["default-formats"] }
+livekit = { workspace = true, features = ["tokio"] }
+livekit-api = { workspace = true, features = ["native-tls"] }
+wgpu = { workspace = true, features = ["vulkan"] }
+derive_more = { workspace = true, features = ["full"] }
+rustfft = { workspace = true, features = ["avx"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
