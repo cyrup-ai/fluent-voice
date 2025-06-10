@@ -11,6 +11,7 @@ use rio_window::{
     monitor::MonitorHandle,
     window::{Window, WindowAttributes, WindowId},
 };
+use rustls_platform_verifier::ConfigVerifierExt;
 use speakrs_video::{VideoSource, VideoSourceOptions, VideoTrack, VideoTrackView};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -175,8 +176,9 @@ impl VideoChat {
         let token = args.token.as_ref().unwrap();
 
         // Connect to LiveKit room
-        let connector =
-            tokio_tungstenite::Connector::Rustls(Arc::new(http_client_tls::tls_config()));
+        let connector = tokio_tungstenite::Connector::Rustls(Arc::new(
+            rustls::ClientConfig::with_platform_verifier(),
+        ));
         let mut config = livekit::RoomOptions::default();
         config.connector = Some(connector);
         let (room, mut events) = livekit::Room::connect(url, token, config).await?;

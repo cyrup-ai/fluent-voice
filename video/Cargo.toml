@@ -37,7 +37,6 @@ tokio.workspace = true
 tracing-subscriber.workspace = true
 wgpu.workspace = true
 raw-window-handle.workspace = true
-http_client_tls = { workspace = true }
 thiserror.workspace = true
 url.workspace = true
 

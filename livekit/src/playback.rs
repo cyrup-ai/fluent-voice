@@ -408,29 +408,34 @@ pub fn play_remote_video_track(
 ) -> impl Stream<Item = RemoteVideoFrame> + 'static {
     let mut pool = None;
     let mut most_recent_frame_size = (0, 0);
-    NativeVideoStream::new(track.0.rtc_track()).filter_map(move |frame| {
-        if pool.is_none() || most_recent_frame_size != (frame.buffer.width(), frame.buffer.height())
-        {
-            most_recent_frame_size = (frame.buffer.width(), frame.buffer.height());
-            pool = create_buffer_pool(frame.buffer.width(), frame.buffer.height())
-                .log_err()
-                .ok();
-        }
-        let pool_clone = pool.clone();
-        async move {
-            if frame.buffer.width() < 10 && frame.buffer.height() < 10 {
-                // when the remote stops sharing, we get an 8x8 black image.
-                // In a lil bit, the unpublish will come through and close the view,
-                // but until then, don't flash black.
-                return None;
+    NativeVideoStream::new(track.0.rtc_track())
+        .filter_map(move |frame| {
+            if pool.is_none()
+                || most_recent_frame_size != (frame.buffer.width(), frame.buffer.height())
+            {
+                most_recent_frame_size = (frame.buffer.width(), frame.buffer.height());
+                pool = create_buffer_pool(frame.buffer.width(), frame.buffer.height())
+                    .log_err()
+                    .ok();
             }
+            let pool_clone = pool.clone();
+            async move {
+                if frame.buffer.width() < 10 && frame.buffer.height() < 10 {
+                    // when the remote stops sharing, we get an 8x8 black image.
+                    // In a lil bit, the unpublish will come through and close the view,
+                    // but until then, don't flash black.
+                    return None;
+                }
 
-            match pool_clone {
-                Some(p) => video_frame_buffer_from_webrtc(p, frame.buffer),
-                None => None,
+                match pool_clone {
+                    Some(p) => video_frame_buffer_from_webrtc(p, frame.buffer),
+                    None => None,
+                }
             }
-        }
-    })
+        })
+        // Fix: .filter_map expects a closure returning Option<T>, but we return Future<Output=Option<T>>
+        // So we must use .then and .filter_map
+        .then(|fut| fut)
 }
 
 // On non-macOS platforms, we can guarantee Stream implements Send

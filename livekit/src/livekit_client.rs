@@ -4,6 +4,7 @@ use anyhow::Result;
 use collections::HashMap;
 use futures::{SinkExt, channel::mpsc};
 use playback::capture_local_video_track;
+use rustls_platform_verifier::ConfigVerifierExt;
 use tokio::task::JoinHandle;
 
 use crate::playback;
@@ -45,8 +46,9 @@ impl Room {
         url: String,
         token: String,
     ) -> Result<(Self, mpsc::UnboundedReceiver<RoomEvent>)> {
-        let connector =
-            tokio_tungstenite::Connector::Rustls(Arc::new(http_client_tls::tls_config()));
+        let connector = tokio_tungstenite::Connector::Rustls(Arc::new(
+            rustls::ClientConfig::with_platform_verifier(),
+        ));
         let mut config = livekit::RoomOptions::default();
         config.connector = Some(connector);
         let (room, mut events) = livekit::Room::connect(&url, &token, config).await?;
