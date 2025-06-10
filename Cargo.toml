@@ -11,7 +11,6 @@ members = [
     "candle/moshi",
     "kokoros/koko",
     "kokoros/kokoros",
-    "macros",
     "openai",
     "vad",
     "video"
@@ -40,7 +39,8 @@ wgpu = "25.0.2"
 derive_more = "2.0.1"
 thiserror = "2.0.12"
 rustfft = "6.3.0"
-clap = "4.5.39"
+clap = "4.5.40"
 cpal = "0.16.0"
-ratatui = "0.29.0"
+ratatui = "0.30.0-alpha.4"
 crossterm = "0.29.0"
+ort = "2.0.0-rc.10"

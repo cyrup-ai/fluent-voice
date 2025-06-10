@@ -1,9 +1,8 @@
 [package]
 name = "fluent_voice_openai"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
 
 [dependencies]
-axum = "0.8"
-serde = { version = "1.0", features = ["derive"] }
-tower-http = { version = "0.6", features = ["cors"] }
+axum.workspace = true
+serde.workspace = true
+tower-http.workspace = true

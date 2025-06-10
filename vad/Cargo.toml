@@ -8,18 +8,18 @@ keywords = ["speech", "stt","recognition", "voice", "activity", "detection"]
 categories = ["multimedia::audio"]
 
 [dependencies]
-futures = "0.3"
-ndarray = "0.16"
-ort = { version = "2.0.0-rc.10", features = ["ndarray"] }
-pin-project = "1.1"
-thiserror = "2.0"
-typed-builder = "0.21"
+futures = { workspace = true }
+ndarray = { workspace = true }
+ort = { workspace = true, features = ["ndarray"] }
+pin-project = { workspace = true }
+thiserror = { workspace = true }
+typed-builder = { workspace = true }
 
 [dev-dependencies]
-hound = "3.5"
-itertools = "0.14"
-tokio = { version = "1.45", features = ["full"] }
-tokio-stream = "0.1"
+hound = { workspace = true }
+itertools = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-stream = { workspace = true }
 
 [features]
 async = []
