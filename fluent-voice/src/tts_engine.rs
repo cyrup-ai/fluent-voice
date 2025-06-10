@@ -12,10 +12,22 @@ use crate::tts_conversation::TtsConversationBuilder;
 /// Engine implementations typically look like this:
 ///
 /// ```ignore
-/// use fluent_voice::tts_engine::TtsEngine;
+/// use fluent_voice::{tts_engine::TtsEngine, fluent_voice::FluentVoice};
 ///
 /// pub struct MyTtsEngine;
 ///
+/// // Implement FluentVoice for the main entry points
+/// impl FluentVoice for MyTtsEngine {
+///     fn tts() -> impl TtsConversationBuilder {
+///         MyConversationBuilder::new()
+///     }
+///
+///     fn stt() -> impl SttConversationBuilder {
+///         MySttConversationBuilder::new()
+///     }
+/// }
+///
+/// // Also implement TtsEngine for registration
 /// impl TtsEngine for MyTtsEngine {
 ///     type Conv = MyConversationBuilder;
 ///

@@ -11,7 +11,7 @@
 //! ### TTS (Text-to-Speech)
 //!
 //! ```ignore
-//! let audio = FluentVoice::conversation()
+//! let audio = FluentVoice::tts()
 //!     .with_speaker(
 //!         Speaker::named("Bob")
 //!             .with_speed_modifier(VocalSpeedMod(0.9))
@@ -28,15 +28,21 @@
 //! ### STT (Speech-to-Text)
 //!
 //! ```ignore
-//! let mut segments = Stt::conversation()
-//!     .with_source(SpeechSource::Microphone {
-//!         backend: MicBackend::Default,
-//!         format: AudioFormat::Pcm16Khz,
-//!         sample_rate: 16_000,
-//!     })
+//! // Live microphone transcription
+//! let mut segments = MyEngine::stt()
+//!     .with_microphone("default")
 //!     .vad_mode(VadMode::Accurate)
 //!     .listen(|conversation| {
 //!         Ok => conversation.into_stream(),
+//!         Err(e) => Err(e),
+//!     })
+//!     .await?;
+//!
+//! // File transcription
+//! let transcript = MyEngine::stt()
+//!     .transcribe("audio.wav")
+//!     .emit(|transcript| {
+//!         Ok => transcript.into_stream(),
 //!         Err(e) => Err(e),
 //!     })
 //!     .await?;
@@ -71,6 +77,9 @@ pub mod vad_mode;
 /* ───── internal matcher macro ───── */
 mod macros;
 
+/* ───── unified entry point ───── */
+pub mod fluent_voice;
+
 /* ───── prelude for users ───── */
 pub mod prelude {
     //! Re-exports of commonly used types and traits.
@@ -102,4 +111,7 @@ pub mod prelude {
         transcript::{TranscriptSegment, TranscriptStream},
         vad_mode::VadMode,
     };
+
+    /* Unified entry point */
+    pub use crate::fluent_voice::FluentVoice;
 }

@@ -92,7 +92,7 @@ pub trait TtsConversationBuilder: Sized + Send {
 /// ```ignore
 /// use fluent_voice::prelude::*;
 ///
-/// let conversation = FluentVoice::builder();
+/// let conversation = MyEngine::tts();
 /// ```
 pub trait TtsConversationExt {
     /// Begin a new TTS conversation builder.

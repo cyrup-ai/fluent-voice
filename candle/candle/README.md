@@ -2,5 +2,5 @@
 
 ## Candle
 
-- [Candle Book](./candle/book/srd/README.md)
-- [Candle Examples](./candle/examples/README.md)
+- [Candle Book](./book/src/README.md)
+- [Candle Examples](./examples/README.md)

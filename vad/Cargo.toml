@@ -19,7 +19,7 @@ typed-builder.workspace = true
 [dev-dependencies]
 hound.workspace = true
 itertools.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["rt", "sync", "macros"] }
 tokio-stream.workspace = true
 
 [features]

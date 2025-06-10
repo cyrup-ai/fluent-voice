@@ -7,5 +7,5 @@ repository.workspace = true
 
 [dependencies]
 axum.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 tower-http.workspace = true

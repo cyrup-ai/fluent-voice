@@ -1,4 +1,3 @@
-cyterm/src/whisper/types.rs
 //! Common data structures shared by the `whisper` sub-module.
 //
 //  ┌──────────────────────────────────────────────────────────────┐
@@ -8,6 +7,8 @@ cyterm/src/whisper/types.rs
 //  │  Nothing is executed until the first poll, and callers can   │
 //  │  map to pure `String` via `.as_text()` or any other helper.  │
 //  └──────────────────────────────────────────────────────────────┘
+
+use fluent_voice::transcript::TranscriptSegment;
 
 /// One chunk of transcribed speech produced by the Whisper decoder.
 ///
@@ -79,11 +80,35 @@ impl TtsChunk {
     }
 }
 
+impl TranscriptSegment for TtsChunk {
+    /// Start time of this segment in milliseconds from audio start.
+    fn start_ms(&self) -> u32 {
+        (self.start * 1000.0) as u32
+    }
+
+    /// End time of this segment in milliseconds from audio start.
+    fn end_ms(&self) -> u32 {
+        (self.end * 1000.0) as u32
+    }
+
+    /// The recognized text content of this segment.
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Optional speaker identifier for multi-speaker scenarios.
+    ///
+    /// Returns `None` as Whisper doesn't currently support speaker diarization.
+    fn speaker_id(&self) -> Option<&str> {
+        None
+    }
+}
+
 /* ----------------------------------------------------------------
-   Optional internal conversion from the decoder's private `Segment`
-   type.  Enabled with the crate feature `internal` so this public
-   module remains decoupled from private implementation details.
-   ---------------------------------------------------------------- */
+Optional internal conversion from the decoder's private `Segment`
+type.  Enabled with the crate feature `internal` so this public
+module remains decoupled from private implementation details.
+---------------------------------------------------------------- */
 
 #[cfg(feature = "internal")]
 impl From<crate::whisper::Segment> for TtsChunk {

@@ -12,15 +12,27 @@ use crate::stt_conversation::SttConversationBuilder;
 /// Engine implementations typically look like this:
 ///
 /// ```ignore
-/// use fluent_voice::stt_engine::SttEngine;
+/// use fluent_voice::{stt_engine::SttEngine, fluent_voice::FluentVoice};
 ///
 /// pub struct MySttEngine;
 ///
+/// // Implement FluentVoice for the main entry points
+/// impl FluentVoice for MySttEngine {
+///     fn tts() -> impl TtsConversationBuilder {
+///         MyTtsConversationBuilder::new()
+///     }
+///
+///     fn stt() -> impl SttConversationBuilder {
+///         MySttConversationBuilder::new()
+///     }
+/// }
+///
+/// // Also implement SttEngine for registration
 /// impl SttEngine for MySttEngine {
-///     type Conv = MyConversationBuilder;
+///     type Conv = MySttConversationBuilder;
 ///
 ///     fn conversation(&self) -> Self::Conv {
-///         MyConversationBuilder::new()
+///         MySttConversationBuilder::new()
 ///     }
 /// }
 /// ```

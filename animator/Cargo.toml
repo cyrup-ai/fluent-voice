@@ -17,7 +17,7 @@ image = { workspace = true }
 livekit = { workspace = true, features = ["native-tls"] }
 livekit-api = { workspace = true, features = ["default", "native-tls"] }
 wgpu = { workspace = true }
-derive_more = { workspace = true }
+derive_more = { workspace = true, features = ["full"] }
 thiserror = { workspace = true }
 rustfft = { workspace = true }
 clap = { workspace = true }

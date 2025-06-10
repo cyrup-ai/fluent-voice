@@ -57,14 +57,28 @@ tokio = { version = "1.45.1", default-features = false }
 futures = "0.3.31"
 futures-core = "0.3.31"
 image = "0.25.6"
-livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", default-features = false }
-livekit-api = { version = "0.4.3", default-features = false }
-libwebrtc = { git = "https://github.com/zed-industries/livekit-rust-sdks", default-features = false }
+livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks" }
+livekit-api = "0.4.3"
+libwebrtc = { git = "https://github.com/zed-industries/livekit-rust-sdks" }
 wgpu = "25.0.2"
 derive_more = "2.0.1"
 thiserror = "2.0.12"
-rustfft = { version  = "6.3.0", default-features = false }
-clap = { version = "4.5.40", default-features = false }
+rustfft = { version = "6.3.0", default-features = false }
+clap = "4.5.40"
+fluent_voice_macros = { path = "macros" }
+fluent_voice_animator = { path = "animator" }
+koffee = { path = "candle/koffee" }
+fluent_voice_whisper = { path = "candle/whisper" }
+fluent_voice_elevenlabs = { path = "elevenlabs" }
+fluent_voice = { path = "fluent-voice" }
+fluent_voice_livekit = { path = "livekit" }
+fluent_voice_moshi = { path = "candle/moshi" }
+fluent_voice_koko = { path = "kokoros/koko" }
+fluent_voice_kokoros = { path = "kokoros/kokoros" }
+fluent_voice_openai = { path = "openai" }
+fluent_voice_vad = { path = "vad" }
+fluent_video = { path = "video" }
+cyterm = { path = "cyterm" }
 cpal = "0.16.0"
 ratatui = "0.30.0-alpha.4"
 crossterm = "0.29.0"
@@ -85,7 +99,7 @@ coreaudio-rs = "0.13.0"
 objc2 = "0.6.1"
 sha2 = "0.10.9"
 simplelog = "0.12.2"
-rustls-platform-verifier = "0.2"
+rustls-platform-verifier = "0.6"
 tokio-tungstenite = "0.26.2"
 axum = "0.8.4"
 tower-http = "0.6.6"

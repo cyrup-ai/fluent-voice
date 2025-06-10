@@ -7,7 +7,7 @@ repository.workspace = true
 
 [dependencies]
 clap = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync", "macros"] }
 
 [[bin]]
 name = "koko"

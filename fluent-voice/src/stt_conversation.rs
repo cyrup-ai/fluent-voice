@@ -9,6 +9,7 @@ use crate::{
     voice_error::VoiceError,
 };
 use core::future::Future;
+use futures_core::Stream;
 
 /// Engine-specific STT session object.
 ///
@@ -82,6 +83,17 @@ pub trait SttConversationBuilder: Sized + Send {
     /// based on speech patterns and pauses.
     fn punctuation(self, p: Punctuation) -> Self;
 
+    /* polymorphic branching */
+
+    /// Configure for microphone input.
+    fn with_microphone(self, device: impl Into<String>) -> Self;
+
+    /// Configure for file transcription.
+    fn transcribe(self, path: impl Into<String>) -> Self;
+
+    /// Attach a progress message template.
+    fn with_progress<S: Into<String>>(self, template: S) -> Self;
+
     /* terminal */
 
     /// Execute recognition with a matcher closure.
@@ -101,9 +113,10 @@ pub trait SttConversationBuilder: Sized + Send {
     /// # Examples
     ///
     /// ```ignore
-    /// let stream = conversation
-    ///     .listen(|session| {
-    ///         Ok => session.into_stream(),
+    /// let stream = FluentVoice::stt()
+    ///     .with_microphone("default")
+    ///     .listen(|conversation| {
+    ///         Ok => conversation.into_stream(),
     ///         Err(e) => Err(e),
     ///     })
     ///     .await?;
@@ -112,8 +125,51 @@ pub trait SttConversationBuilder: Sized + Send {
     where
         F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static;
 
+    /// Emit a transcript with a matcher closure.
+    ///
+    /// This method terminates the fluent chain and produces a transcript.
+    /// The matcher closure receives either the transcript object on success
+    /// or a `VoiceError` on failure, and returns the final result.
+    ///
+    /// # Arguments
+    ///
+    /// * `matcher` - Closure that handles success/error cases
+    ///
+    /// # Returns
+    ///
+    /// A future that resolves to the result of the matcher closure.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let stream = FluentVoice::stt()
+    ///     .transcribe("audio.wav")
+    ///     .emit(|transcript| {
+    ///         Ok => transcript.into_stream(),
+    ///         Err(e) => Err(e),
+    ///     })
+    ///     .await?;
+    /// ```
+    fn emit<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Transcript, VoiceError>) -> R + Send + 'static;
+
+    /// Drain the stream and gather into a complete transcript.
+    fn collect(self) -> impl Future<Output = Result<Self::Transcript, VoiceError>> + Send;
+
+    /// Variant that accepts a user-supplied closure to post-process the result.
+    fn collect_with<F, R>(self, handler: F) -> impl Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Transcript, VoiceError>) -> R + Send + 'static;
+
+    /// Convenience: obtain a stream of plain text segments.
+    fn as_text(self) -> impl Stream<Item = String> + Send;
+
     /// The concrete conversation type produced by this builder.
     type Conversation: SttConversation;
+
+    /// The transcript collection type for convenience methods.
+    type Transcript: Send;
 }
 
 /// Static entry point for STT conversations.
@@ -127,7 +183,7 @@ pub trait SttConversationBuilder: Sized + Send {
 /// ```ignore
 /// use fluent_voice::prelude::*;
 ///
-/// let conversation = Stt::builder();
+/// let conversation = MyEngine::stt();
 /// ```
 pub trait SttConversationExt {
     /// Begin a new STT conversation builder.

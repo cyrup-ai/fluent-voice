@@ -50,6 +50,13 @@ js-sys         = { workspace = true,  optional = true }
 web-sys        = { workspace = true,  features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
 console_error_panic_hook = { workspace = true, optional = true }
 
+# — fluent-voice integration —
+fluent_voice   = { path = "../../fluent-voice", default-features = false, optional = true }
+tokio          = { workspace = true, features = ["rt", "sync"], optional = true }
+futures-core   = { workspace = true, optional = true }
+futures-util   = { workspace = true, optional = true }
+async-stream   = { workspace = true, optional = true }
+
 # ------------------------------------------------
 #  Feature flags
 # ------------------------------------------------

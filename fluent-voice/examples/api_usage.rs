@@ -12,22 +12,20 @@ async fn main() -> anyhow::Result<()> {
     init_eleven();
 
     // Complete fluent chain with multiple speakers
-    let _audio = FluentVoice::conversation()
+    let _audio = FluentVoice::tts()
         .with_speaker(
             Speaker::named("Bob")
                 .with_speed_modifier(VocalSpeedMod::Slow)
-                .with_pitch_range(PitchRange { low: 60.0, high: 150.0 })
+                .with_pitch_range(PitchRange {
+                    low: 60.0,
+                    high: 150.0,
+                })
                 .speak("Builder-for-builders is neat!"),
         )
-        .with_speaker(
-            Speaker::named("Julie")
-                .speak("Right? Now engines take minutes, not hours."),
-        )
-        .play(|result| {
-            match result {
-                Ok(audio) => Ok(audio),
-                Err(err) => Err(anyhow::anyhow!(err)),
-            }
+        .with_speaker(Speaker::named("Julie").speak("Right? Now engines take minutes, not hours."))
+        .synthesize(|conversation| match conversation {
+            Ok(conv) => Ok(conv.into_stream()),
+            Err(err) => Err(anyhow::anyhow!(err)),
         })
         .await?;
 
@@ -36,13 +34,58 @@ async fn main() -> anyhow::Result<()> {
 
 // These would be provided by implementation crates:
 mod elevenlabs_fluent_voice {
-    pub fn init() {}
-}
+    use fluent_voice::prelude::*;
 
-struct FluentVoice;
+    pub fn init() {
+        // Engine initialization would register itself with FluentVoice
+        // FluentVoice::register_tts_engine(ElevenLabsEngine::new());
+    }
 
-impl FluentVoice {
-    pub fn conversation() -> impl fluent_voice::prelude::ConversationBuilder {
-        unimplemented!("This would be provided by the implementation")
+    // Example of how an engine would implement the traits
+    pub struct ElevenLabsEngine;
+
+    impl TtsEngine for ElevenLabsEngine {
+        type Conv = ElevenLabsConversationBuilder;
+
+        fn conversation(&self) -> Self::Conv {
+            ElevenLabsConversationBuilder::new()
+        }
+    }
+
+    pub struct ElevenLabsConversationBuilder;
+
+    impl ElevenLabsConversationBuilder {
+        fn new() -> Self {
+            Self
+        }
+    }
+
+    impl TtsConversationBuilder for ElevenLabsConversationBuilder {
+        type Conversation = ElevenLabsConversation;
+
+        fn with_speaker<S: Speaker>(self, _speaker: S) -> Self {
+            self
+        }
+        fn language(self, _lang: Language) -> Self {
+            self
+        }
+        fn synthesize<F, R>(self, _matcher: F) -> impl std::future::Future<Output = R> + Send
+        where
+            F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        {
+            async move { unimplemented!() }
+        }
+    }
+
+    pub struct ElevenLabsConversation;
+
+    impl TtsConversation for ElevenLabsConversation {
+        type AudioStream = futures::stream::Empty<i16>;
+        fn into_stream(self) -> Self::AudioStream {
+            futures::stream::empty()
+        }
     }
 }
+
+// FluentVoice would be provided by the fluent_voice crate
+// and delegate to registered engines
