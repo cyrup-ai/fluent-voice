@@ -8,12 +8,12 @@
 
 [package]
 name         = "fluent_voice_whisper"
-version      = "0.0.1"
-edition      = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
 description  = "Cross-platform wake-word detector: Candle ⚡ KFC front-end"
-license      = "Apache-2.0 OR MIT"
-repository   = "https://github.com/cyrup-ai/cyrup-wake"
-authors      = ["David Maple <david@cyrup.ai>"]
 
 # ------------------------------------------------
 #  Dependencies

@@ -1,15 +1,17 @@
 [package]
-name = "fluent_voice_video"
-version = "0.1.0"
-edition = "2024"
-description = "Video processing capabilities for the Speakrs platform"
+name = "fluent_video"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Video streaming"
 
 [lints]
 rust.unsafe_code = "warn"
 
 [lib]
 path = "src/lib.rs"
-doctest = false
+name = "fluent_video"
 
 [[bin]]
 name = "video-chat"
@@ -20,41 +22,42 @@ default = []
 test-support = []
 
 [dependencies]
-tracing = "0.1.41"
-anyhow = "1.0.98"
-async-stream = "0.3.6"
-clap = "4.5.40"
-collections = { git = "https://github.com/zed-industries/zed", branch = "main" }
-futures = "0.3.31"
-image = "0.25.6"
-log = "0.4.27"
-nanoid = "0.4.0"
-parking_lot = "0.12.4"
-postage = "0.5.0"
-smallvec = "2.0.0-alpha.11"
-tokio = "1.45.1"
-tracing-subscriber = "0.3.19"
-wgpu = "25.0.2"
-raw-window-handle = "0.6.2"
-http_client_tls = { git = "https://github.com/zed-industries/zed", branch = "main" }
+tracing.workspace = true
+anyhow.workspace = true
+async-stream.workspace = true
+clap.workspace = true
+futures.workspace = true
+image.workspace = true
+log.workspace = true
+nanoid.workspace = true
+parking_lot.workspace = true
+postage.workspace = true
+smallvec.workspace = true
+tokio.workspace = true
+tracing-subscriber.workspace = true
+wgpu.workspace = true
+raw-window-handle.workspace = true
+http_client_tls = { workspace = true }
+thiserror.workspace = true
+url.workspace = true
 
 [target.'cfg(not(all(target_os = "windows", target_env = "gnu")))'.dependencies]
-libwebrtc = { git = "https://github.com/zed-industries/livekit-rust-sdks" }
-livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", features = ["__rustls-tls"] }
+libwebrtc = { workspace = true }
+livekit = { workspace = true, features = ["__rustls-tls"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
-scap = "0.0.8"
+scap.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
-core-foundation = "0.10.1"
-core-video = "0.4.3"
-coreaudio-rs = "0.13.0"
-objc = "0.2.7"
+core-foundation.workspace = true
+core-video.workspace = true
+coreaudio-rs.workspace = true
+objc2.workspace = true
 
 [dev-dependencies]
-sha2 = "0.11.0-rc.0"
-simplelog = "0.12.2"
+sha2.workspace = true
+simplelog.workspace = true
 
 [build-dependencies]
-serde = "1.0.219"
-serde_json = "1.0.140"
+serde.workspace = true
+serde_json.workspace = true

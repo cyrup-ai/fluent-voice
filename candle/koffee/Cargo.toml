@@ -8,11 +8,11 @@
 
 [package]
 name         = "koffee"
-version      = "0.0.1"
-edition      = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 description  = "Cross-platform wake-word detector: Candle ⚡ KFC front-end"
-license      = "Apache-2.0 OR MIT"
-repository   = "https://github.com/cyrup-ai/cyrup-wake"
 authors      = ["David Maple <david@cyrup.ai>"]
 
 # ------------------------------------------------
@@ -20,35 +20,35 @@ authors      = ["David Maple <david@cyrup.ai>"]
 # ------------------------------------------------
 [dependencies]
 # — DSP / NN —
-candle-core    = "0.9.1"
-candle-nn      = "0.9.1"
+candle-core    = { workspace = true }
+candle-nn      = { workspace = true }
 
 # — audio / resampling —
-rubato         = { version = "0.16.2", default-features = false, features = ["fft_resampler"] }
-rustfft        = { version = "6.3.0",  default-features = false }
-hound          = "3.5.1"
+rubato         = { workspace = true, default-features = false, features = ["fft_resampler"] }
+rustfft        = { workspace = true,  default-features = false }
+hound          = { workspace = true }
 
 # — containers / utils —
-arrayvec       = "0.7"
-smallvec       = "2.0.0-alpha.11"
-indexmap       = "2.9"
-thiserror      = "2.0"
-log            = "0.4"
+arrayvec       = { workspace = true }
+smallvec       = { workspace = true }
+indexmap       = { workspace = true }
+thiserror      = { workspace = true }
+log            = { workspace = true }
 
 # — serde / misc —
-serde          = { version = "1.0", features = ["derive"], default-features = false }
-serde_json     = "1.0"
-ciborium       = "0.2.2"
-strum          = { version = "0.27", features = ["derive"] }
+serde          = { workspace = true, features = ["derive"], default-features = false }
+serde_json     = { workspace = true }
+ciborium       = { workspace = true }
+strum          = { workspace = true, features = ["derive"] }
 
 # — optional parallelism (desktop only) —
-rayon          = { version = "1.10", optional = true }
+rayon          = { workspace = true, optional = true }
 
 # — browser bindings (wasm32 build only) —
-wasm-bindgen   = { version = "0.2",  optional = true }
-js-sys         = { version = "0.3",  optional = true }
-web-sys        = { version = "0.3",  features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
-console_error_panic_hook = { version = "0.1", optional = true }
+wasm-bindgen   = { workspace = true,  optional = true }
+js-sys         = { workspace = true,  optional = true }
+web-sys        = { workspace = true,  features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
+console_error_panic_hook = { workspace = true, optional = true }
 
 # ------------------------------------------------
 #  Feature flags

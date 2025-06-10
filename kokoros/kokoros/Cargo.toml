@@ -1,23 +1,25 @@
 [package]
 name = "fluent_voice_kokoros"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
-espeak-rs = "0.1.9"
-hound = "3.5.1"
-indicatif = "0.17.11"
-lazy_static = "1.5.0"
-mp3lame-encoder = "0.2.1"
-ndarray = "0.16.1"
-ndarray-npy = "0.9.1"
+espeak-rs.workspace = true
+hound.workspace = true
+indicatif.workspace = true
+lazy_static.workspace = true
+mp3lame-encoder.workspace = true
+ndarray.workspace = true
+ndarray-npy.workspace = true
 
 # Base ONNX Runtime configuration
-ort = "1.16.3"
-regex = "1.11.1"
-reqwest = "0.12.19"
-serde_json = "1.0.140"
-tokio = "1.45.1"
+ort.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
 
 [features]
 default = ["cpu"]
