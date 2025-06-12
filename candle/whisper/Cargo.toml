@@ -52,6 +52,7 @@ console_error_panic_hook = { workspace = true, optional = true }
 
 # — fluent-voice integration —
 fluent_voice   = { path = "../../fluent-voice", default-features = false, optional = true }
+fluent_voice_macros = { workspace = true }
 tokio          = { workspace = true, features = ["rt", "sync"], optional = true }
 futures-core   = { workspace = true, optional = true }
 futures-util   = { workspace = true, optional = true }

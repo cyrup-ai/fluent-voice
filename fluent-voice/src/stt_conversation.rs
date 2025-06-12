@@ -86,13 +86,10 @@ pub trait SttConversationBuilder: Sized + Send {
     /* polymorphic branching */
 
     /// Configure for microphone input.
-    fn with_microphone(self, device: impl Into<String>) -> Self;
+    fn with_microphone(self, device: impl Into<String>) -> impl MicrophoneBuilder;
 
     /// Configure for file transcription.
-    fn transcribe(self, path: impl Into<String>) -> Self;
-
-    /// Attach a progress message template.
-    fn with_progress<S: Into<String>>(self, template: S) -> Self;
+    fn transcribe(self, path: impl Into<String>) -> impl TranscriptionBuilder;
 
     /* terminal */
 
@@ -125,24 +122,103 @@ pub trait SttConversationBuilder: Sized + Send {
     where
         F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static;
 
+    /// The concrete conversation type produced by this builder.
+    type Conversation: SttConversation;
+}
+
+/// Specialized builder for microphone-based speech recognition.
+///
+/// This builder is returned by `with_microphone()` and provides live audio
+/// capture functionality with the `listen()` terminal method.
+pub trait MicrophoneBuilder: Sized + Send {
+    /// The concrete conversation type produced by this builder.
+    type Conversation: SttConversation;
+
+    /// Configure voice activity detection mode.
+    fn vad_mode(self, mode: VadMode) -> Self;
+
+    /// Set noise reduction level.
+    fn noise_reduction(self, level: NoiseReduction) -> Self;
+
+    /// Provide a language hint for improved accuracy.
+    fn language_hint(self, lang: Language) -> Self;
+
+    /// Enable or disable speaker diarization.
+    fn diarization(self, d: Diarization) -> Self;
+
+    /// Control word-level timestamp inclusion.
+    fn word_timestamps(self, w: WordTimestamps) -> Self;
+
+    /// Set timestamp granularity level.
+    fn timestamps_granularity(self, g: TimestampsGranularity) -> Self;
+
+    /// Enable or disable automatic punctuation insertion.
+    fn punctuation(self, p: Punctuation) -> Self;
+
+    /// Execute live recognition with a matcher closure.
+    ///
+    /// This method starts real-time speech recognition from the microphone.
+    /// The matcher closure receives either the conversation object on success
+    /// or a `VoiceError` on failure, and returns the final result.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let stream = engine.stt()
+    ///     .with_microphone("default")
+    ///     .listen(|conversation| {
+    ///         Ok => conversation.into_stream(),
+    ///         Err(e) => Err(e),
+    ///     })
+    ///     .await?;
+    /// ```
+    fn listen<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static;
+}
+
+/// Specialized builder for file-based transcription.
+///
+/// This builder is returned by `transcribe()` and provides batch processing
+/// functionality with terminal methods like `emit()`, `collect()`, and `as_text()`.
+pub trait TranscriptionBuilder: Sized + Send {
+    /// The transcript collection type for convenience methods.
+    type Transcript: Send;
+
+    /// Configure voice activity detection mode.
+    fn vad_mode(self, mode: VadMode) -> Self;
+
+    /// Set noise reduction level.
+    fn noise_reduction(self, level: NoiseReduction) -> Self;
+
+    /// Provide a language hint for improved accuracy.
+    fn language_hint(self, lang: Language) -> Self;
+
+    /// Enable or disable speaker diarization.
+    fn diarization(self, d: Diarization) -> Self;
+
+    /// Control word-level timestamp inclusion.
+    fn word_timestamps(self, w: WordTimestamps) -> Self;
+
+    /// Set timestamp granularity level.
+    fn timestamps_granularity(self, g: TimestampsGranularity) -> Self;
+
+    /// Enable or disable automatic punctuation insertion.
+    fn punctuation(self, p: Punctuation) -> Self;
+
+    /// Attach a progress message template.
+    fn with_progress<S: Into<String>>(self, template: S) -> Self;
+
     /// Emit a transcript with a matcher closure.
     ///
     /// This method terminates the fluent chain and produces a transcript.
     /// The matcher closure receives either the transcript object on success
     /// or a `VoiceError` on failure, and returns the final result.
     ///
-    /// # Arguments
-    ///
-    /// * `matcher` - Closure that handles success/error cases
-    ///
-    /// # Returns
-    ///
-    /// A future that resolves to the result of the matcher closure.
-    ///
     /// # Examples
     ///
     /// ```ignore
-    /// let stream = FluentVoice::stt()
+    /// let stream = engine.stt()
     ///     .transcribe("audio.wav")
     ///     .emit(|transcript| {
     ///         Ok => transcript.into_stream(),
@@ -164,12 +240,6 @@ pub trait SttConversationBuilder: Sized + Send {
 
     /// Convenience: obtain a stream of plain text segments.
     fn as_text(self) -> impl Stream<Item = String> + Send;
-
-    /// The concrete conversation type produced by this builder.
-    type Conversation: SttConversation;
-
-    /// The transcript collection type for convenience methods.
-    type Transcript: Send;
 }
 
 /// Static entry point for STT conversations.

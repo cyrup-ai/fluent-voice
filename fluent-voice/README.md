@@ -184,7 +184,7 @@ let conversation = engine.conversation()
     .diarization(Diarization::On)                          // Speaker identification
     .timestamps_granularity(TimestampsGranularity::Word)   // Timing precision
     .punctuation(Punctuation::On)                          // Auto-punctuation
-    .listen(/* matcher */)
+    .listen(|conversation|{ Ok => })
     .await?;
 ```
 

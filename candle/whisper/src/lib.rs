@@ -8,6 +8,7 @@ mod transcript;
 mod types;
 mod whisper;
 
+pub use builder::WhisperEngine;
 pub use stream::WhisperStream;
 pub use transcript::Transcript;
 pub use types::TtsChunk;

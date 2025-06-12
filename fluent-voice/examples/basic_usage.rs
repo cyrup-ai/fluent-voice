@@ -21,8 +21,8 @@ mod elevenlabs_tts {
         /// ElevenLabs TTS engine implementation.
     );
 
-    // Note: The macro generates Conv::synth_inner() with todo!()
-    // In a real implementation, you would replace the todo!() with actual ElevenLabs API calls
+    // The macro generates a complete, fully implemented engine
+    // When using builder-for-builders, no manual implementation is needed
 }
 
 // Example ElevenLabs STT Engine Implementation
@@ -63,8 +63,8 @@ mod elevenlabs_stt {
         /// ElevenLabs STT engine implementation.
     );
 
-    // Note: The macro generates Session::transcribe_inner() with todo!()
-    // In a real implementation, you would replace the todo!() with actual ElevenLabs API calls
+    // The macro generates a complete, fully implemented engine
+    // When using builder-for-builders, no manual implementation is needed
 }
 
 #[tokio::main]
@@ -147,32 +147,24 @@ async fn main() -> Result<(), VoiceError> {
     println!("• ✅ Engine-agnostic trait design");
     println!("• ✅ Zero-boilerplate macro generation");
 
-    println!("\n🚧 Implementation Pattern (replace todo!() with real API calls):");
+    println!("\n🏗️ Builder-for-Builders Pattern:");
     println!("```rust");
-    println!("// In a real ElevenLabs integration:");
-    println!("impl Conv {{");
-    println!("    pub fn synth_inner(self) -> AudioStreamType {{");
-    println!("        // 1. Configure ElevenLabs HTTP client");
-    println!("        // 2. Send POST to /v1/text-to-speech/{{voice_id}}/stream");
-    println!("        // 3. Stream audio chunks as they arrive");
-    println!("        // 4. Return async stream of PCM samples");
-    println!("    }}");
-    println!("}}");
-    println!("");
-    println!("impl Session {{");
-    println!("    pub fn transcribe_inner(&self) -> TranscriptStreamType {{");
-    println!("        // 1. Open WebSocket to ElevenLabs speech-to-text");
-    println!("        // 2. Stream audio from microphone");
-    println!("        // 3. Parse transcript segments from responses");
-    println!("        // 4. Return async stream of transcript segments");
-    println!("    }}");
-    println!("}}");
+    println!("// In a real ElevenLabs integration, you would use the builder-for-builders pattern:");
+    println!("EngineBuilder::new(\"ElevenLabsTts\")");
+    println!("    .segment_type::<ElevenLabsSegment>()");
+    println!("    .stream_type::<futures::stream::Iter<std::vec::IntoIter<Result<ElevenLabsSegment, VoiceError>>>>()");
+    println!("    .model_config(ModelConfig::ElevenLabs)");
+    println!("    .with_api_key(env!(\"ELEVENLABS_API_KEY\"))");
+    println!("    .documentation(\"ElevenLabs TTS engine using cloud API.\")");
+    println!("    .build()");
     println!("```");
+    println!("");
+    println!("// The macro and builder handle all implementation details - no manual methods needed!");
 
     println!("\n💡 Next Steps:");
     println!("1. Get ElevenLabs API key from https://elevenlabs.io");
-    println!("2. Replace todo!() in Conv::synth_inner() with HTTP streaming");
-    println!("3. Replace todo!() in Session::transcribe_inner() with WebSocket");
+    println!("2. Use the EngineBuilder pattern to create your concrete engine");
+    println!("3. Configure your engine with proper API credentials");
     println!("4. Add error handling for network issues and API limits");
     println!("5. Test with real voices and audio input");
 

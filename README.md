@@ -52,7 +52,7 @@ use futures_util::StreamExt;
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {
     // Note: Requires an engine implementation (see Engine Integration below)
-    let mut audio_stream = MyEngine::tts()
+    let mut audio_stream = MyTtsEngine::conversation()
         .with_speaker(
             Speaker::speaker("Alice")
                 .voice_id(VoiceId::new("voice-uuid"))
@@ -90,19 +90,29 @@ use futures_util::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {
-    // Live microphone transcription
-    let mut transcript_stream = MyEngine::stt()
-        .with_microphone("default")
+    // Live microphone transcription (polymorphic: returns MicrophoneBuilder)
+    let mut transcript_stream = MySttEngine::conversation()
+        .with_microphone("default")  // -> MicrophoneBuilder
         .vad_mode(VadMode::Accurate)
         .language_hint(Language("en-US"))
         .diarization(Diarization::On)  // Speaker identification
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
-        .listen(|conversation| {
+        .listen(|conversation| {  // Only available on MicrophoneBuilder
             Ok  => conversation.into_stream(),  // Returns transcript stream
             Err(e) => Err(e),
         })
         .await?;  // Single await point
+
+    // File transcription (polymorphic: returns TranscriptionBuilder)
+    let transcript = MySttEngine::conversation()
+        .transcribe("meeting.wav")  // -> TranscriptionBuilder
+        .diarization(Diarization::On)
+        .emit(|transcript| {  // Only available on TranscriptionBuilder
+            Ok => transcript.into_stream(),
+            Err(e) => Err(e),
+        })
+        .await?;
 
     // Process transcript segments
     while let Some(result) = transcript_stream.next().await {
@@ -140,7 +150,7 @@ async fn main() -> Result<(), VoiceError> {
         .emit();  // Direct stream - no await needed
 
     // Or collect all at once
-    let full_transcript = FluentVoice::stt()
+    let full_transcript = MySttEngine::conversation()
         .transcribe("./meeting.wav")
         .collect()
         .await?;
@@ -159,14 +169,14 @@ Fluent Voice is built around a pure-trait architecture:
 │   User Code     │    │  Fluent Voice    │    │ Engine Impls    │
 │                 │    │    (Traits)      │    │   (Concrete)    │
 ├─────────────────┤    ├──────────────────┤    ├─────────────────┤
-│ FluentVoice::   │───▶│ TtsConversation  │◀───│ ElevenLabsImpl  │
-│   tts()         │    │ Builder          │    │ OpenAIImpl      │
+│ MyTtsEngine::   │───▶│ TtsConversation  │◀───│ ElevenLabsImpl  │
+│ conversation()  │    │ Builder          │    │ OpenAIImpl      │
 │ .with_speaker() │    │                  │    │ AzureImpl       │
 │ .synthesize()   │    │ MicrophoneBuilder│    │ GoogleImpl      │
 │ .await?         │    │ TranscriptBuilder│    │ WhisperImpl     │
 │                 │    │ (Polymorphic)    │    │                 │
-│ FluentVoice::   │───▶│ SttBuilder       │    │                 │
-│   stt()         │    │                  │    │                 │
+│ MySttEngine::   │───▶│ SttBuilder       │    │                 │
+│ conversation()  │    │                  │    │                 │
 │ .transcribe()   │    │                  │    │                 │
 │ .emit()         │    │                  │    │                 │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
@@ -185,9 +195,9 @@ Fluent Voice is built around a pure-trait architecture:
 
 ### Entry Point
 
-All operations begin with the unified **`FluentVoice`** entry point:
-- **`FluentVoice::tts()`**: Text-to-Speech operations
-- **`FluentVoice::stt()`**: Speech-to-Text operations with polymorphic builders
+All operations begin with engine-specific entry points:
+- **`MyTtsEngine::conversation()`**: Text-to-Speech operations
+- **`MySttEngine::conversation()`**: Speech-to-Text operations with polymorphic builders
 
 ## 🔧 Configuration Options
 
@@ -254,18 +264,15 @@ pub struct MyEngine {
     api_key: String,
 }
 
-// 2. Implement the FluentVoice trait
-impl FluentVoice for MyEngine {
-    fn tts() -> impl TtsConversationBuilder {
-        MyTtsConversationBuilder::new()
-    }
-    
-    fn stt() -> impl SttConversationBuilder {
+// 2. Implement the engine traits
+impl SttEngine for MyEngine {
+    type Conv = MySttConversationBuilder;
+
+    fn conversation(&self) -> Self::Conv {
         MySttConversationBuilder::new()
     }
 }
 
-// 3. Also implement the engine traits for registration
 impl TtsEngine for MyEngine {
     type Conv = MyTtsConversationBuilder;
 
@@ -274,32 +281,84 @@ impl TtsEngine for MyEngine {
     }
 }
 
-// 4. Implement the conversation builder
-pub struct MyTtsConversationBuilder { /* ... */ }
+// 3. Implement the STT conversation builder with polymorphic branching
+pub struct MySttConversationBuilder { /* ... */ }
+pub struct MyMicrophoneBuilder { /* ... */ }
+pub struct MyTranscriptionBuilder { /* ... */ }
 
-impl TtsConversationBuilder for MyTtsConversationBuilder {
-    type Conversation = MyConversation;
+impl SttConversationBuilder for MySttConversationBuilder {
+    type Conversation = MySttConversation;
 
-    fn with_speaker<S: Speaker>(self, speaker: S) -> Self { /* ... */ }
-    fn language(self, lang: Language) -> Self { /* ... */ }
+    fn with_source(self, src: SpeechSource) -> Self { /* ... */ }
+    fn vad_mode(self, mode: VadMode) -> Self { /* ... */ }
+    // ... other config methods
 
-    fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    // Polymorphic branching
+    fn with_microphone(self, device: impl Into<String>) -> impl MicrophoneBuilder {
+        MyMicrophoneBuilder::new(device.into())
+    }
+
+    fn transcribe(self, path: impl Into<String>) -> impl TranscriptionBuilder {
+        MyTranscriptionBuilder::new(path.into())
+    }
+
+    fn listen<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
     where F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static
     {
         async move {
-            // Perform synthesis and call matcher with result
-            let result = self.do_synthesis().await;
+            let result = self.do_recognition().await;
             matcher(result)
         }
     }
 }
 
-// 5. Implement the conversation object
-impl TtsConversation for MyConversation {
-    type AudioStream = impl Stream<Item = i16> + Send + Unpin;
+// 4. Implement specialized builders
+impl MicrophoneBuilder for MyMicrophoneBuilder {
+    type Conversation = MySttConversation;
 
-    fn into_stream(self) -> Self::AudioStream {
-        // Convert to audio stream
+    fn vad_mode(self, mode: VadMode) -> Self { /* ... */ }
+    // ... other config methods
+
+    fn listen<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    where F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static
+    {
+        async move {
+            let result = self.start_microphone_capture().await;
+            matcher(result)
+        }
+    }
+}
+
+impl TranscriptionBuilder for MyTranscriptionBuilder {
+    type Transcript = MyTranscript;
+
+    fn vad_mode(self, mode: VadMode) -> Self { /* ... */ }
+    // ... other config methods
+
+    fn emit<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    where F: FnOnce(Result<Self::Transcript, VoiceError>) -> R + Send + 'static
+    {
+        async move {
+            let result = self.transcribe_file().await;
+            matcher(result)
+        }
+    }
+
+    fn collect(self) -> impl Future<Output = Result<Self::Transcript, VoiceError>> + Send {
+        async move { self.transcribe_file().await }
+    }
+
+    fn collect_with<F, R>(self, handler: F) -> impl Future<Output = R> + Send
+    where F: FnOnce(Result<Self::Transcript, VoiceError>) -> R + Send + 'static
+    {
+        async move {
+            let result = self.collect().await;
+            handler(result)
+        }
+    }
+
+    fn as_text(self) -> impl Stream<Item = String> + Send {
+        // Return stream of plain text segments
     }
 }
 ```
@@ -336,7 +395,7 @@ let audio = primary_engine.conversation()
 ### Real-time Audio Processing
 
 ```rust
-let mut audio_stream = MyEngine::tts()
+let mut audio_stream = MyTtsEngine::conversation()
     .with_speaker(speaker)
     .synthesize(|conv| Ok => conv.into_stream(), Err(e) => Err(e))
     .await?;
@@ -351,14 +410,27 @@ while let Some(sample) = audio_stream.next().await {
 ### Batch Transcript Processing
 
 ```rust
-let mut transcript_stream = MyEngine::stt()
-    .transcribe("meeting.wav")
+// Using TranscriptionBuilder for convenience methods
+let transcript = MySttEngine::conversation()
+    .transcribe("meeting.wav")  // -> TranscriptionBuilder
+    .diarization(Diarization::On)
+    .collect()  // Direct transcript collection
+    .await?;
+
+// Or using streaming approach
+let mut transcript_stream = MySttEngine::conversation()
+    .transcribe("meeting.wav")  // -> TranscriptionBuilder
     .diarization(Diarization::On)
     .emit(|transcript| {
         Ok => transcript.into_stream(),
         Err(e) => Err(e),
     })
     .await?;
+
+// Or plain text streaming
+let text_stream = MySttEngine::conversation()
+    .transcribe("meeting.wav")  // -> TranscriptionBuilder
+    .as_text();  // Stream<Item = String>
 
 // Collect and format transcript
 let mut segments = Vec::new();

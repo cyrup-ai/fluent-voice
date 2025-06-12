@@ -105,7 +105,9 @@ pub mod prelude {
         mic_backend::MicBackend,
         noise_reduction::NoiseReduction,
         speech_source::SpeechSource,
-        stt_conversation::{SttConversationBuilder, SttConversationExt},
+        stt_conversation::{
+            MicrophoneBuilder, SttConversationBuilder, SttConversationExt, TranscriptionBuilder,
+        },
         stt_engine::SttEngine,
         timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps},
         transcript::{TranscriptSegment, TranscriptStream},

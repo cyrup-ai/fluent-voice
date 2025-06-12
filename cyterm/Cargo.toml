@@ -32,7 +32,7 @@ tokenizers          = { workspace = true }
 rand                = { workspace = true }
 
 anyhow              = { workspace = true }
-clap                = { workspace = true }
+clap                = { workspace = true, features = ["std"] }
 
 futures             = { workspace = true }
 ort                 = { workspace = true }

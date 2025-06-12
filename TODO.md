@@ -27,11 +27,29 @@ Target: Create adapter crates that bridge `kokoros/kokoros` (TTS) and `candle/wh
 #### Both macros missing:
 - ❌ `FluentVoice` trait implementation for unified entry points
 
-### Required Fixes:
-1. **Update `stt_engine!` macro** to implement ALL 16 `SttConversationBuilder` trait methods + 2 associated types
-2. **Update `tts_engine!` macro** to implement `FluentVoice` trait 
-3. **Add `FluentVoice` implementation** to both macros for `MyEngine::stt()` and `MyEngine::tts()` entry points
-4. **Test macro completeness** against trait definitions to ensure 100% coverage
+### Required Fixes - 16 Critical TODO Items:
+
+#### STT Macro Missing Methods (8 items):
+1. **Add `with_microphone()` to `stt_engine!` macro** - Implement `fn with_microphone(self, device: impl Into<String>) -> Self` that sets SpeechSource::Microphone with device parameter
+2. **Add `transcribe()` to `stt_engine!` macro** - Implement `fn transcribe(self, path: impl Into<String>) -> Self` that sets SpeechSource::File with path parameter  
+3. **Add `with_progress()` to `stt_engine!` macro** - Implement `fn with_progress<S: Into<String>>(self, template: S) -> Self` for progress template storage
+4. **Add `emit()` to `stt_engine!` macro** - Implement `fn emit<F, R>(self, matcher: F) -> impl Future<Output = R> + Send` terminal method with matcher closure pattern
+5. **Add `collect()` to `stt_engine!` macro** - Implement `fn collect(self) -> impl Future<Output = Result<Self::Transcript, VoiceError>> + Send` convenience method
+6. **Add `collect_with()` to `stt_engine!` macro** - Implement `fn collect_with<F, R>(self, handler: F) -> impl Future<Output = R> + Send` convenience method with handler
+7. **Add `as_text()` to `stt_engine!` macro** - Implement `fn as_text(self) -> impl Stream<Item = String> + Send` text-only stream convenience method
+8. **Add `type Transcript` to `stt_engine!` macro** - Add missing associated type `type Transcript: Send` to complete trait implementation
+
+#### FluentVoice Trait Implementation (4 items):
+9. **Add `FluentVoice` impl to `stt_engine!` macro** - Generate `impl FluentVoice for $engine` with `fn stt() -> impl SttConversationBuilder` method
+10. **Add `FluentVoice` impl to `tts_engine!` macro** - Generate `impl FluentVoice for $engine` with `fn tts() -> impl TtsConversationBuilder` method  
+11. **Add cross-trait support to `stt_engine!` macro** - Generate `fn tts() -> impl TtsConversationBuilder` method that panics or delegates to separate TTS engine
+12. **Add cross-trait support to `tts_engine!` macro** - Generate `fn stt() -> impl SttConversationBuilder` method that panics or delegates to separate STT engine
+
+#### Validation & Testing (4 items):
+13. **Test `stt_engine!` macro completeness** - Verify generated SttConversationBuilder impl has all 16 methods + 2 associated types from trait definition
+14. **Test `tts_engine!` macro completeness** - Verify generated TtsConversationBuilder impl has all 3 methods + 1 associated type from trait definition
+15. **Test `FluentVoice` trait integration** - Verify `MyEngine::stt()` and `MyEngine::tts()` entry points work correctly with generated builders
+16. **Update macro documentation** - Add examples showing all new methods and FluentVoice trait usage patterns in macro docstrings
 
 **Priority: IMMEDIATE** - This blocks all engine implementations including Whisper and Kokoros.
 

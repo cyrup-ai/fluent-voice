@@ -25,7 +25,7 @@ cpal.workspace = true
 futures.workspace = true
 rustls-platform-verifier.workspace = true
 image.workspace = true
-livekit-api.workspace = true
+livekit-api = { workspace = true, features = ["default", "native-tls"] }
 log.workspace = true
 nanoid.workspace = true
 parking_lot.workspace = true
@@ -37,7 +37,7 @@ raw-window-handle.workspace = true
 
 [target.'cfg(not(all(target_os = "windows", target_env = "gnu")))'.dependencies]
 libwebrtc.workspace = true
-livekit.workspace = true
+livekit = { workspace = true, features = ["native-tls"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
 scap.workspace = true

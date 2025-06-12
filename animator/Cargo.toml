@@ -20,7 +20,8 @@ wgpu = { workspace = true }
 derive_more = { workspace = true, features = ["full"] }
 thiserror = { workspace = true }
 rustfft = { workspace = true }
-clap = { workspace = true }
+clap = { workspace = true, features = ["std"] }
 cpal = { workspace = true }
 ratatui = { workspace = true }
 crossterm = { workspace = true }
+display = { workspace = true }

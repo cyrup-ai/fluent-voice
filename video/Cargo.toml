@@ -25,7 +25,7 @@ test-support = []
 tracing.workspace = true
 anyhow.workspace = true
 async-stream.workspace = true
-clap.workspace = true
+clap = { workspace = true, features = ["std"] }
 futures.workspace = true
 image.workspace = true
 log.workspace = true
