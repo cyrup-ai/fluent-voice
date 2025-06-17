@@ -49,6 +49,8 @@ wasm-bindgen   = { workspace = true,  optional = true }
 js-sys         = { workspace = true,  optional = true }
 web-sys        = { workspace = true,  features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
 console_error_panic_hook = { workspace = true, optional = true }
+anyhow.workspace = true
+tokio = { workspace = true, features = ["sync", "rt"] }
 
 # ------------------------------------------------
 #  Feature flags

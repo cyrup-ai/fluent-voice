@@ -8,7 +8,7 @@ pub fn rat_to_rgb(rat_col: &RatColor, is_fg: bool) -> [u8; 3] {
             if is_fg {
                 [204, 204, 255] // default foreground
             } else {
-                [15, 15, 112]   // default background
+                [15, 15, 112] // default background
             }
         }
         RatColor::Black => [0, 0, 0],
@@ -45,7 +45,11 @@ pub fn blend_rgba(fg: [u8; 4], bg: [u8; 4]) -> [u8; 3] {
         return [0, 0, 0];
     }
     let blend = |f, b| ((f as f32 * fg_a + b as f32 * bg_a * (1.0 - fg_a)) / out_a).round() as u8;
-    [blend(fg[0], bg[0]), blend(fg[1], bg[1]), blend(fg[2], bg[2])]
+    [
+        blend(fg[0], bg[0]),
+        blend(fg[1], bg[1]),
+        blend(fg[2], bg[2]),
+    ]
 }
 
 /// Dim an RGB colour by ~70 % (used for [`Modifier::DIM`]).

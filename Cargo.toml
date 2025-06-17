@@ -28,7 +28,6 @@ repository = "https://github.com/cyrup-ai/fluent-voice"
 authors = ["David Maple<david@cyrup.ai>"]
 
 [workspace.dependencies]
-hf_hub = { git = "https://github.com/huggingface/huggingface_hub", branch = "main" }
 candle-core         = { git = "https://github.com/huggingface/candle", branch = "main" }
 candle-nn           = { git = "https://github.com/huggingface/candle", branch = "main" }
 candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main" }
@@ -66,19 +65,8 @@ thiserror = "2.0.12"
 rustfft = { version = "6.3.0", default-features = false }
 clap = "4.5.40"
 fluent_voice_macros = { path = "macros" }
-fluent_voice_animator = { path = "animator" }
-koffee = { path = "candle/koffee" }
 fluent_voice_whisper = { path = "candle/whisper" }
-fluent_voice_elevenlabs = { path = "elevenlabs" }
 fluent_voice = { path = "fluent-voice" }
-fluent_voice_livekit = { path = "livekit" }
-fluent_voice_moshi = { path = "candle/moshi" }
-fluent_voice_koko = { path = "kokoros/koko" }
-fluent_voice_kokoros = { path = "kokoros/kokoros" }
-fluent_voice_openai = { path = "openai" }
-fluent_voice_vad = { path = "vad" }
-fluent_video = { path = "video" }
-cyterm = { path = "cyterm" }
 cpal = "0.16.0"
 ratatui = "0.30.0-alpha.4"
 crossterm = "0.29.0"

@@ -9,7 +9,11 @@ pub struct RgbPixmap {
 impl RgbPixmap {
     /// Allocate an empty pixmap initialised to black.
     pub fn new(w: usize, h: usize) -> Self {
-        Self { w, h, data: vec![0; w * h * 3] }
+        Self {
+            w,
+            h,
+            data: vec![0; w * h * 3],
+        }
     }
 
     /// Convert to RGBA (alpha=255).
@@ -45,7 +49,16 @@ impl RgbPixmap {
         }
     }
 
-    #[inline] pub fn width(&self) -> usize { self.w }
-    #[inline] pub fn height(&self) -> usize { self.h }
-    #[inline] pub fn data(&self) -> &[u8] { &self.data }
+    #[inline]
+    pub fn width(&self) -> usize {
+        self.w
+    }
+    #[inline]
+    pub fn height(&self) -> usize {
+        self.h
+    }
+    #[inline]
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
 }

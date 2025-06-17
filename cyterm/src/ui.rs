@@ -10,12 +10,12 @@
 use std::time::{Duration, Instant};
 
 use ratatui::{
+    Frame,
     backend::Backend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Paragraph},
-    Frame,
 };
 
 const MAX_LINES: usize = 1_000;

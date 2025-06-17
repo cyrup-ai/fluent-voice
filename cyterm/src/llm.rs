@@ -1,7 +1,7 @@
 //! Minimal streaming interface to Llama-2-C (Candle).
 
 use std::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender, channel},
     thread,
     time::Duration,
 };

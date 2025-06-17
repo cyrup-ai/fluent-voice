@@ -1,10 +1,10 @@
 //! High-level Whisper decoding with temperature fallback, timestamp support, etc.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use candle::{IndexOp, Tensor};
 use candle_nn::ops::softmax;
 use rand::distributions::weighted::WeightedIndex;
-use rand::{rngs::StdRng, SeedableRng};
+use rand::{SeedableRng, rngs::StdRng};
 use tokenizers::Tokenizer;
 
 use crate::asr::multilingual::LANGUAGES;

@@ -149,17 +149,23 @@ async fn main() -> Result<(), VoiceError> {
 
     println!("\n🏗️ Builder-for-Builders Pattern:");
     println!("```rust");
-    println!("// In a real ElevenLabs integration, you would use the builder-for-builders pattern:");
+    println!(
+        "// In a real ElevenLabs integration, you would use the builder-for-builders pattern:"
+    );
     println!("EngineBuilder::new(\"ElevenLabsTts\")");
     println!("    .segment_type::<ElevenLabsSegment>()");
-    println!("    .stream_type::<futures::stream::Iter<std::vec::IntoIter<Result<ElevenLabsSegment, VoiceError>>>>()");
+    println!(
+        "    .stream_type::<futures::stream::Iter<std::vec::IntoIter<Result<ElevenLabsSegment, VoiceError>>>>()"
+    );
     println!("    .model_config(ModelConfig::ElevenLabs)");
     println!("    .with_api_key(env!(\"ELEVENLABS_API_KEY\"))");
     println!("    .documentation(\"ElevenLabs TTS engine using cloud API.\")");
     println!("    .build()");
     println!("```");
     println!("");
-    println!("// The macro and builder handle all implementation details - no manual methods needed!");
+    println!(
+        "// The macro and builder handle all implementation details - no manual methods needed!"
+    );
 
     println!("\n💡 Next Steps:");
     println!("1. Get ElevenLabs API key from https://elevenlabs.io");

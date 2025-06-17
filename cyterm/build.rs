@@ -2,11 +2,15 @@
 //! Then ensure `assets/wake-word.rpw` exists (otherwise create an empty stub
 //! so the project compiles even before training).
 
-use std::{process::Command, path::Path};
+use std::{path::Path, process::Command};
 
 fn main() {
     // 1. Ensure the helper CLI is on $PATH (installs once per toolchain dir).
-    if Command::new("rustpotter-cli").arg("--version").output().is_err() {
+    if Command::new("rustpotter-cli")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
         println!("cargo:warning=Installing rustpotter-cli …");
         let status = Command::new("cargo")
             .args(["install", "rustpotter-cli", "--locked"])
@@ -20,7 +24,9 @@ fn main() {
     if !out.exists() {
         std::fs::create_dir_all("assets").unwrap();
         std::fs::write(&out, []).unwrap(); // zero-byte placeholder
-        println!("cargo:warning=Created stub assets/wake-word.rpw – run `cargo run --bin train-wake-word` to train");
+        println!(
+            "cargo:warning=Created stub assets/wake-word.rpw – run `cargo run --bin train-wake-word` to train"
+        );
     }
 
     // Re-run if this file changes.

@@ -12,7 +12,7 @@ pub const SAMPLE_RATE: usize = 16_000;
 
 /// Convert a slice of PCM samples (mono, f32 –1.0..1.0) to a mel-spectrogram tensor.
 pub fn pcm_to_mel(cfg: &Config, pcm: &[f32], mel_filters: &[f32]) -> Vec<f32> {
-    use rustfft::{num_complex::Complex, FftPlanner};
+    use rustfft::{FftPlanner, num_complex::Complex};
 
     // Hann-windowed STFT.
     let n_fft = cfg.n_fft as usize;
