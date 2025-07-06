@@ -6,23 +6,22 @@ use tokio::sync::mpsc;
 
 use crate::{
     KoffeeCandleDetection,
-    audio::{CpalMic, Microphone},    // desktop mic impl (cfg-gated)
-    wakewords::Builder as KcBuilder, // detector builder we finalised
 };
 
 /* ─────────────────────────  AUDIO INPUT TRAIT  ─────────────────────── */
 
+use std::future::Future;
+use std::pin::Pin;
+
 /// Pulls mono, signed-16-bit PCM @ 16 kHz.
-#[async_trait::async_trait]
 pub trait AudioInput: Send + Sync {
-    async fn next_chunk(&mut self) -> Option<Vec<i16>>;
+    fn next_chunk(&mut self) -> Pin<Box<dyn Future<Output = Option<Vec<i16>>> + Send + '_>>;
 }
 
 #[cfg(feature = "desktop")]
-#[async_trait::async_trait]
 impl AudioInput for CpalMic {
-    async fn next_chunk(&mut self) -> Option<Vec<i16>> {
-        self.read().await
+    fn next_chunk(&mut self) -> Pin<Box<dyn Future<Output = Option<Vec<i16>>> + Send + '_>> {
+        Box::pin(async move { self.read().await })
     }
 }
 
@@ -55,7 +54,7 @@ impl KcServiceBuilder {
 
 /* ───────────── fluent setters (chain-able) ───────────── */
 
-impl<I: AudioInput> KcServiceBuilder<I> {
+impl<I: AudioInput + Default> KcServiceBuilder<I> {
     pub fn with_microphone(mut self, mic: I) -> Self {
         self.mic = Some(mic);
         self

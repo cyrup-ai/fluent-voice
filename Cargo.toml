@@ -41,7 +41,7 @@ futures-util = "0.3.31"
 reqwest = "0.12.20"
 rodio = "0.20.1"
 espeak-rs = "0.1.9"
-rubato = { version = "1.0.0-preview.0", default-features = false }
+rubato = { version = "0.16.2", default-features = false }
 rayon = "1.10.0"
 js-sys = "0.3.77"
 indexmap = "2.9.0"

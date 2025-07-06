@@ -18,7 +18,7 @@
 
 use crate::audio::{Endianness, Sample, SampleFormat};
 use crate::config::AudioFmt;
-use rubato::{FftFixedInOut, ResampleError, Resampler, ResamplerConstructionError};
+use rubato::{FftFixedIn, ResampleError, Resampler, ResamplerConstructionError};
 
 /* ─── public error type ─── */
 #[derive(Debug, thiserror::Error)]
@@ -44,7 +44,7 @@ pub struct AudioEncoder {
     output_samples_per_frame: usize,
 
     /* ─ reusable rubato state ─ */
-    resampler: Option<FftFixedInOut<f32>>,
+    resampler: Option<FftFixedIn<f32>>,
     resampler_in: Option<Vec<Vec<f32>>>,
     resampler_out: Option<Vec<Vec<f32>>>,
 }
@@ -63,10 +63,10 @@ impl AudioEncoder {
 
         /* optional FFT resampler --------------------------------------------------- */
         let resampler = if fmt.sample_rate != target_sr {
-            // `FftFixedInOut::new` now yields a **`ResamplerConstructionError`** which
+            // `FftFixedIn::new` now yields a **`ResamplerConstructionError`** which
             // is transparently converted into our `EncoderError::Construct` variant
             // via the `?` operator.
-            let rs = FftFixedInOut::<f32>::new(fmt.sample_rate, target_sr, out_spf, 1)?;
+            let rs = FftFixedIn::<f32>::new(fmt.sample_rate, target_sr, out_spf, 1, 2)?;
             // rubato chooses its own internal frame length; update `in_spf`
             in_spf = rs.input_frames_next() * fmt.channels as usize;
             Some(rs)

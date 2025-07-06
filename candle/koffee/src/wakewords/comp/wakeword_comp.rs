@@ -77,6 +77,7 @@ impl WakewordComparator {
             ScoreMode::P80 => percentile(&mut v, 80.0),
             ScoreMode::P90 => percentile(&mut v, 90.0),
             ScoreMode::P95 => percentile(&mut v, 95.0),
+            ScoreMode::Classic => v.iter().sum::<f32>() / v.len() as f32, // Use average for classic mode
         }
     }
 }

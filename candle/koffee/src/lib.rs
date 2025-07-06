@@ -22,7 +22,7 @@ pub mod builder;
 pub mod config;
 pub mod constants;
 pub mod kfc;
-pub mod service;
+// mod service; // Disabled: contains unimplemented audio input types
 pub mod wakewords;
 
 /* ────────── public façade & re-exports (backward-compat) ─────────────── */
@@ -39,7 +39,7 @@ use std::collections::HashMap;
 
 use audio::{AudioEncoder, BandPassFilter, GainNormalizerFilter};
 use kfc::{KfcExtractor, VadDetector};
-use wakewords::{WakewordDetector, WakewordLoad, WakewordModel, WakewordRef};
+use wakewords::{WakewordDetector, WakewordFile, WakewordLoad, WakewordModel, WakewordRef};
 
 /* ────────────────────────── type helpers ─────────────────────────────── */
 /// Original VAD constants: 50 ms window / 500 ms hang-over.
@@ -169,7 +169,7 @@ impl Kfc {
 
     /// Convenience wrapper: load from bytes (CBOR payload).
     pub fn add_wakeword_bytes(&mut self, bytes: &[u8]) -> Result<()> {
-        let model = WakewordModel::from_bytes(bytes).map_err(|e| e.to_string())?;
+        let model = WakewordModel::load_from_buffer(bytes).map_err(|e| e.to_string())?;
         self.add_wakeword_model(model)
     }
 
@@ -205,7 +205,7 @@ impl Kfc {
         };
 
         /* feature extraction */
-        let frames = self.kfc_extractor.compute(&norm);
+        let frames: Vec<Vec<f32>> = self.kfc_extractor.compute(&norm).collect();
 
         /* per-model detection */
         let mut best: Option<KoffeeCandleDetection> = None;

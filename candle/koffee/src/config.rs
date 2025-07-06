@@ -95,6 +95,7 @@ pub enum ScoreMode {
     P80,
     P90,
     P95,
+    Classic,
 }
 #[cfg(feature = "display")]
 impl std::fmt::Display for ScoreMode {
@@ -109,6 +110,7 @@ impl std::fmt::Display for ScoreMode {
             ScoreMode::P80 => write!(f, "p80"),
             ScoreMode::P90 => write!(f, "p90"),
             ScoreMode::P95 => write!(f, "p95"),
+            ScoreMode::Classic => write!(f, "classic"),
         }
     }
 }
@@ -126,6 +128,7 @@ impl std::str::FromStr for ScoreMode {
             "p80" => Ok(Self::P80),
             "p90" => Ok(Self::P90),
             "p95" => Ok(Self::P95),
+            "classic" => Ok(Self::Classic),
             _ => Err("Unknown score mode".to_string()),
         }
     }

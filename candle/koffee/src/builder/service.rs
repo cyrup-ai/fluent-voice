@@ -5,6 +5,7 @@ use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
 use crate::{
     Kfc,
     wakewords::{WakewordDetector, WakewordModel},
+    WakewordLoad,
 };
 
 /// Single‐use builder for a streaming wake-word detector.
@@ -53,7 +54,7 @@ impl Builder {
 
     /// Load a compiled *.kc* model (can be called multiple times).
     pub fn with_model<P: AsRef<std::path::Path>>(mut self, p: P) -> crate::Result<Self> {
-        let m = WakewordModel::load(p)?;
+        let m = WakewordModel::load_from_file(p)?;
         self.models.push(m);
         Ok(self)
     }
@@ -82,7 +83,19 @@ impl Builder {
 
         // 2.  build detector & register every loaded model
         let mut det = Kfc::new(&crate::config::KoffeeCandleConfig::default())?;
-        det.update_config(self.score_ref, self.band_size, crate::ScoreMode::Classic);
+        let config = crate::config::DetectorConfig {
+            avg_threshold: 0.5,
+            threshold: 0.5,
+            min_scores: 1,
+            eager: false,
+            score_ref: self.score_ref,
+            band_size: self.band_size,
+            score_mode: crate::ScoreMode::Classic,
+            vad_mode: None,
+            #[cfg(feature = "record")]
+            record_path: None,
+        };
+        det.update_config(&config);
 
         for m in self.models {
             det.add_wakeword_model(m)?; // new helper (see diff below)

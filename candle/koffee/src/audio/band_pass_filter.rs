@@ -121,6 +121,24 @@ impl BandPassFilter {
             y2: 0.0,
         }
     }
+
+    /// Process a block of samples
+    pub fn process_block(&mut self, samples: &[f32]) -> Vec<f32> {
+        samples.iter().map(|&sample| self.process(sample)).collect()
+    }
+
+    /// Process a single sample through the filter
+    pub fn process(&mut self, input: f32) -> f32 {
+        let output = self.a0 * input + self.a1 * self.x1 + self.a2 * self.x2 - self.b1 * self.y1 - self.b2 * self.y2;
+        
+        // Update delay line
+        self.x2 = self.x1;
+        self.x1 = input;
+        self.y2 = self.y1;
+        self.y1 = output;
+        
+        output
+    }
 }
 
 /* ───────── automatic From<BandPassConfig> wiring ───────── */
