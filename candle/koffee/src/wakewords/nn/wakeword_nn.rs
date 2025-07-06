@@ -8,10 +8,10 @@ use candle_nn::{Linear, VarBuilder, VarMap};
 use indexmap::IndexMap;
 
 use crate::{
+    KoffeeCandleDetection, ModelType, ScoreMode, WakewordModel,
     constants::{KFCS_EXTRACTOR_OUT_SHIFTS, NN_NONE_LABEL},
     kfc::KfcNormalizer,
     wakewords::{ModelWeights, TensorData, WakewordDetector},
-    KoffeeCandleDetection, ModelType, ScoreMode, WakewordModel,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -287,7 +287,7 @@ fn try_load_weights(vm: &VarMap, ckpt: &ModelWeights) -> Result<(), WakewordErro
         ModelWeights::Raw(_) => {
             return Err(WakewordError::TensorData(
                 "raw safetensor weights not yet supported in loader".into(),
-            ))
+            ));
         }
     };
 
@@ -437,7 +437,7 @@ impl TryFrom<&TensorData> for Tensor {
             other => {
                 return Err(WakewordError::TensorData(format!(
                     "unsupported dtype {other}"
-                )))
+                )));
             }
         };
         Tensor::from_raw_buffer(&td.bytes, dt, &td.dims, &Device::Cpu).map_err(WakewordError::from)

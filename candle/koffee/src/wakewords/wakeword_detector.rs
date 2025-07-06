@@ -2,7 +2,8 @@ use crate::{KoffeeCandleDetection, ScoreMode};
 
 pub(crate) trait WakewordDetector: Send {
     /// New unified getter – returns (coeffs , frames).
-    #[allow(dead_code)] fn get_kfc_dimensions(&self) -> (u16, usize);
+    #[allow(dead_code)]
+    fn get_kfc_dimensions(&self) -> (u16, usize);
 
     /* ------------------------------------------------------------- *
      *  Back-compat shims – keep the old API signature so existing   *

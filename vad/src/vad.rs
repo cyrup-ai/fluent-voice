@@ -69,8 +69,7 @@ impl VoiceActivityDetector {
             "sr" => sample_rate.view(),
             "h" => self.h.view(),
             "c" => self.c.view(),
-        ]
-        .unwrap();
+        ];
 
         let outputs = self.session.run(inputs).unwrap();
 
@@ -86,8 +85,8 @@ impl VoiceActivityDetector {
             .try_extract_tensor::<f32>()
             .unwrap();
 
-        self.h.assign(&hn.view());
-        self.c.assign(&cn.view());
+        self.h.assign(&hn.1);
+        self.c.assign(&cn.1);
 
         // Get the probability of speech.
         let output = outputs
@@ -95,7 +94,7 @@ impl VoiceActivityDetector {
             .unwrap()
             .try_extract_tensor::<f32>()
             .unwrap();
-        let probability = output.view()[[0, 0]];
+        let probability = output.1[0];
 
         probability
     }

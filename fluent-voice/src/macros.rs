@@ -1,4 +1,4 @@
-//! Internal helper for the `Ok ⇒ / Err ⇒` matcher block.
+//! Internal helpers for the fluent builder syntax.
 
 /// Internal helper macro for the matcher closure syntax.
 ///
@@ -12,11 +12,144 @@ macro_rules! fv_match {
         Ok  => $ok:expr,
         Err($err:ident) => $errexpr:expr $(,)?
     }) => {
-        |result| async move {
-            match result {
-                Ok($conv) => $ok,
-                Err($err) => $errexpr,
-            }
+        |result| match result {
+            Ok($conv) => $ok,
+            Err($err) => $errexpr,
         }
     };
+}
+
+/// Macro for TTS conversation builder pattern.
+///
+/// This macro supports the fluent builder pattern for TTS operations,
+/// allowing for a clean syntax with a single await point.
+#[macro_export]
+macro_rules! tts_conversation_builder {
+    ($engine:expr) => {{
+        use $crate::builders::TtsConversationBuilderImpl;
+        use $crate::tts_conversation::TtsConversationBuilder;
+
+        TtsConversationBuilderImpl::new($engine)
+    }};
+}
+
+/// Macro for STT conversation builder pattern.
+///
+/// This macro supports the fluent builder pattern for STT operations,
+/// allowing for a clean syntax with a single await point.
+#[macro_export]
+macro_rules! stt_conversation_builder {
+    ($engine:expr) => {{
+        use $crate::builders::SttConversationBuilderImpl;
+        use $crate::stt_conversation::SttConversationBuilder;
+
+        SttConversationBuilderImpl::new($engine)
+    }};
+}
+
+/// Macro for the synthesize method on TTS conversation builders.
+///
+/// This macro allows for the simplified `Ok => ..., Err(e) => ...` syntax
+/// in the synthesize method of TTS conversation builders.
+#[macro_export]
+macro_rules! tts_synthesize {
+    ($self:expr, |$conv:ident| {
+        Ok  => $ok:expr,
+        Err($err:ident) => $errexpr:expr $(,)?
+    }) => {
+        $self.synthesize(|result| match result {
+            Ok($conv) => $ok,
+            Err($err) => $errexpr,
+        })
+    };
+}
+
+/// Macro for the listen method on STT microphone builders.
+///
+/// This macro allows for the simplified `Ok => ..., Err(e) => ...` syntax
+/// in the listen method of STT microphone builders.
+#[macro_export]
+macro_rules! stt_listen {
+    ($self:expr, |$conv:ident| {
+        Ok  => $ok:expr,
+        Err($err:ident) => $errexpr:expr $(,)?
+    }) => {
+        $self.listen(|result| match result {
+            Ok($conv) => $ok,
+            Err($err) => $errexpr,
+        })
+    };
+}
+
+/// Macro for the emit method on STT transcription builders.
+///
+/// This macro allows for the simplified `Ok => ..., Err(e) => ...` syntax
+/// in the emit method of STT transcription builders.
+#[macro_export]
+macro_rules! stt_emit {
+    ($self:expr, |$transcript:ident| {
+        Ok  => $ok:expr,
+        Err($err:ident) => $errexpr:expr $(,)?
+    }) => {
+        $self.emit(|result| match result {
+            Ok($transcript) => $ok,
+            Err($err) => $errexpr,
+        })
+    };
+}
+
+/// Macro for the collect_with method on STT transcription builders.
+///
+/// This macro allows for the simplified `Ok => ..., Err(e) => ...` syntax
+/// in the collect_with method of STT transcription builders.
+#[macro_export]
+macro_rules! stt_collect_with {
+    ($self:expr, |$transcript:ident| {
+        Ok  => $ok:expr,
+        Err($err:ident) => $errexpr:expr $(,)?
+    }) => {
+        $self.collect_with(|result| match result {
+            Ok($transcript) => $ok,
+            Err($err) => $errexpr,
+        })
+    };
+}
+
+/// Helper macro to create a speaker.
+///
+/// This macro simplifies the creation of speaker objects with default values.
+#[macro_export]
+macro_rules! speaker {
+    ($id:expr) => {{
+        use $crate::builders::SpeakerLineBuilder;
+        use $crate::speaker_builder::SpeakerBuilder;
+
+        SpeakerLineBuilder::new($id.into())
+    }};
+}
+
+/// Simplified syntax for TTS engine creation.
+///
+/// This macro provides a clean way to create and configure a TTS engine.
+#[macro_export]
+macro_rules! tts {
+    () => {{
+        use $crate::fluent_voice::FluentVoice;
+        use $crate::tts_engine::TtsEngine;
+
+        FluentVoice::tts()
+    }};
+}
+
+/// Simplified syntax for STT engine creation.
+///
+/// This macro provides a clean way to create and configure an STT engine.
+#[macro_export]
+macro_rules! stt {
+    () => {{
+        use $crate::fluent_voice::FluentVoice;
+        use $crate::stt_engine::SttEngine;
+
+        FluentVoice::stt()
+    }};
 }

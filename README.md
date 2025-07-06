@@ -6,7 +6,7 @@
 
 A pure-trait fluent builder API for Text-to-Speech (TTS) and Speech-to-Text (STT) engines in Rust.
 
-##  Design Philosophy
+## Design Philosophy
 
 Fluent Voice follows a simple, elegant pattern for all voice operations:
 
@@ -49,9 +49,7 @@ futures-util = "0.3"
 use fluent_voice::prelude::*;
 use futures_util::StreamExt;
 
-#[tokio::main]
-async fn main() -> Result<(), VoiceError> {
-    // Note: Requires an engine implementation (see Engine Integration below)
+
     let mut audio_stream = MyTtsEngine::conversation()
         .with_speaker(
             Speaker::speaker("Alice")
@@ -63,8 +61,10 @@ async fn main() -> Result<(), VoiceError> {
         .with_speaker(
             Speaker::speaker("Bob")
                 .with_speed_modifier(VocalSpeedMod(1.1))
-                .speak("Hi Alice! How are you today?")
-                .build()
+                .speak("Hi Alice! How are you today?"),
+            Speaker::speaker("Alice")
+                .with_noise_reduction(Denoise::level(0.5))
+                .speak("I'm doing great, thanks for asking!")
         )
         .synthesize(|conversation| {
             Ok  => conversation.into_stream(),  // Returns audio stream
@@ -188,7 +188,7 @@ Fluent Voice is built around a pure-trait architecture:
 - **`TtsConversationBuilder`**: TTS fluent configuration API
 - **`SttBuilder`**: Base STT configuration with polymorphic branching
 - **`MicrophoneBuilder`** / **`TranscriptionBuilder`**: Specialized STT builders
-- **`TtsConversation`** / **`SttConversation`**: Runtime session objects  
+- **`TtsConversation`** / **`SttConversation`**: Runtime session objects
 - **`Speaker`** / **`SpeakerBuilder`**: Voice and speaker configuration
 - **`TranscriptSegment`** / **`TranscriptStream`**: STT result handling
 </thinking>
@@ -196,6 +196,7 @@ Fluent Voice is built around a pure-trait architecture:
 ### Entry Point
 
 All operations begin with engine-specific entry points:
+
 - **`MyTtsEngine::conversation()`**: Text-to-Speech operations
 - **`MySttEngine::conversation()`**: Speech-to-Text operations with polymorphic builders
 
@@ -480,8 +481,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 This project is licensed under either of
 
-- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
 
 at your option.
 

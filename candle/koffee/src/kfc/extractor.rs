@@ -4,7 +4,7 @@
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::many_single_char_names)]
 
-use rustfft::{num_complex::Complex32, FftPlanner};
+use rustfft::{FftPlanner, num_complex::Complex32};
 use std::f32::consts::PI;
 
 /// Returned whenever the `Kfc` API is mis-used (wrong frame size, etc.).
@@ -59,7 +59,7 @@ impl<const COEFFS: usize> Kfc<COEFFS> {
         mel_bins: usize,
     ) -> Result<Self, KfcError> {
         let shift_size = sample_rate * shift_ms / 1_000; // samples
-                                                         // --- pre-compute ---
+        // --- pre-compute ---
         let mut planner = FftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(frame_size);
         let hamming = (0..frame_size)
@@ -81,13 +81,15 @@ impl<const COEFFS: usize> Kfc<COEFFS> {
 
     /// Size (in **samples**) expected by [`extract`].
     #[inline]
-    #[allow(dead_code)] pub const fn frame_size(&self) -> usize {
+    #[allow(dead_code)]
+    pub const fn frame_size(&self) -> usize {
         self.frame_size
     }
 
     /// Hop length (in samples) that corresponds to the `shift_ms` given at construction.
     #[inline]
-    #[allow(dead_code)] pub const fn shift_size(&self) -> usize {
+    #[allow(dead_code)]
+    pub const fn shift_size(&self) -> usize {
         self.shift_size
     }
 

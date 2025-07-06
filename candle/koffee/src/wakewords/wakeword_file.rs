@@ -8,7 +8,7 @@ use std::{
 };
 
 use ciborium::{de, ser};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use thiserror::Error;
 
 use super::WakewordDetector;

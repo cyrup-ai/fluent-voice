@@ -5,9 +5,9 @@ use std::{path::Path, sync::Arc};
 use tokio::sync::mpsc;
 
 use crate::{
+    KoffeeCandleDetection,
     audio::{CpalMic, Microphone},    // desktop mic impl (cfg-gated)
     wakewords::Builder as KcBuilder, // detector builder we finalised
-    KoffeeCandleDetection,
 };
 
 /* ─────────────────────────  AUDIO INPUT TRAIT  ─────────────────────── */

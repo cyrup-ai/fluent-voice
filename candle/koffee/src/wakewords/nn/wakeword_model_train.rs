@@ -9,7 +9,7 @@ use std::{
 
 use candle_core::{DType, Device, Tensor};
 use candle_nn::optim::ParamsAdamW; // new typed-param bag
-use candle_nn::{self as nn, optim::AdamW, Module, Optimizer}; // ← Optimizer in scope
+use candle_nn::{self as nn, Module, Optimizer, optim::AdamW}; // ← Optimizer in scope
 use rayon::prelude::*;
 use thiserror::Error;
 
@@ -134,9 +134,7 @@ pub fn train(
         let mut g = match lock_result {
             Ok(guard) => guard,
             Err(poison_err) => {
-                return Err(TrainerError::Poison(format!(
-                    "labels_guard: {poison_err}"
-                )));
+                return Err(TrainerError::Poison(format!("labels_guard: {poison_err}")));
             }
         };
 
@@ -369,8 +367,7 @@ pub fn train(
                 let dtype = v.dtype().as_str().to_owned();
                 let mut bytes = Vec::new();
                 // Handle potential tensor write errors
-                v.write_bytes(&mut bytes)
-                    .map_err(TrainerError::Candle)?;
+                v.write_bytes(&mut bytes).map_err(TrainerError::Candle)?;
                 tensors.insert(
                     k.clone(),
                     TensorData {
@@ -448,8 +445,7 @@ pub fn train(
             let dtype = v.dtype().as_str().to_owned();
             let mut bytes = Vec::new();
             // Handle potential tensor write errors
-            v.write_bytes(&mut bytes)
-                .map_err(TrainerError::Candle)?;
+            v.write_bytes(&mut bytes).map_err(TrainerError::Candle)?;
             tensors.insert(
                 k.clone(),
                 TensorData {

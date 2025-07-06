@@ -1,6 +1,6 @@
 //! Simple one-pole band-pass IIR used by the gain/VAD front-end.
 
-use crate::{constants::DETECTOR_INTERNAL_SAMPLE_RATE, BandPassConfig};
+use crate::{BandPassConfig, constants::DETECTOR_INTERNAL_SAMPLE_RATE};
 use core::f32::consts::PI;
 
 /// Second-order biquad configured as **band-pass** (Skirt-Gain = 0 dB).

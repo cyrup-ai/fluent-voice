@@ -25,8 +25,8 @@ use crate::{
     },
 };
 
-use super::extractor::{KfcError, KfcExtractor};
 use super::KfcNormalizer;
+use super::extractor::{KfcError, KfcExtractor};
 
 /* ─────────────────────── error handling ─────────────────────── */
 

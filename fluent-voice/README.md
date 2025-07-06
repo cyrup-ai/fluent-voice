@@ -31,7 +31,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fluent_voice = "1.0"
+fluent_voice = "0.1.0"
 ```
 
 For async runtime support, also add:
@@ -41,9 +41,32 @@ tokio = { version = "1", features = ["full"] }
 futures-util = "0.3"
 ```
 
-## 🚀 Quick Start
+## 🚀 Fluent API Quick Start
+
+### Speach to text example
 
 ### Text-to-Speech Example
+
+```rust
+
+    // Complete fluent chain with microphone support, VAD and wake word detection
+    let _transcript = FluentVoice::stt()
+        .with_source(SpeechSource::Microphone {
+            backend: MicBackend::Default,
+            format: AudioFormat::Pcm16Khz,
+            sample_rate: 16_000,
+        })
+        .vad_mode(VadMode::Accurate)
+        .language_hint(Language("en-US"))
+        .diarization(Diarization::On)
+        .word_timestamps(WordTimestamps::On)
+        .punctuation(Punctuation::On)
+        .listen(|segment| {
+            Ok  => segment.text(),  // streaming chunks 
+            Err(e) => Err(e),
+        })
+        .collect();  // transcript is now the end-state string
+```
 
 ```rust
 use fluent_voice::prelude::*;
@@ -350,8 +373,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 This project is licensed under either of
 
-- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
 
 at your option.
 

@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use speakrs_kokoros::{
+use fluent_voice_kokoros::{
     tts::koko::{TTSKoko, TTSOpts},
     utils::wav::{WavHeader, write_audio_chunk},
 };
@@ -192,11 +192,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             Mode::OpenAI { ip, port } => {
-                let app = kokoros_openai::create_server(tts).await;
+                let app = fluent_voice_openai::create_server(tts).await;
                 let addr = SocketAddr::from((ip, port));
                 let binding = tokio::net::TcpListener::bind(&addr).await?;
                 println!("Starting OpenAI-compatible HTTP server on {addr}");
-                kokoros_openai::serve(binding, app.into_make_service()).await?;
+                fluent_voice_openai::serve(binding, app.into_make_service()).await?;
             }
 
             Mode::Stream => {

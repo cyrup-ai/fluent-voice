@@ -49,6 +49,58 @@ pub trait TtsConversationBuilder: Sized + Send {
     /// * `lang` - The language specification using BCP-47 format
     fn language(self, lang: Language) -> Self;
 
+    /// Set the model ID for synthesis.
+    ///
+    /// This identifies which specific TTS model to use when multiple
+    /// are available from the engine provider.
+    ///
+    /// # Arguments
+    ///
+    /// * `model` - The model identifier
+    fn model(self, model: crate::model_id::ModelId) -> Self;
+
+    /// Set the voice stability parameter.
+    ///
+    /// Controls how consistent the voice characteristics remain throughout
+    /// the generated audio. Higher values increase consistency but may
+    /// reduce expressiveness.
+    ///
+    /// # Arguments
+    ///
+    /// * `stability` - Stability value between 0.0 and 1.0
+    fn stability(self, stability: crate::stability::Stability) -> Self;
+
+    /// Set the voice similarity parameter.
+    ///
+    /// Controls how closely the synthesized voice matches the original voice.
+    /// Higher values increase similarity but may affect naturalness.
+    ///
+    /// # Arguments
+    ///
+    /// * `similarity` - Similarity value between 0.0 and 1.0
+    fn similarity(self, similarity: crate::similarity::Similarity) -> Self;
+
+    /// Enable or disable speaker boost.
+    ///
+    /// When enabled, enhances the distinction between different speakers
+    /// in multi-speaker conversations.
+    ///
+    /// # Arguments
+    ///
+    /// * `boost` - Whether to enable or disable speaker boost
+    fn speaker_boost(self, boost: crate::speaker_boost::SpeakerBoost) -> Self;
+
+    /// Set the style exaggeration level.
+    ///
+    /// Controls how strongly the voice style and emotions are expressed.
+    /// Higher values create more dramatic, expressive speech.
+    ///
+    /// # Arguments
+    ///
+    /// * `exaggeration` - Style intensity between 0.0 and 1.0
+    fn style_exaggeration(self, exaggeration: crate::style_exaggeration::StyleExaggeration)
+    -> Self;
+
     /// Terminal method that executes synthesis with a matcher closure.
     ///
     /// This method terminates the fluent chain and executes the TTS synthesis.

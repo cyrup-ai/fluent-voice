@@ -169,22 +169,26 @@ fn ignore_alexa() {
     c.detector.score_mode = ScoreMode::Max;
     c.detector.min_scores = 0;
 
-    assert!(run_samples(
-        c.clone(),
-        "/tests/resources/alexa.rpw",
-        "/tests/resources/oye_casa_g_1.wav"
-    )
-    .is_empty());
+    assert!(
+        run_samples(
+            c.clone(),
+            "/tests/resources/alexa.rpw",
+            "/tests/resources/oye_casa_g_1.wav"
+        )
+        .is_empty()
+    );
 
     // with filters enabled
     c.filters.band_pass.enabled = true;
     c.filters.gain_normalizer.enabled = true;
-    assert!(run_samples(
-        c,
-        "/tests/resources/alexa.rpw",
-        "/tests/resources/oye_casa_g_1.wav"
-    )
-    .is_empty());
+    assert!(
+        run_samples(
+            c,
+            "/tests/resources/alexa.rpw",
+            "/tests/resources/oye_casa_g_1.wav"
+        )
+        .is_empty()
+    );
 }
 
 #[test]

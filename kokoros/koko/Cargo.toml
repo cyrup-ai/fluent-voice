@@ -6,7 +6,9 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-clap = { workspace = true, features = ["std"] }
+clap = { workspace = true, features = ["derive", "std"] }
+fluent_voice_kokoros = { version = "0.1.0", path = "../kokoros" }
+fluent_voice_openai = { version = "0.1.0", path = "../../openai" }
 tokio = { workspace = true, features = ["rt", "sync", "macros"] }
 
 [[bin]]

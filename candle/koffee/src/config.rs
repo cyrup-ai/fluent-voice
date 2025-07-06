@@ -1,4 +1,4 @@
-#![allow(dead_code)]     // kept: public API (silence other lints)
+#![allow(dead_code)] // kept: public API (silence other lints)
 
 use crate::{
     audio::{Endianness, SampleFormat},

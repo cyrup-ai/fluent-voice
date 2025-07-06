@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{wakewords::WakewordRef, WakewordLoad};
+use crate::{WakewordLoad, wakewords::WakewordRef};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

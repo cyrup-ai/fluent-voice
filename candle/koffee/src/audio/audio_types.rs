@@ -50,11 +50,7 @@ impl SampleFormat {
     }
     /// Float format from bit size (`32`).
     pub const fn float_of_size(bits: u16) -> Option<Self> {
-        if bits == 32 {
-            Some(Self::F32)
-        } else {
-            None
-        }
+        if bits == 32 { Some(Self::F32) } else { None }
     }
 }
 

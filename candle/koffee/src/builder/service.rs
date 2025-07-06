@@ -1,10 +1,10 @@
 //! src/wakewords/builder.rs  (new file — compile-time only, not yet wired into CLI)
 
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
 
 use crate::{
-    wakewords::{WakewordDetector, WakewordModel},
     Kfc,
+    wakewords::{WakewordDetector, WakewordModel},
 };
 
 /// Single‐use builder for a streaming wake-word detector.

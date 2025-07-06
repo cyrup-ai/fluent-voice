@@ -24,8 +24,8 @@ async fn main() -> anyhow::Result<()> {
         )
         .with_speaker(Speaker::named("Julie").speak("Right? Now engines take minutes, not hours."))
         .synthesize(|conversation| match conversation {
-            Ok(conv) => Ok(conv.into_stream()),
-            Err(err) => Err(anyhow::anyhow!(err)),
+            Ok(conv) => conv.into_stream(),
+            Err(err) => anyhow::bail!(err),
         })
         .await?;
 

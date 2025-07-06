@@ -7,8 +7,8 @@ use rayon::prelude::*;
 use std::cmp::Ordering;
 
 use crate::{
-    kfc::{KfcAverager, KfcWavFileExtractor},
     WakewordRef,
+    kfc::{KfcAverager, KfcWavFileExtractor},
 };
 
 /// Errors returned while constructing a [`WakewordRef`].

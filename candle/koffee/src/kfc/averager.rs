@@ -2,7 +2,7 @@
 // path: potter-dsp/src/kfc/averager.rs
 //
 
-use super::{dtw::Dtw, KfcComparator};
+use super::{KfcComparator, dtw::Dtw};
 use thiserror::Error;
 
 /// Errors that can arise while averaging KFC templates.

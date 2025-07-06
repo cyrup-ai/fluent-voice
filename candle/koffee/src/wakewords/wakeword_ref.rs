@@ -1,8 +1,8 @@
-use super::{comp::WakewordComparator, WakewordDetector, WakewordFile};
+use super::{WakewordDetector, WakewordFile, comp::WakewordComparator};
 use crate::{
+    ScoreMode,
     kfc::KfcComparator,
     wakewords::{WakewordLoad, WakewordSave},
-    ScoreMode,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -59,16 +59,18 @@ impl WakewordRef {
         if samples_features.is_empty() {
             return Err("Can not create an empty wakeword".to_string());
         }
-        
+
         // Get the first sample's features or return an error if none exist
-        let first_sample = samples_features.values().next()
+        let first_sample = samples_features
+            .values()
+            .next()
             .ok_or_else(|| "No samples available in features map".to_string())?;
-            
+
         // Check that the first sample has at least one feature vector
         if first_sample.is_empty() {
             return Err("First sample contains no feature vectors".to_string());
         }
-            
+
         let kfc_size = first_sample[0].len() as u16;
         Ok(WakewordRef {
             name,

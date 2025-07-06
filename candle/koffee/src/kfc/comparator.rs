@@ -30,8 +30,8 @@ use core::cmp::min;
 pub struct KfcComparator {
     score_ref: f32,
     band_size: u16,
-    dtw:    Dtw<&'static [f32]>,        // reusable cost matrix
-    tmp_a: Vec<&'static [f32]>,         // reused - no alloc after first call
+    dtw: Dtw<&'static [f32]>,   // reusable cost matrix
+    tmp_a: Vec<&'static [f32]>, // reused - no alloc after first call
     tmp_b: Vec<&'static [f32]>,
 }
 
@@ -55,8 +55,8 @@ impl KfcComparator {
         Self {
             score_ref,
             band_size,
-            dtw:    Dtw::new(Self::distance),
-            tmp_a: Vec::with_capacity(64),   // allocate once – sized for typical wake-word
+            dtw: Dtw::new(Self::distance),
+            tmp_a: Vec::with_capacity(64), // allocate once – sized for typical wake-word
             tmp_b: Vec::with_capacity(64),
         }
     }
@@ -71,8 +71,9 @@ impl KfcComparator {
          * vectors every call to avoid repeated allocations.
          * ------------------------------------------------------ */
 
-        self.tmp_a.clear();  self.tmp_b.clear();
-        self.tmp_a.reserve(a.len());       // reuse underlying buf
+        self.tmp_a.clear();
+        self.tmp_b.clear();
+        self.tmp_a.reserve(a.len()); // reuse underlying buf
         self.tmp_b.reserve(b.len());
 
         // SAFETY:  The transmuted slices live only until we clear the
@@ -81,23 +82,25 @@ impl KfcComparator {
         //          sound.
         unsafe {
             for &frame in a {
-                self.tmp_a.push(core::mem::transmute::<&[f32], &'static [f32]>(frame));
+                self.tmp_a
+                    .push(core::mem::transmute::<&[f32], &'static [f32]>(frame));
             }
             for &frame in b {
-                self.tmp_b.push(core::mem::transmute::<&[f32], &'static [f32]>(frame));
+                self.tmp_b
+                    .push(core::mem::transmute::<&[f32], &'static [f32]>(frame));
             }
         }
 
-        let cost = self
-            .dtw
-            .compute_optimal_path_with_window(&self.tmp_a, &self.tmp_b, self.band_size);
+        let cost =
+            self.dtw
+                .compute_optimal_path_with_window(&self.tmp_a, &self.tmp_b, self.band_size);
 
         /* ---------------------------------------------------------
          * Safety:  the &'static slices in tmp_a/tmp_b out-live the
          * DTW call **only**.  Clear now so the struct never stores
          * dangling pointers after we return to the caller.
          * ------------------------------------------------------ */
-        self.tmp_a.clear();   // drop 'static slices before returning → no UB
+        self.tmp_a.clear(); // drop 'static slices before returning → no UB
         self.tmp_b.clear();
 
         // Normalize by path length and convert to probability
@@ -137,9 +140,5 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
         norm_b += b[i] * b[i];
     }
     let denom = (norm_a * norm_b).sqrt();
-    if denom > 0.0 {
-        dot / denom
-    } else {
-        0.0
-    }
+    if denom > 0.0 { dot / denom } else { 0.0 }
 }

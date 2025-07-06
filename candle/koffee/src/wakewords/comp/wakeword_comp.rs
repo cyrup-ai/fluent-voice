@@ -1,9 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
+    KoffeeCandleDetection, ScoreMode, WakewordRef,
     kfc::{KfcComparator, KfcNormalizer},
     wakewords::WakewordDetector,
-    KoffeeCandleDetection, ScoreMode, WakewordRef,
 };
 
 /// Comparator for reference-style wake-word files (`.rpw`).
@@ -86,18 +86,16 @@ impl WakewordComparator {
 impl WakewordDetector for WakewordComparator {
     fn get_kfc_dimensions(&self) -> (u16, usize) {
         // Get the coefficients per frame (width of the first frame in the first sample)
-        let coeffs = self.samples
+        let coeffs = self
+            .samples
             .values()
             .next()
             .and_then(|v| v.first().map(|frame| frame.len()))
             .unwrap_or(0) as u16;
-            
+
         // Get the max number of frames across all samples
-        let frames = self.samples.values()
-            .map(|v| v.len())
-            .max()
-            .unwrap_or(0);
-            
+        let frames = self.samples.values().map(|v| v.len()).max().unwrap_or(0);
+
         (coeffs, frames)
     }
 

@@ -119,7 +119,11 @@ impl GainNormalizerFilter {
 impl From<&GainNormalizationConfig> for Option<GainNormalizerFilter> {
     fn from(cfg: &GainNormalizationConfig) -> Self {
         if cfg.enabled {
-            Some(GainNormalizerFilter::new(cfg.min_gain, cfg.max_gain, cfg.gain_ref))
+            Some(GainNormalizerFilter::new(
+                cfg.min_gain,
+                cfg.max_gain,
+                cfg.gain_ref,
+            ))
         } else {
             None
         }

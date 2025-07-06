@@ -12,4 +12,3 @@ pub(crate) use wakeword_file::WakewordFile;
 pub use wakeword_file::{WakewordLoad, WakewordSave};
 pub use wakeword_model::{ModelType, ModelWeights, TensorData, WakewordModel};
 pub use wakeword_ref::WakewordRef;
-

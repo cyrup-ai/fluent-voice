@@ -1,17 +1,11 @@
-//! ElevenLabs expressive controls.
+//! Voice synthesis settings.
+//!
+//! This module provides types for controlling various aspects of the
+//! voice synthesis process, including stability, similarity, speaker
+//! boost, and style exaggeration.
 
-/// Voice stability control (0.0 to 1.0).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Stability(pub f32);
-
-/// Voice similarity control (0.0 to 1.0).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Similarity(pub f32);
-
-/// Style exaggeration control (0.0 to 1.0).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct StyleExaggeration(pub f32);
-
-/// Speaker boost toggle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SpeakerBoost(pub bool);
+// Re-export all the individual settings types
+pub use crate::similarity::Similarity;
+pub use crate::speaker_boost::SpeakerBoost;
+pub use crate::stability::Stability;
+pub use crate::style_exaggeration::StyleExaggeration;

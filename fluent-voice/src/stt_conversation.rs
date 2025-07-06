@@ -159,7 +159,7 @@ pub trait MicrophoneBuilder: Sized + Send {
     ///
     /// This method starts real-time speech recognition from the microphone.
     /// The matcher closure receives either the conversation object on success
-    /// or a `VoiceError` on failure, and returns the final result.
+    /// or a `VoiceError` on failure, and returns a Stream.
     ///
     /// # Examples
     ///
@@ -169,12 +169,12 @@ pub trait MicrophoneBuilder: Sized + Send {
     ///     .listen(|conversation| {
     ///         Ok => conversation.into_stream(),
     ///         Err(e) => Err(e),
-    ///     })
-    ///     .await?;
+    ///     });
     /// ```
-    fn listen<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    fn listen<F, S>(self, matcher: F) -> S
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static;
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
+        S: Stream + Send + 'static;
 }
 
 /// Specialized builder for file-based transcription.

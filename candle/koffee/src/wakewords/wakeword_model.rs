@@ -39,10 +39,10 @@ mod indexmap_as_map {
 }
 
 use crate::{
-    wakewords::nn::WakewordNN,
-    wakewords::{WakewordDetector, WakewordFile, WakewordLoad, WakewordSave},
     KoffeeCandleDetection, // new import required by NullDetector implementation
     ScoreMode,
+    wakewords::nn::WakewordNN,
+    wakewords::{WakewordDetector, WakewordFile, WakewordLoad, WakewordSave},
 };
 
 /// Current on-disk version.  Bump if the binary layout changes.

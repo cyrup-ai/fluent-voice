@@ -56,8 +56,12 @@ pub mod voice_error;
 /* ───── TTS chain ───── */
 pub mod model_id;
 pub mod pitch_range;
+pub mod similarity;
 pub mod speaker;
+pub mod speaker_boost;
 pub mod speaker_builder;
+pub mod stability;
+pub mod style_exaggeration;
 pub mod tts_conversation;
 pub mod tts_engine;
 pub mod tts_settings;
@@ -76,6 +80,9 @@ pub mod vad_mode;
 
 /* ───── internal matcher macro ───── */
 mod macros;
+
+/* ───── concrete builder implementations ───── */
+pub mod builders;
 
 /* ───── unified entry point ───── */
 pub mod fluent_voice;
@@ -116,4 +123,11 @@ pub mod prelude {
 
     /* Unified entry point */
     pub use crate::fluent_voice::FluentVoice;
+
+    /* Builder implementations */
+    pub use crate::builders::{
+        MicrophoneBuilderImpl, SpeakerLine, SpeakerLineBuilder, SttConversationBuilderImpl,
+        SttConversationImpl, TranscriptImpl, TranscriptionBuilderImpl, TtsConversationBuilderImpl,
+        TtsConversationImpl, stt_conversation_builder, tts_conversation_builder,
+    };
 }
