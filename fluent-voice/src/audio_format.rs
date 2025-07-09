@@ -14,7 +14,7 @@ pub enum AudioFormat {
     Mp3Khz44_192,
     /// Ogg/Opus 48 kHz, ~96 kbps VBR.
     OggOpusKhz48,
-    
+
     // Extended ElevenLabs formats
     /// MP3 22.05 kHz, 32 kbps CBR.
     Mp3Khz22_32,

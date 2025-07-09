@@ -1,10 +1,7 @@
 //! Speech-to-speech voice conversion builder.
 
 use crate::{
-    audio_format::AudioFormat,
-    model_id::ModelId,
-    voice_error::VoiceError,
-    voice_id::VoiceId,
+    audio_format::AudioFormat, model_id::ModelId, voice_error::VoiceError, voice_id::VoiceId,
 };
 use core::future::Future;
 use futures_core::Stream;

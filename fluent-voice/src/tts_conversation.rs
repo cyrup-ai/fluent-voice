@@ -1,9 +1,9 @@
 //! Multi-speaker conversation builder for TTS.
 use crate::{
     audio_format::AudioFormat,
-    language::Language, 
+    language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},
-    speaker::Speaker, 
+    speaker::Speaker,
     voice_error::VoiceError,
 };
 use core::future::Future;

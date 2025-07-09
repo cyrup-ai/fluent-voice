@@ -66,7 +66,8 @@ impl VoiceLabels {
 
     /// Set a custom description label.
     pub fn description(mut self, description: impl Into<String>) -> Self {
-        self.labels.insert("description".to_string(), description.into());
+        self.labels
+            .insert("description".to_string(), description.into());
         self
     }
 

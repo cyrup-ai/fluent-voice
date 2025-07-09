@@ -1,9 +1,6 @@
 //! Audio isolation and processing builder.
 
-use crate::{
-    audio_format::AudioFormat,
-    voice_error::VoiceError,
-};
+use crate::{audio_format::AudioFormat, voice_error::VoiceError};
 use core::future::Future;
 use futures_core::Stream;
 
