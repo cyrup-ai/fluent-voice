@@ -7,6 +7,7 @@ use crate::{
     language::Language,
     noise_reduction::NoiseReduction,
     speech_source::SpeechSource,
+    stt_conversation::TranscriptionBuilder,
     timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps},
     transcript::{TranscriptSegment, TranscriptStream},
     vad_mode::VadMode,
@@ -16,6 +17,7 @@ use core::future::Future;
 use futures_core::Stream;
 use std::pin::Pin;
 // We use futures::stream instead of futures_util::stream since futures is in the dependencies
+use futures::StreamExt;
 use futures::stream;
 
 /// Base STT conversation session implementation.
@@ -108,7 +110,7 @@ pub struct SttConversationBuilderImpl<S> {
 
 impl<S> SttConversationBuilderImpl<S>
 where
-    S: TranscriptStream,
+    S: TranscriptStream + 'static,
 {
     /// Create a new STT conversation builder with a custom processing function.
     pub fn new<F>(stream_fn: F) -> Self
@@ -165,7 +167,7 @@ where
 
 impl<S> crate::stt_conversation::SttConversationBuilder for SttConversationBuilderImpl<S>
 where
-    S: TranscriptStream,
+    S: TranscriptStream + 'static,
 {
     type Conversation = SttConversationImpl<S>;
 
@@ -388,8 +390,17 @@ where
         F: FnOnce(Result<Self::Conversation, VoiceError>) -> StreamType + Send + 'static,
         StreamType: Stream + Send + 'static,
     {
+        // Use the device string to determine the backend
+        let backend = if self.device == "default" || self.device.is_empty() {
+            crate::mic_backend::MicBackend::Default
+        } else {
+            // Need to leak the string to get a 'static str
+            let device_str = Box::leak(self.device.into_boxed_str());
+            crate::mic_backend::MicBackend::Device(device_str)
+        };
+
         let source = Some(SpeechSource::Microphone {
-            backend: crate::mic_backend::MicBackend::Default,
+            backend,
             format: crate::audio_format::AudioFormat::Pcm16Khz,
             sample_rate: 16_000,
         });
@@ -519,7 +530,7 @@ where
 
 impl<S> crate::stt_conversation::TranscriptionBuilder for TranscriptionBuilderImpl<S>
 where
-    S: TranscriptStream,
+    S: TranscriptStream + 'static,
 {
     type Transcript = TranscriptImpl<S>;
 
@@ -592,13 +603,11 @@ where
         let stream_fut = async move {
             match self.create_transcript().await {
                 Ok(transcript) => {
-                    // Use map_ok to transform successful segments to text
-                    // This requires futures::StreamExt which is in scope via futures::stream
-                    let text_stream =
-                        futures::stream::StreamExt::map(transcript.stream, |result| match result {
-                            Ok(segment) => segment.text().to_string(),
-                            Err(_) => "".to_string(), // Empty string for errors
-                        });
+                    // Use map to transform successful segments to text
+                    let text_stream = transcript.stream.map(|result| match result {
+                        Ok(segment) => segment.text().to_string(),
+                        Err(_) => "".to_string(), // Empty string for errors
+                    });
                     Box::pin(text_stream) as Pin<Box<dyn Stream<Item = String> + Send>>
                 }
                 Err(_) => {
@@ -621,7 +630,7 @@ pub mod builder {
     /// Create a new STT conversation builder
     pub fn stt_conversation_builder<S, F>(stream_fn: F) -> SttConversationBuilderImpl<S>
     where
-        S: TranscriptStream,
+        S: TranscriptStream + 'static,
         F: FnOnce(
                 Option<SpeechSource>,
                 Option<VadMode>,

@@ -25,6 +25,37 @@ pub trait SttConversation: Send {
     /// This method consumes the session and returns the underlying
     /// transcript stream that yields recognition results.
     fn into_stream(self) -> Self::Stream;
+
+    /// Collect all transcript segments into a complete transcript.
+    ///
+    /// This method is used when you want to process the entire
+    /// transcript at once rather than streaming.
+    fn collect(self) -> impl Future<Output = Result<String, VoiceError>> + Send
+    where
+        Self: Sized,
+    {
+        async move {
+            use crate::transcript::TranscriptSegment;
+            use futures::StreamExt;
+
+            let mut stream = self.into_stream();
+            let mut text = String::new();
+
+            while let Some(result) = stream.next().await {
+                match result {
+                    Ok(segment) => {
+                        if !text.is_empty() {
+                            text.push(' ');
+                        }
+                        text.push_str(segment.text());
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+
+            Ok(text)
+        }
+    }
 }
 
 /// Fluent builder for STT conversations.

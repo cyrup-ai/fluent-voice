@@ -29,6 +29,13 @@ pub struct SpeakerLine {
     pub pitch_range: Option<crate::pitch_range::PitchRange>,
 }
 
+impl SpeakerLine {
+    /// Start building a new speaker with the given name.
+    pub fn speaker(name: impl Into<String>) -> SpeakerLineBuilder {
+        <SpeakerLineBuilder as crate::speaker_builder::SpeakerBuilder>::named(name)
+    }
+}
+
 impl Speaker for SpeakerLine {
     fn id(&self) -> &str {
         &self.id
@@ -291,6 +298,34 @@ where
         self
     }
 
+    fn model(mut self, model: crate::model_id::ModelId) -> Self {
+        self.model = Some(model);
+        self
+    }
+
+    fn stability(mut self, stability: crate::stability::Stability) -> Self {
+        self.stability = Some(stability);
+        self
+    }
+
+    fn similarity(mut self, similarity: crate::similarity::Similarity) -> Self {
+        self.similarity = Some(similarity);
+        self
+    }
+
+    fn speaker_boost(mut self, boost: crate::speaker_boost::SpeakerBoost) -> Self {
+        self.speaker_boost = Some(boost);
+        self
+    }
+
+    fn style_exaggeration(
+        mut self,
+        exaggeration: crate::style_exaggeration::StyleExaggeration,
+    ) -> Self {
+        self.style_exaggeration = Some(exaggeration);
+        self
+    }
+
     fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
     where
         F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
@@ -309,18 +344,6 @@ where
             };
             matcher(Ok(conversation))
         }
-    }
-}
-
-/// Extension trait for implementing the speaker pattern
-pub trait SpeakerExt {
-    /// Start a fluent speaker builder
-    fn speaker(name: impl Into<String>) -> SpeakerLineBuilder;
-}
-
-impl SpeakerExt for SpeakerLine {
-    fn speaker(name: impl Into<String>) -> SpeakerLineBuilder {
-        <SpeakerLineBuilder as crate::speaker_builder::SpeakerBuilder>::named(name)
     }
 }
 

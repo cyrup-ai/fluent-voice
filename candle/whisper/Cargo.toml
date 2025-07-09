@@ -8,10 +8,10 @@
 
 [package]
 name         = "fluent_voice_whisper"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/davidmaple/fluent-voice"
 description  = "Cross-platform wake-word detector: Candle ⚡ KFC front-end"
 authors      = ["David Maple <david@cyrup.ai>"]
 
@@ -19,44 +19,46 @@ authors      = ["David Maple <david@cyrup.ai>"]
 #  Dependencies
 # ------------------------------------------------
 [dependencies]
+workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
+
 # — DSP / NN —
-candle-core    = { workspace = true }
-candle-nn      = { workspace = true }
+candle-core    = "0.8.2"
+candle-nn      = "0.8.2"
 
 # — audio / resampling —
-rubato         = { workspace = true, default-features = false, features = ["fft_resampler"] }
-rustfft        = { workspace = true,  default-features = false }
-hound          = { workspace = true }
+# rubato         = { version = "0.16", default-features = false, features = ["fft_resampler"] } # in workspace-hack
+# rustfft        = { version = "6.3.0", default-features = false } # in workspace-hack
+hound          = "3.5.1"
 
 # — containers / utils —
-arrayvec       = { workspace = true }
-smallvec       = { workspace = true }
-indexmap       = { workspace = true }
-thiserror      = { workspace = true }
-log            = { workspace = true }
+arrayvec       = "0.7.6"
+# smallvec       = "2.0.0-alpha.10" # in workspace-hack
+indexmap       = "2.8.1"
+thiserror      = "2.0.12"
+# log            = "0.4.27" # in workspace-hack
 
 # — serde / misc —
-serde          = { workspace = true, features = ["derive"], default-features = false }
-serde_json     = { workspace = true }
-ciborium       = { workspace = true }
-strum          = { workspace = true, features = ["derive"] }
+# serde          = { version = "1.0.219", features = ["derive"], default-features = false } # in workspace-hack
+# serde_json     = "1.0.140" # in workspace-hack
+ciborium       = "0.2.2"
+# strum          = { version = "0.27", features = ["derive"] } # in workspace-hack
 
 # — optional parallelism (desktop only) —
-rayon          = { workspace = true, optional = true }
+rayon          = { version = "1.10.0", optional = true }
 
 # — browser bindings (wasm32 build only) —
-wasm-bindgen   = { workspace = true,  optional = true }
-js-sys         = { workspace = true,  optional = true }
-web-sys        = { workspace = true,  features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
-console_error_panic_hook = { workspace = true, optional = true }
+wasm-bindgen   = { version = "0.2.99", optional = true }
+js-sys         = { version = "0.3.76", optional = true }
+web-sys        = { version = "0.3.76", features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
+console_error_panic_hook = { version = "0.1.7", optional = true }
 
 # — fluent-voice integration —
 fluent_voice   = { path = "../../fluent-voice", default-features = false, optional = true }
-fluent_voice_macros = { workspace = true }
-tokio          = { workspace = true, features = ["rt", "sync"], optional = true }
-futures-core   = { workspace = true, optional = true }
-futures-util   = { workspace = true, optional = true }
-async-stream   = { workspace = true, optional = true }
+fluent_voice_macros = { path = "../../macros" }
+# tokio          = { version = "1.45.1", features = ["rt", "sync"], optional = true } # in workspace-hack
+# futures-core   = { version = "0.3.31", optional = true } # in workspace-hack
+# futures-util   = { version = "0.3.31", optional = true } # in workspace-hack
+async-stream   = { version = "0.3.6", optional = true }
 
 # ------------------------------------------------
 #  Feature flags

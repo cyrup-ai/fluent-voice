@@ -4,9 +4,9 @@
 //! $ kfc train  --in data/ --out model.kc
 
 use clap::{Parser, Subcommand};
-use koffee_candle::config::{DetectorConfig, FiltersConfig, KoffeeCandleConfig};
-use koffee_candle::wakewords::{WakewordLoad, WakewordModel};
-use koffee_candle::{Kfc, ModelType};
+use koffee::config::{DetectorConfig, FiltersConfig, KoffeeCandleConfig};
+use koffee::wakewords::{WakewordLoad, WakewordModel};
+use koffee::{Kfc, ModelType};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -48,20 +48,20 @@ fn main() -> anyhow::Result<()> {
             let cfg = KoffeeCandleConfig {
                 detector: DetectorConfig::default(),
                 filters: FiltersConfig::default(),
-                fmt: koffee_candle::config::AudioFmt::default(),
+                fmt: koffee::config::AudioFmt::default(),
             };
 
             let mut det = Kfc::new(&cfg)?;
             det.add_wakeword("default", model, cfg.detector.score_ref)?;
             // ---------- serve stream ---------------------------------------------------
-            koffee_candle::server::run_tcp(&mut det, port)?;
+            koffee::server::run_tcp(&mut det, port)?;
         }
         Cmd::Train {
             input,
             output,
             model_type,
         } => {
-            koffee_candle::trainer::train_dir(&input, &output, model_type)?;
+            koffee::trainer::train_dir(&input, &output, model_type)?;
         }
     };
     Ok(())

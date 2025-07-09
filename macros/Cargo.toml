@@ -1,15 +1,17 @@
 [package]
 name        = "fluent_voice_macros"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/davidmaple/fluent-voice"
 keywords    = ["tts", "stt", "voice", "speech", "macros"]
 categories  = ["multimedia::audio", "api-bindings"]
 
 [dependencies]
-futures-core = { workspace = true }
+workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
+
+# futures-core = "0.3.31" # in workspace-hack
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["full"] }
-fluent_voice = { workspace = true }
+# tokio = { version = "1.45.1", features = ["full"] } # in workspace-hack
+fluent_voice = { path = "../fluent-voice" }

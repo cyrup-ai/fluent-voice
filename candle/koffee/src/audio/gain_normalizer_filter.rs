@@ -57,6 +57,7 @@ impl GainNormalizerFilter {
 
     /* ─────────── public helpers ─────────── */
 
+    /// Returns the current RMS level reference value.
     #[inline]
     pub fn get_rms_level_ref(&self) -> f32 {
         self.rms_level_ref

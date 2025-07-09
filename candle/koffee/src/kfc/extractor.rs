@@ -10,10 +10,22 @@ use std::f32::consts::PI;
 /// Returned whenever the `Kfc` API is mis-used (wrong frame size, etc.).
 #[derive(Debug, thiserror::Error)]
 pub enum KfcError {
+    /// Frame length does not match the configured frame size.
     #[error("frame length ({given}) must equal configured frame size ({expected})")]
-    BadFrame { given: usize, expected: usize },
+    BadFrame {
+        /// The provided frame length.
+        given: usize,
+        /// The expected frame length.
+        expected: usize,
+    },
+    /// Output slice is too small for the extracted features.
     #[error("output slice too small (need {need}, got {got})")]
-    OutTooSmall { need: usize, got: usize },
+    OutTooSmall {
+        /// Required output slice size.
+        need: usize,
+        /// Actual output slice size.
+        got: usize,
+    },
 }
 
 /// Streaming **Mel-frequency cepstral coefficient** extractor.

@@ -1,7 +1,10 @@
+/// Wakeword comparison and scoring utilities.
 pub mod comp;
+/// Neural network models for wakeword detection.
 pub mod nn;
 mod wakeword_detector;
 mod wakeword_file;
+/// Wakeword model types and operations.
 pub mod wakeword_model;
 mod wakeword_ref;
 mod wakeword_v2;

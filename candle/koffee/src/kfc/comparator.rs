@@ -2,6 +2,11 @@
 // path: potter-dsp/src/kfc/comparator.rs
 //---
 
+#![allow(unsafe_code)] // Required for lifetime transmutation in DTW
+//! KFC Comparator – DTW-based similarity scoring
+//!
+//! Compares two sequences using Dynamic Time Warping with cosine similarity.
+
 use super::dtw::Dtw;
 use core::cmp::min;
 
@@ -19,13 +24,11 @@ use core::cmp::min;
 /// let score = cmp.compare(&a_frames, &b_frames); // &[&[f32]], &[&[f32]]
 /// ```
 /// Internal design – why the extra `tmp_*` buffers?  
-///  • We want **zero large heap copies per `compare` call**.  
-///  • DTW (from `super::dtw`) expects `&'static [f32]` for the path
-///    lifetime, but never stores those slices beyond the call.  
-///  • We therefore keep two reusable `Vec<&'static [f32]>` buffers
-///    inside the struct, fill them with *borrowed* views (see `unsafe`
-///    block below) and hand them to DTW.  
-///  • After the call they are cleared – no leak, no undefined behaviour.
+///  • We want to minimize heap allocations per `compare` call.  
+///  • DTW (from `super::dtw`) works with owned Vec<f32> data.
+///  • We therefore keep two reusable `Vec<Vec<f32>>` buffers
+///    inside the struct, fill them with cloned frame data and hand them to DTW.  
+///  • After the call they are cleared and ready for reuse.
 #[allow(dead_code)]
 pub struct KfcComparator {
     score_ref: f32,
@@ -76,10 +79,10 @@ impl KfcComparator {
         self.tmp_a.reserve(a.len()); // reuse underlying buf
         self.tmp_b.reserve(b.len());
 
-        // SAFETY:  The transmuted slices live only until we clear the
-        //          buffers (end of this function).  DTW never stores
-        //          them beyond its call, so extending the lifetime is
-        //          sound.
+        // SAFETY: The transmuted slices live only until we clear the
+        //         buffers (end of this function). DTW never stores
+        //         them beyond its call, so extending the lifetime is
+        //         sound.
         unsafe {
             for &frame in a {
                 self.tmp_a
@@ -96,8 +99,8 @@ impl KfcComparator {
                 .compute_optimal_path_with_window(&self.tmp_a, &self.tmp_b, self.band_size);
 
         /* ---------------------------------------------------------
-         * Safety:  the &'static slices in tmp_a/tmp_b out-live the
-         * DTW call **only**.  Clear now so the struct never stores
+         * Safety: the &'static slices in tmp_a/tmp_b out-live the
+         * DTW call **only**. Clear now so the struct never stores
          * dangling pointers after we return to the caller.
          * ------------------------------------------------------ */
         self.tmp_a.clear(); // drop 'static slices before returning → no UB

@@ -19,38 +19,41 @@ authors      = ["David Maple <david@cyrup.ai>"]
 #  Dependencies
 # ------------------------------------------------
 [dependencies]
+workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
+
 # — DSP / NN —
-candle-core    = { workspace = true }
-candle-nn      = { workspace = true }
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main" }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main" }
 
 # — audio / resampling —
-rubato         = { workspace = true, default-features = false, features = ["fft_resampler"] }
-rustfft        = { workspace = true,  default-features = false }
-hound          = { workspace = true }
+# rubato is in workspace-hack
+# rustfft is in workspace-hack
+hound = "3.5"
 
 # — containers / utils —
-arrayvec       = { workspace = true }
-smallvec       = { workspace = true }
-indexmap       = { workspace = true }
-thiserror      = { workspace = true }
-log            = { workspace = true }
+arrayvec = "0.7"
+# smallvec is in workspace-hack
+indexmap = "2.6"
+thiserror = "2.0"
+# log is in workspace-hack
 
 # — serde / misc —
-serde          = { workspace = true, features = ["derive"], default-features = false }
-serde_json     = { workspace = true }
-ciborium       = { workspace = true }
-strum          = { workspace = true, features = ["derive"] }
+# serde is in workspace-hack
+# serde_json is in workspace-hack
+ciborium = "0.2"
+# strum is in workspace-hack
 
 # — optional parallelism (desktop only) —
-rayon          = { workspace = true, optional = true }
+rayon = { version = "1.10", optional = true }
 
 # — browser bindings (wasm32 build only) —
-wasm-bindgen   = { workspace = true,  optional = true }
-js-sys         = { workspace = true,  optional = true }
-web-sys        = { workspace = true,  features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
-console_error_panic_hook = { workspace = true, optional = true }
-anyhow.workspace = true
-tokio = { workspace = true, features = ["sync", "rt"] }
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+anyhow = "1.0"
+# tokio is in workspace-hack
+# clap is in workspace-hack
 
 # ------------------------------------------------
 #  Feature flags

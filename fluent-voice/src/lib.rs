@@ -87,6 +87,9 @@ pub mod builders;
 /* ───── unified entry point ───── */
 pub mod fluent_voice;
 
+/* ───── production engine implementations ───── */
+pub mod engines;
+
 /* ───── prelude for users ───── */
 pub mod prelude {
     //! Re-exports of commonly used types and traits.
@@ -98,9 +101,8 @@ pub mod prelude {
     pub use crate::{
         model_id::ModelId,
         pitch_range::PitchRange,
-        speaker::Speaker,
-        speaker_builder::{SpeakerBuilder, SpeakerExt},
-        tts_conversation::{TtsConversationBuilder, TtsConversationExt},
+        speaker_builder::SpeakerBuilder,
+        tts_conversation::{TtsConversation, TtsConversationBuilder, TtsConversationExt},
         tts_engine::TtsEngine,
         tts_settings::{Similarity, SpeakerBoost, Stability, StyleExaggeration},
         vocal_speed::VocalSpeedMod,
@@ -113,7 +115,8 @@ pub mod prelude {
         noise_reduction::NoiseReduction,
         speech_source::SpeechSource,
         stt_conversation::{
-            MicrophoneBuilder, SttConversationBuilder, SttConversationExt, TranscriptionBuilder,
+            MicrophoneBuilder, SttConversation, SttConversationBuilder, SttConversationExt,
+            TranscriptionBuilder,
         },
         stt_engine::SttEngine,
         timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps},
@@ -122,12 +125,18 @@ pub mod prelude {
     };
 
     /* Unified entry point */
-    pub use crate::fluent_voice::FluentVoice;
+    pub use crate::fluent_voice::{
+        DummySegment, FluentVoice as FluentVoiceTrait, FluentVoiceImpl as FluentVoice,
+    };
 
     /* Builder implementations */
     pub use crate::builders::{
-        MicrophoneBuilderImpl, SpeakerLine, SpeakerLineBuilder, SttConversationBuilderImpl,
-        SttConversationImpl, TranscriptImpl, TranscriptionBuilderImpl, TtsConversationBuilderImpl,
-        TtsConversationImpl, stt_conversation_builder, tts_conversation_builder,
+        MicrophoneBuilderImpl, SpeakerLine as Speaker, SpeakerLineBuilder,
+        SttConversationBuilderImpl, SttConversationImpl, TranscriptImpl, TranscriptionBuilderImpl,
+        TtsConversationBuilderImpl, TtsConversationImpl, stt_conversation_builder,
+        tts_conversation_builder,
     };
+
+    /* Production engine implementations */
+    pub use crate::engines::{ElevenLabsEngine, ElevenLabsHttp3Config};
 }

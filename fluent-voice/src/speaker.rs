@@ -2,6 +2,7 @@
 
 use crate::language::Language;
 use crate::pitch_range::PitchRange;
+use crate::speaker_builder::SpeakerBuilder;
 use crate::vocal_speed::VocalSpeedMod;
 use crate::voice_id::VoiceId;
 
@@ -30,4 +31,14 @@ pub trait Speaker: Clone + Send + Sync {
 
     /// Returns the pitch range for this speaker, if specified.
     fn pitch_range(&self) -> Option<&PitchRange>;
+}
+
+/// Implementation of SpeakerExt for all Speaker types
+impl<T> crate::speaker_builder::SpeakerExt for T
+where
+    T: Speaker,
+{
+    fn speaker(name: impl Into<String>) -> impl crate::speaker_builder::SpeakerBuilder {
+        <crate::builders::SpeakerLineBuilder as SpeakerBuilder>::named(name)
+    }
 }

@@ -86,15 +86,25 @@ pub struct FiltersConfig {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy)]
 pub enum ScoreMode {
+    /// Calculate average of all scores.
     Average,
+    /// Use maximum score.
     Max,
+    /// Use median score.
     Median,
+    /// Use 25th percentile score.
     P25,
+    /// Use 50th percentile score (same as median).
     P50,
+    /// Use 75th percentile score.
     P75,
+    /// Use 80th percentile score.
     P80,
+    /// Use 90th percentile score.
     P90,
+    /// Use 95th percentile score.
     P95,
+    /// Use classic scoring algorithm.
     Classic,
 }
 #[cfg(feature = "display")]
@@ -137,8 +147,11 @@ impl std::str::FromStr for ScoreMode {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy)]
 pub enum VADMode {
+    /// Easy mode - more permissive voice detection.
     Easy,
+    /// Medium mode - balanced voice detection.
     Medium,
+    /// Hard mode - stricter voice detection.
     Hard,
 }
 impl VADMode {

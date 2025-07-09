@@ -13,7 +13,7 @@
 use std::io::BufReader;
 
 use hound::{Sample as HoundSample, WavReader, WavSpec};
-use smallvec::SmallVec;
+
 use thiserror::Error;
 
 use crate::{

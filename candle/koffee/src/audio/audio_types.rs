@@ -11,9 +11,13 @@
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum SampleFormat {
+    /// 8-bit signed integer samples.
     I8,
+    /// 16-bit signed integer samples.
     I16,
+    /// 32-bit signed integer samples.
     I32,
+    /// 32-bit floating point samples.
     F32,
 }
 
@@ -70,8 +74,11 @@ impl fmt::Display for SampleFormat {
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Endianness {
+    /// Big-endian byte ordering.
     Big,
+    /// Little-endian byte ordering.
     Little,
+    /// Native system byte ordering.
     Native,
 }
 
@@ -81,26 +88,37 @@ pub enum Endianness {
 ///
 /// *All* conversions are inline and panic-free.
 pub trait Sample: Copy + PartialOrd + Send + 'static {
+    /// The format of this sample type.
     const FORMAT: SampleFormat;
+    /// Returns the zero value for this sample type.
     fn zero() -> Self;
+    /// Returns the number of bytes per sample.
     fn bytes() -> usize {
         Self::FORMAT.bytes() as usize
     }
+    /// Creates a sample from little-endian bytes.
     fn from_le(b: &[u8]) -> Self;
+    /// Creates a sample from big-endian bytes.
     fn from_be(b: &[u8]) -> Self;
+    /// Creates a sample from native-endian bytes.
     fn from_ne(b: &[u8]) -> Self;
+    /// Converts this sample to f32.
     fn into_f32(self) -> f32;
 
     // Additional methods needed by encoder
+    /// Returns the byte size of this sample type.
     fn get_byte_size() -> usize {
         Self::FORMAT.bytes() as usize
     }
+    /// Creates a sample from little-endian bytes (alias for from_le).
     fn from_le_bytes(b: &[u8]) -> Self {
         Self::from_le(b)
     }
+    /// Creates a sample from big-endian bytes (alias for from_be).
     fn from_be_bytes(b: &[u8]) -> Self {
         Self::from_be(b)
     }
+    /// Creates a sample from native-endian bytes (alias for from_ne).
     fn from_ne_bytes(b: &[u8]) -> Self {
         Self::from_ne(b)
     }

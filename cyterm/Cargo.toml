@@ -4,54 +4,57 @@ version      = "0.1.0"
 edition      = "2024"
 authors      = ["David Maple<david@cyrup.ai>"]
 license      = "MIT OR Apache-2.0"
+repository   = "https://github.com/davidmaple/fluent-voice"
 description  = "Software-rendered Ratatui terminal with Candle Whisper ASR, Silero VAD, and embedded wake-word spotting."
 readme       = "README.md"
 default-run  = "cyterm"
 
 [dependencies]
+workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
+
 koffee = { path = "../candle/koffee"}
 fluent_voice_whisper = { path = "../candle/whisper"}
 
-ratatui             = { workspace = true }
-cosmic-text         = { workspace = true }
+ratatui             = "0.30.0-alpha.4"
+cosmic-text         = "0.14.2"
 
-cpal                = { workspace = true }
-rubato              = { workspace = true, features = ["fft_resampler"] }
+cpal                = "0.16.0"
+# rubato              = { version = "0.16", features = ["fft_resampler"] } # in workspace-hack
 
-ndarray             = { workspace = true }
-typed-builder       = { workspace = true }
-thiserror           = { workspace = true }
+# ndarray             = "0.16" # in workspace-hack
+typed-builder       = "0.21"
+thiserror           = "2.0.12"
 
-candle-core         = { workspace = true }
-candle-nn           = { workspace = true }
-candle-transformers = { workspace = true }
-candle-datasets     = { workspace = true, optional = true }
+candle-core         = { git = "https://github.com/huggingface/candle", branch = "main" }
+candle-nn           = { git = "https://github.com/huggingface/candle", branch = "main" }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main" }
+candle-datasets     = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
 
-hf-hub              = { workspace = true }
-tokenizers          = { workspace = true }
-rand                = { workspace = true }
+hf-hub              = "0.4.2"
+# tokenizers          = "0.21.1" # in workspace-hack
+# rand                = "0.9.1" # in workspace-hack
 
-anyhow              = { workspace = true }
-clap                = { workspace = true, features = ["std"] }
+anyhow              = "1.0.98"
+# clap                = { version = "4.5.40", features = ["derive"] } # in workspace-hack
 
-futures             = { workspace = true }
-ort                 = { workspace = true }
-pin-project         = { workspace = true }
+futures             = "0.3.31"
+# ort                 = "2.0.0-rc.10" # in workspace-hack
+pin-project         = "1.1"
 
-byteorder           = { workspace = true }
-bytemuck            = { workspace = true }
+byteorder           = "1.5.0"
+# bytemuck            = "1.23.1" # in workspace-hack
 
-crossbeam-channel   = { workspace = true }
-crossbeam-utils     = { workspace = true }
+crossbeam-channel   = "0.5.15"
+crossbeam-utils     = "0.8.21"
 
-log                 = { workspace = true }
+# log                 = "0.4.27" # in workspace-hack
 
 [dev-dependencies]
-hound               = { workspace = true }
-itertools           = { workspace = true }
-tokio               = { workspace = true, features = ["rt", "sync", "macros"] }
-tokio-stream        = { workspace = true }
+hound               = "3.5.1"
+# itertools           = "0.14" # in workspace-hack
+# tokio               = { version = "1.45.1", features = ["rt", "sync", "macros"] } # in workspace-hack
+tokio-stream        = "0.1"
 
-tracing             = { workspace = true }
-tracing-chrome      = { workspace = true }
-tracing-subscriber  = { workspace = true }
+# tracing             = "0.1.41" # in workspace-hack
+tracing-chrome      = "0.7.2"
+tracing-subscriber  = "0.3.19"

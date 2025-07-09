@@ -1,11 +1,13 @@
 [package]
 name = "fluent_voice_openai"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/davidmaple/fluent-voice"
 
 [dependencies]
-axum.workspace = true
-serde = { workspace = true, features = ["derive"] }
-tower-http.workspace = true
+workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
+
+axum = "0.8.4"
+# serde = { version = "1.0.219", features = ["derive"] } # in workspace-hack
+tower-http = "0.6.6"

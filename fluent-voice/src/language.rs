@@ -14,26 +14,26 @@ impl Language {
     }
 
     /// English (US)
-    pub const EnglishUS: Self = Self("en-US");
+    pub const ENGLISH_US: Self = Self("en-US");
 
     /// English (UK)
-    pub const EnglishUK: Self = Self("en-GB");
+    pub const ENGLISH_UK: Self = Self("en-GB");
 
     /// Spanish
-    pub const Spanish: Self = Self("es-ES");
+    pub const SPANISH: Self = Self("es-ES");
 
     /// French
-    pub const French: Self = Self("fr-FR");
+    pub const FRENCH: Self = Self("fr-FR");
 
     /// German
-    pub const German: Self = Self("de-DE");
+    pub const GERMAN: Self = Self("de-DE");
 
     /// Japanese
-    pub const Japanese: Self = Self("ja-JP");
+    pub const JAPANESE: Self = Self("ja-JP");
 
     /// Chinese (Simplified)
-    pub const ChineseSimplified: Self = Self("zh-CN");
+    pub const CHINESE_SIMPLIFIED: Self = Self("zh-CN");
 
     /// Chinese (Traditional)
-    pub const ChineseTraditional: Self = Self("zh-TW");
+    pub const CHINESE_TRADITIONAL: Self = Self("zh-TW");
 }

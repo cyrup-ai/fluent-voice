@@ -21,12 +21,16 @@ use crate::config::AudioFmt;
 use rubato::{FftFixedIn, ResampleError, Resampler, ResamplerConstructionError};
 
 /* ─── public error type ─── */
+/// Errors that can occur during audio encoding operations.
 #[derive(Debug, thiserror::Error)]
 pub enum EncoderError {
+    /// Sample rate is not supported by the encoder.
     #[error("unsupported sample-rate")]
     UnsupportedRate,
+    /// Error during resampling operation.
     #[error(transparent)]
     Resample(#[from] ResampleError),
+    /// Error during resampler construction.
     #[error(transparent)]
     Construct(#[from] ResamplerConstructionError),
 }
@@ -91,6 +95,7 @@ impl AudioEncoder {
 
     /* ─────────── public getters ─────────── */
 
+    /// Returns the number of bytes per input frame.
     #[inline]
     pub fn input_bytes(&self) -> usize {
         self.bytes_per_input_frame
@@ -188,10 +193,12 @@ fn decode<T: Sample>(bytes: &[u8], endian: &Endianness) -> Vec<f32> {
 
 /* ─── short helpers used by extractor code ─── */
 impl AudioEncoder {
+    /// Returns the number of input samples per frame.
     #[inline]
     pub fn input_samples(&self) -> usize {
         self.input_samples_per_frame
     }
+    /// Returns the number of output samples per frame.
     #[inline]
     pub fn output_samples(&self) -> usize {
         self.output_samples_per_frame
