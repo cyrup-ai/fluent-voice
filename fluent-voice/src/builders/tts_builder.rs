@@ -4,7 +4,9 @@
 //! that can be used as a base for engine-specific implementations.
 
 use crate::{
+    audio_format::AudioFormat,
     language::Language,
+    pronunciation_dict::{PronunciationDictId, RequestId},
     speaker::Speaker,
     tts_conversation::{TtsConversation, TtsConversationBuilder},
     voice_error::VoiceError,
@@ -142,6 +144,20 @@ pub struct TtsConversationImpl<AudioStream> {
     pub speaker_boost: Option<crate::speaker_boost::SpeakerBoost>,
     /// Style exaggeration setting (0.0-1.0)
     pub style_exaggeration: Option<crate::style_exaggeration::StyleExaggeration>,
+    /// Output audio format
+    pub output_format: Option<AudioFormat>,
+    /// Pronunciation dictionaries
+    pub pronunciation_dictionaries: Vec<PronunciationDictId>,
+    /// Deterministic seed
+    pub seed: Option<u64>,
+    /// Previous text for context
+    pub previous_text: Option<String>,
+    /// Next text for context
+    pub next_text: Option<String>,
+    /// Previous request IDs
+    pub previous_request_ids: Vec<RequestId>,
+    /// Next request IDs
+    pub next_request_ids: Vec<RequestId>,
     /// Function to convert conversation to audio stream
     synth_fn: Box<dyn FnOnce(&[SpeakerLine], Option<&Language>) -> AudioStream + Send>,
 }
@@ -192,6 +208,20 @@ pub struct TtsConversationBuilderImpl<AudioStream> {
     speaker_boost: Option<crate::speaker_boost::SpeakerBoost>,
     /// Style exaggeration setting (0.0-1.0)
     style_exaggeration: Option<crate::style_exaggeration::StyleExaggeration>,
+    /// Output audio format
+    output_format: Option<AudioFormat>,
+    /// Pronunciation dictionaries
+    pronunciation_dictionaries: Vec<PronunciationDictId>,
+    /// Deterministic seed
+    seed: Option<u64>,
+    /// Previous text for context
+    previous_text: Option<String>,
+    /// Next text for context
+    next_text: Option<String>,
+    /// Previous request IDs
+    previous_request_ids: Vec<RequestId>,
+    /// Next request IDs
+    next_request_ids: Vec<RequestId>,
     /// Function to synthesize audio from the conversation
     synth_fn: Box<dyn FnOnce(&[SpeakerLine], Option<&Language>) -> AudioStream + Send>,
 }
@@ -214,6 +244,13 @@ where
             similarity: None,
             speaker_boost: None,
             style_exaggeration: None,
+            output_format: None,
+            pronunciation_dictionaries: Vec::new(),
+            seed: None,
+            previous_text: None,
+            next_text: None,
+            previous_request_ids: Vec::new(),
+            next_request_ids: Vec::new(),
             synth_fn: Box::new(synth_fn),
         }
     }
@@ -257,6 +294,48 @@ where
         self
     }
 
+    /// Set the output audio format
+    pub fn output_format(mut self, format: AudioFormat) -> Self {
+        self.output_format = Some(format);
+        self
+    }
+
+    /// Add a pronunciation dictionary
+    pub fn pronunciation_dictionary(mut self, dict_id: PronunciationDictId) -> Self {
+        self.pronunciation_dictionaries.push(dict_id);
+        self
+    }
+
+    /// Set deterministic seed
+    pub fn seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self
+    }
+
+    /// Set previous text for context
+    pub fn previous_text(mut self, text: impl Into<String>) -> Self {
+        self.previous_text = Some(text.into());
+        self
+    }
+
+    /// Set next text for context
+    pub fn next_text(mut self, text: impl Into<String>) -> Self {
+        self.next_text = Some(text.into());
+        self
+    }
+
+    /// Set previous request IDs
+    pub fn previous_request_ids(mut self, request_ids: Vec<RequestId>) -> Self {
+        self.previous_request_ids = request_ids;
+        self
+    }
+
+    /// Set next request IDs
+    pub fn next_request_ids(mut self, request_ids: Vec<RequestId>) -> Self {
+        self.next_request_ids = request_ids;
+        self
+    }
+
     /// Helper for the macro-less implementation - completes the conversation
     pub async fn finish_conversation(self) -> Result<TtsConversationImpl<AudioStream>, VoiceError> {
         Ok(TtsConversationImpl {
@@ -268,6 +347,13 @@ where
             similarity: self.similarity,
             speaker_boost: self.speaker_boost,
             style_exaggeration: self.style_exaggeration,
+            output_format: self.output_format,
+            pronunciation_dictionaries: self.pronunciation_dictionaries,
+            seed: self.seed,
+            previous_text: self.previous_text,
+            next_text: self.next_text,
+            previous_request_ids: self.previous_request_ids,
+            next_request_ids: self.next_request_ids,
             synth_fn: self.synth_fn,
         })
     }
@@ -326,6 +412,41 @@ where
         self
     }
 
+    fn output_format(mut self, format: AudioFormat) -> Self {
+        self.output_format = Some(format);
+        self
+    }
+
+    fn pronunciation_dictionary(mut self, dict_id: PronunciationDictId) -> Self {
+        self.pronunciation_dictionaries.push(dict_id);
+        self
+    }
+
+    fn seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self
+    }
+
+    fn previous_text(mut self, text: impl Into<String>) -> Self {
+        self.previous_text = Some(text.into());
+        self
+    }
+
+    fn next_text(mut self, text: impl Into<String>) -> Self {
+        self.next_text = Some(text.into());
+        self
+    }
+
+    fn previous_request_ids(mut self, request_ids: Vec<RequestId>) -> Self {
+        self.previous_request_ids = request_ids;
+        self
+    }
+
+    fn next_request_ids(mut self, request_ids: Vec<RequestId>) -> Self {
+        self.next_request_ids = request_ids;
+        self
+    }
+
     fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
     where
         F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
@@ -340,6 +461,13 @@ where
                 similarity: self.similarity,
                 speaker_boost: self.speaker_boost,
                 style_exaggeration: self.style_exaggeration,
+                output_format: self.output_format,
+                pronunciation_dictionaries: self.pronunciation_dictionaries,
+                seed: self.seed,
+                previous_text: self.previous_text,
+                next_text: self.next_text,
+                previous_request_ids: self.previous_request_ids,
+                next_request_ids: self.next_request_ids,
                 synth_fn: self.synth_fn,
             };
             matcher(Ok(conversation))

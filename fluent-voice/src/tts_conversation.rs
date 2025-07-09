@@ -1,5 +1,11 @@
 //! Multi-speaker conversation builder for TTS.
-use crate::{language::Language, speaker::Speaker, voice_error::VoiceError};
+use crate::{
+    audio_format::AudioFormat,
+    language::Language, 
+    pronunciation_dict::{PronunciationDictId, RequestId},
+    speaker::Speaker, 
+    voice_error::VoiceError,
+};
 use core::future::Future;
 use futures_core::Stream;
 
@@ -100,6 +106,75 @@ pub trait TtsConversationBuilder: Sized + Send {
     /// * `exaggeration` - Style intensity between 0.0 and 1.0
     fn style_exaggeration(self, exaggeration: crate::style_exaggeration::StyleExaggeration)
     -> Self;
+
+    /// Set the output audio format.
+    ///
+    /// Controls the encoding, sample rate, and quality of the generated audio.
+    ///
+    /// # Arguments
+    ///
+    /// * `format` - Desired audio output format
+    fn output_format(self, format: AudioFormat) -> Self;
+
+    /// Add a pronunciation dictionary for custom word pronunciations.
+    ///
+    /// Up to 3 pronunciation dictionaries can be applied to improve
+    /// accuracy for domain-specific terms, names, or technical vocabulary.
+    ///
+    /// # Arguments
+    ///
+    /// * `dict_id` - Pronunciation dictionary identifier
+    fn pronunciation_dictionary(self, dict_id: PronunciationDictId) -> Self;
+
+    /// Set a deterministic seed for consistent output.
+    ///
+    /// When set, the same input will always produce the same audio output,
+    /// useful for testing and reproducible results.
+    ///
+    /// # Arguments
+    ///
+    /// * `seed` - Deterministic seed value
+    fn seed(self, seed: u64) -> Self;
+
+    /// Provide previous text for context continuity.
+    ///
+    /// Helps the engine understand context from preceding speech segments
+    /// to improve prosody and natural flow in multi-part synthesis.
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - Text that was spoken before this conversation
+    fn previous_text(self, text: impl Into<String>) -> Self;
+
+    /// Provide following text for context continuity.
+    ///
+    /// Helps the engine anticipate what comes next to improve prosody
+    /// and natural transitions in multi-part synthesis.
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - Text that will be spoken after this conversation
+    fn next_text(self, text: impl Into<String>) -> Self;
+
+    /// Reference previous request IDs for context continuity.
+    ///
+    /// Links this synthesis request to previous ones for improved
+    /// consistency across a series of related speech segments.
+    ///
+    /// # Arguments
+    ///
+    /// * `request_ids` - Previous synthesis request identifiers
+    fn previous_request_ids(self, request_ids: Vec<RequestId>) -> Self;
+
+    /// Reference following request IDs for context continuity.
+    ///
+    /// Links this synthesis request to future ones for improved
+    /// consistency across a series of related speech segments.
+    ///
+    /// # Arguments
+    ///
+    /// * `request_ids` - Following synthesis request identifiers
+    fn next_request_ids(self, request_ids: Vec<RequestId>) -> Self;
 
     /// Terminal method that executes synthesis with a matcher closure.
     ///

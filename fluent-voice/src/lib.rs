@@ -78,6 +78,15 @@ pub mod timestamps;
 pub mod transcript;
 pub mod vad_mode;
 
+/* ───── ElevenLabs extensions ───── */
+pub mod audio_isolation;
+pub mod pronunciation_dict;
+pub mod sound_effects;
+pub mod speech_to_speech;
+pub mod voice_clone;
+pub mod voice_discovery;
+pub mod voice_labels;
+
 /* ───── internal matcher macro ───── */
 mod macros;
 
@@ -139,4 +148,15 @@ pub mod prelude {
 
     /* Production engine implementations */
     pub use crate::engines::{ElevenLabsEngine, ElevenLabsHttp3Config};
+
+    /* ElevenLabs extensions */
+    pub use crate::{
+        audio_isolation::{AudioIsolationBuilder, AudioIsolationExt, AudioIsolationSession},
+        pronunciation_dict::{PronunciationDictId, RequestId},
+        sound_effects::{SoundEffectsBuilder, SoundEffectsExt, SoundEffectsSession},
+        speech_to_speech::{SpeechToSpeechBuilder, SpeechToSpeechExt, SpeechToSpeechSession},
+        voice_clone::{VoiceCloneBuilder, VoiceCloneExt, VoiceCloneResult},
+        voice_discovery::{VoiceDiscoveryBuilder, VoiceDiscoveryExt, VoiceDiscoveryResult},
+        voice_labels::{VoiceCategory, VoiceDetails, VoiceLabels, VoiceSettings, VoiceType},
+    };
 }
