@@ -17,3 +17,16 @@ pub use stt_builder::{
     MicrophoneBuilderImpl, SttConversationBuilderImpl, SttConversationImpl, TranscriptImpl,
     TranscriptionBuilderImpl, builder::stt_conversation_builder,
 };
+
+// Re-export ElevenLabs extension builders
+mod audio_isolation_builder;
+mod sound_effects_builder;
+mod speech_to_speech_builder;
+mod voice_clone_builder;
+mod voice_discovery_builder;
+
+pub use audio_isolation_builder::{AudioIsolationBuilderImpl, AudioIsolationSessionImpl};
+pub use sound_effects_builder::{SoundEffectsBuilderImpl, SoundEffectsSessionImpl};
+pub use speech_to_speech_builder::{SpeechToSpeechBuilderImpl, SpeechToSpeechSessionImpl};
+pub use voice_clone_builder::VoiceCloneBuilderImpl;
+pub use voice_discovery_builder::VoiceDiscoveryBuilderImpl;

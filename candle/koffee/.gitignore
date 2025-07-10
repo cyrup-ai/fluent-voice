@@ -13,6 +13,10 @@
 *.dll
 *.exe
 .idea
+.claude 
+.history 
+
+
 
 # ==============================
 # Rust Specific

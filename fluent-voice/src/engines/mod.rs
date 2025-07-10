@@ -1,8 +1,4 @@
-//! Production-ready engine implementations for FluentVoice.
+//! Engine trait implementations for FluentVoice.
 //!
-//! This module provides concrete implementations of the FluentVoice trait
-//! for various TTS and STT engines with advanced features like HTTP/3 QUIC.
-
-pub mod elevenlabs;
-
-pub use elevenlabs::{ElevenLabsEngine, ElevenLabsHttp3Config};
+//! This module is reserved for trait implementations that extend
+//! the core FluentVoice functionality.

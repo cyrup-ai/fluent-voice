@@ -43,6 +43,7 @@ pub struct WakewordNN {
     kfc_coeffs: u16,
     labels: Vec<String>,
     score_scale: f32, // = score_ref * 10
+    #[allow(dead_code)]
     rms_level: f32,
 }
 
@@ -133,6 +134,7 @@ impl WakewordNN {
 
     /* ------------- public prediction API ---------- */
 
+    #[allow(dead_code)]
     fn predict(&mut self, kfc: Vec<Vec<f32>>) -> Result<Vec<f32>, WakewordError> {
         let flat = self.flatten_frames(kfc);
         let mut scratch_ref = self.scratch.borrow_mut();
@@ -221,6 +223,7 @@ impl WakewordDetector for WakewordNN {
 /*  Utilities                                                                */
 /* ------------------------------------------------------------------------- */
 
+#[allow(dead_code)]
 pub(super) fn get_tensors_data(vm: &VarMap) -> Result<ModelWeights, WakewordError> {
     let mut map = IndexMap::new();
     for (name, var) in vm

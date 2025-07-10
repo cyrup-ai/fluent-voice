@@ -70,7 +70,8 @@ impl AudioEncoder {
             // `FftFixedIn::new` now yields a **`ResamplerConstructionError`** which
             // is transparently converted into our `EncoderError::Construct` variant
             // via the `?` operator.
-            let rs = FftFixedIn::<f32>::new(fmt.sample_rate, target_sr, out_spf, 1, 2)?;
+            // Use input format channels to match the actual audio format
+            let rs = FftFixedIn::<f32>::new(fmt.sample_rate, target_sr, out_spf, fmt.channels as usize, fmt.channels as usize)?;
             // rubato chooses its own internal frame length; update `in_spf`
             in_spf = rs.input_frames_next() * fmt.channels as usize;
             Some(rs)
@@ -80,6 +81,36 @@ impl AudioEncoder {
 
         let bytes_per_frame = in_spf * fmt.sample_format.get_bytes_per_sample() as usize;
 
+        // Ensure proper buffer allocation based on actual channel count
+        let resampler_in = resampler.as_ref().map(|r| {
+            let mut buffers = r.input_buffer_allocate(false);
+            // Ensure we have the correct number of channel buffers
+            let expected_channels = fmt.channels as usize;
+            if buffers.len() != expected_channels {
+                buffers.resize(expected_channels, Vec::with_capacity(r.input_frames_next()));
+            }
+            // Pre-allocate all channel buffers to avoid size 0 issues
+            for buffer in &mut buffers {
+                if buffer.capacity() == 0 {
+                    buffer.reserve(r.input_frames_next());
+                }
+            }
+            buffers
+        });
+        
+        let resampler_out = resampler.as_ref().map(|r| {
+            let mut buffers = r.output_buffer_allocate(true);
+            // Output is always mono (1 channel) after mix-down
+            if buffers.len() != 1 {
+                buffers.resize(1, Vec::with_capacity(r.output_frames_next()));
+            }
+            // Pre-allocate the buffer to avoid size 0 issues
+            if buffers[0].capacity() == 0 {
+                buffers[0].reserve(r.output_frames_next());
+            }
+            buffers
+        });
+
         Ok(Self {
             src_fmt: fmt.sample_format,
             src_endian: fmt.endianness.clone(),
@@ -87,8 +118,8 @@ impl AudioEncoder {
             bytes_per_input_frame: bytes_per_frame,
             input_samples_per_frame: in_spf,
             output_samples_per_frame: out_spf,
-            resampler_in: resampler.as_ref().map(|r| r.input_buffer_allocate(false)),
-            resampler_out: resampler.as_ref().map(|r| r.output_buffer_allocate(true)),
+            resampler_in,
+            resampler_out,
             resampler,
         })
     }
@@ -158,7 +189,20 @@ impl AudioEncoder {
             // SAFETY: buffers allocated in `new`; length always matches rubato’s contract
             let in_buf = self.resampler_in.as_mut().expect("in-buf not allocated");
             let out_buf = self.resampler_out.as_mut().expect("out-buf not allocated");
-            in_buf[0] = mono;
+            
+            // Handle channel assignment based on actual channel count
+            if self.src_channels == 1 {
+                // Mono input: assign to first channel
+                in_buf[0] = mono;
+            } else {
+                // Multi-channel input: distribute mono data across all expected channels
+                for i in 0..self.src_channels as usize {
+                    if i < in_buf.len() {
+                        in_buf[i] = mono.clone();
+                    }
+                }
+            }
+            
             rs.process_into_buffer(in_buf, out_buf, None)?;
             Ok(out_buf[0].clone())
         } else {

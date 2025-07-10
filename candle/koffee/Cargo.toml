@@ -19,7 +19,6 @@ authors      = ["David Maple <david@cyrup.ai>"]
 #  Dependencies
 # ------------------------------------------------
 [dependencies]
-workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
 
 # — DSP / NN —
 candle-core = { git = "https://github.com/huggingface/candle", branch = "main" }
@@ -52,8 +51,20 @@ js-sys = { version = "0.3", optional = true }
 web-sys = { version = "0.3", features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
 anyhow = "1.0"
+rustfft = "6.4.0"
+strum = { version = "0.27.1", features = ["derive"] }
+rubato = "0.16.2"
+serde = { version = "1.0.219", features = ["derive"] }
+smallvec = "1.15.1"
+log = "0.4.27"
+clap = { version = "4.5.41", features = ["derive"] }
 # tokio is in workspace-hack
 # clap is in workspace-hack
+
+[dev-dependencies]
+cpal = "0.15"
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "time"] }
+tempfile = "3.8"
 
 # ------------------------------------------------
 #  Feature flags

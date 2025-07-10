@@ -22,6 +22,8 @@ pub mod builder;
 pub mod config;
 pub mod constants;
 pub mod kfc;
+pub mod server;
+pub mod trainer;
 pub mod wakewords;
 
 /* ────────── public façade & re-exports (backward-compat) ─────────────── */
@@ -74,6 +76,7 @@ pub struct KoffeeCandle {
 
     /* ----------------- runtime state -------------------- */
     wakewords: HashMap<String, Box<dyn WakewordDetector>>,
+    #[allow(dead_code)]
     rms_level: f32,
 
     #[cfg(feature = "record")]
@@ -262,6 +265,7 @@ pub struct KoffeeCandleDetection {
 
 /* ─────────────────────────── helpers ────────────────────────────────── */
 
+#[allow(dead_code)]
 #[inline(always)]
 const fn out_shifts() -> usize {
     KFCS_EXTRACTOR_OUT_SHIFTS

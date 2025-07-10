@@ -25,7 +25,8 @@ serde_json = "1.0"
 tokio = { version = "1.0", features = ["rt", "sync", "macros"] }
 futures-util = "0.3"
 derive_more = { version = "2.0", features = ["full"] }
-fluent_voice_elevenlabs = { path = "../elevenlabs" }
+koffee = { version = "0.1.0", path = "../candle/koffee" }
+cpal = { workspace = true }
 
 [dev-dependencies]
 # tokio is in workspace-hack

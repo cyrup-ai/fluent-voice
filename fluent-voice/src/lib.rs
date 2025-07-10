@@ -49,6 +49,7 @@
 //! ```
 
 /* ───── shared fundamentals ───── */
+pub mod audio_device_manager;
 pub mod audio_format;
 pub mod language;
 pub mod voice_error;
@@ -86,6 +87,12 @@ pub mod speech_to_speech;
 pub mod voice_clone;
 pub mod voice_discovery;
 pub mod voice_labels;
+
+/* ───── wake word detection ───── */
+pub mod wake_word;
+pub mod wake_word_conversation;
+pub mod wake_word_engine;
+pub mod wake_word_koffee;
 
 /* ───── internal matcher macro ───── */
 mod macros;
@@ -146,8 +153,17 @@ pub mod prelude {
         tts_conversation_builder,
     };
 
-    /* Production engine implementations */
-    pub use crate::engines::{ElevenLabsEngine, ElevenLabsHttp3Config};
+    /* Wake Word Detection */
+    pub use crate::{
+        wake_word::{
+            WakeWordBuilder, WakeWordConfig, WakeWordDetector, WakeWordEvent, WakeWordStream,
+        },
+        wake_word_conversation::WakeWordConversationExt,
+        wake_word_engine::WakeWordEngine,
+        wake_word_koffee::{KoffeeWakeWordBuilder, KoffeeWakeWordDetector},
+    };
+
+    /* Engine trait implementations */
 
     /* ElevenLabs extensions */
     pub use crate::{

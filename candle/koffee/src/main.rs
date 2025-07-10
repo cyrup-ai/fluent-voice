@@ -44,24 +44,29 @@ fn main() -> anyhow::Result<()> {
     match cli.cmd {
         Cmd::Listen { port, model } => {
             // ---------- build detector -------------------------------------------------
-            let model: WakewordModel = WakewordModel::load_file(&model)?;
+            let model: WakewordModel = WakewordModel::load_from_file(&model)
+                .map_err(|e| anyhow::anyhow!("Failed to load model: {}", e))?;
             let cfg = KoffeeCandleConfig {
                 detector: DetectorConfig::default(),
                 filters: FiltersConfig::default(),
                 fmt: koffee::config::AudioFmt::default(),
             };
 
-            let mut det = Kfc::new(&cfg)?;
-            det.add_wakeword("default", model, cfg.detector.score_ref)?;
+            let mut det =
+                Kfc::new(&cfg).map_err(|e| anyhow::anyhow!("Failed to create detector: {}", e))?;
+            det.add_wakeword_model(model)
+                .map_err(|e| anyhow::anyhow!("Failed to add wakeword model: {}", e))?;
             // ---------- serve stream ---------------------------------------------------
-            koffee::server::run_tcp(&mut det, port)?;
+            koffee::server::run_tcp(&mut det, port)
+                .map_err(|e| anyhow::anyhow!("Failed to run TCP server: {}", e))?;
         }
         Cmd::Train {
             input,
             output,
             model_type,
         } => {
-            koffee::trainer::train_dir(&input, &output, model_type)?;
+            koffee::trainer::train_dir(&input, &output, model_type)
+                .map_err(|e| anyhow::anyhow!("Failed to train model: {}", e))?;
         }
     };
     Ok(())

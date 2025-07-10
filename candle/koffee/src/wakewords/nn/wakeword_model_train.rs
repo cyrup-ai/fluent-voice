@@ -167,8 +167,8 @@ pub fn train(
         let labels = std::sync::Mutex::new(Vec::<u32>::new());
         let rms_vec = std::sync::Mutex::new(Vec::<f32>::new());
 
-        // Parallel feature extraction -------------------------------------------------
-        data.into_par_iter()
+        // Sequential feature extraction (debugging) -------------------------------------------------
+        data.into_iter()
             .try_for_each(|(fname, bytes)| -> Result<(), TrainerError> {
                 // map file-name → label index
                 let lab_ix = take_label(&fname, allow_new_labels)?;
@@ -183,8 +183,18 @@ pub fn train(
                 .map_err(TrainerError::Extractor)?;
                 KfcNormalizer::normalize(&mut extractor);
 
-                // Flatten matrix to a single feature vector
-                let flat: Vec<f32> = extractor.into_iter().flatten().collect();
+                // Ensure we have exactly FRAMES frames for the neural network
+                let frames_to_take = extractor.len().min(FRAMES);
+                let mut flat: Vec<f32> = extractor.into_iter()
+                    .take(frames_to_take)
+                    .flatten()
+                    .collect();
+
+                // Pad with zeros if we don't have enough frames
+                let expected_size = COEFFS * FRAMES;
+                if flat.len() < expected_size {
+                    flat.resize(expected_size, 0.0);
+                }
                 let rms = flat.iter().copied().map(f32::abs).sum::<f32>() / flat.len() as f32;
 
                 // Push into shared buffers (with poison-aware error handling)
@@ -213,15 +223,16 @@ pub fn train(
         // ---------------------------------------------------------------------------
 
         // Take ownership of the buffers without panicking
-        let feats = feats
-            .into_inner()
-            .map_err(|e| TrainerError::Poison(format!("feats: {e}")))?;
-        let labels = labels
-            .into_inner()
-            .map_err(|e| TrainerError::Poison(format!("labels: {e}")))?;
-        let rms_vec = rms_vec
-            .into_inner()
-            .map_err(|e| TrainerError::Poison(format!("rms: {e}")))?;
+        let feats = feats.into_inner().map_err(|e| TrainerError::Poison(format!("feats final: {e}")))?;
+        let labels = labels.into_inner().map_err(|e| TrainerError::Poison(format!("labels final: {e}")))?;
+        let rms_vec = rms_vec.into_inner().map_err(|e| TrainerError::Poison(format!("rms final: {e}")))?;
+
+        println!("DEBUG: Final dataset - {} features, {} labels, {} rms values", feats.len(), labels.len(), rms_vec.len());
+        if feats.is_empty() {
+            println!("DEBUG: WARNING - No features extracted from any files!");
+        } else {
+            println!("DEBUG: First feature vector has {} elements", feats[0].len());
+        }
 
         // Compute average RMS across all samples
         let rms_level = if rms_vec.is_empty() {

@@ -110,6 +110,7 @@ struct NullDetector {
 }
 
 impl NullDetector {
+    #[allow(dead_code)]
     fn new(kfc_size: u16) -> Self {
         Self { kfc_size }
     }
@@ -165,6 +166,12 @@ pub enum ModelType {
     Small,
     Medium,
     Large,
+}
+
+impl std::fmt::Display for ModelType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", <&'static str>::from(self))
+    }
 }
 
 /* --------------------------------------------------------------------- */

@@ -79,7 +79,7 @@ impl KfcWavFileExtractor {
             40,                            // mel bins
         )?;
 
-        let mut rms_levels = smallvec::SmallVec::<f32, 128>::new();
+        let mut rms_levels = smallvec::SmallVec::<[f32; 128]>::new();
         let mut frames: Vec<Vec<f32>> = Vec::new();
 
         /* ---------- 3. Stream-decode & process -------------------------- */
@@ -128,14 +128,25 @@ impl KfcWavFileExtractor {
         wav: &mut WavReader<R>,
         encoder: &mut AudioEncoder,
         kfc: &mut KfcExtractor,
-        rms_levels: &mut smallvec::SmallVec<f32, 128>,
+        rms_levels: &mut smallvec::SmallVec<[f32; 128]>,
         out_frames: &mut Vec<Vec<f32>>,
     ) -> Result<(), ExtractorError>
     where
         R: std::io::Read,
         S: HoundSample + Sample,
     {
-        let mut in_buf = Vec::<S>::with_capacity(encoder.input_samples());
+        // Ensure we have sufficient buffer capacity for input samples
+        let required_capacity = encoder.input_samples().max(480);
+        let mut in_buf = Vec::<S>::with_capacity(required_capacity);
+        
+        // Pre-allocate to avoid buffer size issues during processing
+        if in_buf.capacity() == 0 {
+            in_buf.reserve(required_capacity);
+        }
+
+        // Buffer to accumulate resampled audio until we have enough for KFC (480 samples)
+        let kfc_frame_size = 480; // 30ms at 16kHz
+        let mut kfc_buffer = Vec::<f32>::new();
 
         for sample in wav.samples::<S>() {
             let s = sample?;
@@ -148,9 +159,13 @@ impl KfcWavFileExtractor {
 
                 rms_levels.push(GainNormalizerFilter::get_rms_level(&samples));
 
-                /* slide through full frames */
-                for chunk in samples.chunks_exact(encoder.output_samples()) {
-                    for v in kfc.compute(chunk) {
+                // Add resampled samples to KFC buffer
+                kfc_buffer.extend_from_slice(&samples);
+
+                // Process complete KFC frames when we have enough samples
+                while kfc_buffer.len() >= kfc_frame_size {
+                    let frame: Vec<f32> = kfc_buffer.drain(..kfc_frame_size).collect();
+                    for v in kfc.compute(&frame) {
                         out_frames.push(v);
                     }
                 }
