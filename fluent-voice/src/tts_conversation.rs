@@ -4,10 +4,9 @@ use crate::{
     language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},
     speaker::Speaker,
-
 };
-use fluent_voice_domain::VoiceError;
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Engine-specific conversation object.

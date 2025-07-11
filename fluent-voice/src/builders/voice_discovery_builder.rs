@@ -3,10 +3,10 @@
 use crate::{
     language::Language,
     voice_discovery::{VoiceDiscoveryBuilder, VoiceDiscoveryResult},
-    voice_error::VoiceError,
     voice_labels::{VoiceCategory, VoiceLabels, VoiceType},
 };
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 
 /// Concrete voice discovery builder implementation.
 pub struct VoiceDiscoveryBuilderImpl {

@@ -5,4 +5,6 @@
 
 mod default_stt_engine;
 
-pub use default_stt_engine::{DefaultSTTEngine, DefaultSTTEngineBuilder, VadConfig, WakeWordConfig};
+pub use default_stt_engine::{
+    DefaultSTTEngine, DefaultSTTEngineBuilder, VadConfig, WakeWordConfig,
+};

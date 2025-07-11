@@ -9,10 +9,9 @@ use crate::{
     pronunciation_dict::{PronunciationDictId, RequestId},
     speaker::Speaker,
     tts_conversation::{TtsConversation, TtsConversationBuilder},
-
 };
-use fluent_voice_domain::VoiceError;
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Concrete speaker implementation for TTS operations.

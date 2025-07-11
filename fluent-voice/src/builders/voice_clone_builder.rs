@@ -3,12 +3,11 @@
 use crate::{
     model_id::ModelId,
     voice_clone::{VoiceCloneBuilder, VoiceCloneResult},
-
     voice_id::VoiceId,
     voice_labels::VoiceLabels,
 };
-use fluent_voice_domain::VoiceError;
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 
 /// Concrete voice cloning builder implementation.
 pub struct VoiceCloneBuilderImpl {

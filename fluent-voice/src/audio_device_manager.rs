@@ -1,8 +1,8 @@
 //! Real audio device management for microphone enumeration and selection.
 
 use cpal::{
-    traits::{DeviceTrait, HostTrait},
     Device, Host, SupportedStreamConfig,
+    traits::{DeviceTrait, HostTrait},
 };
 use fluent_voice_domain::VoiceError;
 use std::fmt;
@@ -45,7 +45,7 @@ impl AudioDeviceManager {
     /// Enumerate all available audio devices.
     pub fn enumerate_devices(&self) -> Result<Vec<AudioDeviceInfo>, VoiceError> {
         let mut devices = Vec::new();
-        
+
         let device_iter = self.host.devices().map_err(|e| {
             VoiceError::ConfigurationError(format!("Failed to enumerate audio devices: {}", e))
         })?;
@@ -77,7 +77,9 @@ impl AudioDeviceManager {
     }
 
     /// Find the Studio Display Microphone device specifically.
-    pub fn find_studio_display_microphone(&self) -> Result<Option<(Device, AudioDeviceInfo)>, VoiceError> {
+    pub fn find_studio_display_microphone(
+        &self,
+    ) -> Result<Option<(Device, AudioDeviceInfo)>, VoiceError> {
         let device_iter = self.host.devices().map_err(|e| {
             VoiceError::ConfigurationError(format!("Failed to enumerate audio devices: {}", e))
         })?;
@@ -207,8 +209,10 @@ mod tests {
     #[test]
     fn test_device_enumeration() {
         let manager = AudioDeviceManager::new().expect("Failed to create manager");
-        let devices = manager.enumerate_devices().expect("Failed to enumerate devices");
-        
+        let devices = manager
+            .enumerate_devices()
+            .expect("Failed to enumerate devices");
+
         // We should have at least some devices on any system
         println!("Found {} audio devices:", devices.len());
         for device in &devices {
@@ -219,7 +223,7 @@ mod tests {
     #[test]
     fn test_studio_display_search() {
         let manager = AudioDeviceManager::new().expect("Failed to create manager");
-        
+
         match manager.find_studio_display_microphone() {
             Ok(Some((_, info))) => {
                 println!("Found Studio Display Microphone: {}", info);
@@ -236,7 +240,7 @@ mod tests {
     #[test]
     fn test_preferred_microphone() {
         let manager = AudioDeviceManager::new().expect("Failed to create manager");
-        
+
         match manager.get_preferred_microphone() {
             Ok((_, info)) => {
                 println!("Selected microphone: {}", info);

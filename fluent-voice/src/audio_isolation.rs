@@ -1,8 +1,8 @@
 //! Audio isolation and processing builder.
 
 use crate::audio_format::AudioFormat;
-use fluent_voice_domain::VoiceError;
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Audio isolation session.

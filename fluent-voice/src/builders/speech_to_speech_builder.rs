@@ -4,10 +4,10 @@ use crate::{
     audio_format::AudioFormat,
     model_id::ModelId,
     speech_to_speech::{SpeechToSpeechBuilder, SpeechToSpeechSession},
-    voice_error::VoiceError,
     voice_id::VoiceId,
 };
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Concrete speech-to-speech session implementation.

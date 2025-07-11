@@ -14,14 +14,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Enumerate all available devices
     println!("\n🔍 Enumerating all audio devices:");
     println!("----------------------------------");
-    
+
     let devices = manager.enumerate_devices()?;
     println!("Found {} audio device(s):", devices.len());
-    
+
     for (index, device) in devices.iter().enumerate() {
         println!("  {}. {}", index + 1, device);
         if let Some(ref config) = device.default_input_config {
-            println!("     Input config: {} channels, {} Hz, {:?}",
+            println!(
+                "     Input config: {} channels, {} Hz, {:?}",
                 config.channels(),
                 config.sample_rate().0,
                 config.sample_format()
@@ -32,18 +33,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Look specifically for Studio Display Microphone
     println!("\n🎯 Looking for Studio Display Microphone:");
     println!("------------------------------------------");
-    
+
     match manager.find_studio_display_microphone()? {
         Some((device, info)) => {
             println!("✅ Found Studio Display Microphone!");
             println!("   Device: {}", info);
-            
+
             // Validate the device
             match manager.validate_device(&device) {
                 Ok(()) => println!("   ✅ Device validation successful"),
                 Err(e) => println!("   ❌ Device validation failed: {}", e),
             }
-            
+
             if let Some(ref config) = info.default_input_config {
                 println!("   📊 Input capabilities:");
                 println!("      - Channels: {}", config.channels());
@@ -65,17 +66,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get preferred microphone (Studio Display or fallback)
     println!("\n🎤 Getting preferred microphone:");
     println!("--------------------------------");
-    
+
     match manager.get_preferred_microphone() {
         Ok((device, info)) => {
             println!("✅ Selected microphone: {}", info);
-            
+
             if info.name == "Studio Display Microphone" {
                 println!("   🎯 Using Studio Display Microphone (preferred)");
             } else {
                 println!("   📱 Using fallback microphone: {}", info.name);
             }
-            
+
             // Final validation
             match manager.validate_device(&device) {
                 Ok(()) => println!("   ✅ Final device validation successful"),

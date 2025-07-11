@@ -4,8 +4,8 @@ use crate::{
     language::Language,
     voice_labels::{VoiceCategory, VoiceDetails, VoiceLabels, VoiceType},
 };
-use fluent_voice_domain::VoiceError;
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 
 /// Result of voice discovery operations.
 pub struct VoiceDiscoveryResult {

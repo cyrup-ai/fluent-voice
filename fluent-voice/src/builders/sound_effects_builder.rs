@@ -3,10 +3,9 @@
 use crate::{
     audio_format::AudioFormat,
     sound_effects::{SoundEffectsBuilder, SoundEffectsSession},
-
 };
-use fluent_voice_domain::VoiceError;
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Concrete sound effects session implementation.

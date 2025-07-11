@@ -6,10 +6,9 @@ use crate::{
     timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps},
     transcript::TranscriptStream,
     vad_mode::VadMode,
-
 };
-use fluent_voice_domain::VoiceError;
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Engine-specific STT session object.

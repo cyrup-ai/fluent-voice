@@ -30,6 +30,7 @@ derive_more = { version = "2.0", features = ["full"] }
 koffee = { version = "0.1.0", path = "../candle/koffee" }
 cpal = { workspace = true }
 fluent_voice_whisper = { version = "0.1.0", path = "../candle/whisper", features = ["async-stream", "audio", "display", "record"] }
+async-stream = "0.3.6"
 
 [dev-dependencies]
 # tokio is in workspace-hack

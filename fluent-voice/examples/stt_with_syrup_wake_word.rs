@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             // In a real implementation, you would call listen() here:
                             println!("🎤 Would call: stt_builder.listen(|conversation| ...)");
                             println!("💬 Transcribed text would appear here in real time");
-                            
+
                             // Simulate some transcription results
                             println!("📄 Simulated transcript segments:");
                             println!("   [0.0s-1.2s] 'Hello there!'");
@@ -121,7 +121,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("• STT session timeout and cleanup");
             println!("• Error recovery and reconnection logic");
             println!("• Performance optimization for real-time processing");
-
         }
         Err(e) => {
             println!("❌ Failed to create wake word detector: {}", e);

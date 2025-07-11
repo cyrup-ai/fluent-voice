@@ -3,10 +3,9 @@
 use crate::{
     audio_format::AudioFormat,
     audio_isolation::{AudioIsolationBuilder, AudioIsolationSession},
-
 };
-use fluent_voice_domain::VoiceError;
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Concrete audio isolation session implementation.

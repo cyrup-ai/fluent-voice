@@ -11,9 +11,9 @@ use crate::{
     timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps},
     transcript::{TranscriptSegment, TranscriptStream},
     vad_mode::VadMode,
-    voice_error::VoiceError,
 };
 use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 use std::pin::Pin;
 // We use futures::stream instead of futures_util::stream since futures is in the dependencies

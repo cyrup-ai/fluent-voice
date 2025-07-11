@@ -45,9 +45,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     match detector.process_samples(&dummy_samples) {
                         Ok(detections) => {
                             if detections.is_empty() {
-                                println!("🔇 No wake word detected in test audio (expected with dummy data)");
+                                println!(
+                                    "🔇 No wake word detected in test audio (expected with dummy data)"
+                                );
                             } else {
-                                println!("🎯 Wake word detected! Found {} detection(s)", detections.len());
+                                println!(
+                                    "🎯 Wake word detected! Found {} detection(s)",
+                                    detections.len()
+                                );
                                 // Note: Detection details would show actual wake word info
                             }
                         }
