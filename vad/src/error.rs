@@ -9,4 +9,7 @@ pub enum Error {
         /// The chunk size for the VAD.
         chunk_size: usize,
     },
+    /// Failed to perform prediction due to tensor processing error.
+    #[error("prediction failed: {0}")]
+    PredictionFailed(String),
 }

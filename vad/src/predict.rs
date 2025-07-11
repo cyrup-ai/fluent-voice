@@ -25,7 +25,10 @@ where
             return None;
         }
 
-        let probability = self.vad.predict(self.buffer.iter().copied());
+        let probability = match self.vad.predict(self.buffer.iter().copied()) {
+            Ok(prob) => prob,
+            Err(_) => return None, // Skip this chunk if prediction fails
+        };
         let buffer = mem::replace(&mut self.buffer, Vec::with_capacity(self.vad.chunk_size()));
 
         Some((buffer, probability))
