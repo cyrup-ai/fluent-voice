@@ -47,13 +47,11 @@ mod utils;
 // Internal engine module - NOT exposed
 mod engine;
 
+// Fluent API module - contains builders but only FluentVoice is exposed
+mod fluent_api;
+
 // Public modules
-pub mod fluent_api;
 pub mod voice;
 
-// Re-export ONLY the fluent API - hide all engine internals
-pub use fluent_api::{
-    AudioFormat, AudioOutput, AudioStream, FluentVoice, Result, Speaker, SpeakerSetup, SttBuilder,
-    TranscriptOutput, TranscriptStream, TranscriptWord, TtsBuilder, VoiceChangerBuilder,
-    VoiceError,
-};
+// Re-export ONLY FluentVoice entry point - hide raw engine bypasses
+pub use fluent_api::{FluentVoice, Result, VoiceError};

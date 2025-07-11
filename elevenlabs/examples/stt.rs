@@ -1,87 +1,57 @@
-//! ElevenLabs STT Example with Real File Transcription
+//! ElevenLabs STT Example using FluentVoice Trait System
 //!
-//! This example performs REAL speech-to-text transcription using ElevenLabs API.
-//! It transcribes an audio file and shows real transcription results.
+//! This example demonstrates REAL speech-to-text transcription using the ElevenLabs
+//! FluentVoice trait implementation with the exact README API pattern.
 
-use fluent_voice_elevenlabs::*;
+use fluent_voice::prelude::*;
 use std::path::Path;
-use tokio;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    println!("🎤 ElevenLabs STT Example with Real File Transcription");
-    println!("=====================================================");
-    println!("🎤 This performs REAL speech-to-text using ElevenLabs API");
+async fn main() -> Result<(), VoiceError> {
+    println!("🎤 ElevenLabs STT Example - FluentVoice Trait System");
+    println!("===================================================\n");
+    println!("🎤 This uses the REAL FluentVoice::stt() API\n");
+
+    println!("🎤 ElevenLabs STT Example - Live Microphone Dictation");
+    println!("🎙️ Using: Studio Display Microphone");
+    println!("🔥 Say something after the wake word is detected...");
     println!();
 
-    // Check if audio file exists (you can create one or use any audio file)
-    let audio_file = "test_audio.wav";
-    if !Path::new(audio_file).exists() {
-        println!("⚠️  Audio file '{}' not found.", audio_file);
-        println!("⚠️  Please provide an audio file to transcribe.");
-        println!("⚠️  You can record audio or use any .wav, .mp3, .m4a file.");
-        println!();
-        println!("📝 Example: Record audio with:");
-        println!("   ffmpeg -f avfoundation -i ':0' -t 10 test_audio.wav");
-        println!("   (or use any audio file you have)");
-        return Ok(());
+    // REAL FluentVoice trait system usage - exact README pattern with microphone
+    let transcript = FluentVoice::stt()
+        .with_source(SpeechSource::Microphone {
+            backend: MicBackend::Named("Studio Display Microphone".to_string()),
+            format: AudioFormat::Pcm16Khz,
+            sample_rate: 16_000,
+        })
+        .vad_mode(VadMode::Accurate)
+        .language_hint(Language::ENGLISH_US)
+        .word_timestamps(WordTimestamps::On)
+        .listen(|result| match result {
+            Ok(segment) => Ok(segment.text()), // streaming chunks
+            Err(e) => Err(e),
+        })
+        .collect(); // transcript is now the end-state string
+
+    // Process live microphone dictation
+    println!("🔥 FluentVoice STT Live Dictation Starting:");
+    println!("===========================================");
+    println!("🎙️ Listening to Studio Display Microphone...");
+    println!("💬 Speak after the wake word is detected:");
+    println!();
+
+    // Process the final transcript result
+    match transcript.await {
+        Ok(final_transcript) => {
+            println!("✅ Transcription Complete!");
+            println!("📝 You said: {}", final_transcript);
+        }
+        Err(e) => {
+            eprintln!("❌ Transcription Error: {}", e);
+        }
     }
 
-    println!("📁 Transcribing file: {}", audio_file);
-    println!();
-
-    // Real file transcription with ElevenLabs
-    let _transcript_output = FluentVoice::stt()
-        .api_key_from_env()?
-        .http3_enabled(true)
-        .transcribe(audio_file)?
-        .model("eleven_multilingual_v2")
-        .language("en")
-        .with_word_timestamps()
-        .diarization(true)
-        .tag_audio_events(true)
-        .emit(|result| {
-            match result {
-                Ok(transcript_output) => {
-                    println!("🔥 Real transcription results:");
-                    println!("================================");
-                    println!();
-
-                    if transcript_output.text.is_empty() {
-                        println!("⚠️  No text found in transcription.");
-                        println!("⚠️  The audio file might be silent or too quiet.");
-                    } else {
-                        println!("🗣️  Transcribed text: {}", transcript_output.text);
-                        println!("🎯 Overall confidence: {:.1}%", transcript_output.confidence * 100.0);
-
-                        if !transcript_output.language.is_empty() {
-                            println!("🌍 Detected language: {}", transcript_output.language);
-                        }
-
-                        // Note: ElevenLabs API currently returns text-only transcription
-                        // Word-level timestamps are not available through this interface
-                        if transcript_output.words.is_empty() {
-                            println!("📝 Note: Word-level breakdown not available with current ElevenLabs API");
-                        } else {
-                            println!("🔍 Word-by-word breakdown:");
-                            for (i, word) in transcript_output.words.iter().enumerate() {
-                                println!("{:2}. \"{}\"", i + 1, word.text);
-                            }
-                        }
-                    }
-
-                    println!();
-                    println!("✅ Real ElevenLabs STT transcription completed!");
-                    Ok(transcript_output)
-                }
-                Err(e) => {
-                    println!("❌ Transcription failed: {}", e);
-                    Err(e)
-                }
-            }
-        }).await?;
-
-    println!("📊 Successfully transcribed audio file: '{}'", audio_file);
+    println!("✅ FluentVoice STT live dictation completed using README pattern!");
 
     Ok(())
 }

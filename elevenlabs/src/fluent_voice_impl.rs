@@ -13,7 +13,7 @@ use crate::engine::{
 use fluent_voice::prelude::*;
 use fluent_voice::stt_conversation::SttConversation;
 use fluent_voice::tts_conversation::TtsConversation;
-use futures_util::{stream, Stream, StreamExt};
+use futures_util::{Stream, StreamExt, stream};
 use std::pin::Pin;
 
 /// ElevenLabs implementation of the FluentVoice trait
@@ -101,7 +101,7 @@ impl TtsConversationBuilder for ElevenLabsTtsConversationBuilder {
     {
         // Create the engine if not already created
         let engine_result = self.get_or_create_engine().await;
-        
+
         match engine_result {
             Ok(engine) => {
                 // Convert to TtsConversation
@@ -110,7 +110,7 @@ impl TtsConversationBuilder for ElevenLabsTtsConversationBuilder {
                     language: self.language,
                     engine: engine.clone(),
                 };
-                
+
                 matcher(Ok(Box::new(conversation)))
             }
             Err(e) => matcher(Err(VoiceError::EngineError(e.to_string()))),
@@ -321,6 +321,8 @@ pub struct ElevenLabsTranscriptionBuilder {
 }
 
 impl TranscriptionBuilder for ElevenLabsTranscriptionBuilder {
+    type Transcript = ElevenLabsSttConversation;
+
     fn with_progress(mut self, template: impl Into<String>) -> Self {
         self.progress_template = Some(template.into());
         self
@@ -332,51 +334,54 @@ impl TranscriptionBuilder for ElevenLabsTranscriptionBuilder {
     {
         // Get the engine
         let engine_result = self.builder.get_or_create_engine().await;
-        
+
         match engine_result {
             Ok(engine) => {
                 // Get the file path from source
                 if let Some(SpeechSource::File { path, .. }) = &self.builder.source {
                     // Create STT builder
                     let mut stt_builder = engine.stt();
-                    
+
                     // Configure language if provided
                     if let Some(lang) = &self.builder.language {
                         stt_builder = stt_builder.language(&lang.0);
                     }
-                    
+
                     // Configure diarization
                     if let Some(Diarization::On) = self.builder.diarization {
                         stt_builder = stt_builder.diarization(true);
                     }
-                    
+
                     // Configure word timestamps
                     if let Some(WordTimestamps::On) = self.builder.word_timestamps {
                         stt_builder = stt_builder.with_word_timestamps();
                     }
-                    
+
                     // Transcribe the file
                     let result = stt_builder.transcribe(path.clone()).collect().await;
-                    
+
                     match result {
                         Ok(transcript_output) => {
                             // Convert to fluent-voice Transcript
                             let transcript = ElevenLabsTranscript {
                                 output: transcript_output,
                             };
-                            
+
                             let stream = Box::pin(stream::iter(
                                 transcript.output.words.into_iter().map(|word| {
                                     Ok(ElevenLabsTranscriptSegment {
                                         text: word.text.clone(),
-                                        start_ms: word.start.map(|s| (s * 1000.0) as u32).unwrap_or(0),
+                                        start_ms: word
+                                            .start
+                                            .map(|s| (s * 1000.0) as u32)
+                                            .unwrap_or(0),
                                         end_ms: word.end.map(|e| (e * 1000.0) as u32).unwrap_or(0),
                                         speaker_id: word.speaker,
                                     })
-                                })
+                                }),
                             ));
-                            
-                            matcher(Ok(Box::new(ElevenLabsSttConversation { stream })))
+
+                            matcher(Ok(ElevenLabsSttConversation { stream }))
                         }
                         Err(e) => matcher(Err(VoiceError::EngineError(e.to_string()))),
                     }
@@ -397,7 +402,8 @@ struct ElevenLabsSttConversation {
 }
 
 impl SttConversation for ElevenLabsSttConversation {
-    type Stream = Pin<Box<dyn Stream<Item = Result<ElevenLabsTranscriptSegment, VoiceError>> + Send>>;
+    type Stream =
+        Pin<Box<dyn Stream<Item = Result<ElevenLabsTranscriptSegment, VoiceError>> + Send>>;
 
     fn into_stream(self) -> Self::Stream {
         self.stream
