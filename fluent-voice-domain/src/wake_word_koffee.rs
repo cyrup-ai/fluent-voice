@@ -151,7 +151,7 @@ impl WakeWordStream for KoffeeWakeWordDetector {
     where
         S: Stream<Item = Vec<u8>> + Send + Unpin,
     {
-        let detector = Arc::clone(&self.detector);
+        let detector: Arc<Mutex<KoffeeCandle>> = Arc::clone(&self.detector);
         let config = self.config.clone();
         audio_stream.filter_map(move |audio_chunk| {
             let detector = Arc::clone(&detector);
@@ -183,7 +183,7 @@ impl WakeWordStream for KoffeeWakeWordDetector {
     where
         S: Stream<Item = Vec<f32>> + Send + Unpin,
     {
-        let detector = Arc::clone(&self.detector);
+        let detector: Arc<Mutex<KoffeeCandle>> = Arc::clone(&self.detector);
         let config = self.config.clone();
         sample_stream.filter_map(move |sample_chunk| {
             let detector = Arc::clone(&detector);

@@ -47,12 +47,14 @@ pub use audio_format::AudioFormat;
 pub use fluent_voice::FluentVoice;
 pub use language::Language;
 pub use mic_backend::MicBackend;
-pub use model_id::ModelId;  
+pub use model_id::ModelId;
 pub use noise_reduction::NoiseReduction;
 pub use speaker::Speaker;
 pub use speaker_builder::{SpeakerBuilder, SpeakerExt};
 pub use speech_source::SpeechSource;
-pub use stt_conversation::{SttConversation, SttConversationBuilder, MicrophoneBuilder, TranscriptionBuilder};
+pub use stt_conversation::{
+    MicrophoneBuilder, SttConversation, SttConversationBuilder, TranscriptionBuilder,
+};
 pub use stt_engine::SttEngine;
 pub use timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps};
 pub use transcript::{TranscriptSegment, TranscriptStream};

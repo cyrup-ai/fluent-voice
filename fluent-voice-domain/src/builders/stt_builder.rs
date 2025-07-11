@@ -394,9 +394,7 @@ where
         let backend = if self.device == "default" || self.device.is_empty() {
             crate::mic_backend::MicBackend::Default
         } else {
-            // Need to leak the string to get a 'static str
-            let device_str = Box::leak(self.device.into_boxed_str());
-            crate::mic_backend::MicBackend::Device(device_str)
+            crate::mic_backend::MicBackend::Device(self.device)
         };
 
         let source = Some(SpeechSource::Microphone {

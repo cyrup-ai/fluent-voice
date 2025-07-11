@@ -85,8 +85,8 @@ impl VoiceActivityDetector {
             .try_extract_tensor::<f32>()
             .unwrap();
 
-        self.h.assign(&hn.1);
-        self.c.assign(&cn.1);
+        self.h.assign(&ndarray::ArrayView::from(&hn.1));
+        self.c.assign(&ndarray::ArrayView::from(&cn.1));
 
         // Get the probability of speech.
         let output = outputs
