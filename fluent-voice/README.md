@@ -75,9 +75,9 @@ use futures_util::StreamExt;
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {
     // Note: Requires an engine implementation (see Engine Integration below)
-    let mut audio_stream = MyTtsEngine::conversation()
+    let mut audio_stream = FluentVoice::tts().conversation()
         .with_speaker(
-            Speaker::speaker("Alice")
+            Speaker::speaker("Narrator")
                 .voice_id(VoiceId::new("voice-uuid"))
                 .with_speed_modifier(VocalSpeedMod(0.9))
                 .speak("Hello, world!")
@@ -113,7 +113,7 @@ use futures_util::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {
-    let mut transcript_stream = MySttEngine::conversation()
+    let mut transcript_stream = FluentVoice::stt(). conversation()
         .with_source(SpeechSource::Microphone {
             backend: MicBackend::Default,
             format: AudioFormat::Pcm16Khz,

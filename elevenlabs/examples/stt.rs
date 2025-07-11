@@ -4,7 +4,6 @@
 //! FluentVoice trait implementation with the exact README API pattern.
 
 use fluent_voice::prelude::*;
-use std::path::Path;
 
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {
@@ -17,41 +16,31 @@ async fn main() -> Result<(), VoiceError> {
     println!("🔥 Say something after the wake word is detected...");
     println!();
 
-    // REAL FluentVoice trait system usage - exact README pattern with microphone
-    let transcript = FluentVoice::stt()
-        .with_source(SpeechSource::Microphone {
-            backend: MicBackend::Named("Studio Display Microphone".to_string()),
+    // REAL FluentVoice trait system usage - ElevenLabs only supports FILE-based STT
+    let final_transcript = FluentVoice::stt()
+        .with_source(SpeechSource::File {
+            path: "test-audio.wav".to_string(),
             format: AudioFormat::Pcm16Khz,
-            sample_rate: 16_000,
         })
-        .vad_mode(VadMode::Accurate)
         .language_hint(Language::ENGLISH_US)
         .word_timestamps(WordTimestamps::On)
         .listen(|result| match result {
-            Ok(segment) => Ok(segment.text()), // streaming chunks
-            Err(e) => Err(e),
+            Ok(conversation) => conversation.collect(),
+            Err(e) => panic!("STT Error: {}", e),
         })
-        .collect(); // transcript is now the end-state string
+        .await;
 
-    // Process live microphone dictation
-    println!("🔥 FluentVoice STT Live Dictation Starting:");
-    println!("===========================================");
-    println!("🎙️ Listening to Studio Display Microphone...");
-    println!("💬 Speak after the wake word is detected:");
+    // Process file-based transcription (ElevenLabs only supports files, not live mic)
+    println!("🔥 FluentVoice STT File Transcription:");
+    println!("⚠️  Note: ElevenLabs does NOT support live microphone input");
+    println!("📁 Processing audio file: test-audio.wav");
     println!();
 
     // Process the final transcript result
-    match transcript.await {
-        Ok(final_transcript) => {
-            println!("✅ Transcription Complete!");
-            println!("📝 You said: {}", final_transcript);
-        }
-        Err(e) => {
-            eprintln!("❌ Transcription Error: {}", e);
-        }
-    }
+    println!("✅ Transcription Complete!");
+    println!("📝 File contents: {}", final_transcript.await?);
 
-    println!("✅ FluentVoice STT live dictation completed using README pattern!");
+    println!("✅ FluentVoice STT file transcription completed using README pattern!");
 
     Ok(())
 }

@@ -10,6 +10,7 @@ categories = ["multimedia::audio"]
 
 [dependencies]
 workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
+fluent_voice_domain = { version = "0.1.0", path = "../fluent-voice-domain" }
 
 futures = "0.3.31"
 # ndarray = "0.16" # in workspace-hack

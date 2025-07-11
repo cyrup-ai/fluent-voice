@@ -20,10 +20,11 @@ authors      = ["David Maple <david@cyrup.ai>"]
 # ------------------------------------------------
 [dependencies]
 workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
+fluent_voice_domain = { version = "0.1.0", path = "../../fluent-voice-domain" }
 
 # — DSP / NN —
-candle-core    = "0.8.2"
-candle-nn      = "0.8.2"
+candle-core    = "0.9.1"
+candle-nn      = "0.9.1"
 
 # — audio / resampling —
 # rubato         = { version = "0.16", default-features = false, features = ["fft_resampler"] } # in workspace-hack
@@ -52,9 +53,6 @@ js-sys         = { version = "0.3.76", optional = true }
 web-sys        = { version = "0.3.76", features = ["MediaDevices","MediaStream","AudioContext","console"], optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
-# — fluent-voice integration —
-fluent_voice   = { path = "../../fluent-voice", default-features = false, optional = true }
-fluent_voice_macros = { path = "../../macros" }
 # tokio          = { version = "1.45.1", features = ["rt", "sync"], optional = true } # in workspace-hack
 # futures-core   = { version = "0.3.31", optional = true } # in workspace-hack
 # futures-util   = { version = "0.3.31", optional = true } # in workspace-hack
