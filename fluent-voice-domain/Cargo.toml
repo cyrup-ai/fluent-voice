@@ -11,3 +11,5 @@ thiserror = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 futures-core = "0.3"
 futures-util = "0.3"
+futures = "0.3.31"
+koffee = { version = "0.1.0", path = "../candle/koffee" }

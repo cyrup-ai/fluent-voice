@@ -7,24 +7,40 @@
 //! separation of concerns and breaking cyclic dependencies.
 
 pub mod audio_format;
+pub mod audio_isolation;
+pub mod builders;
 pub mod fluent_voice;
 pub mod language;
 pub mod mic_backend;
 pub mod model_id;
 pub mod noise_reduction;
+pub mod pitch_range;
+pub mod pronunciation_dict;
+pub mod similarity;
+pub mod sound_effects;
 pub mod speaker;
+pub mod speaker_boost;
 pub mod speaker_builder;
 pub mod speech_source;
+pub mod speech_to_speech;
+pub mod stability;
 pub mod stt_conversation;
 pub mod stt_engine;
+pub mod style_exaggeration;
 pub mod timestamps;
 pub mod transcript;
 pub mod tts_conversation;
 pub mod tts_engine;
 pub mod vad_mode;
 pub mod vocal_speed;
+pub mod voice_clone;
+pub mod voice_discovery;
 pub mod voice_error;
 pub mod voice_id;
+pub mod voice_labels;
+pub mod wake_word;
+pub mod wake_word_conversation;
+pub mod wake_word_koffee;
 
 // Re-export all public types
 pub use audio_format::AudioFormat;
@@ -46,6 +62,23 @@ pub use vad_mode::VadMode;
 pub use vocal_speed::VocalSpeedMod;
 pub use voice_error::VoiceError;
 pub use voice_id::VoiceId;
+
+// Re-export additional types from copied modules
+pub use audio_isolation::*;
+pub use pitch_range::*;
+pub use pronunciation_dict::*;
+pub use similarity::*;
+pub use sound_effects::*;
+pub use speaker_boost::*;
+pub use speech_to_speech::*;
+pub use stability::*;
+pub use style_exaggeration::*;
+pub use voice_clone::*;
+pub use voice_discovery::*;
+pub use voice_labels::*;
+pub use wake_word::*;
+pub use wake_word_conversation::*;
+pub use wake_word_koffee::*;
 
 /// Prelude module containing commonly used types.
 pub mod prelude {
