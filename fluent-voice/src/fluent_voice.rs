@@ -157,7 +157,7 @@ impl FluentVoice for FluentVoiceImpl {
              _timestamps_granularity,
              _punctuation| {
                 // Return an empty stream of transcript segments
-                futures::stream::empty::<Result<DummySegment, crate::voice_error::VoiceError>>()
+                futures::stream::empty::<Result<DummySegment, fluent_voice_domain::VoiceError>>()
             },
         )
     }

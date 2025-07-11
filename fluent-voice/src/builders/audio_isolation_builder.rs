@@ -3,8 +3,9 @@
 use crate::{
     audio_format::AudioFormat,
     audio_isolation::{AudioIsolationBuilder, AudioIsolationSession},
-    voice_error::VoiceError,
+
 };
+use fluent_voice_domain::VoiceError;
 use core::future::Future;
 use futures_core::Stream;
 

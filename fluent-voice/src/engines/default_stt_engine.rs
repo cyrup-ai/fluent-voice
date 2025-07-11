@@ -13,7 +13,7 @@ use crate::speech_source::SpeechSource;
 use crate::timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps};
 use crate::transcript::{TranscriptSegment, TranscriptStream};
 use crate::vad_mode::VadMode;
-use crate::voice_error::VoiceError;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -140,7 +140,10 @@ impl TranscriptStream for DefaultTranscriptStream {
 impl DefaultSTTEngine {
     /// Create a new default STT engine with default configurations.
     pub async fn new() -> Result<Self, VoiceError> {
-        let whisper = Arc::new(WhisperTranscriber::new()?);
+        let whisper = Arc::new(
+            WhisperTranscriber::new()
+                .map_err(|_| VoiceError::Stt("Failed to initialize Whisper transcriber"))?
+        );
         
         Ok(Self {
             whisper,

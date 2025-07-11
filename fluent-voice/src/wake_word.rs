@@ -4,7 +4,7 @@ use futures_core::Stream;
 use std::path::Path;
 
 /// Result type for wake word detection operations.
-pub type WakeWordResult<T> = Result<T, crate::voice_error::VoiceError>;
+pub type WakeWordResult<T> = Result<T, fluent_voice_domain::VoiceError>;
 
 /// Wake word detection event containing the detected wake word and confidence.
 #[derive(Debug, Clone)]

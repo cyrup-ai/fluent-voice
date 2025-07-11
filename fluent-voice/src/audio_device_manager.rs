@@ -4,7 +4,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait},
     Device, Host, SupportedStreamConfig,
 };
-use crate::voice_error::VoiceError;
+use fluent_voice_domain::VoiceError;
 use std::fmt;
 
 /// Audio device information.

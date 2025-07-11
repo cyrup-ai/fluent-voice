@@ -1,6 +1,7 @@
 //! Sound effects generation builder.
 
-use crate::{audio_format::AudioFormat, voice_error::VoiceError};
+use crate::audio_format::AudioFormat;
+use fluent_voice_domain::VoiceError;
 use core::future::Future;
 use futures_core::Stream;
 

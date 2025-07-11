@@ -6,8 +6,9 @@ use crate::{
     timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps},
     transcript::TranscriptStream,
     vad_mode::VadMode,
-    voice_error::VoiceError,
+
 };
+use fluent_voice_domain::VoiceError;
 use core::future::Future;
 use futures_core::Stream;
 

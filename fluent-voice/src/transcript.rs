@@ -1,5 +1,5 @@
 //! Stream & segment traits.
-use crate::voice_error::VoiceError;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Individual transcript segment representing a word, phrase, or speech event.

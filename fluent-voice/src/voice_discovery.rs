@@ -2,9 +2,9 @@
 
 use crate::{
     language::Language,
-    voice_error::VoiceError,
     voice_labels::{VoiceCategory, VoiceDetails, VoiceLabels, VoiceType},
 };
+use fluent_voice_domain::VoiceError;
 use core::future::Future;
 
 /// Result of voice discovery operations.

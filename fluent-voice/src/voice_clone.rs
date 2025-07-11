@@ -1,8 +1,9 @@
 //! Voice cloning builder for creating custom voices.
 
 use crate::{
-    model_id::ModelId, voice_error::VoiceError, voice_id::VoiceId, voice_labels::VoiceLabels,
+    model_id::ModelId, voice_id::VoiceId, voice_labels::VoiceLabels,
 };
+use fluent_voice_domain::VoiceError;
 use core::future::Future;
 
 /// Result of voice cloning operations.

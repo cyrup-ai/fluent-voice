@@ -52,7 +52,6 @@
 pub mod audio_device_manager;
 pub mod audio_format;
 pub mod language;
-pub mod voice_error;
 
 /* ───── TTS chain ───── */
 pub mod model_id;
@@ -111,7 +110,8 @@ pub mod prelude {
     //! Re-exports of commonly used types and traits.
 
     /* shared */
-    pub use crate::{audio_format::AudioFormat, language::Language, voice_error::VoiceError};
+    pub use crate::{audio_format::AudioFormat, language::Language};
+    pub use fluent_voice_domain::VoiceError;
 
     /* TTS */
     pub use crate::{
