@@ -1,5 +1,5 @@
 use crate::{Model, token_id};
-use candle::{D, IndexOp, Result, Tensor};
+use candle_core::{D, IndexOp, Result, Tensor};
 use candle_transformers::models::whisper::{self as m};
 use tokenizers::Tokenizer;
 

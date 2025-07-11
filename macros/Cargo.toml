@@ -8,10 +8,5 @@ keywords    = ["tts", "stt", "voice", "speech", "macros"]
 categories  = ["multimedia::audio", "api-bindings"]
 
 [dependencies]
+fluent_voice_domain = { version = "0.1.0", path = "../fluent-voice-domain" }
 workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
-
-# futures-core = "0.3.31" # in workspace-hack
-
-[dev-dependencies]
-# tokio = { version = "1.45.1", features = ["full"] } # in workspace-hack
-fluent_voice = { path = "../fluent-voice" }

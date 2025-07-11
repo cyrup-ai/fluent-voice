@@ -11,5 +11,5 @@ pub enum MicBackend {
     /// Use the system's default microphone device.
     Default,
     /// Use a specific microphone device by name or identifier.
-    Device(&'static str),
+    Device(String),
 }

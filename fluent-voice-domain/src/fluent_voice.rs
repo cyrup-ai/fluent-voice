@@ -1,0 +1,237 @@
+//! Unified entry point trait for TTS and STT operations.
+
+use crate::{
+    audio_isolation::AudioIsolationBuilder, sound_effects::SoundEffectsBuilder,
+    speech_to_speech::SpeechToSpeechBuilder, stt_conversation::SttConversationBuilder,
+    transcript::TranscriptSegment, tts_conversation::TtsConversationBuilder,
+    voice_clone::VoiceCloneBuilder, voice_discovery::VoiceDiscoveryBuilder,
+    wake_word::WakeWordBuilder,
+};
+
+/// Unified entry point for Text-to-Speech and Speech-to-Text operations.
+///
+/// This trait provides the main entry points for the fluent voice API, allowing
+/// users to start TTS or STT operations with a consistent interface.
+///
+/// # Examples
+///
+/// ```ignore
+/// use fluent_voice::prelude::*;
+///
+/// // TTS usage
+/// let audio = MyEngine::tts()
+///     .with_speaker(
+///         Speaker::named("Alice")
+///             .speak("Hello, world!")
+///             .build()
+///     )
+///     .synthesize(|conversation| {
+///         Ok => conversation.into_stream(),
+///         Err(e) => Err(e),
+///     })
+///     .await?;
+///
+/// // STT microphone usage
+/// let stream = MyEngine::stt()
+///     .with_microphone("default")
+///     .listen(|conversation| {
+///         Ok => conversation.into_stream(),
+///         Err(e) => Err(e),
+///     })
+///     .await?;
+///
+/// // STT file transcription usage
+/// let transcript = MyEngine::stt()
+///     .transcribe("audio.wav")
+///     .emit(|transcript| {
+///         Ok => transcript.into_stream(),
+///         Err(e) => Err(e),
+///     })
+///     .await?;
+/// ```
+pub trait FluentVoice {
+    /// Begin a new TTS conversation builder.
+    ///
+    /// This method returns a conversation builder that can be used to configure
+    /// speakers, voice settings, and other TTS parameters before synthesis.
+    ///
+    /// # Returns
+    ///
+    /// A new TTS conversation builder instance.
+    fn tts() -> impl TtsConversationBuilder;
+
+    /// Begin a new STT conversation builder.
+    ///
+    /// This method returns a conversation builder that can be used to configure
+    /// audio sources, language hints, VAD settings, and other recognition
+    /// parameters before starting transcription.
+    ///
+    /// # Returns
+    ///
+    /// A new STT conversation builder instance.
+    fn stt() -> impl SttConversationBuilder;
+
+    /// Begin a new wake word detection builder.
+    ///
+    /// This method returns a builder that can be used to configure
+    /// wake word models, confidence thresholds, and other detection
+    /// parameters before starting wake word detection.
+    ///
+    /// # Returns
+    ///
+    /// A new wake word builder instance.
+    fn wake_word() -> impl WakeWordBuilder;
+
+    /// Begin a new voice discovery builder.
+    ///
+    /// This method returns a builder that can be used to search and
+    /// filter available voices from the engine provider.
+    ///
+    /// # Returns
+    ///
+    /// A new voice discovery builder instance.
+    fn voices() -> impl VoiceDiscoveryBuilder;
+
+    /// Begin a new voice cloning builder.
+    ///
+    /// This method returns a builder that can be used to create
+    /// custom voices from audio samples.
+    ///
+    /// # Returns
+    ///
+    /// A new voice cloning builder instance.
+    fn clone_voice() -> impl VoiceCloneBuilder;
+
+    /// Begin a new speech-to-speech conversion builder.
+    ///
+    /// This method returns a builder that can be used to convert
+    /// speech from one voice to another while preserving characteristics.
+    ///
+    /// # Returns
+    ///
+    /// A new speech-to-speech builder instance.
+    fn speech_to_speech() -> impl SpeechToSpeechBuilder;
+
+    /// Begin a new audio isolation builder.
+    ///
+    /// This method returns a builder that can be used to separate
+    /// voices from background audio or isolate specific audio components.
+    ///
+    /// # Returns
+    ///
+    /// A new audio isolation builder instance.
+    fn audio_isolation() -> impl AudioIsolationBuilder;
+
+    /// Begin a new sound effects generation builder.
+    ///
+    /// This method returns a builder that can be used to generate
+    /// audio effects from text descriptions.
+    ///
+    /// # Returns
+    ///
+    /// A new sound effects builder instance.
+    fn sound_effects() -> impl SoundEffectsBuilder;
+}
+
+/// Default implementation entry point for FluentVoice
+pub struct FluentVoiceImpl;
+
+impl FluentVoice for FluentVoiceImpl {
+    fn tts() -> impl TtsConversationBuilder {
+        // Create a default implementation that returns an empty audio stream
+        crate::builders::tts_conversation_builder(|_lines, _lang| {
+            // Return an empty stream of i16 audio samples
+            futures::stream::empty::<i16>()
+        })
+    }
+
+    fn stt() -> impl SttConversationBuilder {
+        // Create a default implementation that returns an empty transcript stream
+        crate::builders::stt_conversation_builder(
+            |_source,
+             _vad,
+             _noise,
+             _lang,
+             _diarization,
+             _word_timestamps,
+             _timestamps_granularity,
+             _punctuation| {
+                // Return an empty stream of transcript segments
+                futures::stream::empty::<Result<DummySegment, crate::voice_error::VoiceError>>()
+            },
+        )
+    }
+
+    fn wake_word() -> impl WakeWordBuilder {
+        // Use Koffee as the default wake word implementation
+        crate::wake_word_koffee::KoffeeWakeWordBuilder::new()
+    }
+
+    fn voices() -> impl VoiceDiscoveryBuilder {
+        crate::builders::VoiceDiscoveryBuilderImpl::new()
+    }
+
+    fn clone_voice() -> impl VoiceCloneBuilder {
+        crate::builders::VoiceCloneBuilderImpl::new()
+    }
+
+    fn speech_to_speech() -> impl SpeechToSpeechBuilder {
+        crate::builders::SpeechToSpeechBuilderImpl::new()
+    }
+
+    fn audio_isolation() -> impl AudioIsolationBuilder {
+        crate::builders::AudioIsolationBuilderImpl::new()
+    }
+
+    fn sound_effects() -> impl SoundEffectsBuilder {
+        crate::builders::SoundEffectsBuilderImpl::new()
+    }
+}
+
+/// Dummy transcript segment for default implementation
+#[derive(Debug, Clone)]
+pub struct DummySegment {
+    start_ms: u32,
+    end_ms: u32,
+    text: String,
+    speaker_id: Option<String>,
+}
+
+impl TranscriptSegment for DummySegment {
+    fn start_ms(&self) -> u32 {
+        self.start_ms
+    }
+
+    fn end_ms(&self) -> u32 {
+        self.end_ms
+    }
+
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn speaker_id(&self) -> Option<&str> {
+        self.speaker_id.as_deref()
+    }
+}
+
+/// Implementation of TtsConversationExt for FluentVoiceImpl
+impl crate::tts_conversation::TtsConversationExt for FluentVoiceImpl {
+    fn builder() -> impl TtsConversationBuilder {
+        Self::tts()
+    }
+}
+
+/// Implementation of SttConversationExt for FluentVoiceImpl
+impl crate::stt_conversation::SttConversationExt for FluentVoiceImpl {
+    fn builder() -> impl SttConversationBuilder {
+        Self::stt()
+    }
+}
+
+/// Implementation of WakeWordConversationExt for FluentVoiceImpl
+impl crate::wake_word_conversation::WakeWordConversationExt for FluentVoiceImpl {
+    fn builder() -> impl WakeWordBuilder {
+        Self::wake_word()
+    }
+}

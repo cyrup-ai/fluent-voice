@@ -10,7 +10,7 @@ extern crate accelerate_src;
 extern crate intel_mkl_src;
 
 use anyhow::{Error as E, Result};
-use candle::{Device, IndexOp, Tensor};
+use candle_core::{Device, IndexOp, Tensor};
 use candle_nn::{VarBuilder, ops::softmax};
 use clap::{Parser, ValueEnum};
 use hf_hub::{Repo, RepoType, api::sync::Api};
@@ -35,7 +35,7 @@ impl Model {
         }
     }
 
-    pub fn encoder_forward(&mut self, x: &Tensor, flush: bool) -> candle::Result<Tensor> {
+    pub fn encoder_forward(&mut self, x: &Tensor, flush: bool) -> candle_core::Result<Tensor> {
         match self {
             Self::Normal(m) => m.encoder.forward(x, flush),
             Self::Quantized(m) => m.encoder.forward(x, flush),
@@ -47,14 +47,14 @@ impl Model {
         x: &Tensor,
         xa: &Tensor,
         flush: bool,
-    ) -> candle::Result<Tensor> {
+    ) -> candle_core::Result<Tensor> {
         match self {
             Self::Normal(m) => m.decoder.forward(x, xa, flush),
             Self::Quantized(m) => m.decoder.forward(x, xa, flush),
         }
     }
 
-    pub fn decoder_final_linear(&self, x: &Tensor) -> candle::Result<Tensor> {
+    pub fn decoder_final_linear(&self, x: &Tensor) -> candle_core::Result<Tensor> {
         match self {
             Self::Normal(m) => m.decoder.final_linear(x),
             Self::Quantized(m) => m.decoder.final_linear(x),
@@ -219,7 +219,7 @@ impl Decoder {
                     .unwrap()
             };
             tokens.push(next_token);
-            let prob = softmax(&logits, candle::D::Minus1)?
+            let prob = softmax(&logits, candle_core::D::Minus1)?
                 .i(next_token as usize)?
                 .to_scalar::<f32>()? as f64;
             if next_token == self.eot_token || tokens.len() > model.config().max_target_positions {
@@ -339,9 +339,9 @@ impl Decoder {
     }
 }
 
-pub fn token_id(tokenizer: &Tokenizer, token: &str) -> candle::Result<u32> {
+pub fn token_id(tokenizer: &Tokenizer, token: &str) -> candle_core::Result<u32> {
     match tokenizer.token_to_id(token) {
-        None => candle::bail!("no token-id for {token}"),
+        None => candle_core::bail!("no token-id for {token}"),
         Some(id) => Ok(id),
     }
 }
@@ -545,7 +545,7 @@ fn main() -> Result<()> {
     let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
     <byteorder::LittleEndian as byteorder::ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
 
-    let (pcm_data, sample_rate) = pcm_decode::pcm_decode(input)?;
+    let (pcm_data, sample_rate) = crate::pcm_decode::pcm_decode(input)?;
     if sample_rate != m::SAMPLE_RATE as u32 {
         anyhow::bail!("input file must have a {} sampling rate", m::SAMPLE_RATE)
     }
@@ -572,7 +572,7 @@ fn main() -> Result<()> {
     };
 
     let language_token = match (args.model.is_multilingual(), args.language) {
-        (true, None) => Some(multilingual::detect_language(&mut model, &tokenizer, &mel)?),
+        (true, None) => Some(crate::multilingual::detect_language(&mut model, &tokenizer, &mel)?),
         (false, None) => None,
         (true, Some(language)) => match token_id(&tokenizer, &format!("<|{language}|>")) {
             Ok(token_id) => Some(token_id),

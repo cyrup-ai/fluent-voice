@@ -16,7 +16,6 @@ std_async     = []
 workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
 fluent_voice_domain = { version = "0.1.0", path = "../fluent-voice-domain" }
 fluent_voice_vad = { version = "0.1.0", path = "../vad", features = ["async", "load-dynamic", "ort"] }
-fluent_voice_whisper = { version = "0.1.0", path = "../candle/whisper", features = ["async-stream", "audio", "display", "fluent_voice", "record"] }
 thiserror = "2.0"
 futures-core = "0.3"
 futures = "0.3"
@@ -30,6 +29,7 @@ futures-util = "0.3"
 derive_more = { version = "2.0", features = ["full"] }
 koffee = { version = "0.1.0", path = "../candle/koffee" }
 cpal = { workspace = true }
+fluent_voice_whisper = { version = "0.1.0", path = "../candle/whisper", features = ["async-stream", "audio", "display", "record"] }
 
 [dev-dependencies]
 # tokio is in workspace-hack

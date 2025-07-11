@@ -8,7 +8,7 @@
 //  │  map to pure `String` via `.as_text()` or any other helper.  │
 //  └──────────────────────────────────────────────────────────────┘
 
-use fluent_voice::transcript::TranscriptSegment;
+use fluent_voice_domain::TranscriptSegment;
 
 /// One chunk of transcribed speech produced by the Whisper decoder.
 ///

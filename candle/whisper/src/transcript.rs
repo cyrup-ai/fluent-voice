@@ -20,7 +20,7 @@
 //! The actual `collect()` implementation resides in the builder; this
 //! module focuses only on the data type and its helpers.
 
-use crate::whisper::types::TtsChunk;
+use crate::types::TtsChunk;
 
 /// A completed speech-to-text result containing every decoded chunk.
 ///

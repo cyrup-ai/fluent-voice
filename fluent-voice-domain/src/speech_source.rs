@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// This enum specifies where the STT engine should read audio data from.
 /// It supports both file-based input and live microphone capture.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SpeechSource {
     /// Audio file on the local filesystem.
     ///

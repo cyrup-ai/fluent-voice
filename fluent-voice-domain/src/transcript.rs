@@ -1,7 +1,5 @@
 //! Stream & segment traits.
 use crate::voice_error::VoiceError;
-
-#[cfg(feature = "async")]
 use futures_core::Stream;
 
 /// Individual transcript segment representing a word, phrase, or speech event.
@@ -31,7 +29,6 @@ pub trait TranscriptSegment {
 /// This trait represents an async stream that yields transcript segments
 /// as they become available from the speech recognition engine. Each
 /// item in the stream is a `Result` containing either a segment or an error.
-#[cfg(feature = "async")]
 pub trait TranscriptStream:
     Stream<Item = Result<Self::Segment, VoiceError>> + Send + Unpin
 {
@@ -40,7 +37,6 @@ pub trait TranscriptStream:
 }
 
 /// Blanket implementation for any stream that yields transcript segments.
-#[cfg(feature = "async")]
 impl<T, S> TranscriptStream for T
 where
     T: Stream<Item = Result<S, VoiceError>> + Send + Unpin,

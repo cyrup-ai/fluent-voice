@@ -42,6 +42,7 @@
 //! ```
 
 use fluent_voice_macros::stt_engine;
+use fluent_voice_domain::*;
 
 // Re-export the types the macro will use
 use crate::{stream::WhisperStream, transcript::Transcript, types::TtsChunk};
@@ -84,3 +85,15 @@ stt_engine!(
 //
 // The macro provides the complete trait scaffolding, just need to fill in the actual
 // Whisper inference implementation in the generated todo!() methods.
+
+/// Whisper transcription builder for file-based transcription
+pub struct WhisperBuilder {
+    path: String,
+}
+
+/// Create a new transcription builder for the given audio file path
+pub fn transcribe<P: Into<String>>(path: P) -> WhisperBuilder {
+    WhisperBuilder {
+        path: path.into(),
+    }
+}
