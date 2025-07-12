@@ -9,6 +9,7 @@ mod whisper;
 
 pub use builder::WhisperTranscriber;
 pub use microphone::{Model, token_id};
+pub use multilingual::detect_language;
 pub use stream::WhisperStream;
 pub use transcript::Transcript;
 pub use types::TtsChunk;

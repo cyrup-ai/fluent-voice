@@ -6,5 +6,5 @@
 mod default_stt_engine;
 
 pub use default_stt_engine::{
-    DefaultSTTEngine, DefaultSTTEngineBuilder, VadConfig, WakeWordConfig,
+    DefaultSTTEngine, DefaultSTTEngineBuilder, DefaultSTTConversationBuilder, VadConfig, WakeWordConfig,
 };

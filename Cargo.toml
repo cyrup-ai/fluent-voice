@@ -15,8 +15,7 @@ members = [
     "openai",
     "vad",
     "video",
-    "cyterm"
-,
+    "cyterm",
     "workspace-hack"
 ]
 

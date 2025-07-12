@@ -2,14 +2,17 @@
 
 use crate::{
     audio_isolation::AudioIsolationBuilder, sound_effects::SoundEffectsBuilder,
-    speech_to_speech::SpeechToSpeechBuilder, stt_conversation::SttConversationBuilder,
+    speech_to_speech::SpeechToSpeechBuilder,
     tts_conversation::TtsConversationBuilder,
     voice_clone::VoiceCloneBuilder, voice_discovery::VoiceDiscoveryBuilder,
     wake_word::WakeWordBuilder,
 };
+use fluent_voice_domain::SttConversationBuilder;
 use fluent_voice_domain::TranscriptSegment;
 // Real production types from Whisper crate
 use fluent_voice_whisper::TtsChunk;
+// Import dia-voice crate for TTS functionality
+use dia::voice::dia_speaker::DiaSpeakerBuilder;
 
 /// Unified entry point for Text-to-Speech and Speech-to-Text operations.
 ///
@@ -142,12 +145,12 @@ pub struct FluentVoiceImpl;
 impl FluentVoice for FluentVoiceImpl {
     fn tts() -> impl TtsConversationBuilder {
         // Use dia-voice as the canonical default TTS provider
-        dia::DiaVoiceBuilder::new()
+        DiaSpeakerBuilder::new("default_speaker".to_string())
     }
 
     fn stt() -> impl SttConversationBuilder {
         // Use DefaultSTTEngine with canonical providers (Whisper, VAD, Koffee)
-        crate::engines::default_stt_engine::DefaultSTTEngineBuilder::new()
+        crate::engines::DefaultSTTConversationBuilder::new()
     }
 
     fn wake_word() -> impl WakeWordBuilder {

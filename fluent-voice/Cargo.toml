@@ -38,6 +38,7 @@ hound = "3.4.0"
 cpal = "0.16.0"
 rubato = "0.16.2"
 rand = "0.9.1"
+rand_distr = "0.5.1"
 anyhow = "1.0.68"
 candle-core    = "0.9.1"
 candle-nn      = "0.9.1"
@@ -45,6 +46,14 @@ candle-transformers = "0.9.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 candle-examples = "0.9.1"
 byteorder = "1.5.0"
+hf-hub = "0.4.3"
+tokenizers = "0.21.2"
+flate2 = "1.1.2"
+crossbeam-channel = "0.5.15"
+crossbeam-utils = "0.8.21"
+ringbuf = "0.4.8"
+ndarray = "0.16.1"
+memmap2 = "0.9.5"
 
 [dev-dependencies]
 # tokio is in workspace-hack

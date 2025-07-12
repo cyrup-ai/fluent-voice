@@ -9,7 +9,8 @@ use candle_core::{Device, IndexOp, Tensor};
 use candle_nn::{VarBuilder, ops::softmax};
 use clap::{Parser, ValueEnum};
 use hf_hub::{Repo, RepoType, api::sync::Api};
-use rand::{SeedableRng, distr::Distribution};
+use rand::SeedableRng;
+use rand_distr::{Distribution, weighted::WeightedIndex};
 use tokenizers::Tokenizer;
 use candle_transformers::models::whisper::{self as m, Config, audio};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -19,6 +20,10 @@ use rubato::{FastFixedIn, PolynomialDegree};
 use std::io::Write;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+
+// Use ONLY canonical domain types - no local duplicates
+use fluent_voice_domain::transcript::ConcreteTranscriptSegment;
+use fluent_voice_domain::MicrophoneBuilder;
 
 pub enum Model {
     Normal(m::model::Whisper),
@@ -187,7 +192,7 @@ impl Decoder {
             let next_token = if t > 0f64 {
                 let prs = softmax(&(&logits / t)?, 0)?;
                 let logits_v: Vec<f32> = prs.to_vec1()?;
-                let distr = rand::distr::WeightedIndex::new(&logits_v)?;
+                let distr = WeightedIndex::new(&logits_v)?;
                 distr.sample(&mut self.rng) as u32
             } else {
                 let logits_v: Vec<f32> = logits.to_vec1()?;
@@ -261,17 +266,17 @@ impl Decoder {
     fn stream_segments(
         &mut self,
         mel: &Tensor,
-    ) -> impl Stream<Item = Result<TranscriptionChunk>> + '_ {
+    ) -> impl Stream<Item = Result<ConcreteTranscriptSegment>> + '_ {
         struct SegmentStream<'a> {
             decoder: &'a mut Decoder,
             mel: &'a Tensor,
             seek: usize,
             content_frames: usize,
-            pending_chunks: Vec<TranscriptionChunk>,
+            pending_chunks: Vec<ConcreteTranscriptSegment>,
         }
 
         impl<'a> Stream for SegmentStream<'a> {
-            type Item = Result<TranscriptionChunk>;
+            type Item = Result<ConcreteTranscriptSegment>;
 
             fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
                 if !self.pending_chunks.is_empty() {
@@ -318,12 +323,12 @@ impl Decoder {
                             if !tokens_to_decode.is_empty() {
                                 match self.decoder.tokenizer.decode(&tokens_to_decode, true) {
                                     Ok(text) => {
-                                        self.pending_chunks.push(TranscriptionChunk {
+                                        self.pending_chunks.push(ConcreteTranscriptSegment::new(
                                             text,
-                                            start: time_offset + prev_timestamp_s,
-                                            duration: timestamp_s - prev_timestamp_s,
-                                            no_speech_prob: if self.decoder.verbose { Some(dr.no_speech_prob) } else { None },
-                                        });
+                                            ((time_offset + prev_timestamp_s) * 1000.0) as u32,
+                                            ((time_offset + timestamp_s) * 1000.0) as u32,
+                                            None // No speaker ID in this context
+                                        ));
                                         tokens_to_decode.clear();
                                     }
                                     Err(e) => return Poll::Ready(Some(Err(E::msg(e)))),
@@ -337,12 +342,12 @@ impl Decoder {
                     if !tokens_to_decode.is_empty() {
                         if let Ok(text) = self.decoder.tokenizer.decode(&tokens_to_decode, true) {
                             if !text.is_empty() {
-                                self.pending_chunks.push(TranscriptionChunk {
+                                self.pending_chunks.push(ConcreteTranscriptSegment::new(
                                     text,
-                                    start: time_offset + prev_timestamp_s,
-                                    duration: segment_duration - prev_timestamp_s,
-                                    no_speech_prob: if self.decoder.verbose { Some(dr.no_speech_prob) } else { None },
-                                });
+                                    ((time_offset + prev_timestamp_s) * 1000.0) as u32,
+                                    ((time_offset + segment_duration) * 1000.0) as u32,
+                                    None // No speaker ID in this context
+                                ));
                             }
                         }
                     }
@@ -495,9 +500,10 @@ struct Args {
     /// List available input devices.
     #[arg(long)]
     list_devices: bool,
+
 }
 
-pub fn record() -> Result<impl Stream<Item = Result<TranscriptionChunk>>> {
+pub fn record() -> Result<impl Stream<Item = Result<ConcreteTranscriptSegment>>> {
     let args = Args::parse();
 
     if args.list_devices {
@@ -653,7 +659,7 @@ pub fn record() -> Result<impl Stream<Item = Result<TranscriptionChunk>>> {
     }
 
     impl Stream for AudioStream {
-        type Item = Result<TranscriptionChunk>;
+        type Item = Result<ConcreteTranscriptSegment>;
 
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             let chunk = match self.rx.try_recv() {
@@ -672,6 +678,7 @@ pub fn record() -> Result<impl Stream<Item = Result<TranscriptionChunk>>> {
             }
 
             let pcm = if let Some(ref mut resampler) = self.resampler {
+                let resample_ratio = m::SAMPLE_RATE as f64 / self.in_sample_rate as f64;
                 let chunk_size = 1024;
                 let full_chunks = self.buffered_pcm.len() / chunk_size;
                 let remainder = self.buffered_pcm.len() % chunk_size;
@@ -712,7 +719,7 @@ pub fn record() -> Result<impl Stream<Item = Result<TranscriptionChunk>>> {
 
             if !self.language_token_set {
                 let language_token = match (self.model_is_multilingual, self.language.clone()) {
-                    (true, None) => match m::detect_language(&mut self.decoder.model, &self.tokenizer, &mel) {
+                    (true, None) => match fluent_voice_whisper::detect_language(&mut self.decoder.model, &self.tokenizer, &mel) {
                         Ok((token, lang)) => {
                             if self.verbose {
                                 println!("Detected language: {}", lang);

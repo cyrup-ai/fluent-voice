@@ -24,7 +24,7 @@ use crossbeam_utils::thread;
 // High-performance audio processing (scalar operations)
 
 // Pre-allocated ring buffer management
-use ringbuf::{HeapRb, Rb, Consumer, Producer};
+use ringbuf::{HeapRb, HeapCons, HeapProd};
 
 // Zero-copy tensor operations
 use ndarray::{Array1, ArrayView1};
@@ -38,12 +38,10 @@ use futures_util::StreamExt;
 use fluent_voice_whisper::WhisperTranscriber;
 use fluent_voice_vad::VoiceActivityDetector;
 
-// Error handling with context
-use anyhow::Context;
-use koffee::{KoffeeCandle, KoffeeCandleConfig, Detection};
+// Error handling with context  
+use koffee::{KoffeeCandle, KoffeeCandleConfig, KoffeeCandleDetection};
 
 // Real-time audio capture
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, SampleRate, StreamConfig};
 
 // Lock-free atomic operations
@@ -207,7 +205,7 @@ impl AudioProcessor {
     
     /// Process audio chunk with zero-allocation, SIMD-optimized hot path
     #[inline(always)]
-    pub fn process_audio_chunk(&mut self, audio_data: &[f32]) -> Option<Detection> {
+    pub fn process_audio_chunk(&mut self, audio_data: &[f32]) -> Option<KoffeeCandleDetection> {
         // Increment performance counter (lock-free)
         self.samples_processed.fetch_add(audio_data.len() as u64, Ordering::Relaxed);
         
@@ -274,8 +272,17 @@ impl AudioProcessor {
         self.whisper_buffer[..copy_len].copy_from_slice(&audio_data[..copy_len]);
         
         // Create in-memory audio source (no file I/O)
+        // Convert f32 samples to 16-bit PCM bytes for SpeechSource::Memory
+        let pcm_bytes: Vec<u8> = self.whisper_buffer[..copy_len]
+            .iter()
+            .flat_map(|&sample| {
+                let pcm_sample = (sample.clamp(-1.0, 1.0) * 32767.0) as i16;
+                pcm_sample.to_le_bytes().to_vec()
+            })
+            .collect();
+        
         let speech_source = SpeechSource::Memory {
-            data: self.whisper_buffer[..copy_len].to_vec(),
+            data: pcm_bytes,
             format: AudioFormat::Pcm16Khz,
             sample_rate: 16000,
         };
@@ -295,8 +302,8 @@ impl AudioProcessor {
 
 /// Lock-Free Audio Stream: Cross-thread communication without locking
 struct AudioStream {
-    producer: Producer<f32, HeapRb<f32>>,
-    consumer: Consumer<f32, HeapRb<f32>>,
+    producer: HeapProd<f32>,
+    consumer: HeapCons<f32>,
     control_tx: Sender<StreamControl>,
     control_rx: Receiver<StreamControl>,
 }
@@ -469,6 +476,24 @@ pub struct DefaultSTTConversationBuilder {
     punctuation: Option<Punctuation>,
 }
 
+impl DefaultSTTConversationBuilder {
+    /// Create a new DefaultSTTConversationBuilder.
+    pub fn new() -> Self {
+        Self {
+            whisper: Arc::new(WhisperTranscriber::new().expect("Failed to initialize Whisper transcriber")),
+            vad_config: VadConfig::default(),
+            wake_word_config: WakeWordConfig::default(),
+            speech_source: None,
+            vad_mode: None,
+            noise_reduction: None,
+            language_hint: None,
+            diarization: None,
+            timestamps_granularity: None,
+            punctuation: None,
+        }
+    }
+}
+
 impl SttConversationBuilder for DefaultSTTConversationBuilder {
     type Conversation = DefaultSTTConversation;
 
@@ -583,7 +608,8 @@ impl SttConversation for DefaultSTTConversation {
             let whisper = match fluent_voice_whisper::WhisperTranscriber::new() {
                 Ok(w) => Arc::new(Mutex::new(w)),
                 Err(e) => {
-                    yield Err(VoiceError::ProcessingError(format!("Failed to initialize Whisper: {}", e)));
+                    let error_msg = format!("Failed to initialize Whisper: {}", e);
+                    yield Err(VoiceError::ProcessingError(error_msg));
                     return;
                 }
             };
@@ -594,7 +620,8 @@ impl SttConversation for DefaultSTTConversation {
                 .build() {
                 Ok(v) => Arc::new(Mutex::new(v)),
                 Err(e) => {
-                    yield Err(VoiceError::ProcessingError(format!("Failed to initialize VAD: {}", e)));
+                    let error_msg = format!("Failed to initialize VAD: {}", e);
+                    yield Err(VoiceError::ProcessingError(error_msg));
                     return;
                 }
             };
@@ -602,7 +629,8 @@ impl SttConversation for DefaultSTTConversation {
             let wake_word_detector = match koffee::KoffeeCandle::new(&koffee::KoffeeCandleConfig::default()) {
                 Ok(detector) => Arc::new(Mutex::new(detector)),
                 Err(e) => {
-                    yield Err(VoiceError::ProcessingError(format!("Failed to load wake word detector: {}", e)));
+                    let error_msg = format!("Failed to load wake word detector: {}", e);
+                    yield Err(VoiceError::ProcessingError(error_msg));
                     return;
                 }
             };
@@ -611,7 +639,7 @@ impl SttConversation for DefaultSTTConversation {
             let (audio_tx, mut audio_rx) = mpsc::channel::<Vec<f32>>(100);
             
             // Initialize cpal microphone capture
-            let _audio_task_handle = {
+            {
                 let audio_tx_clone = audio_tx.clone();
                 tokio::task::spawn_blocking(move || {
                     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -661,8 +689,8 @@ impl SttConversation for DefaultSTTConversation {
                             eprintln!("Failed to build audio stream: {}", e);
                         }
                     }
-                })
-            };
+                });
+            }
 
             // Stream state variables
             let mut wake_word_detected = false;
@@ -704,12 +732,15 @@ impl SttConversation for DefaultSTTConversation {
                     // Voice Activity Detection
                     let speech_probability = {
                         let mut vad_guard = vad.lock().await;
-                        match vad_guard.predict(chunk_to_process.iter().copied()) {
-                            Ok(prob) => prob,
-                            Err(e) => {
-                                yield Err(VoiceError::ProcessingError(format!("VAD error: {}", e)));
-                                continue;
-                            }
+                        vad_guard.predict(chunk_to_process.iter().copied())
+                    }; // Mutex guard dropped here
+                    
+                    let speech_probability = match speech_probability {
+                        Ok(prob) => prob,
+                        Err(e) => {
+                            let error_msg = format!("VAD error: {}", e);
+                            yield Err(VoiceError::ProcessingError(error_msg));
+                            continue;
                         }
                     };
 
@@ -734,8 +765,9 @@ impl SttConversation for DefaultSTTConversation {
                             };
 
                             // Write PCM data to WAV file for Whisper processing
-                            if let Err(e) = write_wav_file(&temp_path, &speech_data, 16000) {
-                                yield Err(VoiceError::ProcessingError(format!("Failed to write WAV file: {}", e)));
+                            if write_wav_file(&temp_path, &speech_data, 16000).is_err() {
+                                let error_msg = "Failed to write WAV file".to_string();
+                                yield Err(VoiceError::ProcessingError(error_msg));
                                 continue;
                             }
                             let transcription_result = {
@@ -759,7 +791,8 @@ impl SttConversation for DefaultSTTConversation {
                                     }
                                 },
                                 Err(e) => {
-                                    yield Err(VoiceError::ProcessingError(format!("Transcription failed: {}", e)));
+                                    let error_msg = format!("Transcription failed: {}", e);
+                                    yield Err(VoiceError::ProcessingError(error_msg));
                                 }
                             }
 
@@ -786,11 +819,16 @@ impl SttConversation for DefaultSTTConversation {
                             };
 
                             // Write final speech data to WAV file
-                            if let Err(e) = write_wav_file(&temp_path, &speech_data, 16000) {
-                                yield Err(VoiceError::ProcessingError(format!("Failed to write final WAV file: {}", e)));
+                            if write_wav_file(&temp_path, &speech_data, 16000).is_err() {
+                                let error_msg = "Failed to write final WAV file".to_string();
+                                yield Err(VoiceError::ProcessingError(error_msg));
                                 continue;
                             }
-                            match whisper.lock().await.transcribe(speech_source).await {
+                            let transcription_result = {
+                                let mut whisper_guard = whisper.lock().await;
+                                whisper_guard.transcribe(speech_source).await
+                            }; // Mutex guard dropped here
+                            match transcription_result {
                                 Ok(transcript) => {
                                     let transcription = transcript.as_text();
                                     if !transcription.trim().is_empty() {
@@ -807,7 +845,8 @@ impl SttConversation for DefaultSTTConversation {
                                     }
                                 },
                                 Err(e) => {
-                                    yield Err(VoiceError::ProcessingError(format!("Final transcription failed: {}", e)));
+                                    let error_msg = format!("Final transcription failed: {}", e);
+                                    yield Err(VoiceError::ProcessingError(error_msg));
                                 }
                             }
 

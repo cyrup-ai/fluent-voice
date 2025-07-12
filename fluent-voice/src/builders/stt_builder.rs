@@ -394,9 +394,7 @@ where
         let backend = if self.device == "default" || self.device.is_empty() {
             fluent_voice_domain::MicBackend::Default
         } else {
-            // Need to leak the string to get a 'static str
-            let device_str = Box::leak(self.device.into_boxed_str());
-            fluent_voice_domain::MicBackend::Device(device_str)
+            fluent_voice_domain::MicBackend::Device(self.device)
         };
 
         let source = Some(SpeechSource::Microphone {
