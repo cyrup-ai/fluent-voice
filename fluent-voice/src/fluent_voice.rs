@@ -8,6 +8,8 @@ use crate::{
     wake_word::WakeWordBuilder,
 };
 use fluent_voice_domain::TranscriptSegment;
+// Real production types from Whisper crate
+use fluent_voice_whisper::TtsChunk;
 
 /// Unified entry point for Text-to-Speech and Speech-to-Text operations.
 ///
@@ -158,7 +160,7 @@ impl FluentVoice for FluentVoiceImpl {
              _timestamps_granularity,
              _punctuation| {
                 // Return an empty stream of transcript segments
-                futures::stream::empty::<Result<DummySegment, fluent_voice_domain::VoiceError>>()
+                futures::stream::empty::<Result<TtsChunk, fluent_voice_domain::VoiceError>>()
             },
         )
     }
@@ -189,32 +191,8 @@ impl FluentVoice for FluentVoiceImpl {
     }
 }
 
-/// Dummy transcript segment for default implementation
-#[derive(Debug, Clone)]
-pub struct DummySegment {
-    start_ms: u32,
-    end_ms: u32,
-    text: String,
-    speaker_id: Option<String>,
-}
-
-impl TranscriptSegment for DummySegment {
-    fn start_ms(&self) -> u32 {
-        self.start_ms
-    }
-
-    fn end_ms(&self) -> u32 {
-        self.end_ms
-    }
-
-    fn text(&self) -> &str {
-        &self.text
-    }
-
-    fn speaker_id(&self) -> Option<&str> {
-        self.speaker_id.as_deref()
-    }
-}
+// Real TtsChunk from Whisper crate is used instead of fake DummySegment
+// Import is at the top of the file
 
 /// Implementation of TtsConversationExt for FluentVoiceImpl
 impl crate::tts_conversation::TtsConversationExt for FluentVoiceImpl {

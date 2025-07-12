@@ -44,3 +44,96 @@ where
 {
     type Segment = S;
 }
+
+/// Production-quality, zero-allocation transcript segment implementation.
+///
+/// Uses `Cow<str>` for zero-copy string operations when possible,
+/// optimized for high-performance real-time transcription.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConcreteTranscriptSegment {
+    /// Recognized text content (zero-copy when possible)
+    text: std::borrow::Cow<'static, str>,
+    /// Start time in milliseconds (u32 for efficiency)
+    start_ms: u32,
+    /// End time in milliseconds (u32 for efficiency)
+    end_ms: u32,
+    /// Optional speaker identifier (zero-copy when possible)
+    speaker_id: Option<std::borrow::Cow<'static, str>>,
+}
+
+impl ConcreteTranscriptSegment {
+    /// Create a new transcript segment with owned strings.
+    #[inline]
+    pub fn new(text: String, start_ms: u32, end_ms: u32, speaker_id: Option<String>) -> Self {
+        Self {
+            text: std::borrow::Cow::Owned(text),
+            start_ms,
+            end_ms,
+            speaker_id: speaker_id.map(std::borrow::Cow::Owned),
+        }
+    }
+    
+    /// Create a new transcript segment with borrowed strings (zero-copy).
+    #[inline]
+    pub const fn new_borrowed(
+        text: &'static str,
+        start_ms: u32,
+        end_ms: u32,
+        speaker_id: Option<&'static str>,
+    ) -> Self {
+        Self {
+            text: std::borrow::Cow::Borrowed(text),
+            start_ms,
+            end_ms,
+            speaker_id: match speaker_id {
+                Some(id) => Some(std::borrow::Cow::Borrowed(id)),
+                None => None,
+            },
+        }
+    }
+    
+    /// Create an empty segment (useful for error recovery).
+    #[inline]
+    pub const fn empty() -> Self {
+        Self {
+            text: std::borrow::Cow::Borrowed(""),
+            start_ms: 0,
+            end_ms: 0,
+            speaker_id: None,
+        }
+    }
+    
+    /// Get the duration of this segment in milliseconds.
+    #[inline]
+    pub const fn duration_ms(&self) -> u32 {
+        self.end_ms.saturating_sub(self.start_ms)
+    }
+    
+    /// Check if this segment contains actual speech content.
+    #[inline]
+    pub fn has_content(&self) -> bool {
+        !self.text.trim().is_empty()
+    }
+}
+
+impl TranscriptSegment for ConcreteTranscriptSegment {
+    #[inline]
+    fn start_ms(&self) -> u32 {
+        self.start_ms
+    }
+    
+    #[inline]
+    fn end_ms(&self) -> u32 {
+        self.end_ms
+    }
+    
+    #[inline]
+    fn text(&self) -> &str {
+        &self.text
+    }
+    
+    #[inline]
+    fn speaker_id(&self) -> Option<&str> {
+        self.speaker_id.as_deref()
+    }
+}

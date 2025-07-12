@@ -40,7 +40,6 @@ pub mod voice_id;
 pub mod voice_labels;
 pub mod wake_word;
 pub mod wake_word_conversation;
-pub mod wake_word_koffee;
 
 // Re-export all public types
 pub use audio_format::AudioFormat;

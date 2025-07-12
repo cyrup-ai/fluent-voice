@@ -144,8 +144,10 @@ pub mod prelude {
 
     /* Unified entry point */
     pub use crate::fluent_voice::{
-        DummySegment, FluentVoice as FluentVoiceTrait, FluentVoiceImpl as FluentVoice,
+        FluentVoice as FluentVoiceTrait, FluentVoiceImpl as FluentVoice,
     };
+    // Real production transcript segment type from Whisper crate
+    pub use fluent_voice_whisper::TtsChunk;
 
     /* Builder implementations */
     pub use crate::builders::{

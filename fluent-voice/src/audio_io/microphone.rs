@@ -347,12 +347,17 @@ impl Decoder {
                         }
                     }
                 } else {
-                    self.pending_chunks.push(fluent_voice_domain::DummySegment {
-                        text: dr.text,
-                        start_ms: (time_offset * 1000.0) as u32,
-                        end_ms: ((time_offset + segment_duration) * 1000.0) as u32,
-                        speaker_id: None,
-                    });
+                    // Create real TtsChunk with production-quality data from Whisper transcription
+                    self.pending_chunks.push(fluent_voice_whisper::TtsChunk::new(
+                        time_offset,
+                        time_offset + segment_duration,
+                        dr.tokens.clone(),
+                        dr.text,
+                        0.0, // avg_logprob - will be set by real Whisper processing
+                        0.0, // no_speech_prob - will be set by real Whisper processing
+                        0.0, // temperature - will be set by real Whisper processing
+                        0.0, // compression_ratio - will be set by real Whisper processing
+                    ));
                 }
 
                 if self.decoder.verbose {

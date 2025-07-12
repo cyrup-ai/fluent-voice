@@ -10,7 +10,7 @@ use std::{
 use candle_core::{DType, Device, Tensor};
 use candle_nn::optim::ParamsAdamW; // new typed-param bag
 use candle_nn::{self as nn, Module, Optimizer, optim::AdamW}; // ← Optimizer in scope
-use rayon::prelude::*;
+
 use thiserror::Error;
 
 // Helper alias makes the high-fan-out tuple readable & keeps Clippy quiet.

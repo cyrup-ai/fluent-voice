@@ -3,7 +3,7 @@
 use crate::{
     audio_isolation::AudioIsolationBuilder, sound_effects::SoundEffectsBuilder,
     speech_to_speech::SpeechToSpeechBuilder, stt_conversation::SttConversationBuilder,
-    transcript::TranscriptSegment, tts_conversation::TtsConversationBuilder,
+    tts_conversation::TtsConversationBuilder,
     voice_clone::VoiceCloneBuilder, voice_discovery::VoiceDiscoveryBuilder,
     wake_word::WakeWordBuilder,
 };
@@ -156,15 +156,17 @@ impl FluentVoice for FluentVoiceImpl {
              _word_timestamps,
              _timestamps_granularity,
              _punctuation| {
-                // Return an empty stream of transcript segments
-                futures::stream::empty::<Result<DummySegment, crate::voice_error::VoiceError>>()
+                // Return an empty stream - real implementations will be provided by concrete engines
+                futures::stream::empty::<Result<crate::transcript::ConcreteTranscriptSegment, crate::voice_error::VoiceError>>()
             },
         )
     }
 
     fn wake_word() -> impl WakeWordBuilder {
-        // Use Koffee as the default wake word implementation
-        crate::wake_word_koffee::KoffeeWakeWordBuilder::new()
+        // Default wake word builder - concrete implementations provided by engines
+        crate::builders::wake_word_builder(|| {
+            futures::stream::empty::<Result<crate::wake_word::WakeWordEvent, crate::voice_error::VoiceError>>()
+        })
     }
 
     fn voices() -> impl VoiceDiscoveryBuilder {
@@ -188,32 +190,8 @@ impl FluentVoice for FluentVoiceImpl {
     }
 }
 
-/// Dummy transcript segment for default implementation
-#[derive(Debug, Clone)]
-pub struct DummySegment {
-    start_ms: u32,
-    end_ms: u32,
-    text: String,
-    speaker_id: Option<String>,
-}
-
-impl TranscriptSegment for DummySegment {
-    fn start_ms(&self) -> u32 {
-        self.start_ms
-    }
-
-    fn end_ms(&self) -> u32 {
-        self.end_ms
-    }
-
-    fn text(&self) -> &str {
-        &self.text
-    }
-
-    fn speaker_id(&self) -> Option<&str> {
-        self.speaker_id.as_deref()
-    }
-}
+// DummySegment removed - only real production transcript types allowed
+// Real TtsChunk from Whisper crate is used throughout the codebase
 
 /// Implementation of TtsConversationExt for FluentVoiceImpl
 impl crate::tts_conversation::TtsConversationExt for FluentVoiceImpl {

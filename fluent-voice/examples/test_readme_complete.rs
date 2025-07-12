@@ -86,7 +86,7 @@ async fn main() -> Result<(), VoiceError> {
         struct MySttEngine;
         impl SttEngine for MySttEngine {
             type Conv = SttConversationBuilderImpl<
-                futures::stream::Empty<Result<DummySegment, VoiceError>>,
+                futures::stream::Empty<Result<fluent_voice_whisper::TtsChunk, VoiceError>>,
             >;
             fn conversation(&self) -> Self::Conv {
                 stt_conversation_builder(
@@ -98,7 +98,7 @@ async fn main() -> Result<(), VoiceError> {
                      _word_timestamps,
                      _timestamps_granularity,
                      _punctuation| {
-                        futures::stream::empty::<Result<DummySegment, VoiceError>>()
+                        futures::stream::empty::<Result<fluent_voice_whisper::TtsChunk, VoiceError>>()
                     },
                 )
             }

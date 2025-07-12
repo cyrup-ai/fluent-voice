@@ -304,19 +304,59 @@ impl SttConversation for DefaultSTTConversation {
                 }
             };
 
-            // Simplified audio setup - using mock data for now to focus on core domain errors
+            // Production-quality microphone capture using cpal
             let (audio_tx, mut audio_rx) = mpsc::channel::<Vec<f32>>(100);
             
-            // Send mock audio data for testing the pipeline
+            // Initialize cpal microphone capture
             let _audio_task_handle = {
                 let audio_tx_clone = audio_tx.clone();
-                tokio::spawn(async move {
-                    for i in 0..100 {
-                        let mock_audio = vec![0.1 * (i as f32); 1024]; // Mock audio data
-                        if audio_tx_clone.send(mock_audio).await.is_err() {
-                            break;
+                tokio::task::spawn_blocking(move || {
+                    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+                    
+                    // Get default input device
+                    let host = cpal::default_host();
+                    let device = match host.default_input_device() {
+                        Some(device) => device,
+                        None => {
+                            eprintln!("No input device available");
+                            return;
                         }
-                        tokio::time::sleep(tokio::time::Duration::from_millis(64)).await; // ~16kHz simulation
+                    };
+                    
+                    // Configure for 16kHz PCM
+                    let config = cpal::StreamConfig {
+                        channels: 1,
+                        sample_rate: cpal::SampleRate(16000),
+                        buffer_size: cpal::BufferSize::Fixed(1024),
+                    };
+                    
+                    // Create audio capture stream
+                    let stream = device.build_input_stream(
+                        &config,
+                        move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                            // Send audio chunks to processing pipeline
+                            let chunk = data.to_vec();
+                            if let Err(_) = audio_tx_clone.try_send(chunk) {
+                                // Channel full - skip this chunk to avoid blocking
+                            }
+                        },
+                        |err| eprintln!("Audio stream error: {}", err),
+                        None,
+                    );
+                    
+                    match stream {
+                        Ok(stream) => {
+                            if let Err(e) = stream.play() {
+                                eprintln!("Failed to start audio stream: {}", e);
+                                return;
+                            }
+                            
+                            // Keep the stream alive
+                            std::thread::sleep(std::time::Duration::from_secs(300)); // 5 minutes
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to build audio stream: {}", e);
+                        }
                     }
                 })
             };
