@@ -79,7 +79,6 @@ pub use voice_discovery::*;
 pub use voice_labels::*;
 pub use wake_word::*;
 pub use wake_word_conversation::*;
-pub use wake_word_koffee::*;
 
 /// Prelude module containing commonly used types.
 pub mod prelude {

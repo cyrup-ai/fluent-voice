@@ -4,6 +4,7 @@ members = [
     "animator",
     "candle/koffee",
     "candle/whisper",
+    "dia-voice",
     "elevenlabs",
     "fluent-voice",
     "macros",

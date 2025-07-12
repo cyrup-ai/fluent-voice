@@ -43,6 +43,7 @@ candle-transformers = "0.9.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 candle-examples = "0.9.1"
 byteorder = "1.5.0"
+dia = { version = "0.1.0", path = "../dia-voice" }
 
 [dev-dependencies]
 # tokio is in workspace-hack

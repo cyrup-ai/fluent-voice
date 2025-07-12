@@ -676,11 +676,15 @@ pub fn record() -> Result<impl Stream<Item = Result<TranscriptionChunk>>> {
                 let full_chunks = self.buffered_pcm.len() / chunk_size;
                 let remainder = self.buffered_pcm.len() % chunk_size;
                 let mut resampled_pcm = Vec::with_capacity((self.buffered_pcm.len() as f64 * resample_ratio) as usize + chunk_size);
+                let mut output_buffer = vec![vec![0.0f32; resampler.output_frames_max()]; 1];
+                
                 for chunk_idx in 0..full_chunks {
                     let chunk = &self.buffered_pcm[chunk_idx * chunk_size..(chunk_idx + 1) * chunk_size];
-                    let mut output_buffer = vec![Vec::with_capacity(chunk.len() * 2)];
-                    match resampler.process_into_buffer(&[chunk.to_vec()], &mut output_buffer, None) {
-                        Ok(_) => resampled_pcm.extend_from_slice(&output_buffer[0]),
+                    let input_slices: Vec<&[f32]> = vec![chunk];
+                    match resampler.process_into_buffer(&input_slices, &mut output_buffer, None) {
+                        Ok((_, nbr_out)) => {
+                            resampled_pcm.extend_from_slice(&output_buffer[0][..nbr_out]);
+                        },
                         Err(e) => return Poll::Ready(Some(Err(e.into()))),
                     }
                 }
