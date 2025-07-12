@@ -31,4 +31,17 @@ pub enum SpeechSource {
         /// Sample rate in Hz.
         sample_rate: u32,
     },
+
+    /// Audio data in memory buffer.
+    ///
+    /// The engine will process audio data directly from memory
+    /// for transcription.
+    Memory {
+        /// Audio data buffer.
+        data: Vec<u8>,
+        /// Audio format of the data.
+        format: AudioFormat,
+        /// Sample rate in Hz.
+        sample_rate: u32,
+    },
 }

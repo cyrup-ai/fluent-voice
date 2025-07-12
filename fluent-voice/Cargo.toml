@@ -11,7 +11,7 @@ default       = []
 tokio-runtime = []
 wasm-runtime  = []
 std_async     = []
-simd          = ["portable_simd"]
+simd          = []
 
 [dependencies]
 workspace-hack = { version = "0.1.0", path = "../workspace-hack" }

@@ -53,6 +53,14 @@ impl WhisperTranscriber {
                 // TODO: Implement real-time microphone transcription
                 todo!("Implement microphone transcription")
             }
+            SpeechSource::Memory { data: _, format: _, sample_rate: _ } => {
+                // TODO: Implement memory buffer transcription
+                todo!("Implement memory buffer transcription")
+            }
+            SpeechSource::Memory { data: _, format: _, sample_rate: _ } => {
+                // TODO: Implement memory buffer transcription
+                todo!("Implement memory buffer transcription")
+            }
         }
     }
 }

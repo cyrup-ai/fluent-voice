@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "simd", feature(portable_simd))]
+
 //! # Fluent Voice API
 //!
 //! Pure-trait fluent builder API for TTS & STT engines.

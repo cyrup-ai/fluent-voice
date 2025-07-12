@@ -41,6 +41,8 @@ wgpu = "25.0.2"
 raw-window-handle = "0.6.2"
 thiserror = "2.0.12"
 url = "2.5.4"
+sugarloaf = "0.2.20"
+tokio = "1.46.1"
 
 [target.'cfg(not(all(target_os = "windows", target_env = "gnu")))'.dependencies]
 libwebrtc = { git = "https://github.com/zed-industries/livekit-rust-sdks" }

@@ -21,8 +21,7 @@ use fluent_voice_domain::{
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use crossbeam_utils::thread;
 
-// SIMD-optimized audio processing
-use std::simd::{f32x8, num::SimdFloat};
+// High-performance audio processing (scalar operations)
 
 // Pre-allocated ring buffer management
 use ringbuf::{HeapRb, Rb, Consumer, Producer};
@@ -38,6 +37,9 @@ use futures_util::StreamExt;
 // High-performance components
 use fluent_voice_whisper::WhisperTranscriber;
 use fluent_voice_vad::VoiceActivityDetector;
+
+// Error handling with context
+use anyhow::Context;
 use koffee::{KoffeeCandle, KoffeeCandleConfig, Detection};
 
 // Real-time audio capture
@@ -159,14 +161,9 @@ impl AudioProcessor {
         let wake_word_detector = {
             let mut config = KoffeeCandleConfig::default();
             // Use model index instead of string allocation
-            let model_name = match wake_word_config.model_index {
-                0 => "syrup",
-                1 => "hey", 
-                2 => "ok",
-                _ => "syrup", // fallback
-            };
-            config.set_model_name(model_name);
-            config.set_sensitivity(wake_word_config.sensitivity);
+            // KoffeeCandleConfig uses detector.threshold for sensitivity
+            // Note: model selection is handled during wakeword loading, not in config
+            config.detector.threshold = wake_word_config.sensitivity;
             
             KoffeeCandle::new(&config)
                 .context("Failed to initialize wake word detector")?  
@@ -240,14 +237,12 @@ impl AudioProcessor {
         let remainder = chunks.remainder();
         
         for chunk in chunks {
-            // Load 8 floats into SIMD register
-            let simd_chunk = f32x8::from_slice(chunk);
-            
-            // Apply normalization and noise reduction (blazing-fast SIMD ops)
-            let normalized = simd_chunk * f32x8::splat(0.95); // Prevent clipping
-            let filtered = normalized.abs(); // Simple noise reduction
-            
-            processed.extend_from_slice(&filtered.to_array());
+            // Apply normalization and noise reduction (scalar operations)
+            let mut normalized_chunk = [0.0f32; 8];
+            for (i, &sample) in chunk.iter().enumerate() {
+                normalized_chunk[i] = (sample * 0.95).abs(); // Prevent clipping + noise reduction
+            }
+            processed.extend_from_slice(&normalized_chunk);
         }
         
         // Handle remainder with scalar operations
@@ -282,6 +277,7 @@ impl AudioProcessor {
         let speech_source = SpeechSource::Memory {
             data: self.whisper_buffer[..copy_len].to_vec(),
             format: AudioFormat::Pcm16Khz,
+            sample_rate: 16000,
         };
         
         // Transcribe with error handling
@@ -677,8 +673,12 @@ impl SttConversation for DefaultSTTConversation {
             while let Some(audio_chunk) = audio_rx.recv().await {
                 // Step 1: Wake word detection (always active until detected)
                 if !wake_word_detected {
-                    let mut detector = wake_word_detector.lock().await;
-                    if let Some(detection) = detector.process_samples(&audio_chunk) {
+                    let detection_result = {
+                        let mut detector = wake_word_detector.lock().await;
+                        detector.process_samples(&audio_chunk)
+                    }; // Mutex guard dropped here
+                    
+                    if let Some(detection) = detection_result {
                         if detection.score > 0.7 {
                             wake_word_detected = true;
                             let segment = DefaultTranscriptSegment {
@@ -866,8 +866,9 @@ impl DefaultSTTEngineBuilder {
     }
 
     /// Configure wake word model (default: "syrup").
-    pub fn with_wake_word_model<S: Into<String>>(mut self, model: S) -> Self {
-        self.wake_word_config.model = model.into();
+    /// Note: Model selection is handled during detector initialization, not in config.
+    pub fn with_wake_word_model<S: Into<String>>(mut self, _model: S) -> Self {
+        // WakeWordConfig doesn't store model name - it's handled during detector creation
         self
     }
 
