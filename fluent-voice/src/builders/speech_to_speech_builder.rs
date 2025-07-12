@@ -1,11 +1,11 @@
 //! Concrete speech-to-speech builder implementation.
 
-use crate::{
+use fluent_voice_domain::{
     audio_format::AudioFormat,
     model_id::ModelId,
-    speech_to_speech::{SpeechToSpeechBuilder, SpeechToSpeechSession},
     voice_id::VoiceId,
 };
+use crate::speech_to_speech::{SpeechToSpeechBuilder, SpeechToSpeechSession};
 use core::future::Future;
 use fluent_voice_domain::VoiceError;
 use futures_core::Stream;

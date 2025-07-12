@@ -1,8 +1,6 @@
 //! Immutable fluent builder for one speaker turn.
-use crate::{
-    language::Language, pitch_range::PitchRange, speaker::Speaker, vocal_speed::VocalSpeedMod,
-    voice_id::VoiceId,
-};
+use fluent_voice_domain::{Language, PitchRange, VocalSpeedMod, VoiceId};
+use crate::speaker::Speaker;
 
 /// Immutable fluent builder for configuring a single speaker turn.
 ///

@@ -50,7 +50,6 @@
 
 /* ───── shared fundamentals ───── */
 pub mod audio_device_manager;
-pub mod audio_format;
 pub mod language;
 
 /* ───── TTS chain ───── */
@@ -71,7 +70,6 @@ pub mod voice_id;
 /* ───── STT chain ───── */
 pub mod mic_backend;
 pub mod noise_reduction;
-pub mod speech_source;
 pub mod stt_conversation;
 pub mod stt_engine;
 pub mod timestamps;
@@ -93,6 +91,10 @@ pub mod wake_word_conversation;
 pub mod wake_word_engine;
 pub mod wake_word_koffee;
 
+/* ───── audio input ───── */
+pub mod audio_io;
+pub use audio_io::AudioInput;
+
 /* ───── internal matcher macro ───── */
 mod macros;
 
@@ -110,8 +112,8 @@ pub mod prelude {
     //! Re-exports of commonly used types and traits.
 
     /* shared */
-    pub use crate::{audio_format::AudioFormat, language::Language};
-    pub use fluent_voice_domain::VoiceError;
+    pub use crate::language::Language;
+    pub use fluent_voice_domain::{AudioFormat, SpeechSource, VoiceError};
 
     /* TTS */
     pub use crate::{
@@ -129,7 +131,7 @@ pub mod prelude {
     pub use crate::{
         mic_backend::MicBackend,
         noise_reduction::NoiseReduction,
-        speech_source::SpeechSource,
+        // speech_source::SpeechSource, // Now imported from fluent_voice_domain
         stt_conversation::{
             MicrophoneBuilder, SttConversation, SttConversationBuilder, SttConversationExt,
             TranscriptionBuilder,

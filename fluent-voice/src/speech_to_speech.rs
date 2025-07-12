@@ -1,6 +1,6 @@
 //! Speech-to-speech voice conversion builder.
 
-use crate::{audio_format::AudioFormat, model_id::ModelId, voice_id::VoiceId};
+use fluent_voice_domain::{audio_format::AudioFormat, model_id::ModelId, voice_id::VoiceId};
 use core::future::Future;
 use fluent_voice_domain::VoiceError;
 use futures_core::Stream;

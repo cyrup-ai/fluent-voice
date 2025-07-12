@@ -1,5 +1,5 @@
 //! Multi-speaker conversation builder for TTS.
-use crate::{
+use fluent_voice_domain::{
     audio_format::AudioFormat,
     language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},

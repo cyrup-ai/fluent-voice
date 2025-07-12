@@ -3,15 +3,15 @@
 //! This module provides a non-macro implementation of the STT conversation builders
 //! that can be used as a base for engine-specific implementations.
 
-use crate::{
+use fluent_voice_domain::{
     language::Language,
     noise_reduction::NoiseReduction,
     speech_source::SpeechSource,
-    stt_conversation::TranscriptionBuilder,
     timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps},
     transcript::{TranscriptSegment, TranscriptStream},
     vad_mode::VadMode,
 };
+use crate::stt_conversation::TranscriptionBuilder;
 use core::future::Future;
 use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
@@ -392,16 +392,16 @@ where
     {
         // Use the device string to determine the backend
         let backend = if self.device == "default" || self.device.is_empty() {
-            crate::mic_backend::MicBackend::Default
+            fluent_voice_domain::MicBackend::Default
         } else {
             // Need to leak the string to get a 'static str
             let device_str = Box::leak(self.device.into_boxed_str());
-            crate::mic_backend::MicBackend::Device(device_str)
+            fluent_voice_domain::MicBackend::Device(device_str)
         };
 
         let source = Some(SpeechSource::Microphone {
             backend,
-            format: crate::audio_format::AudioFormat::Pcm16Khz,
+            format: fluent_voice_domain::AudioFormat::Pcm16Khz,
             sample_rate: 16_000,
         });
 
@@ -510,7 +510,7 @@ where
     async fn create_transcript(self) -> Result<TranscriptImpl<S>, VoiceError> {
         let source = Some(SpeechSource::File {
             path: self.path,
-            format: crate::audio_format::AudioFormat::Pcm16Khz,
+            format: fluent_voice_domain::AudioFormat::Pcm16Khz,
         });
 
         let stream = (self.stream_fn)(

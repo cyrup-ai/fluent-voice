@@ -3,13 +3,13 @@
 //! This module provides a non-macro implementation of the TTS conversation builder
 //! that can be used as a base for engine-specific implementations.
 
-use crate::{
+use fluent_voice_domain::{
     audio_format::AudioFormat,
     language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},
-    speaker::Speaker,
-    tts_conversation::{TtsConversation, TtsConversationBuilder},
 };
+use crate::speaker::Speaker;
+use crate::tts_conversation::{TtsConversation, TtsConversationBuilder};
 use core::future::Future;
 use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
@@ -22,13 +22,13 @@ pub struct SpeakerLine {
     /// Text to be spoken
     pub text: String,
     /// Optional voice ID for this speaker
-    pub voice_id: Option<crate::voice_id::VoiceId>,
+    pub voice_id: Option<fluent_voice_domain::VoiceId>,
     /// Optional language override for this speaker
-    pub language: Option<crate::language::Language>,
+    pub language: Option<fluent_voice_domain::Language>,
     /// Optional speaking-rate multiplier
-    pub speed_modifier: Option<crate::vocal_speed::VocalSpeedMod>,
+    pub speed_modifier: Option<fluent_voice_domain::VocalSpeedMod>,
     /// Optional pitch range for this speaker
-    pub pitch_range: Option<crate::pitch_range::PitchRange>,
+    pub pitch_range: Option<fluent_voice_domain::PitchRange>,
 }
 
 impl SpeakerLine {
@@ -47,19 +47,19 @@ impl Speaker for SpeakerLine {
         &self.text
     }
 
-    fn voice_id(&self) -> Option<&crate::voice_id::VoiceId> {
+    fn voice_id(&self) -> Option<&fluent_voice_domain::VoiceId> {
         self.voice_id.as_ref()
     }
 
-    fn language(&self) -> Option<&crate::language::Language> {
+    fn language(&self) -> Option<&fluent_voice_domain::Language> {
         self.language.as_ref()
     }
 
-    fn speed_modifier(&self) -> Option<crate::vocal_speed::VocalSpeedMod> {
+    fn speed_modifier(&self) -> Option<fluent_voice_domain::VocalSpeedMod> {
         self.speed_modifier
     }
 
-    fn pitch_range(&self) -> Option<&crate::pitch_range::PitchRange> {
+    fn pitch_range(&self) -> Option<&fluent_voice_domain::PitchRange> {
         self.pitch_range.as_ref()
     }
 }
@@ -69,10 +69,10 @@ impl Speaker for SpeakerLine {
 pub struct SpeakerLineBuilder {
     id: String,
     text: String,
-    voice_id: Option<crate::voice_id::VoiceId>,
-    language: Option<crate::language::Language>,
-    speed_modifier: Option<crate::vocal_speed::VocalSpeedMod>,
-    pitch_range: Option<crate::pitch_range::PitchRange>,
+    voice_id: Option<fluent_voice_domain::VoiceId>,
+    language: Option<fluent_voice_domain::Language>,
+    speed_modifier: Option<fluent_voice_domain::VocalSpeedMod>,
+    pitch_range: Option<fluent_voice_domain::PitchRange>,
 }
 
 impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
@@ -89,22 +89,22 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
         }
     }
 
-    fn voice_id(mut self, id: crate::voice_id::VoiceId) -> Self {
+    fn voice_id(mut self, id: fluent_voice_domain::VoiceId) -> Self {
         self.voice_id = Some(id);
         self
     }
 
-    fn language(mut self, lang: crate::language::Language) -> Self {
+    fn language(mut self, lang: fluent_voice_domain::Language) -> Self {
         self.language = Some(lang);
         self
     }
 
-    fn with_speed_modifier(mut self, m: crate::vocal_speed::VocalSpeedMod) -> Self {
+    fn with_speed_modifier(mut self, m: fluent_voice_domain::VocalSpeedMod) -> Self {
         self.speed_modifier = Some(m);
         self
     }
 
-    fn with_pitch_range(mut self, range: crate::pitch_range::PitchRange) -> Self {
+    fn with_pitch_range(mut self, range: fluent_voice_domain::PitchRange) -> Self {
         self.pitch_range = Some(range);
         self
     }
@@ -365,7 +365,7 @@ where
 {
     type Conversation = TtsConversationImpl<AudioStream>;
 
-    fn with_speaker<S: Speaker>(mut self, speaker: S) -> Self {
+    fn with_speaker<S: Speaker>(self, speaker: S) -> Self {
         // Convert any Speaker to our concrete SpeakerLine
         let speaker_line = SpeakerLine {
             id: speaker.id().to_string(),
@@ -375,8 +375,26 @@ where
             speed_modifier: speaker.speed_modifier(),
             pitch_range: speaker.pitch_range().cloned(),
         };
-        self.lines.push(speaker_line);
-        self
+        let mut new_lines = self.lines;
+        new_lines.push(speaker_line);
+        Self {
+            lines: new_lines,
+            global_language: self.global_language,
+            global_speed: self.global_speed,
+            model: self.model,
+            stability: self.stability,
+            similarity: self.similarity,
+            speaker_boost: self.speaker_boost,
+            style_exaggeration: self.style_exaggeration,
+            output_format: self.output_format,
+            pronunciation_dictionaries: self.pronunciation_dictionaries,
+            seed: self.seed,
+            previous_text: self.previous_text,
+            next_text: self.next_text,
+            previous_request_ids: self.previous_request_ids,
+            next_request_ids: self.next_request_ids,
+            synth_fn: self.synth_fn,
+        }
     }
 
     fn language(mut self, lang: Language) -> Self {

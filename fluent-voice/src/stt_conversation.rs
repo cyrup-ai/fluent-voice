@@ -1,10 +1,10 @@
 //! Live/batch transcription builder.
-use crate::{
+use fluent_voice_domain::{
     language::Language,
     noise_reduction::NoiseReduction,
     speech_source::SpeechSource,
     timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps},
-    transcript::TranscriptStream,
+    transcript::{TranscriptSegment, TranscriptStream},
     vad_mode::VadMode,
 };
 use core::future::Future;

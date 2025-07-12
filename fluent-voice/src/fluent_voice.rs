@@ -3,10 +3,11 @@
 use crate::{
     audio_isolation::AudioIsolationBuilder, sound_effects::SoundEffectsBuilder,
     speech_to_speech::SpeechToSpeechBuilder, stt_conversation::SttConversationBuilder,
-    transcript::TranscriptSegment, tts_conversation::TtsConversationBuilder,
+    tts_conversation::TtsConversationBuilder,
     voice_clone::VoiceCloneBuilder, voice_discovery::VoiceDiscoveryBuilder,
     wake_word::WakeWordBuilder,
 };
+use fluent_voice_domain::TranscriptSegment;
 
 /// Unified entry point for Text-to-Speech and Speech-to-Text operations.
 ///
