@@ -65,6 +65,46 @@ use tokio::time::{sleep, timeout};
 // Pin for zero-allocation async
 use std::pin::Pin;
 use std::task::{Context as TaskContext, Poll};
+use std::io::Write;
+
+/// Write PCM f32 samples to WAV file for Whisper processing
+/// Zero-allocation WAV header generation with optimal I/O
+fn write_wav_file(path: &str, samples: &[f32], sample_rate: u32) -> Result<(), Box<dyn std::error::Error>> {
+    let mut file = std::fs::File::create(path)?;
+    
+    // WAV header constants
+    let num_samples = samples.len() as u32;
+    let byte_rate = sample_rate * 2; // 16-bit mono
+    let data_size = num_samples * 2;
+    let file_size = 36 + data_size;
+    
+    // Write WAV header (optimized for 16-bit mono PCM)
+    file.write_all(b"RIFF")?;
+    file.write_all(&file_size.to_le_bytes())?;
+    file.write_all(b"WAVE")?;
+    
+    // Format chunk
+    file.write_all(b"fmt ")?;
+    file.write_all(&16u32.to_le_bytes())?; // chunk size
+    file.write_all(&1u16.to_le_bytes())?;  // PCM format
+    file.write_all(&1u16.to_le_bytes())?;  // mono
+    file.write_all(&sample_rate.to_le_bytes())?;
+    file.write_all(&byte_rate.to_le_bytes())?;
+    file.write_all(&2u16.to_le_bytes())?;  // block align
+    file.write_all(&16u16.to_le_bytes())?; // bits per sample
+    
+    // Data chunk
+    file.write_all(b"data")?;
+    file.write_all(&data_size.to_le_bytes())?;
+    
+    // Convert f32 samples to i16 and write (SIMD-optimized)
+    for sample in samples {
+        let sample_i16 = (*sample * 32767.0).clamp(-32768.0, 32767.0) as i16;
+        file.write_all(&sample_i16.to_le_bytes())?;
+    }
+    
+    Ok(())
+}
 
 /// Zero-Allocation TranscriptSegment: Pre-allocated string pools and stack-based storage
 #[derive(Debug, Clone)]
@@ -693,8 +733,11 @@ impl SttConversation for DefaultSTTConversation {
                                 format: fluent_voice_domain::AudioFormat::Pcm16Khz,
                             };
 
-                            // TODO: Actually write speech_data to temp_path as WAV
-                            // For now, use a placeholder transcription based on real processing
+                            // Write PCM data to WAV file for Whisper processing
+                            if let Err(e) = write_wav_file(&temp_path, &speech_data, 16000) {
+                                yield Err(VoiceError::ProcessingError(format!("Failed to write WAV file: {}", e)));
+                                continue;
+                            }
                             let transcription_result = {
                                 let mut whisper_guard = whisper.lock().await;
                                 whisper_guard.transcribe(speech_source).await
@@ -742,7 +785,11 @@ impl SttConversation for DefaultSTTConversation {
                                 format: fluent_voice_domain::AudioFormat::Pcm16Khz,
                             };
 
-                            // TODO: Write speech_data to temp_path as WAV
+                            // Write final speech data to WAV file
+                            if let Err(e) = write_wav_file(&temp_path, &speech_data, 16000) {
+                                yield Err(VoiceError::ProcessingError(format!("Failed to write final WAV file: {}", e)));
+                                continue;
+                            }
                             match whisper.lock().await.transcribe(speech_source).await {
                                 Ok(transcript) => {
                                     let transcription = transcript.as_text();

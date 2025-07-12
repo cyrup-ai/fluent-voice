@@ -141,28 +141,13 @@ pub struct FluentVoiceImpl;
 
 impl FluentVoice for FluentVoiceImpl {
     fn tts() -> impl TtsConversationBuilder {
-        // Create a default implementation that returns an empty audio stream
-        crate::builders::tts_conversation_builder(|_lines, _lang| {
-            // Return an empty stream of i16 audio samples
-            futures::stream::empty::<i16>()
-        })
+        // Use dia-voice as the canonical default TTS provider
+        dia::DiaVoiceBuilder::new()
     }
 
     fn stt() -> impl SttConversationBuilder {
-        // Create a default implementation that returns an empty transcript stream
-        crate::builders::stt_conversation_builder(
-            |_source,
-             _vad,
-             _noise,
-             _lang,
-             _diarization,
-             _word_timestamps,
-             _timestamps_granularity,
-             _punctuation| {
-                // Return an empty stream of transcript segments
-                futures::stream::empty::<Result<TtsChunk, fluent_voice_domain::VoiceError>>()
-            },
-        )
+        // Use DefaultSTTEngine with canonical providers (Whisper, VAD, Koffee)
+        crate::engines::default_stt_engine::DefaultSTTEngineBuilder::new()
     }
 
     fn wake_word() -> impl WakeWordBuilder {
