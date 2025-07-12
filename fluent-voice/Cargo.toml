@@ -11,6 +11,7 @@ default       = []
 tokio-runtime = []
 wasm-runtime  = []
 std_async     = []
+simd          = ["portable_simd"]
 
 [dependencies]
 workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
@@ -18,6 +19,7 @@ fluent_voice_domain = { version = "0.1.0", path = "../fluent-voice-domain" }
 fluent_voice_whisper = { version = "0.1.0", path = "../candle/whisper", features = ["async-stream", "audio", "display", "record"] }
 fluent_voice_vad = { version = "0.1.0", path = "../vad", features = ["async", "load-dynamic", "ort"] }
 koffee = { version = "0.1.0", path = "../candle/koffee" }
+dia = { version = "0.1.0", path = "../dia-voice" }
 thiserror = "2.0.12"
 futures-core = "0.3.31"
 futures = "0.3.31"
@@ -43,7 +45,6 @@ candle-transformers = "0.9.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 candle-examples = "0.9.1"
 byteorder = "1.5.0"
-dia = { version = "0.1.0", path = "../dia-voice" }
 
 [dev-dependencies]
 # tokio is in workspace-hack
