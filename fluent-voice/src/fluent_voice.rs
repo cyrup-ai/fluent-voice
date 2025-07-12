@@ -11,8 +11,8 @@ use fluent_voice_domain::SttConversationBuilder;
 use fluent_voice_domain::TranscriptSegment;
 // Real production types from Whisper crate
 use fluent_voice_whisper::TtsChunk;
-// Import dia-voice crate for TTS functionality
-use dia::voice::dia_speaker::DiaSpeakerBuilder;
+// Import dia-voice crate for TTS functionality - testing basic import first
+use dia;
 
 /// Unified entry point for Text-to-Speech and Speech-to-Text operations.
 ///

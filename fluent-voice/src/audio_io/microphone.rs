@@ -16,7 +16,7 @@ use candle_transformers::models::whisper::{self as m, Config, audio};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use flate2::{Compression as GzCompression, write::GzEncoder};
 use futures::stream::{Stream, StreamExt};
-use rubato::{FastFixedIn, PolynomialDegree};
+use rubato::{FastFixedIn, PolynomialDegree, Resampler};
 use std::io::Write;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -352,16 +352,12 @@ impl Decoder {
                         }
                     }
                 } else {
-                    // Create real TtsChunk with production-quality data from Whisper transcription
-                    self.pending_chunks.push(fluent_voice_whisper::TtsChunk::new(
-                        time_offset,
-                        time_offset + segment_duration,
-                        dr.tokens.clone(),
+                    // Create real ConcreteTranscriptSegment with production-quality data from Whisper transcription
+                    self.pending_chunks.push(ConcreteTranscriptSegment::new(
                         dr.text,
-                        0.0, // avg_logprob - will be set by real Whisper processing
-                        0.0, // no_speech_prob - will be set by real Whisper processing
-                        0.0, // temperature - will be set by real Whisper processing
-                        0.0, // compression_ratio - will be set by real Whisper processing
+                        (time_offset * 1000.0) as u32,
+                        ((time_offset + segment_duration) * 1000.0) as u32,
+                        None // No speaker ID in this context
                     ));
                 }
 
@@ -683,14 +679,12 @@ pub fn record() -> Result<impl Stream<Item = Result<ConcreteTranscriptSegment>>>
                 let full_chunks = self.buffered_pcm.len() / chunk_size;
                 let remainder = self.buffered_pcm.len() % chunk_size;
                 let mut resampled_pcm = Vec::with_capacity((self.buffered_pcm.len() as f64 * resample_ratio) as usize + chunk_size);
-                let mut output_buffer = vec![vec![0.0f32; resampler.output_frames_max()]; 1];
                 
                 for chunk_idx in 0..full_chunks {
                     let chunk = &self.buffered_pcm[chunk_idx * chunk_size..(chunk_idx + 1) * chunk_size];
-                    let input_slices: Vec<&[f32]> = vec![chunk];
-                    match resampler.process_into_buffer(&input_slices, &mut output_buffer, None) {
-                        Ok((_, nbr_out)) => {
-                            resampled_pcm.extend_from_slice(&output_buffer[0][..nbr_out]);
+                    match resampler.process(&[chunk], None) {
+                        Ok(pcm) => {
+                            resampled_pcm.extend_from_slice(&pcm[0]);
                         },
                         Err(e) => return Poll::Ready(Some(Err(e.into()))),
                     }
