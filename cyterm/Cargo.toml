@@ -10,7 +10,7 @@ readme       = "README.md"
 default-run  = "cyterm"
 
 [dependencies]
-workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
+fluent-voice-workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
 
 koffee = { path = "../candle/koffee"}
 fluent_voice_whisper = { path = "../candle/whisper"}

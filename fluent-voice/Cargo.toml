@@ -18,12 +18,13 @@ accelerate = ["candle-core/accelerate", "candle-nn/accelerate", "candle-transfor
 mkl = ["candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl", "candle-examples/mkl"]
 
 [dependencies]
-workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
+fluent-voice-workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
 fluent_voice_domain = { version = "0.1.0", path = "../fluent-voice-domain" }
 fluent_voice_whisper = { version = "0.1.0", path = "../candle/whisper", features = ["async-stream", "audio", "display", "record"] }
 fluent_voice_vad = { version = "0.1.0", path = "../vad", features = ["async", "load-dynamic", "ort"] }
 koffee = { version = "0.1.0", path = "../candle/koffee" }
 dia = { version = "0.1.0", path = "../dia-voice" }
+cyrup_sugars = { path = "../../sugars/packages/cyrup-sugars", default-features = false, features = ["tokio-async"] }
 thiserror = "2.0.12"
 futures-core = "0.3.31"
 futures = "0.3.31"

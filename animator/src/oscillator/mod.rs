@@ -101,7 +101,7 @@ impl DataSet {
     }
 }
 
-pub(crate) fn update_value_f(
+pub fn update_value_f(
     val: &mut f64,
     base: f64,
     magnitude: f64,
@@ -117,7 +117,7 @@ pub(crate) fn update_value_f(
     }
 }
 
-pub(crate) fn update_value_i(
+pub fn update_value_i(
     val: &mut u32,
     inc: bool,
     base: u32,

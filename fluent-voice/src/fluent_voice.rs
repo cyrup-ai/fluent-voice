@@ -12,6 +12,8 @@ use fluent_voice_domain::TranscriptSegment;
 use fluent_voice_whisper::TtsChunk;
 // Import beautiful dia-voice high-level builder API
 use dia::voice::voice_builder::DiaVoiceBuilder;
+// Import cyrup-sugars StreamExt and AsyncStream for action verb callback syntax
+use cyrup_sugars::{AsyncStream, StreamExt};
 
 /// Unified entry point for Text-to-Speech and Speech-to-Text operations.
 ///
@@ -24,9 +26,9 @@ use dia::voice::voice_builder::DiaVoiceBuilder;
 /// use fluent_voice::prelude::*;
 ///
 /// // TTS usage
-/// let audio = MyEngine::tts()
+/// let audio = FluentVoice::tts().conversation()
 ///     .with_speaker(
-///         Speaker::named("Alice")
+///         Speaker::speaker("Alice")
 ///             .speak("Hello, world!")
 ///             .build()
 ///     )
@@ -37,44 +39,36 @@ use dia::voice::voice_builder::DiaVoiceBuilder;
 ///     .await?;
 ///
 /// // STT microphone usage
-/// let stream = MyEngine::stt()
-///     .with_microphone("default")
+/// let stream = FluentVoice::stt().conversation()
+///     .with_source(SpeechSource::Microphone {
+///         backend: MicBackend::Default,
+///         format: AudioFormat::Pcm16Khz,
+///         sample_rate: 16_000,
+///     })
 ///     .listen(|conversation| {
 ///         Ok => conversation.into_stream(),
 ///         Err(e) => Err(e),
 ///     })
 ///     .await?;
-///
-/// // STT file transcription usage
-/// let transcript = MyEngine::stt()
-///     .transcribe("audio.wav")
-///     .emit(|transcript| {
-///         Ok => transcript.into_stream(),
-///         Err(e) => Err(e),
-///     })
-///     .await?;
 /// ```
 pub trait FluentVoice {
-    /// Begin a new TTS conversation builder.
+    /// Begin a new TTS session.
     ///
-    /// This method returns a conversation builder that can be used to configure
-    /// speakers, voice settings, and other TTS parameters before synthesis.
+    /// This method returns an entry point that provides access to TTS conversation builders.
     ///
     /// # Returns
     ///
-    /// A new TTS conversation builder instance.
-    fn tts() -> impl TtsConversationBuilder;
+    /// A new TTS session instance.
+    fn tts() -> TtsEntry;
 
-    /// Begin a new STT conversation builder.
+    /// Begin a new STT session.
     ///
-    /// This method returns a conversation builder that can be used to configure
-    /// audio sources, language hints, VAD settings, and other recognition
-    /// parameters before starting transcription.
+    /// This method returns an entry point that provides access to STT conversation builders.
     ///
     /// # Returns
     ///
-    /// A new STT conversation builder instance.
-    fn stt() -> impl SttConversationBuilder;
+    /// A new STT session instance.
+    fn stt() -> SttEntry;
 
     /// Begin a new wake word detection builder.
     ///
@@ -138,18 +132,44 @@ pub trait FluentVoice {
     fn sound_effects() -> impl SoundEffectsBuilder;
 }
 
+/// Entry point for TTS operations providing .conversation() method
+pub struct TtsEntry;
+
+impl TtsEntry {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Create a new TTS conversation builder
+    pub fn conversation(self) -> impl TtsConversationBuilder {
+        DefaultTtsBuilder::new()
+    }
+}
+
+/// Entry point for STT operations providing .conversation() method  
+pub struct SttEntry;
+
+impl SttEntry {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Create a new STT conversation builder
+    pub fn conversation(self) -> impl SttConversationBuilder {
+        crate::engines::DefaultSTTConversationBuilder::new()
+    }
+}
+
 /// Default implementation entry point for FluentVoice
 pub struct FluentVoiceImpl;
 
 impl FluentVoice for FluentVoiceImpl {
-    fn tts() -> impl TtsConversationBuilder {
-        // Use dia-voice high-level API as default TTS implementation
-        DefaultTtsBuilder::new()
+    fn tts() -> TtsEntry {
+        TtsEntry::new()
     }
 
-    fn stt() -> impl SttConversationBuilder {
-        // Use DefaultSTTEngine with canonical providers (Whisper, VAD, Koffee)
-        crate::engines::DefaultSTTConversationBuilder::new()
+    fn stt() -> SttEntry {
+        SttEntry::new()
     }
 
     fn wake_word() -> impl WakeWordBuilder {
@@ -259,24 +279,29 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
         self
     }
 
-    async fn synthesize<F, R>(self, matcher: F) -> R
+    fn synthesize<F>(self, callback: F) -> AsyncStream<TtsChunk>
     where
-        F: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> R
+        F: FnMut(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> Result<AsyncStream<TtsChunk>, fluent_voice_domain::VoiceError>
             + Send
             + 'static,
     {
-        // Create DiaVoiceBuilder with defaults and delegate synthesis
-        let result = if let Some(voice_path) = self.voice_clone_path {
+        // Create the result stream based on configuration
+        let result_stream = if let Some(voice_path) = self.voice_clone_path {
             let dia_builder = DiaVoiceBuilder::new(self.pool, voice_path);
             let conversation = DefaultTtsConversation::new(dia_builder);
-            Ok(conversation)
+            // Convert conversation to stream and wrap in AsyncStream
+            match conversation.into_stream() {
+                Ok(stream) => AsyncStream::from_stream(stream),
+                Err(e) => AsyncStream::from_error(e),
+            }
         } else {
-            Err(fluent_voice_domain::VoiceError::ConfigurationError(
+            AsyncStream::from_error(fluent_voice_domain::VoiceError::ConfigurationError(
                 "No speaker voice clone configured".to_string(),
             ))
         };
 
-        matcher(result)
+        // Use cyrup-sugars StreamExt to enable README.md callback syntax
+        result_stream.on_result(callback)
     }
 }
 

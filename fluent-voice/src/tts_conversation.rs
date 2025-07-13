@@ -176,19 +176,10 @@ pub trait TtsConversationBuilder: Sized + Send {
     /// * `request_ids` - Following synthesis request identifiers
     fn next_request_ids(self, request_ids: Vec<RequestId>) -> Self;
 
-    /// Terminal method that executes synthesis with a matcher closure.
+    /// Terminal method that executes synthesis with cyrup-sugars syntax.
     ///
     /// This method terminates the fluent chain and executes the TTS synthesis.
-    /// The matcher closure receives either the conversation object on success
-    /// or a `VoiceError` on failure, and returns the final result.
-    ///
-    /// # Arguments
-    ///
-    /// * `matcher` - Closure that handles success/error cases
-    ///
-    /// # Returns
-    ///
-    /// A future that resolves to the result of the matcher closure.
+    /// Uses cyrup-sugars proc macro to enable Ok => expr, Err => expr syntax.
     ///
     /// # Examples
     ///

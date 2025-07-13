@@ -7,7 +7,7 @@ repository = "https://github.com/davidmaple/fluent-voice"
 authors = ["David Maple <davidcmaple@gmail.com>"]
 
 [dependencies]
-workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
+fluent-voice-workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
 
 env_logger = "0.11.8"
 parking_lot = "0.12.4"

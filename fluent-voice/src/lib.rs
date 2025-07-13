@@ -146,8 +146,11 @@ pub mod prelude {
 
     /* Unified entry point */
     pub use crate::fluent_voice::{
-        FluentVoice as FluentVoiceTrait, FluentVoiceImpl as FluentVoice,
+        FluentVoice as FluentVoiceTrait, FluentVoiceImpl as FluentVoice, TtsEntry, SttEntry,
     };
+    
+    /* cyrup-sugars macros for Ok => Err => syntax */
+    pub use cyrup_sugars::macros::*;
     // Real production transcript segment type from Whisper crate
     pub use fluent_voice_whisper::TtsChunk;
 

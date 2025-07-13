@@ -245,24 +245,30 @@ where
         )
     }
 
-    fn listen<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        F: FnMut(Result<Self::Conversation, VoiceError>) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError> + Send + 'static,
     {
-        async move {
-            let conversation = SttConversationImpl {
-                source: self.source,
-                vad_mode: self.vad_mode,
-                noise_reduction: self.noise_reduction,
-                language_hint: self.language_hint,
-                diarization: self.diarization,
-                word_timestamps: self.word_timestamps,
-                timestamps_granularity: self.timestamps_granularity,
-                punctuation: self.punctuation,
-                stream_fn: self.stream_fn,
-            };
-            matcher(Ok(conversation))
-        }
+        let conversation = SttConversationImpl {
+            source: self.source,
+            vad_mode: self.vad_mode,
+            noise_reduction: self.noise_reduction,
+            language_hint: self.language_hint,
+            diarization: self.diarization,
+            word_timestamps: self.word_timestamps,
+            timestamps_granularity: self.timestamps_granularity,
+            punctuation: self.punctuation,
+            stream_fn: self.stream_fn,
+        };
+        
+        // Create result stream and use cyrup-sugars combinators
+        let result_stream = match conversation.into_stream() {
+            Ok(stream) => crate::AsyncStream::from_stream(stream),
+            Err(e) => crate::AsyncStream::from_error(e),
+        };
+        
+        // Use cyrup-sugars StreamExt to enable README.md callback syntax
+        result_stream.on_result(callback)
     }
 }
 
@@ -385,10 +391,9 @@ where
         self
     }
 
-    fn listen<F, StreamType>(self, matcher: F) -> StreamType
+    fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> StreamType + Send + 'static,
-        StreamType: Stream + Send + 'static,
+        F: FnMut(Result<Self::Conversation, VoiceError>) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError> + Send + 'static,
     {
         // Use the device string to determine the backend
         let backend = if self.device == "default" || self.device.is_empty() {
@@ -414,7 +419,15 @@ where
             punctuation: self.punctuation,
             stream_fn: self.stream_fn,
         };
-        matcher(Ok(conversation))
+        
+        // Create result stream and use cyrup-sugars combinators
+        let result_stream = match conversation.into_stream() {
+            Ok(stream) => crate::AsyncStream::from_stream(stream),
+            Err(e) => crate::AsyncStream::from_error(e),
+        };
+        
+        // Use cyrup-sugars StreamExt to enable README.md callback syntax
+        result_stream.on_result(callback)
     }
 }
 

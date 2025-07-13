@@ -22,7 +22,7 @@ default = []
 test-support = []
 
 [dependencies]
-workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
+fluent-voice-workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
 
 # tracing = "0.1.41" # in workspace-hack
 anyhow = "1.0.98"

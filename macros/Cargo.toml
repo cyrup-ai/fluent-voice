@@ -9,4 +9,4 @@ categories  = ["multimedia::audio", "api-bindings"]
 
 [dependencies]
 fluent_voice_domain = { version = "0.1.0", path = "../fluent-voice-domain" }
-workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
+fluent-voice-workspace-hack = { version = "0.1.0", path = "../workspace-hack" }

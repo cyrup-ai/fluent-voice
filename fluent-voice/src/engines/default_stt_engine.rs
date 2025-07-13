@@ -568,19 +568,25 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
         }
     }
 
-    fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        F: FnMut(Result<Self::Conversation, VoiceError>) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError> + Send + 'static,
     {
-        async move {
-            // Create default conversation and apply matcher
-            let conversation = DefaultSTTConversation {
-                whisper: self.whisper,
-                vad_config: self.vad_config,
-                wake_word_config: self.wake_word_config,
-            };
-            matcher(Ok(conversation))
-        }
+        // Create default conversation
+        let conversation = DefaultSTTConversation {
+            whisper: self.whisper,
+            vad_config: self.vad_config,
+            wake_word_config: self.wake_word_config,
+        };
+        
+        // Create result stream and use cyrup-sugars combinators
+        let result_stream = match conversation.into_stream() {
+            Ok(stream) => crate::AsyncStream::from_stream(stream),
+            Err(e) => crate::AsyncStream::from_error(e),
+        };
+        
+        // Use cyrup-sugars StreamExt to enable README.md callback syntax
+        result_stream.on_result(callback)
     }
 }
 
@@ -986,14 +992,23 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
         self
     }
 
-    fn listen<F, S>(self, matcher: F) -> S
+    fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream + Send + 'static,
+        F: FnMut(Result<Self::Conversation, VoiceError>) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError> + Send + 'static,
     {
-        let result =
-            DefaultSTTConversation::new(self.whisper, self.vad_config, self.wake_word_config);
-        matcher(result)
+        let conversation = DefaultSTTConversation::new(self.whisper, self.vad_config, self.wake_word_config);
+        
+        // Create result stream and use cyrup-sugars combinators
+        let result_stream = match conversation {
+            Ok(conv) => match conv.into_stream() {
+                Ok(stream) => crate::AsyncStream::from_stream(stream),
+                Err(e) => crate::AsyncStream::from_error(e),
+            },
+            Err(e) => crate::AsyncStream::from_error(e),
+        };
+        
+        // Use cyrup-sugars StreamExt to enable README.md callback syntax
+        result_stream.on_result(callback)
     }
 }
 

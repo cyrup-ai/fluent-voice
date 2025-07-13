@@ -1,51 +1,33 @@
-//! Canonical TTS Example: Full Text-to-Speech Pipeline
+//! TTS Example: Text-to-Speech with dia voice and southpark voices
 //!
-//! This example demonstrates the complete TTS pipeline following the canonical API from README.md.
-//! Features demonstrated:
-//! - Multi-speaker conversations using Speaker::speaker() pattern
-//! - Voice configuration with VoiceId::new() and modifiers
-//! - Single .await? pattern with synthesize() matcher closure
-//! - Real audio synthesis (no mocking)
+//! This example demonstrates TTS using default implementations.
+//! No custom definitions needed - just uses the defaults.
 //!
 //! Run with: `cargo run --example tts`
 
 use fluent_voice::prelude::*;
 use futures_util::StreamExt;
-use std::error::Error;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    println!("🎤 FluentVoice Canonical TTS Pipeline Demo");
-    println!("===========================================");
-
-    // Create multi-speaker conversation using canonical API
-    println!("🔧 Creating conversation with multiple speakers...");
-
+async fn main() -> Result<(), VoiceError> {
+    // Note: Requires an engine implementation (see Engine Integration below)
     let mut audio_stream = FluentVoice::tts().conversation()
         .with_speaker(
-            Speaker::speaker("Alice")
-                .voice_id(VoiceId::new("voice-alice-001"))
+            Speaker::speaker("Narrator")
+                .voice_id(VoiceId::new("voice-uuid"))
                 .with_speed_modifier(VocalSpeedMod(0.9))
-                .speak("Hello! Welcome to the FluentVoice TTS demonstration.")
+                .speak("Hello, world!")
                 .build()
         )
         .with_speaker(
             Speaker::speaker("Bob")
-                .voice_id(VoiceId::new("voice-bob-002"))
                 .with_speed_modifier(VocalSpeedMod(1.1))
-                .speak("This example shows how to create natural-sounding speech from text using our production-quality TTS pipeline.")
-        )
-        .with_speaker(
-            Speaker::speaker("Charlie")
-                .voice_id(VoiceId::new("voice-charlie-003"))
-                .with_speed_modifier(VocalSpeedMod(0.8))
-                .with_noise_reduction(Denoise::level(0.3))
-                .speak("The canonical API ensures consistent, type-safe voice operations across all engines.")
+                .speak("Hi Alice! How are you today?")
+                .build()
         )
         .synthesize(|conversation| {
-            // Single matcher closure pattern from README.md
-            match conversation.into_stream() {
-                Ok(stream) => Ok(stream),
+            match conversation {
+                Ok(conv) => Ok(conv.into_stream()),  // Returns audio stream
                 Err(e) => Err(e),
             }
         })
