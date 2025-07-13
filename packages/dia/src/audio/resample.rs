@@ -6,7 +6,12 @@
 //! Maintainers: there must be **no other resample helpers** in the tree.
 
 use anyhow::Result;
-#[cfg(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac"))]
+#[cfg(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+))]
 use rubato::{FftFixedIn, Resampler};
 
 /// Resample arbitrary PCM to **24 kHz mono**.
@@ -16,7 +21,12 @@ use rubato::{FftFixedIn, Resampler};
 /// * `channels`   – number of interleaved channels in `pcm`  
 ///
 /// Returns a `Vec<f32>` containing mono PCM @ 24 000 Hz.
-#[cfg(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac"))]
+#[cfg(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+))]
 pub fn to_24k_mono(mut pcm: Vec<f32>, sr_in: u32, channels: usize) -> Result<Vec<f32>> {
     // ────────────────────────────────────────────────────────────────────────
     // 1. Channel down-mix (advanced L+R average – good enough for TTS prompts)
@@ -78,7 +88,12 @@ pub fn to_24k_mono(mut pcm: Vec<f32>, sr_in: u32, channels: usize) -> Result<Vec
 
 /// Low-level helper used by unit-tests or by callers that need an
 /// *arbitrary* output rate (still mono).
-#[cfg(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac"))]
+#[cfg(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+))]
 pub fn resample_mono(input: &[f32], sr_in: u32, sr_out: u32) -> Result<Vec<f32>> {
     if sr_in == sr_out {
         return Ok(input.to_vec());

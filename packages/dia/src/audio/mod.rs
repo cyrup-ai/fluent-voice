@@ -12,7 +12,12 @@
 //! resampler or meter place it in this directory and re-export it here.
 
 use anyhow::Result;
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_core::{DType, Tensor};
 
 // sub-modules --------------------------------------------------------------

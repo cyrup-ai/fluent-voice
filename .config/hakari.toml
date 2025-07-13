@@ -27,18 +27,11 @@ platforms = [
 # exact-versions = true
 
 
-[[exclude]]
-crates = [
-    "candle-core",
-    "candle-nn",
-    "candle-transformers",
-    "candle-flash-attn",
-    "candle-onnx",
-    "candle-datasets",
-    "cudarc",
-    "ort",
-    "ort-sys",
-    "accelerate-src",
-    "intel-mkl-src",
-    "half"
+[final-excludes]
+third-party = [
+    { name = "cudarc" },
+    { name = "accelerate-src" },
+    { name = "intel-mkl-src" },
+    { name = "half" },
+    { name = "bindgen_cuda" },
 ]

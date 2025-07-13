@@ -1,9 +1,19 @@
 //! High-level Whisper decoding with temperature fallback, timestamp support, etc.
 
 use anyhow::{Result, anyhow};
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle::{IndexOp, Tensor};
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_nn::ops::softmax;
 use rand::distributions::weighted::WeightedIndex;
 use rand::{SeedableRng, rngs::StdRng};
@@ -11,7 +21,12 @@ use tokenizers::Tokenizer;
 
 use crate::asr::multilingual::LANGUAGES;
 use crate::asr::{audio, model::WhisperModel, multilingual::detect_language};
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_transformers::models::whisper as m;
 
 /// A streaming Whisper decoder.

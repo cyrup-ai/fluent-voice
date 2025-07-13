@@ -13,9 +13,19 @@
 
 use std::{path::Path, sync::Arc};
 
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_core::{DType, Device, Tensor};
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_nn::VarBuilder;
 
 use crate::{

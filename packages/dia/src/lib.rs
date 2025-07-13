@@ -1,5 +1,12 @@
-#[cfg(not(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl")))]
-compile_error!("At least one candle acceleration feature must be enabled: cuda, metal, accelerate, or mkl");
+#[cfg(not(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+)))]
+compile_error!(
+    "At least one candle acceleration feature must be enabled: cuda, metal, accelerate, or mkl"
+);
 
 pub mod app;
 pub mod audio;

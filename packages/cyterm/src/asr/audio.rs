@@ -1,8 +1,18 @@
 //! PCM → log-mel conversion (same parameters as OpenAI Whisper).
 
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle::{Result, Tensor};
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_transformers::models::whisper::Config;
 
 /// FFT hop length (Whisper constant).

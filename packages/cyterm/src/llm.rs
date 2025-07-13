@@ -6,9 +6,19 @@ use std::{
     time::Duration,
 };
 
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle::{Device, Tensor};
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_transformers::models::llama2_c as m;
 use tokenizers::Tokenizer;
 

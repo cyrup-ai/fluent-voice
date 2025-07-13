@@ -1,9 +1,19 @@
 //! Runtime data-structures used **during inference**
 //! (KV-cache, encoder / decoder state, etc.)
 
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_core::Result;
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_core::{DType, Device, IndexOp, Tensor};
 
 use crate::config::DiaConfig;

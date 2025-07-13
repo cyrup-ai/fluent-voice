@@ -5,7 +5,12 @@
 //! channel observes the same sequence starting at different time offsets.
 //! This implements true temporal delays as described in the Dia paper.
 
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_core::{Result, Tensor};
 
 /// Delay pattern for 9-channel, 24 kHz EnCodec tokenizer
@@ -134,7 +139,12 @@ pub fn undelayed_view(delayed_tc: &Tensor, pad_token: u32) -> Result<Tensor> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+    #[cfg(any(
+        feature = "cuda",
+        feature = "metal",
+        feature = "accelerate",
+        feature = "mkl"
+    ))]
     use candle_core::Device;
 
     #[test]

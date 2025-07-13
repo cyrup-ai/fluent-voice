@@ -3,7 +3,12 @@
 //! This module provides optimized implementations for Metal and CUDA backends,
 //! improving performance through hardware-specific optimizations.
 
-#[cfg(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl"))]
+#[cfg(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+))]
 use candle_core::{DType, Device, Result, Tensor};
 
 #[cfg(feature = "cuda")]
