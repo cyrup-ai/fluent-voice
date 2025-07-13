@@ -59,7 +59,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .build()
         )
         .synthesize(|conversation| {
-            Ok(conversation.into_stream())  // Returns audio stream
+            Ok => conversation.into_stream(),  // Returns audio stream
+            Err(e) => Err(e),
+        })
+        .on_chunk(|synthesis_chunk| {
+            Ok => synthesis_chunk.into(),  // Unwrap each audio chunk
+            Err(e) => Err(e),
         })
         .await?;  // Single await point
 

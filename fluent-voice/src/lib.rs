@@ -51,8 +51,10 @@
 //! ```
 
 /* ───── shared fundamentals ───── */
+pub mod audio_chunk;
 pub mod audio_device_manager;
 pub mod language;
+pub mod stream_ext;
 
 /* ───── TTS chain ───── */
 pub mod model_id;
@@ -119,10 +121,12 @@ pub mod prelude {
 
     /* TTS */
     pub use crate::{
+        audio_chunk::{AudioChunk, SynthesisChunk},
         model_id::ModelId,
         pitch_range::PitchRange,
         speaker_builder::SpeakerBuilder,
-        tts_conversation::{TtsConversation, TtsConversationBuilder, TtsConversationExt},
+        stream_ext::{TtsStreamExt, AsyncStream, AsyncTask},
+        tts_conversation::{TtsConversation, TtsConversationBuilder, TtsConversationChunkBuilder, TtsConversationExt},
         tts_engine::TtsEngine,
         tts_settings::{Similarity, SpeakerBoost, Stability, StyleExaggeration},
         vocal_speed::VocalSpeedMod,

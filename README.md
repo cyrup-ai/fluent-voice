@@ -66,6 +66,10 @@ use futures_util::StreamExt;
                 .with_noise_reduction(Denoise::level(0.5))
                 .speak("I'm doing great, thanks for asking!")
         )
+        .on_chunk(|synthesis_chunk| {
+            Ok => synthesis_chunk.into(),  // Unwrap each audio chunk
+            Err(e) => AudioChunk::error(e),  // Return error as AudioChunk
+        })
         .synthesize(|conversation| {
             Ok  => conversation.into_stream(),  // Returns audio stream
             Err(e) => Err(e),
@@ -98,6 +102,10 @@ async fn main() -> Result<(), VoiceError> {
         .diarization(Diarization::On)  // Speaker identification
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
+        .on_chunk(|transcription_chunk| {
+            Ok => transcription_chunk.into(),  // Unwrap each transcription chunk
+            Err(e) => TranscriptionChunk::error(e),  // Return error as TranscriptionChunk
+        })
         .listen(|conversation| {  // Only available on MicrophoneBuilder
             Ok  => conversation.into_stream(),  // Returns transcript stream
             Err(e) => Err(e),

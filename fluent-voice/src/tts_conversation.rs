@@ -176,6 +176,23 @@ pub trait TtsConversationBuilder: Sized + Send {
     /// * `request_ids` - Following synthesis request identifiers
     fn next_request_ids(self, request_ids: Vec<RequestId>) -> Self;
 
+    /// Set a chunk processor for streaming synthesis with `.on_chunk()` support.
+    ///
+    /// This method enables the README.md syntax for processing synthesis chunks:
+    /// ```ignore
+    /// .on_chunk(|synthesis_chunk| {
+    ///     Ok => synthesis_chunk.into(),
+    ///     Err(e) => AudioChunk::error(e),
+    /// })
+    /// ```
+    ///
+    /// # Arguments
+    ///
+    /// * `processor` - Function that processes each synthesis chunk
+    fn on_chunk<F>(self, processor: F) -> Self::ChunkBuilder
+    where
+        F: FnMut(Result<crate::audio_chunk::AudioChunk, VoiceError>) -> crate::audio_chunk::AudioChunk + Send + 'static;
+
     /// Terminal method that executes synthesis with cyrup-sugars syntax.
     ///
     /// This method terminates the fluent chain and executes the TTS synthesis.
@@ -197,6 +214,9 @@ pub trait TtsConversationBuilder: Sized + Send {
 
     /// The concrete conversation type produced by this builder.
     type Conversation: TtsConversation;
+    
+    /// Builder type that handles chunk processing for streaming synthesis.
+    type ChunkBuilder: TtsConversationChunkBuilder<Conversation = Self::Conversation>;
 }
 
 /// Static entry point for TTS conversations.
@@ -219,4 +239,56 @@ pub trait TtsConversationExt {
     ///
     /// A new conversation builder instance.
     fn builder() -> impl TtsConversationBuilder;
+}
+
+/// Builder for TTS conversations with chunk processing capability.
+///
+/// This trait provides the interface for builders that have been configured
+/// with chunk processors via `.on_chunk()`. These builders can execute
+/// streaming synthesis with chunk-by-chunk processing.
+pub trait TtsConversationChunkBuilder: Sized + Send {
+    /// The concrete conversation type produced by this builder.
+    type Conversation: TtsConversation;
+
+    /// Execute streaming synthesis with chunk processing.
+    ///
+    /// This method terminates the fluent chain and returns an async stream
+    /// of processed audio chunks. Each chunk is processed by the function
+    /// provided to `.on_chunk()`.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let stream = conversation
+    ///     .on_chunk(|synthesis_chunk| {
+    ///         Ok => synthesis_chunk.into(),
+    ///         Err(e) => AudioChunk::error(e),
+    ///     })
+    ///     .synthesize_stream()
+    ///     .await?;
+    /// ```
+    fn synthesize_stream(self) -> impl Future<Output = Result<crate::stream_ext::AsyncStream<crate::audio_chunk::AudioChunk>, VoiceError>> + Send;
+
+    /// Execute synthesis and collect all chunks into a single result.
+    ///
+    /// This is a convenience method that streams all chunks and collects
+    /// them, useful when you want the complete audio rather than streaming.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let audio_chunks = conversation
+    ///     .on_chunk(|synthesis_chunk| {
+    ///         Ok => synthesis_chunk.into(),
+    ///         Err(e) => AudioChunk::error(e),
+    ///     })
+    ///     .synthesize_collected()
+    ///     .await?;
+    /// ```
+    fn synthesize_collected(self) -> impl Future<Output = Result<Vec<crate::audio_chunk::AudioChunk>, VoiceError>> + Send {
+        async move {
+            let stream = self.synthesize_stream().await?;
+            Ok(stream.collect().await)
+        }
+    }
 }

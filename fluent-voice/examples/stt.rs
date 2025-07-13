@@ -41,8 +41,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .diarization(Diarization::On)  // Speaker identification
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
+        .on_chunk(|transcription_chunk| {
+            Ok => transcription_chunk.into(),  // Unwrap each chunk
+            Err(e) => Err(e),
+        })
         .listen(|conversation| {
-            Ok(conversation.into_stream())  // Returns transcript stream
+            Ok => conversation.into_stream(),  // Returns transcript stream
+            Err(e) => Err(e),
         })
         .await?;  // Single await point
     
