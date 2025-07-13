@@ -1,0 +1,37 @@
+[package]
+name = "fluent_voice_vad"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/davidmaple/fluent-voice"
+readme = "README.md"
+keywords = ["speech", "stt","recognition", "voice", "activity", "detection"]
+categories = ["multimedia::audio"]
+
+[dependencies]
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+fluent_voice_domain = { path = "../domain" }
+
+futures = "0.3.31"
+# ndarray = "0.16" # in workspace-hack
+ort = { version = "2.0.0-rc.10", optional = true, features = ["ndarray"] }
+pin-project = "1.1"
+thiserror = "2.0.12"
+typed-builder = "0.21"
+ndarray = "0.16.1"
+
+[dev-dependencies]
+hound = "3.5.1"
+# itertools = "0.14" # in workspace-hack
+# tokio = { version = "1.45.1", features = ["rt", "sync", "macros"] } # in workspace-hack
+tokio-stream = "0.1"
+
+[features]
+default = ["ort"]
+async = []
+load-dynamic = ["ort/load-dynamic"]
+ort = ["dep:ort"]
+
+[lib]
+path = "src/lib.rs"
+name = "fluent_voice_vad"

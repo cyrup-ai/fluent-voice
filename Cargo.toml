@@ -1,22 +1,17 @@
 [workspace]
 resolver = "3"
 members = [
-    "animator",
-    "candle/koffee",
-    "candle/moshi",
-    "candle/whisper",
-    "dia-voice",
-    "elevenlabs",
-    "fluent-voice",
-    "fluent-voice-domain",
-    "macros",
-    "livekit",
-    "kokoros/koko",
-    "kokoros/kokoros",
-    "openai",
-    "vad",
-    "video",
-    "cyterm",
+    "packages/animator",
+    "packages/cyterm",
+    "packages/dia",
+    "packages/domain",
+    "packages/elevenlabs",
+    "packages/fluent-voice",
+    "packages/koffee",
+    "packages/livekit",
+    "packages/vad",
+    "packages/video",
+    "packages/whisper",
     "workspace-hack"
 ]
 
@@ -29,4 +24,3 @@ categories = ["audio", "speech", "builder", "voice", "rust"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/cyrup-ai/fluent-voice"
 authors = ["David Maple<david@cyrup.ai>"]
-

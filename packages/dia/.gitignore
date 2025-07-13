@@ -1,23 +1,18 @@
 # ==============================
 # Compiled Files
 # ==============================
-*.[oa]
+*.lock
+*.[oa]  
 *.d
-*.rlib
-*.rmeta
-**/*.rmeta
-.history/
+*.rlib  
+*.rmeta  
+**/*.rmeta  
+.history/  
 *.so
 *.dylib
 *.dll
 *.exe
 .idea
-**/.claude/*
-**/TODO.md
-**/.crates-lsp/*
-./crates-lsp/*
-**/CLAUDE.md
-./CLAUDE.md
 
 # ==============================
 # Rust Specific
@@ -55,6 +50,7 @@ develop-eggs/
 downloads/
 eggs/
 .eggs/
+lib/
 lib64/
 parts/
 sdist/

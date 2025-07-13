@@ -1,0 +1,18 @@
+[package]
+name        = "fluent_voice_domain"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cyrup-ai/fluent-voice"
+description = "Shared domain objects and types for fluent-voice ecosystem."
+
+[dependencies]
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+futures-core = "0.3"
+futures-util = "0.3"
+futures = "0.3.31"
+
+[lib]
+path = "src/lib.rs"
+name = "fluent_voice_domain"

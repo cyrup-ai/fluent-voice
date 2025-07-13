@@ -1,0 +1,65 @@
+[package]
+name = "fluent_voice_livekit"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/davidmaple/fluent-voice"
+
+[lints]
+rust = { unsafe_code = "warn" }
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[[example]]
+name = "test_app"
+
+[features]
+test-support = []
+
+[dependencies]
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+fluent_voice_domain = { path = "../domain" }
+
+# tracing = "0.1.41" # in workspace-hack
+anyhow = "1.0.98"
+cpal = "0.16.0"
+futures = "0.3.31"
+rustls-platform-verifier = "0.6"
+# image = "0.25.6" # in workspace-hack
+# livekit-api = { version = "0.4.3", features = ["native-tls"] } # in workspace-hack
+# log = "0.4.27" # in workspace-hack
+nanoid = "0.4.0"
+parking_lot = "0.12.4"
+postage = "0.5.0"
+# tokio = { version = "1.45.1", features = ["rt", "sync", "macros"] } # in workspace-hack
+# tokio-tungstenite = "0.26.2" # in workspace-hack
+wgpu = "26.0.1"
+raw-window-handle = "0.6.2"
+tokio = "1.46.1"
+gpui = "0.1.0"
+
+[target.'cfg(not(all(target_os = "windows", target_env = "gnu")))'.dependencies]
+libwebrtc = { git = "https://github.com/zed-industries/livekit-rust-sdks" }
+livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", features = ["native-tls"] }
+
+[target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
+scap = "0.0.8"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10.1"
+core-video = "0.4.3"
+coreaudio-rs = "0.13.0"
+objc2 = "0.6.1"
+
+[dev-dependencies]
+sha2 = "0.10.9"
+simplelog = "0.12.2"
+
+[build-dependencies]
+# serde = { version = "1.0.219", features = ["derive"] } # in workspace-hack
+# serde_json = "1.0.140" # in workspace-hack
+
+[package.metadata.cargo-machete]
+ignored = ["serde_json"]

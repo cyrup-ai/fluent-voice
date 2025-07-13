@@ -1,0 +1,29 @@
+# ────────────────────────────── Cargo ──────────────────────────────
+default:
+    @just --list
+
+doc:
+    cargo rustdoc -Z unstable-options --output-format json "$@"
+
+build:
+    cargo fmt --all --message-format short --quiet
+    cargo build --release --message-format short --quiet
+
+run:
+    cargo fmt --all --message-format short --quiet
+    cargo run --message-format short --quiet
+
+check:
+    cargo fmt
+    cargo check --all-targets --all-features --message-format short --quiet 
+    cargo clippy --allow-dirty --allow-staged --all-targets --all-features --message-format short --quiet --fix
+
+test:
+    cargo fmt --all --message-format short --quiet
+    cargo nextest run --message-format short --quiet
+
+install:
+    cargo install --path .
+
+dia *ARGS:
+    cargo run --features metal --bin dia -- {{ARGS}} 

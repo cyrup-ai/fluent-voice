@@ -1,10 +1,16 @@
 {
 	"folders": [
 		{
+			"path": "."
+		}
+		{
 			"path": "../zeroshot"
 		},
 		{
-			"path": "."
+			"path": "../fluent-ai"
+		},
+		{
+			"path": "../sugars"
 		}
 	],
 	"settings": {}

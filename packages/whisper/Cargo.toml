@@ -1,0 +1,142 @@
+# ---------------------------------------------
+#  koffee-candle workspace / library manifest
+#  — targets desktop (native) by default —
+#      ▸ production-ready build: `cargo build`
+#      ▸ development build:      `cargo build --features dev`
+#      ▸ WASM (browser):         `cargo build --target wasm32-unknown-unknown --features web`
+# ---------------------------------------------
+
+[package]
+name         = "fluent_voice_whisper"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/davidmaple/fluent-voice"
+description  = "Cross-platform wake-word detector: Candle ⚡ KFC front-end"
+authors      = ["David Maple <david@cyrup.ai>"]
+
+# ------------------------------------------------
+#  Dependencies
+# ------------------------------------------------
+[dependencies]
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+fluent_voice_domain = { path = "../domain" }
+cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars"}
+
+
+# — DSP / NN (base dependencies - no acceleration features) —
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-flash-attn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-onnx = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-datasets = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+
+# — audio / resampling —
+# rubato         = { version = "0.16", default-features = false, features = ["fft_resampler"] } # in workspace-hack
+# rustfft        = { version = "6.3.0", default-features = false } # in workspace-hack
+hound          = "3.5.1"
+js-sys = { version = "0.3.77", optional = true }
+web-sys = { version = "0.3.77", optional = true }
+# — containers / utils —
+arrayvec       = "0.7.6"
+# smallvec       = "2.0.0-alpha.10" # in workspace-hack
+indexmap       = "2.10.0"
+thiserror      = "2.0.12"
+# log            = "0.4.27" # in workspace-hack
+
+# — serde / misc —
+# serde          = { version = "1.0.219", features = ["derive"], default-features = false } # in workspace-hack
+# serde_json     = "1.0.140" # in workspace-hack
+ciborium       = "0.2.2"
+# strum          = { version = "0.27", features = ["derive"] } # in workspace-hack
+
+# — optional parallelism (desktop only) —
+rayon          = { version = "1.10.0", optional = true }
+symphonia = { version = "0.5.4", optional = true }
+
+# — browser bindings (wasm32 build only) —
+wasm-bindgen   = { version = "0.2.100", optional = true }
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+# tokio          = { version = "1.45.1", features = ["rt", "sync"], optional = true } # in workspace-hack
+# futures-core   = { version = "0.3.31", optional = true } # in workspace-hack
+# futures-util   = { version = "0.3.31", optional = true } # in workspace-hack
+async-stream   = { version = "0.3.6", optional = true }
+futures-core = "0.3.31"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+tokenizers = "0.21.2"
+cpal = { version = "0.16.0", optional = true }
+ndarray = "0.16.1"
+rand = "0.9.1"
+rubato = { version = "0.16.2", optional = true }
+tracing-chrome = "0.7.2"
+
+# Optional acceleration dependencies
+accelerate-src = { version = "0.3", optional = true }
+intel-mkl-src = { version = "0.8", optional = true }
+cudarc = { version = "0.16", optional = true }
+half = { version = "2.6", optional = true }
+
+# Optional ML/data dependencies
+image = { version = "0.25", optional = true }
+num-traits = { version = "0.2", optional = true }
+palette = { version = "0.7.6", optional = true }
+enterpolation = { version = "0.3.0", optional = true }
+pyo3 = { version = "0.25.1", features = ["auto-initialize", "abi3-py311"], optional = true }
+pdf2image = { version = "0.1.3", optional = true }
+safetensors = { version = "0.6", optional = true }
+csv = { version = "1.3.1", optional = true }
+
+# ------------------------------------------------
+#  Feature flags
+# ------------------------------------------------
+[features]
+# ───────────── default: desktop, release-ready ─────────────
+default = ["desktop"]
+
+# --- Core build flavours -----------------------------------
+desktop = ["rayon"]          # native build – includes SIMD & Rayon
+web     = ["wasm-bindgen",
+           "js-sys",
+           "web-sys/Window",
+           "console_error_panic_hook"] # wasm32-unknown-unknown target
+
+
+# --- Developer conveniences (opt-in) -----------------------
+dev = ["debug", "desktop"]   # ← enable with `--features dev`
+debug = []                   # extra logging / assertions
+
+# --- Candle backend features (required for all candle crates) -----
+cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda", "dep:cudarc", "dep:half", "dep:bindgen_cuda"]
+cudnn = ["candle-core/cudnn", "candle-nn/cudnn", "candle-transformers/cudnn"]
+metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
+accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]
+mkl = ["dep:intel-mkl-src", "candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
+flash-attn = ["cuda", "dep:candle-flash-attn", "candle-transformers/flash-attn"]
+nccl = ["cuda", "cudarc/nccl", "dep:half"]
+onnx = ["dep:candle-onnx"]
+
+# --- Optional extended functionality -----------------------
+record = []                  # WAV recording of detection windows
+display = []                 # SVG / terminal visualisations
+audio   = []                 # gate any OS-specific audio I/O that may be added
+microphone = ["dep:cpal", "dep:rubato"]
+encodec = ["dep:cpal", "dep:symphonia", "dep:rubato"]
+mimi = ["dep:cpal", "dep:symphonia", "dep:rubato"]
+snac = ["dep:cpal", "dep:symphonia", "dep:rubato"]
+depth_anything_v2 = ["dep:palette", "dep:enterpolation"]
+
+# Ensure mutually-exclusive defaults:
+# (cargo resolves additive sets – desktop or web must be explicit)
+
+[dev-dependencies]
+byteorder = "1.5"
+imageproc = "0.25"
+memmap2 = "0.9"
+ab_glyph = "0.2"
+
+[build-dependencies]
+anyhow = "1.0"
+bindgen_cuda = { version = "0.1.5", optional = true }
