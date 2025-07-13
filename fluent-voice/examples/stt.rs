@@ -1,25 +1,23 @@
-//! Canonical STT Example: Full Speech-to-Text Pipeline
+//! Canonical STT Example: Wake on "syrup", Dictate to Console
 //!
-//! This example demonstrates the complete STT pipeline with all integrated components:
-//! - Wake word detection (koffee)
-//! - Voice Activity Detection (VAD)
-//! - Speech-to-text transcription (Whisper)
-//! - Real-time microphone processing
-//! - Speaker diarization and timestamps
+//! This example demonstrates the exact README.md syntax with specific behavior:
+//! - Wake on "syrup" keyword (koffee wake word detection) 
+//! - Real-time dictation to console
+//! - Turn detection printing (VAD boundaries)
+//! - Unwake on "syrup stop" command
+//! - Uses default engine implementations (VAD, koffee, whisper)
 //!
-//! Features demonstrated:
-//! - Real-time microphone input
-//! - Wake word activation ("syrup")
-//! - Voice activity detection for turn boundaries
-//! - High-quality Whisper transcription
-//! - Speaker identification and timing
-//! - Production-quality error handling
+//! Features:
+//! - Exact README.md "Ok =>" closure syntax
+//! - Default STT providers (no special settings required)
+//! - Real-time microphone transcription
+//! - Wake word activation and deactivation
 //!
 //! Run with: `cargo run --example stt`
 
 use fluent_voice::prelude::*;
 use fluent_voice_domain::{
-    AudioFormat, Diarization, Language, NoiseReduction, Punctuation, SpeechSource,
+    AudioFormat, Diarization, Language, MicBackend, Punctuation, SpeechSource,
     TimestampsGranularity, VadMode, WordTimestamps,
 };
 use std::error::Error;
@@ -27,142 +25,78 @@ use tokio_stream::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    println!("🎙️  FluentVoice STT Pipeline Demo");
-    println!("=================================");
+    println!("🎙️  Syrup Wake Word STT Demo");
+    println!("============================\n");
 
-    // Initialize the STT engine with default providers
-    println!("🔧 Initializing STT engine with canonical providers:");
-    println!("   • Wake Word Detection: koffee (syrup)");
-    println!("   • Voice Activity Detection: fluent_voice_vad");
-    println!("   • Speech-to-Text: Whisper (fluent_voice_whisper)");
-
-    // Create STT conversation with full production configuration
-    let conversation = FluentVoiceImpl::stt()
-        .conversation()
+    // Create STT conversation using exact README.md syntax
+    // Default engines: VAD, koffee wake word, whisper STT (no special settings required)
+    let mut transcript_stream = FluentVoice::stt().conversation()
         .with_source(SpeechSource::Microphone {
-            device_name: "default".to_string(),
+            backend: MicBackend::Default,
             format: AudioFormat::Pcm16Khz,
+            sample_rate: 16_000,
         })
-        .vad_mode(VadMode::Accurate) // High-accuracy voice activity detection
-        .noise_reduction(NoiseReduction::High) // Aggressive background noise filtering
-        .language_hint(Language::ENGLISH_US) // Optimize for English (US)
-        .diarization(Diarization::On) // Enable speaker identification
-        .word_timestamps(WordTimestamps::On) // Generate word-level timestamps
-        .timestamps_granularity(TimestampsGranularity::Word) // Word-level timing precision
-        .punctuation(Punctuation::On) // Auto-punctuation insertion
+        .vad_mode(VadMode::Accurate)
+        .language_hint(Language::ENGLISH_US)
+        .diarization(Diarization::On)  // Speaker identification
+        .word_timestamps(WordTimestamps::On)
+        .punctuation(Punctuation::On)
         .listen(|conversation| {
-            println!("✅ STT conversation configured successfully");
-            Ok(conversation.into_stream())
+            Ok(conversation.into_stream())  // Returns transcript stream
         })
-        .await?;
-
-    println!("🎧 Starting real-time speech recognition...");
-    println!("💡 Instructions:");
-    println!("   1. Say 'syrup' to activate wake word detection");
-    println!("   2. Speak clearly after activation");
-    println!("   3. The system will transcribe your speech in real-time");
-    println!("   4. Press Ctrl+C to stop");
-    println!();
-
-    // Process the transcript stream
-    let mut transcript_stream = conversation;
-    let mut segment_count = 0;
-    let mut total_duration = 0.0;
-    let mut wake_word_detected = false;
-
+        .await?;  // Single await point
+    
     println!("🔊 Listening for wake word 'syrup'...");
-
-    while let Some(result) = transcript_stream.next().await {
-        match result {
+    println!("💬 Say 'syrup' to start dictation, 'syrup stop' to end\n");
+    
+    let mut is_awake = false;
+    let mut turn_count = 0;
+    
+    while let Some(transcript_result) = transcript_stream.next().await {
+        match transcript_result {
             Ok(segment) => {
-                segment_count += 1;
-                let duration = (segment.end_ms() - segment.start_ms()) as f32 / 1000.0;
-                total_duration += duration;
-
-                let text = segment.text();
-
-                // Check if this is a wake word detection
-                if text.starts_with("[WAKE WORD:") {
-                    wake_word_detected = true;
-                    println!("🎯 {} - Wake word detected!", text);
-                    println!("🎤 Now listening for speech...");
+                let text = segment.text().to_lowercase();
+                
+                // Wake word detection
+                if !is_awake && text.contains("syrup") {
+                    is_awake = true;
+                    println!("🟢 WAKE WORD DETECTED: 'syrup'");
+                    println!("🎤 Dictation ACTIVE - speak now...\n");
                     continue;
                 }
-
-                // Regular transcription after wake word
-                if wake_word_detected {
-                    println!("📝 Transcript #{}: {}", segment_count, text);
-                    println!(
-                        "   ⏱️  Time: {:.2}s - {:.2}s (duration: {:.2}s)",
-                        segment.start_ms() as f32 / 1000.0,
-                        segment.end_ms() as f32 / 1000.0,
-                        duration
-                    );
-
-                    if let Some(speaker) = segment.speaker_id() {
-                        println!("   👤 Speaker: {}", speaker);
-                    }
-
-                    // Show word-level analysis
-                    let word_count = text.split_whitespace().count();
-                    if word_count > 0 {
-                        let words_per_second = word_count as f32 / duration;
-                        println!(
-                            "   📊 Words: {} ({:.1} words/sec)",
-                            word_count, words_per_second
-                        );
-                    }
-
-                    println!();
-
-                    // Check for exit phrases
-                    let lower_text = text.to_lowercase();
-                    if lower_text.contains("stop")
-                        || lower_text.contains("exit")
-                        || lower_text.contains("quit")
-                    {
-                        println!("🛑 Exit command detected. Stopping transcription...");
-                        break;
-                    }
+                
+                // Stop command detection
+                if is_awake && text.contains("syrup stop") {
+                    is_awake = false;
+                    println!("🔴 STOP COMMAND: 'syrup stop'");
+                    println!("😴 Dictation INACTIVE - say 'syrup' to wake\n");
+                    continue;
                 }
-            }
+                
+                // Process dictation when awake
+                if is_awake {
+                    turn_count += 1;
+                    
+                    // Turn detection (VAD boundary)
+                    println!("🔄 TURN {} DETECTED (VAD boundary)", turn_count);
+                    
+                    // Real-time dictation to console
+                    println!("📝 DICTATION: {}", segment.text());
+                    
+                    // Show timing and speaker info if available
+                    if let Some(speaker) = segment.speaker() {
+                        println!("👤 Speaker: {}", speaker);
+                    }
+                    println!("⏱️  Duration: {:.2}s\n", 
+                           (segment.end_ms() - segment.start_ms()) as f32 / 1000.0);
+                }
+            },
             Err(e) => {
-                eprintln!("❌ Transcription error: {}", e);
-
-                // Handle different error types
-                match e {
-                    VoiceError::ConfigurationError(_) => {
-                        eprintln!("💡 Tip: Check your microphone permissions and device settings");
-                    }
-                    VoiceError::ProcessingError(_) => {
-                        eprintln!("💡 Tip: This might be a temporary audio processing issue");
-                        println!("🔄 Continuing to listen...");
-                    }
-                    _ => {
-                        eprintln!("💡 Tip: Unexpected error type, continuing...");
-                    }
-                }
-
-                println!();
+                println!("❌ Transcription error: {}", e);
             }
         }
     }
-
-    println!("📊 Final STT Statistics:");
-    println!("   • Total segments: {}", segment_count);
-    println!("   • Total audio duration: {:.2} seconds", total_duration);
-    if segment_count > 0 {
-        println!(
-            "   • Average segment length: {:.2} seconds",
-            total_duration / segment_count as f32
-        );
-    }
-    println!(
-        "   • Wake word activation: {}",
-        if wake_word_detected { "Yes" } else { "No" }
-    );
-
-    println!("🎉 STT demo completed successfully!");
-
+    
+    println!("\n✅ STT session ended");
     Ok(())
 }

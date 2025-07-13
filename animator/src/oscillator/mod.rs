@@ -101,12 +101,7 @@ impl DataSet {
     }
 }
 
-pub fn update_value_f(
-    val: &mut f64,
-    base: f64,
-    magnitude: f64,
-    range: std::ops::Range<f64>,
-) {
+pub fn update_value_f(val: &mut f64, base: f64, magnitude: f64, range: std::ops::Range<f64>) {
     let delta = base * magnitude;
     if *val + delta > range.end {
         *val = range.end

@@ -281,7 +281,9 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
 
     fn synthesize<F>(self, callback: F) -> AsyncStream<TtsChunk>
     where
-        F: FnMut(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> Result<AsyncStream<TtsChunk>, fluent_voice_domain::VoiceError>
+        F: FnMut(
+                Result<Self::Conversation, fluent_voice_domain::VoiceError>,
+            ) -> Result<AsyncStream<TtsChunk>, fluent_voice_domain::VoiceError>
             + Send
             + 'static,
     {

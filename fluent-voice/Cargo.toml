@@ -12,6 +12,8 @@ tokio-runtime = []
 wasm-runtime  = []
 std_async     = []
 simd          = []
+
+# ML acceleration features - passed through to candle crates
 cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda", "candle-examples/cuda"]
 metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers/metal", "candle-examples/metal"]
 accelerate = ["candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate", "candle-examples/accelerate"]
@@ -45,11 +47,7 @@ rubato = "0.16.2"
 rand = "0.9.1"
 rand_distr = "0.5.1"
 anyhow = "1.0.68"
-candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
-candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
-candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-candle-examples = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 byteorder = "1.5.0"
 hf-hub = "0.4.3"
 tokenizers = "0.21.2"
@@ -59,6 +57,11 @@ crossbeam-utils = "0.8.21"
 ringbuf = "0.4.8"
 ndarray = "0.16.1"
 memmap2 = "0.9.5"
+
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-examples = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 
 [dev-dependencies]
 # tokio is in workspace-hack

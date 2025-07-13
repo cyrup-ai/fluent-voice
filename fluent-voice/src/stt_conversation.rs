@@ -151,7 +151,11 @@ pub trait SttConversationBuilder: Sized + Send {
     /// ```
     fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnMut(Result<Self::Conversation, VoiceError>) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError> + Send + 'static;
+        F: FnMut(
+                Result<Self::Conversation, VoiceError>,
+            ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
+            + Send
+            + 'static;
 
     /// The concrete conversation type produced by this builder.
     type Conversation: SttConversation;
@@ -204,7 +208,11 @@ pub trait MicrophoneBuilder: Sized + Send {
     /// ```
     fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnMut(Result<Self::Conversation, VoiceError>) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError> + Send + 'static;
+        F: FnMut(
+                Result<Self::Conversation, VoiceError>,
+            ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
+            + Send
+            + 'static;
 }
 
 /// Specialized builder for file-based transcription.

@@ -19,8 +19,9 @@ authors      = ["David Maple <david@cyrup.ai>"]
 #  Dependencies
 # ------------------------------------------------
 [dependencies]
+fluent-voice-workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
 
-# — DSP / NN —
+# — DSP / NN (base dependencies - no acceleration features) —
 candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 
@@ -97,3 +98,4 @@ audio   = []                 # gate any OS-specific audio I/O that may be added
 
 # Ensure mutually-exclusive defaults:
 # (cargo resolves additive sets – desktop or web must be explicit)
+

@@ -570,7 +570,11 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
 
     fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnMut(Result<Self::Conversation, VoiceError>) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError> + Send + 'static,
+        F: FnMut(
+                Result<Self::Conversation, VoiceError>,
+            ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
+            + Send
+            + 'static,
     {
         // Create default conversation
         let conversation = DefaultSTTConversation {
@@ -578,13 +582,13 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
             vad_config: self.vad_config,
             wake_word_config: self.wake_word_config,
         };
-        
+
         // Create result stream and use cyrup-sugars combinators
         let result_stream = match conversation.into_stream() {
             Ok(stream) => crate::AsyncStream::from_stream(stream),
             Err(e) => crate::AsyncStream::from_error(e),
         };
-        
+
         // Use cyrup-sugars StreamExt to enable README.md callback syntax
         result_stream.on_result(callback)
     }
@@ -994,10 +998,15 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
 
     fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnMut(Result<Self::Conversation, VoiceError>) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError> + Send + 'static,
+        F: FnMut(
+                Result<Self::Conversation, VoiceError>,
+            ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
+            + Send
+            + 'static,
     {
-        let conversation = DefaultSTTConversation::new(self.whisper, self.vad_config, self.wake_word_config);
-        
+        let conversation =
+            DefaultSTTConversation::new(self.whisper, self.vad_config, self.wake_word_config);
+
         // Create result stream and use cyrup-sugars combinators
         let result_stream = match conversation {
             Ok(conv) => match conv.into_stream() {
@@ -1006,7 +1015,7 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
             },
             Err(e) => crate::AsyncStream::from_error(e),
         };
-        
+
         // Use cyrup-sugars StreamExt to enable README.md callback syntax
         result_stream.on_result(callback)
     }

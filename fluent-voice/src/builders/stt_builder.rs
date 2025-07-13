@@ -247,7 +247,11 @@ where
 
     fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnMut(Result<Self::Conversation, VoiceError>) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError> + Send + 'static,
+        F: FnMut(
+                Result<Self::Conversation, VoiceError>,
+            ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
+            + Send
+            + 'static,
     {
         let conversation = SttConversationImpl {
             source: self.source,
@@ -260,13 +264,13 @@ where
             punctuation: self.punctuation,
             stream_fn: self.stream_fn,
         };
-        
+
         // Create result stream and use cyrup-sugars combinators
         let result_stream = match conversation.into_stream() {
             Ok(stream) => crate::AsyncStream::from_stream(stream),
             Err(e) => crate::AsyncStream::from_error(e),
         };
-        
+
         // Use cyrup-sugars StreamExt to enable README.md callback syntax
         result_stream.on_result(callback)
     }
@@ -393,7 +397,11 @@ where
 
     fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnMut(Result<Self::Conversation, VoiceError>) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError> + Send + 'static,
+        F: FnMut(
+                Result<Self::Conversation, VoiceError>,
+            ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
+            + Send
+            + 'static,
     {
         // Use the device string to determine the backend
         let backend = if self.device == "default" || self.device.is_empty() {
@@ -419,13 +427,13 @@ where
             punctuation: self.punctuation,
             stream_fn: self.stream_fn,
         };
-        
+
         // Create result stream and use cyrup-sugars combinators
         let result_stream = match conversation.into_stream() {
             Ok(stream) => crate::AsyncStream::from_stream(stream),
             Err(e) => crate::AsyncStream::from_error(e),
         };
-        
+
         // Use cyrup-sugars StreamExt to enable README.md callback syntax
         result_stream.on_result(callback)
     }

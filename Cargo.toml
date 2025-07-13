@@ -3,10 +3,12 @@ resolver = "3"
 members = [
     "animator",
     "candle/koffee",
+    "candle/moshi",
     "candle/whisper",
     "dia-voice",
     "elevenlabs",
     "fluent-voice",
+    "fluent-voice-domain",
     "macros",
     "livekit",
     "kokoros/koko",

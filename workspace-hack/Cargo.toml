@@ -33,7 +33,7 @@ crossbeam-epoch = { version = "0.9" }
 crossbeam-utils = { version = "0.8" }
 crossterm = { version = "0.29", features = ["event-stream", "serde"] }
 crypto-common = { version = "0.1", default-features = false, features = ["getrandom", "std"] }
-# cudarc - OS-gated to prevent CUDA build script issues on non-CUDA systems
+cudarc = { version = "0.16", default-features = false, features = ["cublas", "cublaslt", "cuda-version-from-build-system", "cudnn", "curand", "dynamic-linking", "f16", "std"] }
 derive_more = { version = "2", features = ["full"] }
 digest = { version = "0.10", features = ["mac", "oid", "std"] }
 either = { version = "1", features = ["use_std"] }
@@ -81,7 +81,8 @@ proc-macro2 = { version = "1", features = ["span-locations"] }
 profiling = { version = "1" }
 rand = { version = "0.8", features = ["small_rng"] }
 rand_chacha = { version = "0.9" }
-rand_core = { version = "0.6", default-features = false, features = ["std"] }
+rand_core-274715c4dabd11b0 = { package = "rand_core", version = "0.9", default-features = false, features = ["os_rng", "std"] }
+rand_core-3b31131e45eafb45 = { package = "rand_core", version = "0.6", default-features = false, features = ["std"] }
 read-fonts = { version = "0.29", default-features = false, features = ["experimental_traverse"] }
 regex = { version = "1" }
 regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", "meta", "nfa", "perf", "unicode"] }
@@ -110,6 +111,8 @@ tokio = { version = "1", features = ["full", "test-util"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
 tokio-util = { version = "0.7", features = ["io"] }
+toml_datetime = { version = "0.6", default-features = false, features = ["serde"] }
+toml_edit = { version = "0.22", default-features = false, features = ["display", "parse", "serde"] }
 tower = { version = "0.5", default-features = false, features = ["buffer", "log", "make", "retry", "timeout"] }
 tower-http = { version = "0.6", features = ["cors", "follow-redirect", "map-response-body", "trace"] }
 tracing = { version = "0.1", features = ["log"] }
@@ -167,7 +170,9 @@ percent-encoding = { version = "2" }
 portable-atomic = { version = "1" }
 prettyplease = { version = "0.2", default-features = false, features = ["verbatim"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
-rand_core = { version = "0.6", default-features = false, features = ["std"] }
+rand_chacha = { version = "0.9" }
+rand_core-274715c4dabd11b0 = { package = "rand_core", version = "0.9", default-features = false, features = ["os_rng", "std"] }
+rand_core-3b31131e45eafb45 = { package = "rand_core", version = "0.6", default-features = false, features = ["std"] }
 regex = { version = "1" }
 regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", "meta", "nfa", "perf", "unicode"] }
 regex-syntax = { version = "0.8" }
@@ -183,7 +188,8 @@ smallvec = { version = "1", default-features = false, features = ["const_new", "
 stable_deref_trait = { version = "1" }
 strum-2f80eeee3b1b6c7e = { package = "strum", version = "0.26", features = ["derive"] }
 subtle = { version = "2" }
-syn = { version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
+syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["extra-traits", "visit"] }
+syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
 thiserror = { version = "2" }
 time-macros = { version = "0.2", default-features = false, features = ["formatting", "parsing"] }
 tokio = { version = "1", features = ["full", "test-util"] }
