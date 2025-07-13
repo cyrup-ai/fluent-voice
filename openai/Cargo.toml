@@ -9,5 +9,6 @@ repository = "https://github.com/davidmaple/fluent-voice"
 workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
 
 axum = "0.8.4"
-# serde = { version = "1.0.219", features = ["derive"] } # in workspace-hack
-tower-http = "0.6.6"
+serde = { version = "1.0.219", features = ["derive"] }
+tower-http = { version = "0.6.6", features = ["cors"] }
+speakrs_kokoros = { package = "fluent_voice_kokoros", version = "0.1.0", path = "../kokoros/kokoros" }

@@ -22,11 +22,11 @@
 //! ```
 
 // Import domain objects for interoperability
-use fluent_voice_domain::prelude::*;
 use crate::transcript::Transcript;
+use fluent_voice_domain::prelude::*;
 
 /// Whisper-based speech-to-text transcriber that works with domain objects.
-/// 
+///
 /// This provides STT functionality without implementing engine traits,
 /// allowing integration through domain object interoperability.
 pub struct WhisperTranscriber {
@@ -40,7 +40,7 @@ impl WhisperTranscriber {
             // TODO: Initialize Whisper model
         })
     }
-    
+
     /// Transcribe speech from the given source using domain objects.
     pub async fn transcribe(&self, source: SpeechSource) -> Result<Transcript, VoiceError> {
         match source {
@@ -49,15 +49,27 @@ impl WhisperTranscriber {
                 // TODO: Map result to Transcript domain object
                 todo!("Implement file transcription using existing whisper.rs")
             }
-            SpeechSource::Microphone { backend: _, format: _, sample_rate: _ } => {
+            SpeechSource::Microphone {
+                backend: _,
+                format: _,
+                sample_rate: _,
+            } => {
                 // TODO: Implement real-time microphone transcription
                 todo!("Implement microphone transcription")
             }
-            SpeechSource::Memory { data: _, format: _, sample_rate: _ } => {
+            SpeechSource::Memory {
+                data: _,
+                format: _,
+                sample_rate: _,
+            } => {
                 // TODO: Implement memory buffer transcription
                 todo!("Implement memory buffer transcription")
             }
-            SpeechSource::Memory { data: _, format: _, sample_rate: _ } => {
+            SpeechSource::Memory {
+                data: _,
+                format: _,
+                sample_rate: _,
+            } => {
                 // TODO: Implement memory buffer transcription
                 todo!("Implement memory buffer transcription")
             }

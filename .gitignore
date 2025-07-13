@@ -13,6 +13,12 @@
 *.dll
 *.exe
 .idea
+**/.claude/*
+**/TODO.md
+**/.crates-lsp/* 
+./crates-lsp/*
+**/CLAUDE.md
+./CLAUDE.md 
 
 # ==============================
 # Rust Specific

@@ -26,7 +26,9 @@ fn test_stt_builder_exists() {
     // Create a simple mock stream function
     let stream_fn = move |_src, _vad, _noise, _lang, _diar, _word, _ts, _punct| {
         // Return empty result stream with real TtsChunk for test
-        stream::iter(std::iter::empty::<Result<fluent_voice_whisper::TtsChunk, VoiceError>>())
+        stream::iter(std::iter::empty::<
+            Result<fluent_voice_whisper::TtsChunk, VoiceError>,
+        >())
     };
 
     // Just verify we can call the builder function

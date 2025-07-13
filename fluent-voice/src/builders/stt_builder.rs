@@ -3,6 +3,9 @@
 //! This module provides a non-macro implementation of the STT conversation builders
 //! that can be used as a base for engine-specific implementations.
 
+use crate::stt_conversation::TranscriptionBuilder;
+use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use fluent_voice_domain::{
     language::Language,
     noise_reduction::NoiseReduction,
@@ -11,9 +14,6 @@ use fluent_voice_domain::{
     transcript::{TranscriptSegment, TranscriptStream},
     vad_mode::VadMode,
 };
-use crate::stt_conversation::TranscriptionBuilder;
-use core::future::Future;
-use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 use std::pin::Pin;
 // We use futures::stream instead of futures_util::stream since futures is in the dependencies

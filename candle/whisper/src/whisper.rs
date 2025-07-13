@@ -19,8 +19,8 @@ use rand::distr::Distribution;
 use rand::distr::weighted::WeightedIndex;
 use tokenizers::Tokenizer;
 
-use candle_transformers::models::whisper::{self as m, Config, audio};
 use crate::microphone::Model;
+use candle_transformers::models::whisper::{self as m, Config, audio};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -532,7 +532,9 @@ fn main() -> Result<()> {
     };
 
     let language_token = match (args.model.is_multilingual(), args.language) {
-        (true, None) => Some(crate::multilingual::detect_language(&mut model, &tokenizer, &mel)?),
+        (true, None) => Some(crate::multilingual::detect_language(
+            &mut model, &tokenizer, &mel,
+        )?),
         (false, None) => None,
         (true, Some(language)) => match token_id(&tokenizer, &format!("<|{language}|>")) {
             Ok(token_id) => Some(token_id),

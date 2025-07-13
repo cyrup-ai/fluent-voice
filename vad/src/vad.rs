@@ -1,5 +1,5 @@
 use ort::{session::Session, session::builder::GraphOptimizationLevel, value::TensorRef};
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use crate::{Sample, error::Error};
 
@@ -16,20 +16,20 @@ pub struct VoiceActivityDetector {
 /// The silero ONNX model as bytes.
 const MODEL: &[u8] = include_bytes!("../onnx/silero_vad.onnx");
 
-static DEFAULT_SESSION: LazyLock<Arc<Session>> = LazyLock::new(|| {
-    Arc::new({
-        Session::builder()
-            .unwrap()
-            .with_optimization_level(GraphOptimizationLevel::Level3)
-            .unwrap()
-            .with_intra_threads(1)
-            .unwrap()
-            .with_inter_threads(1)
-            .unwrap()
-            .commit_from_memory(MODEL)
-            .unwrap()
-    })
-});
+/// Creates an optimized ONNX session for VAD inference.
+/// Returns Result to handle any initialization errors gracefully.
+fn create_optimized_session() -> Result<Session, Error> {
+    Session::builder()
+        .map_err(|e| Error::PredictionFailed(format!("Failed to create session builder: {}", e)))?
+        .with_optimization_level(GraphOptimizationLevel::Level3)
+        .map_err(|e| Error::PredictionFailed(format!("Failed to set optimization level: {}", e)))?
+        .with_intra_threads(1)
+        .map_err(|e| Error::PredictionFailed(format!("Failed to set intra threads: {}", e)))?
+        .with_inter_threads(1)
+        .map_err(|e| Error::PredictionFailed(format!("Failed to set inter threads: {}", e)))?
+        .commit_from_memory(MODEL)
+        .map_err(|e| Error::PredictionFailed(format!("Failed to load model: {}", e)))
+}
 
 impl VoiceActivityDetector {
     /// Create a new [VoiceActivityDetectorBuilder].
@@ -65,10 +65,12 @@ impl VoiceActivityDetector {
         let sample_rate = ndarray::arr1::<i64>(&[self.sample_rate]);
 
         // Create tensor references for zero-allocation input
-        let input_tensor = TensorRef::from_array_view(input.view())
-            .map_err(|e| Error::PredictionFailed(format!("Failed to create input tensor: {}", e)))?;
-        let sr_tensor = TensorRef::from_array_view(sample_rate.view())
-            .map_err(|e| Error::PredictionFailed(format!("Failed to create sample rate tensor: {}", e)))?;
+        let input_tensor = TensorRef::from_array_view(input.view()).map_err(|e| {
+            Error::PredictionFailed(format!("Failed to create input tensor: {}", e))
+        })?;
+        let sr_tensor = TensorRef::from_array_view(sample_rate.view()).map_err(|e| {
+            Error::PredictionFailed(format!("Failed to create sample rate tensor: {}", e))
+        })?;
         let h_tensor = TensorRef::from_array_view(self.h.view())
             .map_err(|e| Error::PredictionFailed(format!("Failed to create h tensor: {}", e)))?;
         let c_tensor = TensorRef::from_array_view(self.c.view())
@@ -81,7 +83,10 @@ impl VoiceActivityDetector {
             "c" => c_tensor,
         ];
 
-        let outputs = self.session.run(inputs).map_err(|e| Error::PredictionFailed(e.to_string()))?;
+        let outputs = self
+            .session
+            .run(inputs)
+            .map_err(|e| Error::PredictionFailed(e.to_string()))?;
 
         // Extract h and c state updates with zero-allocation array extraction
         let hn_array = outputs
@@ -91,7 +96,7 @@ impl VoiceActivityDetector {
             .map_err(|e| Error::PredictionFailed(format!("Failed to extract hn array: {}", e)))?
             .into_dimensionality::<ndarray::Ix3>()
             .map_err(|e| Error::PredictionFailed(format!("Failed to reshape hn array: {}", e)))?;
-            
+
         let cn_array = outputs
             .get("cn")
             .ok_or_else(|| Error::PredictionFailed("Missing 'cn' output".to_string()))?
@@ -109,8 +114,10 @@ impl VoiceActivityDetector {
             .get("output")
             .ok_or_else(|| Error::PredictionFailed("Missing 'output' output".to_string()))?
             .try_extract_array::<f32>()
-            .map_err(|e| Error::PredictionFailed(format!("Failed to extract output array: {}", e)))?;
-        
+            .map_err(|e| {
+                Error::PredictionFailed(format!("Failed to extract output array: {}", e))
+            })?;
+
         let probability = output_array[[0]];
 
         Ok(probability)
@@ -145,19 +152,11 @@ impl From<VoiceActivityDetectorConfig> for Result<VoiceActivityDetector, Error> 
 
         let session = if let Some(session) = value.session {
             // Extract the session from the Arc if provided
-            Arc::try_unwrap(session).map_err(|_| Error::PredictionFailed("Cannot unwrap shared session".to_string()))?
+            Arc::try_unwrap(session)
+                .map_err(|_| Error::PredictionFailed("Cannot unwrap shared session".to_string()))?
         } else {
             // Create a new optimized session for blazing-fast performance
-            Session::builder()
-                .map_err(|e| Error::PredictionFailed(format!("Failed to create session builder: {}", e)))?
-                .with_optimization_level(GraphOptimizationLevel::Level3)
-                .map_err(|e| Error::PredictionFailed(format!("Failed to set optimization level: {}", e)))?
-                .with_intra_threads(1)
-                .map_err(|e| Error::PredictionFailed(format!("Failed to set intra threads: {}", e)))?
-                .with_inter_threads(1)
-                .map_err(|e| Error::PredictionFailed(format!("Failed to set inter threads: {}", e)))?
-                .commit_from_memory(MODEL)
-                .map_err(|e| Error::PredictionFailed(format!("Failed to load model: {}", e)))?
+            create_optimized_session()?
         };
 
         Ok(VoiceActivityDetector {

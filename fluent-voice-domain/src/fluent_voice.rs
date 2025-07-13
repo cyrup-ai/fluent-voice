@@ -1,11 +1,17 @@
 //! Unified entry point trait for TTS and STT operations.
 
 use crate::{
-    wake_word::{WakeWordBuilder, WakeWordConfig, WakeWordDetector, WakeWordEvent, WakeWordResult, WakeWordStream},
-    audio_isolation::AudioIsolationBuilder, sound_effects::SoundEffectsBuilder,
-    speech_to_speech::SpeechToSpeechBuilder, stt_conversation::SttConversationBuilder,
+    audio_isolation::AudioIsolationBuilder,
+    sound_effects::SoundEffectsBuilder,
+    speech_to_speech::SpeechToSpeechBuilder,
+    stt_conversation::SttConversationBuilder,
     tts_conversation::TtsConversationBuilder,
-    voice_clone::VoiceCloneBuilder, voice_discovery::VoiceDiscoveryBuilder,
+    voice_clone::VoiceCloneBuilder,
+    voice_discovery::VoiceDiscoveryBuilder,
+    wake_word::{
+        WakeWordBuilder, WakeWordConfig, WakeWordDetector, WakeWordEvent, WakeWordResult,
+        WakeWordStream,
+    },
 };
 
 /// Unified entry point for Text-to-Speech and Speech-to-Text operations.
@@ -148,7 +154,7 @@ impl DefaultWakeWordDetector {
             config: WakeWordConfig::default(),
         }
     }
-    
+
     /// Create a new wake word detector with custom configuration.
     #[inline]
     pub fn with_config(config: WakeWordConfig) -> Self {
@@ -158,7 +164,7 @@ impl DefaultWakeWordDetector {
 
 impl WakeWordDetector for DefaultWakeWordDetector {
     type Event = WakeWordEvent;
-    
+
     #[inline]
     fn add_wake_word_model<P: AsRef<std::path::Path>>(
         &mut self,
@@ -168,25 +174,25 @@ impl WakeWordDetector for DefaultWakeWordDetector {
         // Domain-only implementation - concrete engines handle model loading
         Ok(())
     }
-    
+
     #[inline]
     fn process_audio(&mut self, _audio_data: &[u8]) -> WakeWordResult<Vec<Self::Event>> {
         // Domain-only implementation - concrete engines provide real detection
         Ok(Vec::new())
     }
-    
+
     #[inline]
     fn process_samples(&mut self, _samples: &[f32]) -> WakeWordResult<Vec<Self::Event>> {
         // Domain-only implementation - concrete engines provide real detection
         Ok(Vec::new())
     }
-    
+
     #[inline]
     fn update_config(&mut self, config: WakeWordConfig) -> WakeWordResult<()> {
         self.config = config;
         Ok(())
     }
-    
+
     #[inline]
     fn get_config(&self) -> &WakeWordConfig {
         &self.config
@@ -195,7 +201,7 @@ impl WakeWordDetector for DefaultWakeWordDetector {
 
 impl WakeWordStream for DefaultWakeWordDetector {
     type Event = WakeWordEvent;
-    
+
     #[inline]
     fn process_stream<S>(
         &mut self,
@@ -207,7 +213,7 @@ impl WakeWordStream for DefaultWakeWordDetector {
         // Domain-only implementation - returns empty stream
         futures::stream::empty()
     }
-    
+
     #[inline]
     fn process_sample_stream<S>(
         &mut self,
@@ -240,7 +246,7 @@ impl DefaultWakeWordBuilder {
 
 impl WakeWordBuilder for DefaultWakeWordBuilder {
     type Detector = DefaultWakeWordDetector;
-    
+
     #[inline]
     fn with_wake_word_model<P: AsRef<std::path::Path>>(
         self,
@@ -250,19 +256,19 @@ impl WakeWordBuilder for DefaultWakeWordBuilder {
         // Domain-only implementation - concrete engines handle model loading
         Ok(self)
     }
-    
+
     #[inline]
     fn with_confidence_threshold(mut self, threshold: f32) -> Self {
         self.config.confidence_threshold = threshold.clamp(0.0, 1.0);
         self
     }
-    
+
     #[inline]
     fn with_debug(mut self, debug: bool) -> Self {
         self.config.debug = debug;
         self
     }
-    
+
     #[inline]
     fn build(self) -> WakeWordResult<Self::Detector> {
         Ok(DefaultWakeWordDetector::with_config(self.config))
@@ -293,7 +299,12 @@ impl FluentVoice for FluentVoiceImpl {
              _timestamps_granularity,
              _punctuation| {
                 // Return an empty stream - real implementations will be provided by concrete engines
-                futures::stream::empty::<Result<crate::transcript::ConcreteTranscriptSegment, crate::voice_error::VoiceError>>()
+                futures::stream::empty::<
+                    Result<
+                        crate::transcript::ConcreteTranscriptSegment,
+                        crate::voice_error::VoiceError,
+                    >,
+                >()
             },
         )
     }

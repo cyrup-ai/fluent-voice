@@ -185,7 +185,8 @@ pub fn train(
 
                 // Ensure we have exactly FRAMES frames for the neural network
                 let frames_to_take = extractor.len().min(FRAMES);
-                let mut flat: Vec<f32> = extractor.into_iter()
+                let mut flat: Vec<f32> = extractor
+                    .into_iter()
                     .take(frames_to_take)
                     .flatten()
                     .collect();
@@ -223,15 +224,29 @@ pub fn train(
         // ---------------------------------------------------------------------------
 
         // Take ownership of the buffers without panicking
-        let feats = feats.into_inner().map_err(|e| TrainerError::Poison(format!("feats final: {e}")))?;
-        let labels = labels.into_inner().map_err(|e| TrainerError::Poison(format!("labels final: {e}")))?;
-        let rms_vec = rms_vec.into_inner().map_err(|e| TrainerError::Poison(format!("rms final: {e}")))?;
+        let feats = feats
+            .into_inner()
+            .map_err(|e| TrainerError::Poison(format!("feats final: {e}")))?;
+        let labels = labels
+            .into_inner()
+            .map_err(|e| TrainerError::Poison(format!("labels final: {e}")))?;
+        let rms_vec = rms_vec
+            .into_inner()
+            .map_err(|e| TrainerError::Poison(format!("rms final: {e}")))?;
 
-        println!("DEBUG: Final dataset - {} features, {} labels, {} rms values", feats.len(), labels.len(), rms_vec.len());
+        println!(
+            "DEBUG: Final dataset - {} features, {} labels, {} rms values",
+            feats.len(),
+            labels.len(),
+            rms_vec.len()
+        );
         if feats.is_empty() {
             println!("DEBUG: WARNING - No features extracted from any files!");
         } else {
-            println!("DEBUG: First feature vector has {} elements", feats[0].len());
+            println!(
+                "DEBUG: First feature vector has {} elements",
+                feats[0].len()
+            );
         }
 
         // Compute average RMS across all samples

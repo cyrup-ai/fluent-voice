@@ -23,8 +23,8 @@ workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
 fluent_voice_domain = { version = "0.1.0", path = "../../fluent-voice-domain" }
 
 # — DSP / NN —
-candle-core    = "0.9.1"
-candle-nn      = "0.9.1"
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 
 # — audio / resampling —
 # rubato         = { version = "0.16", default-features = false, features = ["fft_resampler"] } # in workspace-hack
@@ -66,12 +66,12 @@ anyhow = "1.0.98"
 byteorder = "1.5.0"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
-candle-transformers = "0.9.1"
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 tokenizers = "0.21.2"
 symphonia = "0.5.4"
-cpal.workspace = true
+cpal = "0.15.3"
 ndarray = "0.16.1"
-candle-examples = "0.9.1"
+candle-examples = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 clap = { version = "4.5.41", features = ["derive"] }
 hf-hub = "0.4.3"
 rand = "0.9.1"
@@ -97,6 +97,12 @@ web     = ["wasm-bindgen",
 # --- Developer conveniences (opt-in) -----------------------
 dev = ["debug", "desktop"]   # ← enable with `--features dev`
 debug = []                   # extra logging / assertions
+
+# --- Candle backend features (required for all candle crates) -----
+cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda", "candle-examples/cuda"]
+metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers/metal", "candle-examples/metal"]
+accelerate = ["candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate", "candle-examples/accelerate"]
+mkl = ["candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl", "candle-examples/mkl"]
 
 # --- Optional extended functionality -----------------------
 record = []                  # WAV recording of detection windows

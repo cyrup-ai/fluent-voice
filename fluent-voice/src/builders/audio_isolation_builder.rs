@@ -1,9 +1,9 @@
 //! Concrete audio isolation builder implementation.
 
-use fluent_voice_domain::audio_format::AudioFormat;
 use crate::audio_isolation::{AudioIsolationBuilder, AudioIsolationSession};
 use core::future::Future;
 use fluent_voice_domain::VoiceError;
+use fluent_voice_domain::audio_format::AudioFormat;
 use futures_core::Stream;
 
 /// Concrete audio isolation session implementation.

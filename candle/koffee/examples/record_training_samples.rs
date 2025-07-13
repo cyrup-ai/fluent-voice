@@ -16,7 +16,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 #[derive(Parser)]
-#[command(author, version, about = "Record training samples for wake word detection")]
+#[command(
+    author,
+    version,
+    about = "Record training samples for wake word detection"
+)]
 struct Args {
     /// The wake word phrase to record
     #[arg(short, long)]
@@ -60,7 +64,8 @@ impl Recorder {
 
         // Audio setup
         let host = cpal::default_host();
-        let device = host.default_input_device()
+        let device = host
+            .default_input_device()
             .ok_or("No default input device available")?;
 
         let config = StreamConfig {
@@ -81,7 +86,7 @@ impl Recorder {
 
     fn record_sample(&self, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
         let path = self.output_dir.join(filename);
-        
+
         println!("\n📝 Recording: {}", filename);
         println!("   Press ENTER when ready to start...");
         let mut input = String::new();
@@ -120,12 +125,9 @@ impl Recorder {
             eprintln!("Audio error: {}", err);
         };
 
-        let stream = self.device.build_input_stream(
-            &self.config,
-            data_callback,
-            error_callback,
-            None,
-        )?;
+        let stream =
+            self.device
+                .build_input_stream(&self.config, data_callback, error_callback, None)?;
 
         // Countdown
         for i in (1..=3).rev() {
@@ -160,7 +162,7 @@ impl Recorder {
         // Save WAV file
         let samples = samples.lock().unwrap();
         self.save_wav(&path, &samples)?;
-        
+
         println!("💾 Saved to: {}", path.display());
 
         Ok(())
@@ -175,12 +177,13 @@ impl Recorder {
         };
 
         let mut writer = WavWriter::create(path, spec)?;
-        
+
         for &sample in samples {
-            let sample_i16 = (sample * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+            let sample_i16 =
+                (sample * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
             writer.write_sample(sample_i16)?;
         }
-        
+
         writer.finalize()?;
         Ok(())
     }
@@ -188,7 +191,7 @@ impl Recorder {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    
+
     println!("🎤 Wake Word Training Sample Recorder");
     println!("====================================");
     println!();
@@ -200,7 +203,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!();
 
     let recorder = Recorder::new(args.clone())?;
-    
+
     println!("🎙️  Using: {}", recorder.device.name()?);
     println!();
 
@@ -208,33 +211,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Record noise samples
         println!("📢 Recording NOISE samples (background/silence)");
         println!("   Do NOT speak during these recordings!");
-        
+
         for i in 0..args.num_samples.min(5) {
             let filename = format!("noise{}.wav", i);
             recorder.record_sample(&filename)?;
-            
+
             println!();
             println!("   Progress: {}/{}", i + 1, args.num_samples.min(5));
         }
     } else {
         // Record wake word samples
         let label = args.phrase.replace(" ", "_");
-        
+
         println!("📢 Recording '{}' samples", args.phrase);
         println!("   Speak clearly and consistently!");
-        
+
         for i in 0..args.num_samples {
-            let filename = format!("{}_{}[{}].wav", 
-                label, 
-                format!("{:02}", i),
-                args.phrase
-            );
-            
+            let filename = format!("{}_{}[{}].wav", label, format!("{:02}", i), args.phrase);
+
             recorder.record_sample(&filename)?;
-            
+
             println!();
             println!("   Progress: {}/{}", i + 1, args.num_samples);
-            
+
             if i < args.num_samples - 1 {
                 println!("   Take a short break...");
                 std::thread::sleep(Duration::from_secs(2));
@@ -246,13 +245,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🎉 Recording session complete!");
     println!();
     println!("📁 Files saved to: {}", args.output_dir);
-    
+
     if !args.noise {
         println!();
         println!("💡 Next steps:");
-        println!("   1. Record noise samples: cargo run --example record_training_samples -- --noise -n 3");
+        println!(
+            "   1. Record noise samples: cargo run --example record_training_samples -- --noise -n 3"
+        );
         println!("   2. Train the model: cargo run --example train_cyrup_stop");
     }
-    
+
     Ok(())
 }

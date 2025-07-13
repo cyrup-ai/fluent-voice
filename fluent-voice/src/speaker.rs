@@ -1,7 +1,7 @@
 //! Runtime speaker instance (engine provides concrete type).
 
-use fluent_voice_domain::{Language, PitchRange, VocalSpeedMod, VoiceId};
 use crate::speaker_builder::SpeakerBuilder;
+use fluent_voice_domain::{Language, PitchRange, VocalSpeedMod, VoiceId};
 
 /// Runtime speaker handle that represents a configured voice with text to speak.
 ///

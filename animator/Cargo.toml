@@ -21,9 +21,14 @@ livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", feature
 wgpu = "25.0.2"
 # derive_more = { version = "2.0.1", features = ["full"] } # in workspace-hack
 thiserror = "2.0.12"
-# rustfft = { version = "6.3.0" } # in workspace-hack
-# clap = { version = "4.5.40", features = ["derive"] } # in workspace-hack
+rustfft = "6.3.0"
+clap = { version = "4.5.40", features = ["derive"] }
 cpal = "0.16.0"
 ratatui = "0.30.0-alpha.4"
 crossterm = "0.29.0"
 display = "0.1.2"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+tokio = { version = "1.45.1", features = ["full"] }
+futures = "0.3.31"
+image = "0.25.6"

@@ -6,17 +6,17 @@
 //! Usage:
 //!   cargo run --example test_cyrup_models
 
-use koffee::{
-    config::{AudioFmt, DetectorConfig, FiltersConfig, KoffeeCandleConfig, VADMode},
-    wakewords::{WakewordLoad, WakewordModel},
-    Kfc, KoffeeCandleDetection, ScoreMode,
-};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleRate, StreamConfig};
+use koffee::{
+    Kfc, KoffeeCandleDetection, ScoreMode,
+    config::{AudioFmt, DetectorConfig, FiltersConfig, KoffeeCandleConfig, VADMode},
+    wakewords::{WakewordLoad, WakewordModel},
+};
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::collections::VecDeque;
 
 /// Detection event with metadata
 #[derive(Debug, Clone)]
@@ -62,7 +62,8 @@ impl AppState {
     fn get_recent_detections(&self, duration: Duration) -> Vec<DetectionEvent> {
         let now = Instant::now();
         if let Ok(history) = self.detection_history.lock() {
-            history.iter()
+            history
+                .iter()
                 .filter(|e| now.duration_since(e.timestamp) < duration)
                 .cloned()
                 .collect()
@@ -104,9 +105,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configure detectors with optimized settings
     let config = KoffeeCandleConfig {
         detector: DetectorConfig {
-            avg_threshold: 0.15,      // Lower threshold for better sensitivity
+            avg_threshold: 0.15, // Lower threshold for better sensitivity
             threshold: 0.45,
-            min_scores: 2,            // Require fewer scores for faster response
+            min_scores: 2, // Require fewer scores for faster response
             score_mode: ScoreMode::Max,
             score_ref: 0.22,
             vad_mode: Some(VADMode::Easy), // Enable VAD for better accuracy
@@ -115,7 +116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         filters: FiltersConfig {
             band_pass: koffee::config::BandPassConfig {
                 enabled: true,
-                low_cutoff: 85.0,     // Human voice frequency range
+                low_cutoff: 85.0, // Human voice frequency range
                 high_cutoff: 255.0,
             },
             gain_normalizer: koffee::config::GainNormalizationConfig {
@@ -150,11 +151,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Audio setup
     let host = cpal::default_host();
-    let device = host.default_input_device()
+    let device = host
+        .default_input_device()
         .ok_or("No default input device available")?;
-    
+
     println!("🎙️  Using: {}", device.name()?);
-    
+
     let stream_config = StreamConfig {
         channels: 1,
         sample_rate: SampleRate(16000),
@@ -163,7 +165,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create application state
     let state = AppState::new(wake_detector, stop_detector);
-    
+
     // Status display
     println!();
     println!("📢 Commands:");
@@ -182,7 +184,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let wake_detector_clone = Arc::clone(&state.wake_detector);
     let stop_detector_clone = Arc::clone(&state.stop_detector);
     let state_clone = state.clone();
-    
+
     let mut audio_buffer = Vec::new();
     let chunk_size = 480; // 30ms at 16kHz
 
@@ -197,7 +199,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         while audio_buffer.len() >= chunk_size * 2 {
             let chunk: Vec<u8> = audio_buffer.drain(..chunk_size * 2).collect();
             let is_awake = awake_clone.load(Ordering::Relaxed);
-            
+
             // Always check for wake word
             if let Ok(mut detector) = wake_detector_clone.try_lock() {
                 if let Some(detection) = detector.process_bytes(&chunk) {
@@ -205,7 +207,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     handle_wake_detection(detection, &state_clone);
                 }
             }
-            
+
             // Check for stop word if awake and detector exists
             if is_awake {
                 if let Ok(stop_opt) = stop_detector_clone.try_lock() {
@@ -224,21 +226,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Audio error: {}", err);
     };
 
-    let stream = device.build_input_stream(
-        &stream_config,
-        data_callback,
-        error_callback,
-        None,
-    )?;
+    let stream = device.build_input_stream(&stream_config, data_callback, error_callback, None)?;
 
     stream.play()?;
 
     // Main loop with status updates
     let mut last_state = false;
-    
+
     loop {
         std::thread::sleep(Duration::from_millis(100));
-        
+
         let current_state = state.awake.load(Ordering::Relaxed);
         if current_state != last_state {
             last_state = current_state;
@@ -248,7 +245,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("🔴 SLEEPING - Say 'cyrup' to wake");
             }
-            
+
             // Show recent detection history
             let recent = state.get_recent_detections(Duration::from_secs(5));
             if !recent.is_empty() {
@@ -267,7 +264,7 @@ fn handle_wake_detection(detection: KoffeeCandleDetection, state: &AppState) {
     }
 
     let is_awake = state.awake.load(Ordering::Relaxed);
-    
+
     if !is_awake {
         // Wake up
         println!("🔊 Wake word detected! (score: {:.2})", detection.score);
@@ -275,10 +272,11 @@ fn handle_wake_detection(detection: KoffeeCandleDetection, state: &AppState) {
     } else if state.stop_detector.lock().unwrap().is_none() {
         // No stop detector - use double-tap to sleep
         let recent = state.get_recent_detections(Duration::from_secs(2));
-        let wake_count = recent.iter()
+        let wake_count = recent
+            .iter()
             .filter(|e| e.model_name == "wake" && e.score > 0.5)
             .count();
-        
+
         if wake_count >= 2 {
             println!("🔊 Double wake word - going to sleep");
             state.awake.store(false, Ordering::Relaxed);

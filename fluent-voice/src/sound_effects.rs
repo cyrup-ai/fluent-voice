@@ -1,7 +1,7 @@
 //! Sound effects generation builder.
 
-use fluent_voice_domain::AudioFormat;
 use core::future::Future;
+use fluent_voice_domain::AudioFormat;
 use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 

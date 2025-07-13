@@ -1,24 +1,25 @@
-use std::borrow::Cow;
-
 use ndarray::{ArrayBase, IxDyn, OwnedRepr};
 use ort::{
-    session::{Session, SessionInputValue, SessionInputs, SessionOutputs},
+    session::{Session, SessionInputValue, SessionOutputs},
     value::{Tensor, Value},
 };
+use std::cell::RefCell;
 
 use super::ort_base;
 use ort_base::OrtBase;
 
 pub struct OrtKoko {
-    sess: Option<Session>,
+    sess: Option<RefCell<Session>>,
 }
 impl ort_base::OrtBase for OrtKoko {
     fn set_sess(&mut self, sess: Session) {
-        self.sess = Some(sess);
+        self.sess = Some(RefCell::new(sess));
     }
 
     fn sess(&self) -> Option<&Session> {
-        self.sess.as_ref()
+        // Cannot return a direct reference to Session from RefCell
+        // This method may need redesign or removal for RefCell compatibility
+        None
     }
 }
 impl OrtKoko {
@@ -62,18 +63,20 @@ impl OrtKoko {
         let speed = Tensor::from_array(([1], speed))?;
         let speed_value: SessionInputValue = SessionInputValue::Owned(Value::from(speed));
 
-        let inputs: Vec<(Cow<str>, SessionInputValue)> = vec![
-            (Cow::Borrowed("tokens"), tokens_value),
-            (Cow::Borrowed("style"), style_value),
-            (Cow::Borrowed("speed"), speed_value),
-        ];
-
-        if let Some(sess) = &self.sess {
-            let outputs: SessionOutputs = sess.run(SessionInputs::from(inputs))?;
-            let output = outputs["audio"]
+        if let Some(sess_cell) = self.sess.as_ref() {
+            let inputs = ort::inputs![
+                "tokens" => tokens_value,
+                "style" => style_value,
+                "speed" => speed_value,
+            ];
+            let mut sess = sess_cell.borrow_mut();
+            let outputs: SessionOutputs = sess.run(inputs)?;
+            let (shape, data) = outputs["audio"]
                 .try_extract_tensor::<f32>()
-                .expect("Failed to extract tensor")
-                .into_owned();
+                .map_err(|e| format!("Failed to extract tensor: {}", e))?;
+            let shape_dims: Vec<usize> = shape.iter().map(|&x| x as usize).collect();
+            let output = ArrayBase::from_shape_vec(shape_dims, data.iter().copied().collect())
+                .map_err(|e| format!("Failed to create array from tensor: {}", e))?;
             Ok(output)
         } else {
             Err("Session is not initialized.".into())

@@ -3,15 +3,15 @@
 //! This module provides a non-macro implementation of the TTS conversation builder
 //! that can be used as a base for engine-specific implementations.
 
+use crate::speaker::Speaker;
+use crate::tts_conversation::{TtsConversation, TtsConversationBuilder};
+use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use fluent_voice_domain::{
     audio_format::AudioFormat,
     language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},
 };
-use crate::speaker::Speaker;
-use crate::tts_conversation::{TtsConversation, TtsConversationBuilder};
-use core::future::Future;
-use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Concrete speaker implementation for TTS operations.

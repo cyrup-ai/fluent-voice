@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::io::{self};
+use std::sync::{Arc, Mutex};
 
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
@@ -61,7 +62,7 @@ struct SpeechRequest {
     initial_silence: Option<usize>,
 }
 
-pub async fn create_server(tts: TTSKoko) -> Router {
+pub async fn create_server(tts: Arc<Mutex<TTSKoko>>) -> Router {
     println!("create_server()");
 
     Router::new()
@@ -104,7 +105,7 @@ async fn handle_home() -> &'static str {
 }
 
 async fn handle_tts(
-    State(tts): State<TTSKoko>,
+    State(tts): State<Arc<Mutex<TTSKoko>>>,
     Json(SpeechRequest {
         model: _,
         input,
@@ -114,9 +115,12 @@ async fn handle_tts(
         initial_silence,
     }): Json<SpeechRequest>,
 ) -> Result<Response, SpeechError> {
-    let raw_audio = tts
-        .tts_raw_audio(&input, "en-us", &voice, speed, initial_silence)
-        .map_err(SpeechError::Koko)?;
+    let raw_audio = {
+        let tts_guard = tts.lock().unwrap();
+        tts_guard
+            .tts_raw_audio(&input, "en-us", &voice, speed, initial_silence)
+            .map_err(SpeechError::Koko)?
+    };
 
     let sample_rate = TTSKokoInitConfig::default().sample_rate;
 

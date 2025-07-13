@@ -69,7 +69,7 @@ impl App {
             graph,
             oscillator,
             vector,
-            spectroscope,
+            spectrograph: spectroscope,
             mode: CurrentDisplayMode::Oscillator,
             channels: source.channels as u8,
         }

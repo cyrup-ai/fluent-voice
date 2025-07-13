@@ -6,13 +6,13 @@
 //! Usage:
 //!   cargo run --example cyrup_wake
 
-use koffee::{
-    config::{AudioFmt, DetectorConfig, FiltersConfig, KoffeeCandleConfig},
-    wakewords::{WakewordLoad, WakewordModel},
-    Kfc, KoffeeCandleDetection,
-};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleRate, StreamConfig};
+use koffee::{
+    Kfc, KoffeeCandleDetection,
+    config::{AudioFmt, DetectorConfig, FiltersConfig, KoffeeCandleConfig},
+    wakewords::{WakewordLoad, WakewordModel},
+};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -86,15 +86,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create detector
     let mut detector = Kfc::new(&config)?;
     detector.add_wakeword_model(model)?;
-    
+
     println!("✅ Wake word detector initialized");
     println!();
 
     // Set up audio capture
     let host = cpal::default_host();
-    let device = host.default_input_device()
+    let device = host
+        .default_input_device()
         .ok_or("No default input device available")?;
-    
+
     println!("🎙️  Using audio device: {}", device.name()?);
 
     let supported_config = device.default_input_config()?;
@@ -114,7 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let detector_clone = Arc::clone(&detector);
     let awake_clone = Arc::clone(&state.awake);
     let last_detection_clone = Arc::clone(&state.last_detection);
-    
+
     let mut audio_buffer = Vec::new();
     let chunk_size = 480; // 30ms at 16kHz
 
@@ -128,15 +129,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Process chunks
         while audio_buffer.len() >= chunk_size * 2 {
             let chunk: Vec<u8> = audio_buffer.drain(..chunk_size * 2).collect();
-            
+
             // Process with detector
             if let Ok(mut det) = detector_clone.try_lock() {
                 if let Some(detection) = det.process_bytes(&chunk) {
-                    handle_detection(
-                        detection,
-                        &awake_clone,
-                        &last_detection_clone,
-                    );
+                    handle_detection(detection, &awake_clone, &last_detection_clone);
                 }
             }
         }
@@ -146,12 +143,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Audio stream error: {}", err);
     };
 
-    let stream = device.build_input_stream(
-        &stream_config,
-        data_callback,
-        error_callback,
-        None,
-    )?;
+    let stream = device.build_input_stream(&stream_config, data_callback, error_callback, None)?;
 
     stream.play()?;
     println!("🎧 Listening for wake words...");
@@ -160,11 +152,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Main loop - check state and provide feedback
     loop {
         std::thread::sleep(Duration::from_millis(100));
-        
+
         // Check if state changed
         static mut LAST_STATE: bool = false;
         let current_state = state.awake.load(Ordering::Relaxed);
-        
+
         unsafe {
             if current_state != LAST_STATE {
                 LAST_STATE = current_state;
@@ -184,7 +176,7 @@ fn handle_detection(
     last_detection: &Arc<Mutex<Option<Instant>>>,
 ) {
     let now = Instant::now();
-    
+
     // Debounce detections (ignore if too close to last one)
     if let Ok(mut last) = last_detection.lock() {
         if let Some(last_time) = *last {
@@ -198,14 +190,17 @@ fn handle_detection(
     // High confidence detection
     if detection.score > 0.6 {
         let is_awake = awake.load(Ordering::Relaxed);
-        
+
         // Simple heuristic: if we're already awake and detect again quickly,
         // it might be "cyrup stop" (double detection)
         if is_awake {
             // Check if this is a potential "stop" command
             // In a real system, you'd have a separate model for "cyrup stop"
-            println!("🔊 Detected: {} (score: {:.2})", detection.name, detection.score);
-            
+            println!(
+                "🔊 Detected: {} (score: {:.2})",
+                detection.name, detection.score
+            );
+
             // For now, toggle on any high-confidence detection when awake
             awake.store(false, Ordering::Relaxed);
             println!("💤 Going to sleep...");
@@ -216,6 +211,9 @@ fn handle_detection(
         }
     } else if detection.score > 0.4 {
         // Medium confidence - just log it
-        println!("🔉 Possible detection: {} (score: {:.2})", detection.name, detection.score);
+        println!(
+            "🔉 Possible detection: {} (score: {:.2})",
+            detection.name, detection.score
+        );
     }
 }

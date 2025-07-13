@@ -11,20 +11,19 @@
 //! - Ergonomic async streams with backpressure management
 
 use fluent_voice_domain::{
-    SpeechSource, TranscriptSegment, AudioFormat,
-    MicrophoneBuilder, SttConversation, SttConversationBuilder, TranscriptionBuilder,
-    SttEngine, Diarization, Punctuation, TimestampsGranularity, WordTimestamps,
-    VadMode, NoiseReduction, Language, VoiceError
+    AudioFormat, Diarization, Language, MicrophoneBuilder, NoiseReduction, Punctuation,
+    SpeechSource, SttConversation, SttConversationBuilder, SttEngine, TimestampsGranularity,
+    TranscriptSegment, TranscriptionBuilder, VadMode, VoiceError, WordTimestamps,
 };
 
 // Zero-allocation, lock-free concurrent processing
-use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
 use crossbeam_utils::thread;
 
 // High-performance audio processing (scalar operations)
 
 // Pre-allocated ring buffer management
-use ringbuf::{HeapRb, HeapCons, HeapProd};
+use ringbuf::{HeapCons, HeapProd, HeapRb};
 
 // Zero-copy tensor operations
 use ndarray::{Array1, ArrayView1};
@@ -35,18 +34,18 @@ use futures_core::Stream;
 use futures_util::StreamExt;
 
 // High-performance components
-use fluent_voice_whisper::WhisperTranscriber;
 use fluent_voice_vad::VoiceActivityDetector;
+use fluent_voice_whisper::WhisperTranscriber;
 
-// Error handling with context  
+// Error handling with context
 use koffee::{KoffeeCandle, KoffeeCandleConfig, KoffeeCandleDetection};
 
 // Real-time audio capture
 use cpal::{BufferSize, SampleRate, StreamConfig};
 
 // Lock-free atomic operations
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 // Zero-allocation time tracking
 use std::time::{Duration, Instant};
@@ -63,46 +62,50 @@ use tokio::sync::mpsc;
 use tokio::time::{sleep, timeout};
 
 // Pin for zero-allocation async
+use std::io::Write;
 use std::pin::Pin;
 use std::task::{Context as TaskContext, Poll};
-use std::io::Write;
 
 /// Write PCM f32 samples to WAV file for Whisper processing
 /// Zero-allocation WAV header generation with optimal I/O
-fn write_wav_file(path: &str, samples: &[f32], sample_rate: u32) -> Result<(), Box<dyn std::error::Error>> {
+fn write_wav_file(
+    path: &str,
+    samples: &[f32],
+    sample_rate: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut file = std::fs::File::create(path)?;
-    
+
     // WAV header constants
     let num_samples = samples.len() as u32;
     let byte_rate = sample_rate * 2; // 16-bit mono
     let data_size = num_samples * 2;
     let file_size = 36 + data_size;
-    
+
     // Write WAV header (optimized for 16-bit mono PCM)
     file.write_all(b"RIFF")?;
     file.write_all(&file_size.to_le_bytes())?;
     file.write_all(b"WAVE")?;
-    
+
     // Format chunk
     file.write_all(b"fmt ")?;
     file.write_all(&16u32.to_le_bytes())?; // chunk size
-    file.write_all(&1u16.to_le_bytes())?;  // PCM format
-    file.write_all(&1u16.to_le_bytes())?;  // mono
+    file.write_all(&1u16.to_le_bytes())?; // PCM format
+    file.write_all(&1u16.to_le_bytes())?; // mono
     file.write_all(&sample_rate.to_le_bytes())?;
     file.write_all(&byte_rate.to_le_bytes())?;
-    file.write_all(&2u16.to_le_bytes())?;  // block align
+    file.write_all(&2u16.to_le_bytes())?; // block align
     file.write_all(&16u16.to_le_bytes())?; // bits per sample
-    
+
     // Data chunk
     file.write_all(b"data")?;
     file.write_all(&data_size.to_le_bytes())?;
-    
+
     // Convert f32 samples to i16 and write (SIMD-optimized)
     for sample in samples {
         let sample_i16 = (*sample * 32767.0).clamp(-32768.0, 32767.0) as i16;
         file.write_all(&sample_i16.to_le_bytes())?;
     }
-    
+
     Ok(())
 }
 
@@ -127,25 +130,25 @@ struct AudioProcessor {
     ring_buffer: HeapRb<f32>,
     vad_buffer: [f32; VAD_CHUNK_SIZE],
     whisper_buffer: [f32; WHISPER_CHUNK_SIZE],
-    
+
     // Lock-free state management
     buffer_write_pos: AtomicU64,
     buffer_read_pos: AtomicU64,
-    
+
     // Zero-allocation processors (no Arc<Mutex<>>)
     wake_word_detector: KoffeeCandle,
     vad_detector: VoiceActivityDetector,
     whisper_transcriber: WhisperTranscriber,
-    
+
     // State flags (atomic, lock-free)
     wake_word_active: AtomicBool,
     speech_detected: AtomicBool,
     processing_active: AtomicBool,
-    
+
     // Performance counters
     samples_processed: AtomicU64,
     transcriptions_completed: AtomicU64,
-    
+
     // Zero-allocation time tracking
     session_start: Instant,
     last_speech_time: AtomicU64,
@@ -162,56 +165,58 @@ impl AudioProcessor {
             // KoffeeCandleConfig uses detector.threshold for sensitivity
             // Note: model selection is handled during wakeword loading, not in config
             config.detector.threshold = wake_word_config.sensitivity;
-            
-            KoffeeCandle::new(&config)
-                .context("Failed to initialize wake word detector")?  
+
+            KoffeeCandle::new(&config).map_err(|e| {
+                anyhow::Error::msg(format!("Failed to initialize wake word detector: {}", e))
+            })?
         };
-        
+
         let vad_detector = VoiceActivityDetector::builder()
             .chunk_size(VAD_CHUNK_SIZE)
             .sample_rate(16000_i64)
             .build()
             .context("Failed to initialize VAD")?;
-            
-        let whisper_transcriber = WhisperTranscriber::new()
-            .context("Failed to initialize Whisper")?;
-            
+
+        let whisper_transcriber =
+            WhisperTranscriber::new().context("Failed to initialize Whisper")?;
+
         // Pre-allocate ring buffer for zero-allocation audio processing
         let ring_buffer = HeapRb::<f32>::new(RING_BUFFER_SIZE);
-        
+
         Ok(Self {
             ring_buffer,
             vad_buffer: [0.0_f32; VAD_CHUNK_SIZE],
             whisper_buffer: [0.0_f32; WHISPER_CHUNK_SIZE],
-            
+
             buffer_write_pos: AtomicU64::new(0),
             buffer_read_pos: AtomicU64::new(0),
-            
+
             wake_word_detector,
             vad_detector,
             whisper_transcriber,
-            
+
             wake_word_active: AtomicBool::new(false),
-            speech_detected: AtomicBool::new(false), 
+            speech_detected: AtomicBool::new(false),
             processing_active: AtomicBool::new(true),
-            
+
             samples_processed: AtomicU64::new(0),
             transcriptions_completed: AtomicU64::new(0),
-            
+
             session_start: Instant::now(),
             last_speech_time: AtomicU64::new(0),
         })
     }
-    
+
     /// Process audio chunk with zero-allocation, SIMD-optimized hot path
     #[inline(always)]
     pub fn process_audio_chunk(&mut self, audio_data: &[f32]) -> Option<KoffeeCandleDetection> {
         // Increment performance counter (lock-free)
-        self.samples_processed.fetch_add(audio_data.len() as u64, Ordering::Relaxed);
-        
+        self.samples_processed
+            .fetch_add(audio_data.len() as u64, Ordering::Relaxed);
+
         // SIMD-optimized audio preprocessing (blazing-fast)
         let processed_audio = self.simd_preprocess_audio(audio_data);
-        
+
         // Lock-free wake word detection
         if !self.wake_word_active.load(Ordering::Relaxed) {
             if let Some(detection) = self.wake_word_detector.process_samples(&processed_audio) {
@@ -221,19 +226,19 @@ impl AudioProcessor {
                 }
             }
         }
-        
+
         None
     }
-    
+
     /// SIMD-optimized audio preprocessing for blazing-fast performance
     #[inline(always)]
     fn simd_preprocess_audio(&self, audio_data: &[f32]) -> Vec<f32> {
         let mut processed = Vec::with_capacity(audio_data.len());
-        
+
         // Process in SIMD chunks of 8 floats (AVX2)
         let chunks = audio_data.chunks_exact(8);
         let remainder = chunks.remainder();
-        
+
         for chunk in chunks {
             // Apply normalization and noise reduction (scalar operations)
             let mut normalized_chunk = [0.0f32; 8];
@@ -242,35 +247,36 @@ impl AudioProcessor {
             }
             processed.extend_from_slice(&normalized_chunk);
         }
-        
+
         // Handle remainder with scalar operations
         processed.extend_from_slice(remainder);
-        
+
         processed
     }
-    
+
     /// Zero-allocation VAD processing with tensor optimization  
     #[inline(always)]
     pub fn process_vad(&mut self, audio_chunk: &[f32]) -> AnyhowResult<f32> {
         // Copy to pre-allocated buffer (zero allocation)
         let copy_len = audio_chunk.len().min(VAD_CHUNK_SIZE);
         self.vad_buffer[..copy_len].copy_from_slice(&audio_chunk[..copy_len]);
-        
+
         // Zero-copy VAD prediction
-        let speech_probability = self.vad_detector
+        let speech_probability = self
+            .vad_detector
             .predict(self.vad_buffer[..copy_len].iter().copied())
             .context("VAD prediction failed")?;
-            
+
         Ok(speech_probability)
     }
-    
+
     /// In-memory Whisper transcription (no temp files)
-    #[inline(always)] 
+    #[inline(always)]
     pub async fn transcribe_audio(&mut self, audio_data: &[f32]) -> AnyhowResult<String> {
         // Copy to pre-allocated buffer for transcription
         let copy_len = audio_data.len().min(WHISPER_CHUNK_SIZE);
         self.whisper_buffer[..copy_len].copy_from_slice(&audio_data[..copy_len]);
-        
+
         // Create in-memory audio source (no file I/O)
         // Convert f32 samples to 16-bit PCM bytes for SpeechSource::Memory
         let pcm_bytes: Vec<u8> = self.whisper_buffer[..copy_len]
@@ -280,22 +286,24 @@ impl AudioProcessor {
                 pcm_sample.to_le_bytes().to_vec()
             })
             .collect();
-        
+
         let speech_source = SpeechSource::Memory {
             data: pcm_bytes,
             format: AudioFormat::Pcm16Khz,
             sample_rate: 16000,
         };
-        
+
         // Transcribe with error handling
-        let transcript = self.whisper_transcriber
+        let transcript = self
+            .whisper_transcriber
             .transcribe(speech_source)
             .await
             .context("Whisper transcription failed")?;
-            
+
         // Increment transcription counter
-        self.transcriptions_completed.fetch_add(1, Ordering::Relaxed);
-        
+        self.transcriptions_completed
+            .fetch_add(1, Ordering::Relaxed);
+
         Ok(transcript.as_text())
     }
 }
@@ -337,13 +345,14 @@ impl TranscriptSegment for DefaultTranscriptSegment {
 }
 
 /// Zero-Allocation Stream: Pre-allocated, lock-free transcript stream
-type DefaultTranscriptStream = Pin<Box<dyn Stream<Item = Result<DefaultTranscriptSegment, VoiceError>> + Send>>;
+type DefaultTranscriptStream =
+    Pin<Box<dyn Stream<Item = Result<DefaultTranscriptSegment, VoiceError>> + Send>>;
 
 /// Production-Quality STT Engine using canonical default providers:
 /// - STT: ./candle/whisper (fluent_voice_whisper)
-/// - VAD: ./vad (fluent_voice_vad) 
+/// - VAD: ./vad (fluent_voice_vad)
 /// - Wake Word: ./candle/koffee (koffee)
-/// 
+///
 /// PERFORMANCE GUARANTEES:
 /// - Zero heap allocations on audio processing hot path
 /// - Sub-millisecond wake word detection latency  
@@ -419,7 +428,7 @@ impl DefaultSTTEngine {
     pub async fn new() -> Result<Self, VoiceError> {
         let vad_config = VadConfig::default();
         let wake_word_config = WakeWordConfig::default();
-        
+
         Self::with_config(vad_config, wake_word_config).await
     }
 
@@ -430,11 +439,11 @@ impl DefaultSTTEngine {
         wake_word_config: WakeWordConfig,
     ) -> Result<Self, VoiceError> {
         // Initialize Whisper transcriber from ./candle/whisper
-        let whisper = Arc::new(
-            WhisperTranscriber::new()
-                .map_err(|e| VoiceError::ProcessingError(format!("Whisper init failed: {:?}", e)))?
-        );
-        
+        let whisper =
+            Arc::new(WhisperTranscriber::new().map_err(|e| {
+                VoiceError::ProcessingError(format!("Whisper init failed: {:?}", e))
+            })?);
+
         Ok(Self {
             whisper,
             vad_config,
@@ -480,7 +489,9 @@ impl DefaultSTTConversationBuilder {
     /// Create a new DefaultSTTConversationBuilder.
     pub fn new() -> Self {
         Self {
-            whisper: Arc::new(WhisperTranscriber::new().expect("Failed to initialize Whisper transcriber")),
+            whisper: Arc::new(
+                WhisperTranscriber::new().expect("Failed to initialize Whisper transcriber"),
+            ),
             vad_config: VadConfig::default(),
             wake_word_config: WakeWordConfig::default(),
             speech_source: None,
@@ -637,13 +648,13 @@ impl SttConversation for DefaultSTTConversation {
 
             // Production-quality microphone capture using cpal
             let (audio_tx, mut audio_rx) = mpsc::channel::<Vec<f32>>(100);
-            
+
             // Initialize cpal microphone capture
             {
                 let audio_tx_clone = audio_tx.clone();
                 tokio::task::spawn_blocking(move || {
                     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-                    
+
                     // Get default input device
                     let host = cpal::default_host();
                     let device = match host.default_input_device() {
@@ -653,14 +664,14 @@ impl SttConversation for DefaultSTTConversation {
                             return;
                         }
                     };
-                    
+
                     // Configure for 16kHz PCM
                     let config = cpal::StreamConfig {
                         channels: 1,
                         sample_rate: cpal::SampleRate(16000),
                         buffer_size: cpal::BufferSize::Fixed(1024),
                     };
-                    
+
                     // Create audio capture stream
                     let stream = device.build_input_stream(
                         &config,
@@ -674,14 +685,14 @@ impl SttConversation for DefaultSTTConversation {
                         |err| eprintln!("Audio stream error: {}", err),
                         None,
                     );
-                    
+
                     match stream {
                         Ok(stream) => {
                             if let Err(e) = stream.play() {
                                 eprintln!("Failed to start audio stream: {}", e);
                                 return;
                             }
-                            
+
                             // Keep the stream alive
                             std::thread::sleep(std::time::Duration::from_secs(300)); // 5 minutes
                         }
@@ -705,7 +716,7 @@ impl SttConversation for DefaultSTTConversation {
                         let mut detector = wake_word_detector.lock().await;
                         detector.process_samples(&audio_chunk)
                     }; // Mutex guard dropped here
-                    
+
                     if let Some(detection) = detection_result {
                         if detection.score > 0.7 {
                             wake_word_detected = true;
@@ -734,7 +745,7 @@ impl SttConversation for DefaultSTTConversation {
                         let mut vad_guard = vad.lock().await;
                         vad_guard.predict(chunk_to_process.iter().copied())
                     }; // Mutex guard dropped here
-                    
+
                     let speech_probability = match speech_probability {
                         Ok(prob) => prob,
                         Err(e) => {

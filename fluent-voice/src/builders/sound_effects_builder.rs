@@ -1,9 +1,9 @@
 //! Concrete sound effects builder implementation.
 
-use fluent_voice_domain::audio_format::AudioFormat;
 use crate::sound_effects::{SoundEffectsBuilder, SoundEffectsSession};
 use core::future::Future;
 use fluent_voice_domain::VoiceError;
+use fluent_voice_domain::audio_format::AudioFormat;
 use futures_core::Stream;
 
 /// Concrete sound effects session implementation.

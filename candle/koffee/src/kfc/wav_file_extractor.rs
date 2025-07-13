@@ -138,7 +138,7 @@ impl KfcWavFileExtractor {
         // Ensure we have sufficient buffer capacity for input samples
         let required_capacity = encoder.input_samples().max(480);
         let mut in_buf = Vec::<S>::with_capacity(required_capacity);
-        
+
         // Pre-allocate to avoid buffer size issues during processing
         if in_buf.capacity() == 0 {
             in_buf.reserve(required_capacity);

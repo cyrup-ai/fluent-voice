@@ -1,8 +1,8 @@
 //! Speech-to-speech voice conversion builder.
 
-use fluent_voice_domain::{audio_format::AudioFormat, model_id::ModelId, voice_id::VoiceId};
 use core::future::Future;
 use fluent_voice_domain::VoiceError;
+use fluent_voice_domain::{audio_format::AudioFormat, model_id::ModelId, voice_id::VoiceId};
 use futures_core::Stream;
 
 /// Speech-to-speech conversion session.

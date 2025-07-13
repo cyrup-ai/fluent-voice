@@ -7,23 +7,23 @@ extern crate intel_mkl_src;
 use anyhow::{Error as E, Result};
 use candle_core::{Device, IndexOp, Tensor};
 use candle_nn::{VarBuilder, ops::softmax};
-use clap::{Parser, ValueEnum};
-use hf_hub::{Repo, RepoType, api::sync::Api};
-use rand::SeedableRng;
-use rand_distr::{Distribution, weighted::WeightedIndex};
-use tokenizers::Tokenizer;
 use candle_transformers::models::whisper::{self as m, Config, audio};
+use clap::{Parser, ValueEnum};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use flate2::{Compression as GzCompression, write::GzEncoder};
 use futures::stream::{Stream, StreamExt};
+use hf_hub::{Repo, RepoType, api::sync::Api};
+use rand::SeedableRng;
+use rand_distr::{Distribution, weighted::WeightedIndex};
 use rubato::{FastFixedIn, PolynomialDegree, Resampler};
 use std::io::Write;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use tokenizers::Tokenizer;
 
 // Use ONLY canonical domain types - no local duplicates
-use fluent_voice_domain::transcript::ConcreteTranscriptSegment;
 use fluent_voice_domain::MicrophoneBuilder;
+use fluent_voice_domain::transcript::ConcreteTranscriptSegment;
 
 pub enum Model {
     Normal(m::model::Whisper),
@@ -223,8 +223,11 @@ impl Decoder {
                 1.0
             } else {
                 let mut buf = Vec::with_capacity(text.len() / 2);
-                let mut encoder = GzEncoder::new(&mut buf, GzCompression::default());
-                encoder.write_all(text.as_bytes()).map_err(E::msg)?;
+                {
+                    let mut encoder = GzEncoder::new(&mut buf, GzCompression::default());
+                    encoder.write_all(text.as_bytes()).map_err(E::msg)?;
+                    encoder.finish().map_err(E::msg)?;
+                }
                 (trimmed as f64) / (buf.len() as f64)
             }
         };
@@ -278,7 +281,10 @@ impl Decoder {
         impl<'a> Stream for SegmentStream<'a> {
             type Item = Result<ConcreteTranscriptSegment>;
 
-            fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            fn poll_next(
+                mut self: Pin<&mut Self>,
+                cx: &mut Context<'_>,
+            ) -> Poll<Option<Self::Item>> {
                 if !self.pending_chunks.is_empty() {
                     return Poll::Ready(Some(Ok(self.pending_chunks.remove(0))));
                 }
@@ -293,7 +299,8 @@ impl Decoder {
                     Ok(m) => m,
                     Err(e) => return Poll::Ready(Some(Err(e.into()))),
                 };
-                let segment_duration = (segment_size * m::HOP_LENGTH) as f64 / m::SAMPLE_RATE as f64;
+                let segment_duration =
+                    (segment_size * m::HOP_LENGTH) as f64 / m::SAMPLE_RATE as f64;
 
                 let dr = match self.decoder.decode_with_fallback(&mel_segment) {
                     Ok(dr) => dr,
@@ -302,9 +309,14 @@ impl Decoder {
 
                 self.seek += segment_size;
 
-                if dr.no_speech_prob > m::NO_SPEECH_THRESHOLD && dr.avg_logprob < m::LOGPROB_THRESHOLD {
+                if dr.no_speech_prob > m::NO_SPEECH_THRESHOLD
+                    && dr.avg_logprob < m::LOGPROB_THRESHOLD
+                {
                     if self.decoder.verbose {
-                        println!("no speech detected, skipping {seek} {dr:?}", seek = self.seek);
+                        println!(
+                            "no speech detected, skipping {seek} {dr:?}",
+                            seek = self.seek
+                        );
                     }
                     cx.waker().wake_by_ref();
                     return Poll::Pending;
@@ -319,7 +331,8 @@ impl Decoder {
                             continue;
                         }
                         if token > self.decoder.no_timestamps_token {
-                            let timestamp_s = ((token - self.decoder.no_timestamps_token) as f64) / 50.0;
+                            let timestamp_s =
+                                ((token - self.decoder.no_timestamps_token) as f64) / 50.0;
                             if !tokens_to_decode.is_empty() {
                                 match self.decoder.tokenizer.decode(&tokens_to_decode, true) {
                                     Ok(text) => {
@@ -327,7 +340,7 @@ impl Decoder {
                                             text,
                                             ((time_offset + prev_timestamp_s) * 1000.0) as u32,
                                             ((time_offset + timestamp_s) * 1000.0) as u32,
-                                            None // No speaker ID in this context
+                                            None, // No speaker ID in this context
                                         ));
                                         tokens_to_decode.clear();
                                     }
@@ -346,7 +359,7 @@ impl Decoder {
                                     text,
                                     ((time_offset + prev_timestamp_s) * 1000.0) as u32,
                                     ((time_offset + segment_duration) * 1000.0) as u32,
-                                    None // No speaker ID in this context
+                                    None, // No speaker ID in this context
                                 ));
                             }
                         }
@@ -357,12 +370,15 @@ impl Decoder {
                         dr.text,
                         (time_offset * 1000.0) as u32,
                         ((time_offset + segment_duration) * 1000.0) as u32,
-                        None // No speaker ID in this context
+                        None, // No speaker ID in this context
                     ));
                 }
 
                 if self.decoder.verbose {
-                    println!("Processed segment at seek {}: {:?}", self.seek, dr);
+                    println!(
+                        "Processed segment at seek {}: text='{}', avg_logprob={}",
+                        self.seek, &dr.text, dr.avg_logprob
+                    );
                 }
 
                 if self.pending_chunks.is_empty() {
@@ -389,7 +405,9 @@ impl Decoder {
 }
 
 pub fn token_id(tokenizer: &Tokenizer, token: &str) -> candle_core::Result<u32> {
-    tokenizer.token_to_id(token).ok_or_else(|| candle_core::Error::Msg(format!("no token-id for {}", token)))
+    tokenizer
+        .token_to_id(token)
+        .ok_or_else(|| candle_core::Error::Msg(format!("no token-id for {}", token)))
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -424,7 +442,18 @@ enum WhichModel {
 
 impl WhichModel {
     fn is_multilingual(&self) -> bool {
-        matches!(self, Self::Tiny | Self::Base | Self::Small | Self::Medium | Self::Large | Self::LargeV2 | Self::LargeV3 | Self::LargeV3Turbo | Self::DistilLargeV2)
+        matches!(
+            self,
+            Self::Tiny
+                | Self::Base
+                | Self::Small
+                | Self::Medium
+                | Self::Large
+                | Self::LargeV2
+                | Self::LargeV3
+                | Self::LargeV3Turbo
+                | Self::DistilLargeV2
+        )
     }
 
     fn model_and_revision(&self) -> (&'static str, &'static str) {
@@ -496,7 +525,6 @@ struct Args {
     /// List available input devices.
     #[arg(long)]
     list_devices: bool,
-
 }
 
 pub fn record() -> Result<impl Stream<Item = Result<ConcreteTranscriptSegment>>> {
@@ -568,7 +596,10 @@ pub fn record() -> Result<impl Stream<Item = Result<ConcreteTranscriptSegment>>>
     let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
     let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
     let model = if args.quantized {
-        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(&weights_filename, &device)?;
+        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(
+            &weights_filename,
+            &device,
+        )?;
         Model::Quantized(m::quantized_model::Whisper::load(&vb, config.clone())?)
     } else {
         let tensors = candle_core::safetensors::load(&weights_filename, &device)?;
@@ -596,15 +627,24 @@ pub fn record() -> Result<impl Stream<Item = Result<ConcreteTranscriptSegment>>>
 
     let host = cpal::default_host();
     let audio_device = match args.device.as_ref() {
-        None => host.default_input_device().ok_or(anyhow::anyhow!("No default input device available. Run with --list-devices to see options."))?,
+        None => host.default_input_device().ok_or(anyhow::anyhow!(
+            "No default input device available. Run with --list-devices to see options."
+        ))?,
         Some(device_name) => host
             .input_devices()?
             .find(|d| d.name().map(|n| n == *device_name).unwrap_or(false))
-            .ok_or(anyhow::anyhow!("Input device '{}' not found. Run with --list-devices to see available devices.", device_name))?,
+            .ok_or(anyhow::anyhow!(
+                "Input device '{}' not found. Run with --list-devices to see available devices.",
+                device_name
+            ))?,
     };
     let audio_config = audio_device.default_input_config().map_err(|e| anyhow::anyhow!("Failed to get default input config for device '{}': {}. Run with --list-devices for details.", audio_device.name().unwrap_or("(unnamed)".to_string()), e))?;
     if args.verbose {
-        println!("Using audio device: {} with config {:?}", audio_device.name().unwrap_or("(unnamed)".to_string()), audio_config);
+        println!(
+            "Using audio device: {} with config {:?}",
+            audio_device.name().unwrap_or("(unnamed)".to_string()),
+            audio_config
+        );
     }
 
     let channel_count = audio_config.channels() as usize;
@@ -678,14 +718,17 @@ pub fn record() -> Result<impl Stream<Item = Result<ConcreteTranscriptSegment>>>
                 let chunk_size = 1024;
                 let full_chunks = self.buffered_pcm.len() / chunk_size;
                 let remainder = self.buffered_pcm.len() % chunk_size;
-                let mut resampled_pcm = Vec::with_capacity((self.buffered_pcm.len() as f64 * resample_ratio) as usize + chunk_size);
-                
+                let mut resampled_pcm = Vec::with_capacity(
+                    (self.buffered_pcm.len() as f64 * resample_ratio) as usize + chunk_size,
+                );
+
                 for chunk_idx in 0..full_chunks {
-                    let chunk = &self.buffered_pcm[chunk_idx * chunk_size..(chunk_idx + 1) * chunk_size];
+                    let chunk =
+                        &self.buffered_pcm[chunk_idx * chunk_size..(chunk_idx + 1) * chunk_size];
                     match resampler.process(&[chunk], None) {
                         Ok(pcm) => {
                             resampled_pcm.extend_from_slice(&pcm[0]);
-                        },
+                        }
                         Err(e) => return Poll::Ready(Some(Err(e.into()))),
                     }
                 }
@@ -704,7 +747,11 @@ pub fn record() -> Result<impl Stream<Item = Result<ConcreteTranscriptSegment>>>
             let mel_len = mel_vec.len();
             let mel = match Tensor::from_vec(
                 mel_vec,
-                (1, self.config.num_mel_bins, mel_len / self.config.num_mel_bins),
+                (
+                    1,
+                    self.config.num_mel_bins,
+                    mel_len / self.config.num_mel_bins,
+                ),
                 &self.device,
             ) {
                 Ok(m) => m,
@@ -713,21 +760,30 @@ pub fn record() -> Result<impl Stream<Item = Result<ConcreteTranscriptSegment>>>
 
             if !self.language_token_set {
                 let language_token = match (self.model_is_multilingual, self.language.clone()) {
-                    (true, None) => match fluent_voice_whisper::detect_language(&mut self.decoder.model, &self.tokenizer, &mel) {
-                        Ok((token, lang)) => {
+                    (true, None) => match fluent_voice_whisper::multilingual::detect_language(
+                        &mut self.decoder.model,
+                        &self.tokenizer,
+                        &mel,
+                    ) {
+                        Ok(result) => {
                             if self.verbose {
-                                println!("Detected language: {}", lang);
+                                println!("Detected language: {:?}", result);
                             }
-                            Some(token)
+                            Some(result) // Use token directly
                         }
-                        Err(e) => return Poll::Ready(Some(Err(e))),
+                        Err(e) => return Poll::Ready(Some(Err(anyhow::Error::from(e)))),
                     },
-                    (true, Some(lang)) => match token_id(&self.tokenizer, &format!("<|{}|>", lang)) {
+                    (true, Some(lang)) => match token_id(&self.tokenizer, &format!("<|{}|>", lang))
+                    {
                         Ok(token) => Some(token),
                         Err(e) => return Poll::Ready(Some(Err(e.into()))),
                     },
                     (false, None) => None,
-                    (false, Some(_)) => return Poll::Ready(Some(Err(anyhow::anyhow!("language cannot be set for non-multilingual models")))),
+                    (false, Some(_)) => {
+                        return Poll::Ready(Some(Err(anyhow::anyhow!(
+                            "language cannot be set for non-multilingual models"
+                        ))));
+                    }
                 };
                 self.decoder.set_language_token(language_token);
                 self.language_token_set = true;

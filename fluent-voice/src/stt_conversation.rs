@@ -1,4 +1,6 @@
 //! Live/batch transcription builder.
+use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use fluent_voice_domain::{
     language::Language,
     noise_reduction::NoiseReduction,
@@ -7,8 +9,6 @@ use fluent_voice_domain::{
     transcript::{TranscriptSegment, TranscriptStream},
     vad_mode::VadMode,
 };
-use core::future::Future;
-use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Engine-specific STT session object.

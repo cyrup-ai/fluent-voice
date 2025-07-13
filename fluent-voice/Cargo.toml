@@ -12,6 +12,10 @@ tokio-runtime = []
 wasm-runtime  = []
 std_async     = []
 simd          = []
+cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda", "candle-examples/cuda"]
+metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers/metal", "candle-examples/metal"]
+accelerate = ["candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate", "candle-examples/accelerate"]
+mkl = ["candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl", "candle-examples/mkl"]
 
 [dependencies]
 workspace-hack = { version = "0.1.0", path = "../workspace-hack" }
@@ -40,11 +44,11 @@ rubato = "0.16.2"
 rand = "0.9.1"
 rand_distr = "0.5.1"
 anyhow = "1.0.68"
-candle-core    = "0.9.1"
-candle-nn      = "0.9.1"
-candle-transformers = "0.9.1"
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-candle-examples = "0.9.1"
+candle-examples = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 byteorder = "1.5.0"
 hf-hub = "0.4.3"
 tokenizers = "0.21.2"

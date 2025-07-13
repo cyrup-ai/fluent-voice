@@ -72,7 +72,7 @@ impl ConcreteTranscriptSegment {
             speaker_id: speaker_id.map(std::borrow::Cow::Owned),
         }
     }
-    
+
     /// Create a new transcript segment with borrowed strings (zero-copy).
     #[inline]
     pub const fn new_borrowed(
@@ -91,7 +91,7 @@ impl ConcreteTranscriptSegment {
             },
         }
     }
-    
+
     /// Create an empty segment (useful for error recovery).
     #[inline]
     pub const fn empty() -> Self {
@@ -102,13 +102,13 @@ impl ConcreteTranscriptSegment {
             speaker_id: None,
         }
     }
-    
+
     /// Get the duration of this segment in milliseconds.
     #[inline]
     pub const fn duration_ms(&self) -> u32 {
         self.end_ms.saturating_sub(self.start_ms)
     }
-    
+
     /// Check if this segment contains actual speech content.
     #[inline]
     pub fn has_content(&self) -> bool {
@@ -121,17 +121,17 @@ impl TranscriptSegment for ConcreteTranscriptSegment {
     fn start_ms(&self) -> u32 {
         self.start_ms
     }
-    
+
     #[inline]
     fn end_ms(&self) -> u32 {
         self.end_ms
     }
-    
+
     #[inline]
     fn text(&self) -> &str {
         &self.text
     }
-    
+
     #[inline]
     fn speaker_id(&self) -> Option<&str> {
         self.speaker_id.as_deref()

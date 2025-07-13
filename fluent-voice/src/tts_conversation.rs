@@ -1,12 +1,12 @@
 //! Multi-speaker conversation builder for TTS.
+use core::future::Future;
+use fluent_voice_domain::VoiceError;
 use fluent_voice_domain::{
     audio_format::AudioFormat,
     language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},
     speaker::Speaker,
 };
-use core::future::Future;
-use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Engine-specific conversation object.

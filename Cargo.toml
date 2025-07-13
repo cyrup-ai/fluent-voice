@@ -9,7 +9,6 @@ members = [
     "fluent-voice",
     "macros",
     "livekit",
-    "candle/moshi",
     "kokoros/koko",
     "kokoros/kokoros",
     "openai",
@@ -29,6 +28,3 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/cyrup-ai/fluent-voice"
 authors = ["David Maple<david@cyrup.ai>"]
 
-[workspace.dependencies]
-cpal = "0.16.0"
-hound = "3"
