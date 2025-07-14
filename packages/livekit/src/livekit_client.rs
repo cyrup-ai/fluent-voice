@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use collections::HashMap;
+use std::collections::HashMap;
 use futures::{SinkExt, channel::mpsc};
 use playback::capture_local_video_track;
 use rustls_platform_verifier::ConfigVerifierExt;

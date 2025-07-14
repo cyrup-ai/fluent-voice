@@ -267,7 +267,7 @@ pub trait TtsConversationChunkBuilder: Sized + Send {
     ///     .synthesize_stream()
     ///     .await?;
     /// ```
-    fn synthesize_stream(self) -> impl Future<Output = Result<crate::stream_ext::AsyncStream<crate::audio_chunk::AudioChunk>, VoiceError>> + Send;
+    fn synthesize_stream(self) -> impl Future<Output = Result<crate::AsyncStream<crate::audio_chunk::AudioChunk>, VoiceError>> + Send;
 
     /// Execute synthesis and collect all chunks into a single result.
     ///

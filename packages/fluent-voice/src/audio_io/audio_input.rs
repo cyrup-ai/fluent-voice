@@ -1,4 +1,6 @@
 use anyhow::Result;
+
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::core::{
     audio::SampleBuffer, codecs::DecoderOptions, formats::FormatOptions, io::MediaSourceStream,
     meta::MetadataOptions, probe::Hint,
@@ -33,7 +35,8 @@ impl AudioInput {
         })
     }
 
-    /// Decode audio bytes using `symphonia`.
+    /// Decode audio bytes using `symphonia` (requires audio codec features).
+    #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let cursor = std::io::Cursor::new(bytes.to_vec());
         let mss = MediaSourceStream::new(Box::new(cursor), Default::default());
@@ -79,6 +82,12 @@ impl AudioInput {
             sample_rate,
             channels,
         })
+    }
+
+    /// Decode audio bytes using `symphonia` (disabled - requires audio codec features).
+    #[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
+    pub fn from_bytes(_bytes: &[u8]) -> Result<Self> {
+        Err(anyhow::anyhow!("Audio decoding requires one of: encodec, mimi, or snac features"))
     }
 
     /// Convert multi channel audio to mono by averaging channels.

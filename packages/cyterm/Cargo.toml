@@ -24,6 +24,11 @@ cpal                = "0.16.0"
 # ndarray             = "0.16" # in workspace-hack
 typed-builder       = "0.21"
 
+# Missing dependencies needed by src files
+rustfft             = "6.2"
+rand                = "0.8"
+anyhow              = "1.0"
+
 candle-core         = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 candle-nn           = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
@@ -35,6 +40,7 @@ pin-project         = "1.1"
 
 crossbeam-channel   = "0.5.15"
 crossbeam-utils     = "0.8.21"
+ndarray = "0.16.1"
 
 # log                 = "0.4.27" # in workspace-hack
 
@@ -49,9 +55,14 @@ tracing-chrome      = "0.7.2"
 tracing-subscriber  = "0.3.19"
 
 [features]
-default = []
+default = ["accelerate", "microphone"]
 # ML acceleration features - passed through to candle crates
 cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
 accelerate = ["candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]
 mkl = ["candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
+# Audio features
+microphone = []
+encodec = []
+mimi = []
+snac = []

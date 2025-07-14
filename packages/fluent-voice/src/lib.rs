@@ -53,6 +53,7 @@
 #[cfg(not(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl")))]
 compile_error!("At least one candle acceleration feature must be enabled: cuda, metal, accelerate, or mkl");
 
+// Note: Default features include "microphone" so this should not trigger
 #[cfg(all(not(feature = "microphone"), not(feature = "encodec"), not(feature = "mimi"), not(feature = "snac")))]
 compile_error!("At least one audio feature must be enabled: microphone, encodec, mimi, or snac");
 
@@ -124,6 +125,7 @@ pub mod prelude {
     /* shared */
     pub use crate::language::Language;
     pub use fluent_voice_domain::{AudioFormat, SpeechSource, VoiceError};
+    pub use crate::{AsyncStream, AsyncTask};
 
     /* TTS */
     pub use crate::{
@@ -131,7 +133,7 @@ pub mod prelude {
         model_id::ModelId,
         pitch_range::PitchRange,
         speaker_builder::SpeakerBuilder,
-        stream_ext::{TtsStreamExt, AsyncStream, AsyncTask},
+        stream_ext::TtsStreamExt,
         tts_conversation::{TtsConversation, TtsConversationBuilder, TtsConversationChunkBuilder, TtsConversationExt},
         tts_engine::TtsEngine,
         tts_settings::{Similarity, SpeakerBoost, Stability, StyleExaggeration},
@@ -195,3 +197,8 @@ pub mod prelude {
         voice_labels::{VoiceCategory, VoiceDetails, VoiceLabels, VoiceSettings, VoiceType},
     };
 }
+
+// Re-export at crate root for internal use
+pub use cyrup_sugars::{AsyncStream, AsyncTask};
+pub use transcript::{TranscriptSegment, TranscriptStream};
+pub use fluent_voice_whisper::TtsChunk;

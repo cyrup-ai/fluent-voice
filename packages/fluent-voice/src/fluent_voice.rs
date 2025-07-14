@@ -268,13 +268,13 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
     }
     fn previous_request_ids(
         self,
-        _request_ids: Vec<fluent_voice_domain::request_id::RequestId>,
+        _request_ids: Vec<crate::pronunciation_dict::RequestId>,
     ) -> Self {
         self
     }
     fn next_request_ids(
         self,
-        _request_ids: Vec<fluent_voice_domain::request_id::RequestId>,
+        _request_ids: Vec<crate::pronunciation_dict::RequestId>,
     ) -> Self {
         self
     }

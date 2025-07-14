@@ -978,7 +978,7 @@ dependencies = [
  "byteorder",
  "candle-core",
  "candle-nn",
- "hf-hub",
+ "hf-hub 0.4.3",
  "image",
  "memmap2",
  "parquet",
@@ -1967,6 +1967,7 @@ dependencies = [
 name = "cyterm"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "candle-core",
  "candle-datasets",
  "candle-nn",
@@ -1979,8 +1980,11 @@ dependencies = [
  "fluent_voice_whisper",
  "hound",
  "koffee",
+ "ndarray",
  "pin-project",
+ "rand 0.8.5",
  "ratatui",
+ "rustfft",
  "tokio-stream",
  "tracing-chrome",
  "tracing-subscriber",
@@ -2182,13 +2186,13 @@ dependencies = [
  "cyrup_sugars 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
  "derive_more",
  "dioxus",
- "dirs",
+ "dirs 6.0.0",
  "enterpolation",
  "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "gloo-timers",
  "half",
- "hf-hub",
+ "hf-hub 0.4.3",
  "hound",
  "image",
  "imageproc",
@@ -2580,6 +2584,15 @@ name = "directories"
 version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a49173b84e034382284f27f1af4dcbbd231ffa358c0fe316541a7337f376a35"
+dependencies = [
+ "dirs-sys 0.4.1",
+]
+
+[[package]]
+name = "dirs"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
 dependencies = [
  "dirs-sys 0.4.1",
 ]
@@ -2979,6 +2992,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-stream",
+ "clap",
  "core-foundation 0.10.1",
  "core-video",
  "coreaudio-rs 0.13.0",
@@ -3012,12 +3026,14 @@ dependencies = [
  "anyhow",
  "async-stream",
  "bindgen_cuda",
+ "byteorder",
  "candle-core",
  "candle-datasets",
  "candle-flash-attn",
  "candle-nn",
  "candle-onnx",
  "candle-transformers",
+ "clap",
  "cpal 0.16.0",
  "crossbeam",
  "crossbeam-channel",
@@ -3033,8 +3049,12 @@ dependencies = [
  "fluent_voice_domain",
  "fluent_voice_vad",
  "fluent_voice_whisper",
+ "futures",
  "futures-core",
+ "futures-util",
  "half",
+ "hf-hub 0.3.2",
+ "hound",
  "image",
  "imageproc",
  "intel-mkl-src",
@@ -3051,8 +3071,11 @@ dependencies = [
  "ringbuf",
  "rubato",
  "safetensors 0.6.0",
+ "serde",
+ "serde_json",
  "symphonia",
  "tokenizers",
+ "tokio",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
@@ -3136,16 +3159,21 @@ dependencies = [
  "gpui",
  "libwebrtc",
  "livekit",
+ "log",
  "nanoid",
  "objc2",
  "parking_lot",
  "postage",
  "raw-window-handle",
+ "rustls 0.23.29",
  "rustls-platform-verifier",
  "scap",
  "sha2",
  "simplelog",
+ "sugarloaf",
  "tokio",
+ "tokio-tungstenite 0.26.2",
+ "tracing",
  "wgpu",
 ]
 
@@ -3194,7 +3222,7 @@ dependencies = [
  "fluent_voice_domain",
  "futures-core",
  "half",
- "hf-hub",
+ "hf-hub 0.4.3",
  "hound",
  "image",
  "imageproc",
@@ -4039,11 +4067,28 @@ checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
 name = "hf-hub"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b780635574b3d92f036890d8373433d6f9fc7abb320ee42a5c25897fc8ed732"
+dependencies = [
+ "dirs 5.0.1",
+ "indicatif 0.17.11",
+ "log",
+ "native-tls",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "ureq 2.12.1",
+]
+
+[[package]]
+name = "hf-hub"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "629d8f3bbeda9d148036d6b0de0a3ab947abd08ce90626327fc3547a49d59d97"
 dependencies = [
- "dirs",
+ "dirs 6.0.0",
  "futures",
  "http 1.3.1",
  "indicatif 0.17.11",
@@ -4789,7 +4834,7 @@ dependencies = [
  "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "half",
- "hf-hub",
+ "hf-hub 0.4.3",
  "hound",
  "image",
  "imageproc",

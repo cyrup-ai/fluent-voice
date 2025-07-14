@@ -769,7 +769,7 @@ pub fn record() -> Result<impl Stream<Item = Result<ConcreteTranscriptSegment>>>
 
             if !self.language_token_set {
                 let language_token = match (self.model_is_multilingual, self.language.clone()) {
-                    (true, None) => match fluent_voice_whisper::multilingual::detect_language(
+                    (true, None) => match fluent_voice_whisper::detect_language(
                         &mut self.decoder.model,
                         &self.tokenizer,
                         &mel,

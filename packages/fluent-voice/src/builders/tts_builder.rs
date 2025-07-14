@@ -34,7 +34,7 @@ pub struct SpeakerLine {
 impl SpeakerLine {
     /// Start building a new speaker with the given name.
     pub fn speaker(name: impl Into<String>) -> SpeakerLineBuilder {
-        <SpeakerLineBuilder as crate::speaker_builder::SpeakerBuilder>::named(name)
+        <SpeakerLineBuilder as crate::speaker_builder::SpeakerBuilder>::speaker(name)
     }
 }
 
@@ -78,7 +78,7 @@ pub struct SpeakerLineBuilder {
 impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
     type Output = SpeakerLine;
 
-    fn named(name: impl Into<String>) -> Self {
+    fn speaker(name: impl Into<String>) -> Self {
         SpeakerLineBuilder {
             id: name.into(),
             text: String::new(),

@@ -1,0 +1,30 @@
+[package]
+name = "fluent-voice-kyutai"
+version = "0.1.0"
+edition = "2021"
+description = "Moshi language model implementation for fluent-voice using Kyutai research"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cyrup-ai/fluent-voice"
+
+[dependencies]
+# Latest candle from GitHub main branch
+candle-core = { git = "https://github.com/huggingface/candle.git", branch = "main" }
+candle-nn = { git = "https://github.com/huggingface/candle.git", branch = "main" }
+candle-transformers = { git = "https://github.com/huggingface/candle.git", branch = "main" }
+
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+anyhow = "1.0"
+tracing = "0.1"
+
+# Async support following user conventions
+cyrup-ai-async-task = { path = "../../workspace-hack" }
+
+[features]
+default = ["std"]
+cuda = ["candle-core/cuda", "candle-nn/cuda"]
+metal = ["candle-core/metal", "candle-nn/metal"]
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }
+nextest = "0.9"

@@ -28,7 +28,7 @@ fluent_voice_domain = { path = "../domain" }
 # tracing = "0.1.41" # in workspace-hack
 anyhow = "1.0.98"
 async-stream = "0.3.6"
-# clap = { version = "4.5.40", features = ["derive"] } # in workspace-hack
+clap = { version = "4.5.40", features = ["derive"] }
 futures = "0.3.31"
 # image = "0.25.6" # in workspace-hack
 # log = "0.4.27" # in workspace-hack

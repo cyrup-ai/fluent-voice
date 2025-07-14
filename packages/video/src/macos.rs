@@ -1,6 +1,6 @@
 use anyhow::Result;
 use core_foundation::{base::TCFType, data::CFData};
-use core_video::cv_buffer::{CVImageBuffer, CVPixelBuffer};
+use core_video::{CVImageBuffer, CVPixelBuffer};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 

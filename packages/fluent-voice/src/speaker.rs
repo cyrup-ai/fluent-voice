@@ -36,6 +36,6 @@ where
     T: Speaker,
 {
     fn speaker(name: impl Into<String>) -> impl crate::speaker_builder::SpeakerBuilder {
-        <crate::builders::SpeakerLineBuilder as SpeakerBuilder>::named(name)
+        <crate::builders::SpeakerLineBuilder as SpeakerBuilder>::speaker(name)
     }
 }

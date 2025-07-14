@@ -4,8 +4,7 @@
 //! using cyrup_sugars streaming patterns.
 
 use crate::audio_chunk::{AudioChunk, SynthesisChunk};
-use cyrup_sugars::async_stream::{AsyncStream, StreamExt as CyrupStreamExt};
-use cyrup_sugars::async_task::AsyncTask;
+use cyrup_sugars::{AsyncStream, AsyncTask, StreamExt as CyrupStreamExt};
 use fluent_voice_domain::VoiceError;
 
 /// Extension trait for TTS synthesis streams that provides chunk processing capabilities
@@ -44,7 +43,7 @@ pub trait TtsStreamExt<T>: Sized + 'static {
     fn filter_chunks<F>(self, f: F) -> AsyncStream<T>
     where
         F: FnMut(&T) -> bool + Send + 'static,
-        T: Clone + Send + 'static + cyrup_sugars::async_task::NotResult;
+        T: Clone + Send + 'static + cyrup_sugars::NotResult;
 
     /// Transform chunks to a different type.
     ///
@@ -52,7 +51,7 @@ pub trait TtsStreamExt<T>: Sized + 'static {
     fn map_chunks<U, F>(self, f: F) -> AsyncStream<U>
     where
         F: FnMut(T) -> U + Send + 'static,
-        U: Send + 'static + cyrup_sugars::async_task::NotResult;
+        U: Send + 'static + cyrup_sugars::NotResult;
 
     /// Tap into the stream for side effects without modifying the chunks.
     ///
@@ -60,7 +59,7 @@ pub trait TtsStreamExt<T>: Sized + 'static {
     fn tap_chunks<F>(self, f: F) -> AsyncStream<T>
     where
         F: FnMut(&T) + Send + 'static,
-        T: Clone + Send + 'static + cyrup_sugars::async_task::NotResult;
+        T: Clone + Send + 'static + cyrup_sugars::NotResult;
 }
 
 impl TtsStreamExt<SynthesisChunk> for AsyncStream<SynthesisChunk> {
@@ -105,7 +104,7 @@ impl TtsStreamExt<SynthesisChunk> for AsyncStream<SynthesisChunk> {
     fn map_chunks<U, F>(self, f: F) -> AsyncStream<U>
     where
         F: FnMut(SynthesisChunk) -> U + Send + 'static,
-        U: Send + 'static + cyrup_sugars::async_task::NotResult,
+        U: Send + 'static + cyrup_sugars::NotResult,
     {
         self.map_stream(f)
     }
@@ -155,7 +154,7 @@ impl TtsStreamExt<AudioChunk> for AsyncStream<AudioChunk> {
     fn map_chunks<U, F>(self, f: F) -> AsyncStream<U>
     where
         F: FnMut(AudioChunk) -> U + Send + 'static,
-        U: Send + 'static + cyrup_sugars::async_task::NotResult,
+        U: Send + 'static + cyrup_sugars::NotResult,
     {
         self.map_stream(f)
     }
@@ -192,6 +191,4 @@ macro_rules! on_chunk {
     };
 }
 
-/// Re-export cyrup_sugars types for convenience
-pub use cyrup_sugars::async_stream::AsyncStream;
-pub use cyrup_sugars::async_task::AsyncTask;
+

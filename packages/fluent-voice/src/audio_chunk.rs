@@ -211,5 +211,5 @@ impl From<Result<AudioChunk, VoiceError>> for SynthesisChunk {
 
 // Implement cyrup_sugars NotResult pattern
 // Both AudioChunk and SynthesisChunk can be used in AsyncStream/AsyncTask
-unsafe impl cyrup_sugars::async_task::NotResult for AudioChunk {}
-unsafe impl cyrup_sugars::async_task::NotResult for SynthesisChunk {}
+unsafe impl cyrup_sugars::NotResult for AudioChunk {}
+unsafe impl cyrup_sugars::NotResult for SynthesisChunk {}

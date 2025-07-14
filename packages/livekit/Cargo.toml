@@ -16,29 +16,39 @@ doctest = false
 name = "test_app"
 
 [features]
+default = ["microphone"]
 test-support = []
+# Audio features
+microphone = []
+encodec = []
+mimi = []
+snac = []
 
 [dependencies]
 fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 
-# tracing = "0.1.41" # in workspace-hack
+tracing = "0.1.41"
 anyhow = "1.0.98"
 cpal = "0.16.0"
 futures = "0.3.31"
 rustls-platform-verifier = "0.6"
+rustls = "0.23"
 # image = "0.25.6" # in workspace-hack
 # livekit-api = { version = "0.4.3", features = ["native-tls"] } # in workspace-hack
-# log = "0.4.27" # in workspace-hack
+log = "0.4.27"
 nanoid = "0.4.0"
 parking_lot = "0.12.4"
 postage = "0.5.0"
 # tokio = { version = "1.45.1", features = ["rt", "sync", "macros"] } # in workspace-hack
-# tokio-tungstenite = "0.26.2" # in workspace-hack
+tokio-tungstenite = "0.26.2"
 wgpu = "25.0.0"
 raw-window-handle = "0.6.2"
 tokio = "1.46.1"
 gpui = "0.1.0"
+sugarloaf = "0.2.20"
+core-video = "0.4.3"
+coreaudio-rs = "0.13.0"
 
 [target.'cfg(not(all(target_os = "windows", target_env = "gnu")))'.dependencies]
 libwebrtc = { git = "https://github.com/zed-industries/livekit-rust-sdks" }

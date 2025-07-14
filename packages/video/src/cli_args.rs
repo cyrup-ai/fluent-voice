@@ -3,7 +3,22 @@ use std::str::FromStr;
 use clap::{ArgGroup, Args, Parser, Subcommand};
 use thiserror::Error;
 use url::Url;
-use videocall_llllll::utils::FrameFormat;
+// Local definition of FrameFormat since original import was invalid
+#[derive(Debug, Clone, Copy)]
+pub enum FrameFormat {
+    NV12,
+    YUYV,
+    // BGRA, // commented out in original code
+}
+
+impl std::fmt::Display for FrameFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FrameFormat::NV12 => write!(f, "NV12"),
+            FrameFormat::YUYV => write!(f, "YUYV"),
+        }
+    }
+}
 
 /// Video Call CLI
 ///

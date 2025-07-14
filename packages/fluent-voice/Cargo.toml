@@ -7,7 +7,7 @@ repository = "https://github.com/cyrup-ai/fluent-voice"
 description = "Pure-trait fluent builder API for TTS & STT engines."
 
 [features]
-default       = ["metal"]
+default       = ["metal", "microphone"]
 tokio-runtime = []
 wasm-runtime  = []
 std_async     = []
@@ -39,15 +39,23 @@ koffee = { path = "../koffee" }
 dia = { path = "../dia" }
 cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", default-features = true }
 futures-core = "0.3.31"
+futures = "0.3.31"
+futures-util = "0.3.31"
+tokio = { version = "1.46.1", features = ["full"] }
+anyhow = "1.0.98"
+serde = { version = "1.0.219", features = ["derive"] }
 parking_lot = "0.12.4"
 derive_more = { version = "2.0.1", features = ["full"] }
 async-stream = "0.3.6"
-crossbeam = "0.8"
+crossbeam = "0.8.4"
 cpal = { version = "0.16.0", optional = true }
-rubato = { version = "0.16.2", optional = true }
+rubato = { version = "0.16.2", optional = true, features = ["fft_resampler"] }
 symphonia = { version = "0.5.4", optional = true }
+clap = { version = "4.5.41", features = ["derive"] }
 rand = "0.9.1"
 rand_distr = "0.5.1"
+hf-hub = "0.3"
+hound = "3.5"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tokenizers = "0.21.2"
 flate2 = "1.1.2"
@@ -56,6 +64,8 @@ crossbeam-utils = "0.8.21"
 ringbuf = "0.4.8"
 ndarray = "0.16.1"
 memmap2 = "0.9.7"
+serde_json = "1.0"
+byteorder = "1.4"
 
 # Optional acceleration dependencies
 half = { version = "2.6.0", optional = true }
@@ -76,6 +86,7 @@ candle-transformers = { git = "https://github.com/huggingface/candle", branch = 
 candle-flash-attn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
 candle-onnx = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
 candle-datasets = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+tracing = "0.1"
 
 [dev-dependencies]
 # tokio is in workspace-hack
