@@ -16,6 +16,17 @@ rustfft = "6.4.0"
 cpal = "0.16.0"
 crossterm = "0.29.0"
 image = "0.25.6"
+ratatui = { git = "https://github.com/ratatui/ratatui", branch = "main", features = ["crossterm"] }
+clap = { version = "4.5.41", features = ["derive"] }
+thiserror = "2.0.12"
+anyhow = "1.0"
+
+[features]
+default = ["microphone"]
+microphone = []
+encodec = []
+mimi = []
+snac = []
 
 [[bin]]
 path = "src/main.rs"

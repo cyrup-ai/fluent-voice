@@ -6,6 +6,26 @@
 //! Maintainers: there must be **no other resample helpers** in the tree.
 
 use anyhow::Result;
+
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
+pub fn to_24k_mono(_pcm: Vec<f32>, _sr_in: u32, _channels: usize) -> Result<Vec<f32>> {
+    Err(anyhow::anyhow!("to_24k_mono requires audio features"))
+}
+
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
+pub fn resample_mono(_input: &[f32], _sr_in: u32, _sr_out: u32) -> Result<Vec<f32>> {
+    Err(anyhow::anyhow!("resample_mono requires audio features"))
+}
 #[cfg(any(
     feature = "microphone",
     feature = "encodec",

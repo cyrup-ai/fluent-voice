@@ -13,12 +13,11 @@ use std::{
     io,
     time::{Duration, Instant},
 };
+use anyhow::Result;
 
 use crate::{
-    display::{
-        Dimension, DisplayMode, GraphConfig, oscillator::Oscillator, spectroscope::Spectrograph,
-        update_value_f, update_value_i, vector::vector,
-    },
+    display::{oscillator::Oscillator, spectroscope::Spectrograph},
+    oscillator::{Dimension, DisplayMode, GraphConfig, update_value_f, update_value_i, vector::Vector},
     input::{DataSource, Matrix},
 };
 
@@ -33,8 +32,8 @@ pub struct App {
     channels: u8,
     graph: GraphConfig,
     oscillator: Oscillator,
-    vector: vector,
-    spectroscope: Spectrograph,
+    vector: Vector,
+    spectrograph: Spectrograph,
     mode: CurrentDisplayMode,
 }
 
@@ -58,18 +57,17 @@ impl App {
             } else {
                 Marker::Braille
             },
-            bit_depth: source.bit_depth.unwrap_or(16), // Added bit_depth customization
         };
 
         let oscillator = Oscillator::default();
-        let vector = vector::default();
-        let spectrograph = Spectrograph::from(source);
+        let vector = Vector::default();
+        let spectrograph = Spectrograph::default();
 
         App {
             graph,
             oscillator,
             vector,
-            spectrograph: spectroscope,
+            spectrograph,
             mode: CurrentDisplayMode::Oscillator,
             channels: source.channels as u8,
         }
@@ -79,7 +77,7 @@ impl App {
         &mut self,
         mut source: Box<dyn DataSource<f64>>,
         terminal: &mut Terminal<T>,
-    ) -> Result<(), io::Error> {
+    ) -> Result<()> {
         let mut fps = 0;
         let mut framerate = 0;
         let mut last_poll = Instant::now();
@@ -110,7 +108,7 @@ impl App {
                     datasets.append(&mut self.current_display_mut().references(&graph));
                 }
                 datasets.append(&mut self.current_display_mut().process(&graph, &channels));
-                terminal.draw(|f| {
+                if let Err(e) = terminal.draw(|f| {
                     let mut size = f.area();
                     if self.graph.show_ui {
                         f.render_widget(
@@ -135,7 +133,9 @@ impl App {
                         .x_axis(self.current_display().axis(&self.graph, Dimension::X))
                         .y_axis(self.current_display().axis(&self.graph, Dimension::Y));
                     f.render_widget(chart, size)
-                })?;
+                }) {
+                    return Err(anyhow::anyhow!("Terminal draw error: {}", e));
+                }
             }
 
             while event::poll(Duration::from_millis(0))? {
@@ -153,20 +153,20 @@ impl App {
     fn current_display_mut(&mut self) -> &mut dyn DisplayMode {
         match self.mode {
             CurrentDisplayMode::Oscillator => &mut self.oscillator as &mut dyn DisplayMode,
-            CurrentDisplayMode::vector => &mut self.vector as &mut dyn DisplayMode,
-            CurrentDisplayMode::Spectrograph => &mut self.spectroscope as &mut dyn DisplayMode,
+            CurrentDisplayMode::Vector => &mut self.vector as &mut dyn DisplayMode,
+            CurrentDisplayMode::Spectrograph => &mut self.spectrograph as &mut dyn DisplayMode,
         }
     }
 
     fn current_display(&self) -> &dyn DisplayMode {
         match self.mode {
             CurrentDisplayMode::Oscillator => &self.oscillator as &dyn DisplayMode,
-            CurrentDisplayMode::vector => &self.vector as &dyn DisplayMode,
-            CurrentDisplayMode::Spectrograph => &self.spectroscope as &dyn DisplayMode,
+            CurrentDisplayMode::Vector => &self.vector as &dyn DisplayMode,
+            CurrentDisplayMode::Spectrograph => &self.spectrograph as &dyn DisplayMode,
         }
     }
 
-    fn process_events(&mut self, event: Event) -> Result<bool, io::Error> {
+    fn process_events(&mut self, event: Event) -> Result<bool> {
         let mut quit = false;
         if let Event::Key(key) = event {
             if let KeyModifiers::CONTROL = key.modifiers {
@@ -207,8 +207,8 @@ impl App {
                 KeyCode::Tab => {
                     // switch modes
                     match self.mode {
-                        CurrentDisplayMode::Oscillator => self.mode = CurrentDisplayMode::vector,
-                        CurrentDisplayMode::vector => self.mode = CurrentDisplayMode::Spectrograph,
+                        CurrentDisplayMode::Oscillator => self.mode = CurrentDisplayMode::Vector,
+                        CurrentDisplayMode::Vector => self.mode = CurrentDisplayMode::Spectrograph,
                         CurrentDisplayMode::Spectrograph => {
                             self.mode = CurrentDisplayMode::Oscillator
                         }

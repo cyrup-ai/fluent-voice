@@ -9,6 +9,7 @@ use candle_nn::VarBuilder;
 use candle_transformers::models::encodec;
 use hf_hub::api::sync::Api;
 use once_cell::sync::OnceCell;
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::core::{
     audio::{AudioBufferRef, Signal},
     codecs::DecoderOptions,
@@ -45,6 +46,7 @@ fn load_encodec(device: &Device) -> Result<&'static encodec::Model> {
 // ----------------------------------------------------------------------------
 // Public helper
 // ----------------------------------------------------------------------------
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 pub fn encode_wav(path: &str, device: &Device, compress: bool) -> Result<Tensor> {
     // 1) -------- Decode ----------------------------------------------------
     let file = std::fs::File::open(path).with_context(|| format!("open {path}"))?;
@@ -110,7 +112,13 @@ pub fn encode_wav(path: &str, device: &Device, compress: bool) -> Result<Tensor>
     Ok(codes)
 }
 
+#[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
+pub fn encode_wav(_path: &str, _device: &Device, _compress: bool) -> Result<Tensor> {
+    Err(anyhow::anyhow!("WAV encoding requires encodec, mimi, or snac features"))
+}
+
 // ------------ tiny generic helper ------------------------------------------
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 fn extend<T>(dst: &mut Vec<f32>, src: &[T])
 where
     T: Sample,

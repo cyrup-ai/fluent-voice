@@ -3,9 +3,15 @@
 /// Matrix data structure for storing multi-dimensional audio data
 pub type Matrix<T> = Vec<Vec<T>>;
 
+/// Data source trait for various input types
+pub trait DataSource<T> {
+    /// Receive data from the source
+    fn recv(&mut self) -> Option<Matrix<T>>;
+}
+
 /// Data source enumeration for various input types
 #[derive(Debug, Clone)]
-pub enum DataSource {
+pub enum DataSourceType {
     /// Microphone input
     Microphone,
     /// File input
@@ -16,20 +22,20 @@ pub enum DataSource {
     TestSignal,
 }
 
-impl Default for DataSource {
+impl Default for DataSourceType {
     fn default() -> Self {
-        DataSource::TestSignal
+        DataSourceType::TestSignal
     }
 }
 
-impl DataSource {
+impl DataSourceType {
     /// Get a human-readable name for the data source
     pub fn name(&self) -> &str {
         match self {
-            DataSource::Microphone => "Microphone",
-            DataSource::File(_) => "File",
-            DataSource::Network(_) => "Network",
-            DataSource::TestSignal => "Test Signal",
+            DataSourceType::Microphone => "Microphone",
+            DataSourceType::File(_) => "File",
+            DataSourceType::Network(_) => "Network",
+            DataSourceType::TestSignal => "Test Signal",
         }
     }
 }

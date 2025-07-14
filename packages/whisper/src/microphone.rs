@@ -14,6 +14,7 @@ use tokenizers::Tokenizer;
 
 use candle_transformers::models::whisper::{self as m, Config, audio};
 
+#[cfg(feature = "microphone")]
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 pub enum Model {
@@ -484,6 +485,7 @@ struct Args {
     device: Option<String>,
 }
 
+#[cfg(feature = "microphone")]
 pub fn record() -> Result<()> {
     use tracing_chrome::ChromeLayerBuilder;
     use tracing_subscriber::prelude::*;
@@ -496,7 +498,11 @@ pub fn record() -> Result<()> {
     } else {
         None
     };
-    let device = candle_examples::device(args.cpu)?;
+    let device = if args.cpu {
+        Device::Cpu
+    } else {
+        Device::new_metal(0).unwrap_or(Device::Cpu)
+    };
     let (default_model, default_revision) = if args.quantized {
         ("lmz/candle-whisper", "main")
     } else {
@@ -615,6 +621,7 @@ pub fn record() -> Result<()> {
     let mut buffered_pcm = vec![];
     let mut language_token_set = false;
     while let Ok(pcm) = rx.recv() {
+        #[cfg(feature = "microphone")]
         use rubato::Resampler;
 
         buffered_pcm.extend_from_slice(&pcm);
@@ -679,4 +686,9 @@ pub fn record() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(not(feature = "microphone"))]
+pub fn record() -> Result<()> {
+    Err(anyhow::anyhow!("Microphone recording requires microphone feature"))
 }

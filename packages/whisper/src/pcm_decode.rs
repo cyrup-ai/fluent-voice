@@ -1,7 +1,11 @@
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::core::audio::{AudioBufferRef, Signal};
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::core::conv::FromSample;
 
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 fn conv<T>(samples: &mut Vec<f32>, data: std::borrow::Cow<symphonia::core::audio::AudioBuffer<T>>)
 where
     T: symphonia::core::sample::Sample,
@@ -10,6 +14,7 @@ where
     samples.extend(data.chan(0).iter().map(|v| f32::from_sample(*v)))
 }
 
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 pub(crate) fn pcm_decode<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<(Vec<f32>, u32)> {
     // Open the media source.
     let src = std::fs::File::open(path)?;
@@ -71,4 +76,9 @@ pub(crate) fn pcm_decode<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<(
         }
     }
     Ok((pcm_data, sample_rate))
+}
+
+#[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
+pub(crate) fn pcm_decode<P: AsRef<std::path::Path>>(_path: P) -> anyhow::Result<(Vec<f32>, u32)> {
+    Err(anyhow::anyhow!("PCM decode requires encodec, mimi, or snac features"))
 }

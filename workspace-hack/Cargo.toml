@@ -24,10 +24,11 @@ bincode = { version = "2", features = ["serde"] }
 bitflags = { version = "2", default-features = false, features = ["serde"] }
 bytemuck = { version = "1", default-features = false, features = ["aarch64_simd", "derive", "extern_crate_alloc", "min_const_generics", "must_cast"] }
 bytes = { version = "1" }
-candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["metal"] }
-candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["metal"] }
-candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["metal"] }
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cudnn", "metal", "mkl"] }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cuda", "cudnn", "metal", "mkl"] }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cudnn", "flash-attn", "metal", "mkl"] }
 chrono = { version = "0.4", features = ["serde"] }
+compact_str = { version = "0.9", features = ["serde"] }
 crossbeam-queue = { version = "0.3" }
 crossbeam-utils = { version = "0.8" }
 derive_more = { version = "2", features = ["full"] }
@@ -42,7 +43,8 @@ getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-f
 hashbrown-3575ec1268b04181 = { package = "hashbrown", version = "0.15" }
 hashbrown-582f2526e08bb6a0 = { package = "hashbrown", version = "0.14" }
 image = { version = "0.25" }
-itertools = { version = "0.12" }
+itertools-582f2526e08bb6a0 = { package = "itertools", version = "0.14" }
+itertools-5ef9efb8ec2df382 = { package = "itertools", version = "0.12" }
 js-sys = { version = "0.3" }
 lock_api = { version = "0.4", features = ["nightly"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
@@ -113,7 +115,7 @@ futures-task = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
 getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 hashbrown-3575ec1268b04181 = { package = "hashbrown", version = "0.15" }
-itertools = { version = "0.12" }
+itertools-5ef9efb8ec2df382 = { package = "itertools", version = "0.12" }
 lock_api = { version = "0.4", features = ["nightly"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
 manganis-core = { git = "https://github.com/DioxusLabs/dioxus", branch = "main", default-features = false, features = ["dioxus"] }

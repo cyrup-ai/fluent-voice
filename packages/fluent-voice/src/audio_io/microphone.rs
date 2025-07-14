@@ -563,7 +563,11 @@ pub fn record() -> Result<impl Stream<Item = Result<ConcreteTranscriptSegment>>>
         return Ok(futures::stream::empty());
     }
 
-    let device = candle_examples::device(args.cpu)?;
+    let device = if args.cpu {
+        Device::Cpu
+    } else {
+        Device::new_metal(0).unwrap_or(Device::Cpu)
+    };
     let (default_model, default_revision) = if args.quantized {
         ("lmz/candle-whisper", "main")
     } else {

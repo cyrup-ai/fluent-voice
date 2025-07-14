@@ -1,6 +1,8 @@
 //! Symphonia loader  → f32 mono PCM
 
 use anyhow::{Context, Result};
+
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::{
     core::{
         audio::{AudioBufferRef, Signal},
@@ -15,6 +17,7 @@ use symphonia::{
     default,
 };
 
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 pub fn load(path: &str) -> Result<(Vec<f32>, u32)> {
     let file = std::fs::File::open(path)?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
@@ -73,10 +76,16 @@ pub fn load(path: &str) -> Result<(Vec<f32>, u32)> {
     Ok((pcm, sr))
 }
 
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 fn extend<T>(dst: &mut Vec<f32>, src: &[T])
 where
     T: Sample,
     f32: FromSample<T>,
 {
     dst.extend(src.iter().map(|s| f32::from_sample(*s)));
+}
+
+#[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
+pub fn load(_path: &str) -> Result<(Vec<f32>, u32)> {
+    Err(anyhow::anyhow!("PCM loading requires encodec, mimi, or snac features"))
 }

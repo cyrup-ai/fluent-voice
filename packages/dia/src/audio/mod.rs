@@ -57,15 +57,49 @@ pub fn pcm_decode(path: &str) -> Result<(Vec<f32>, u32)> {
 }
 
 /// Resample an arbitrary mono buffer to a new sample-rate.
+#[cfg(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+))]
 #[inline]
 pub fn resample_mono(input: &[f32], sr_in: u32, sr_out: u32) -> Result<Vec<f32>> {
     resample::resample_mono(input, sr_in, sr_out)
 }
 
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
+#[inline]
+pub fn resample_mono(_input: &[f32], _sr_in: u32, _sr_out: u32) -> Result<Vec<f32>> {
+    Err(anyhow::anyhow!("resample_mono requires audio features"))
+}
+
 /// Convenience: down-mix (if necessary) **and** resample to 24 kHz mono.
+#[cfg(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+))]
 #[inline]
 pub fn to_24k_mono(pcm: Vec<f32>, sr_in: u32, channels: usize) -> Result<Vec<f32>> {
     resample::to_24k_mono(pcm, sr_in, channels)
+}
+
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
+#[inline]
+pub fn to_24k_mono(_pcm: Vec<f32>, _sr_in: u32, _channels: usize) -> Result<Vec<f32>> {
+    Err(anyhow::anyhow!("to_24k_mono requires audio features"))
 }
 
 /// One-shot BS.1770 loudness normalisation helper – converts a `Tensor`

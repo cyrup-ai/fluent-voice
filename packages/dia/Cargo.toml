@@ -27,6 +27,7 @@ gloo-timers = { version = "0.3.0", optional = true }
 wasm-bindgen = { version = "0.2.100", optional = true }
 js-sys = { version = "0.3.77", optional = true }
 tokenizers = "0.21.2"
+tokio = { version = "1.44.1", features = ["full"] }
 tokio-stream = "0.1.17"
 crossterm = "0.29.0"
 dirs = "6.0.0"
@@ -41,12 +42,21 @@ sha2 = "0.10.9"
 reqwest = { version = "0.12.22", features = ["json"] }
 bincode = "2.0.1"
 tracing = "0.1.41"
+anyhow = "1.0"
+byteorder = "1.5.0"
+hf-hub = "0.4.3"
+serde_json = "1.0.140"
+hound = "3.5.1"
+# progresshub = "0.1.0"
+serde = { version = "1.0.219", features = ["derive"] }
+clap = { version = "4.5.41", features = ["derive"] }
+thiserror = "2.0.12"
 
 # Optional acceleration dependencies
 half = { version = "2.6.0", optional = true }
 
 # Optional ML/data dependencies
-image = { version = "0.25", optional = true }
+image = { version = "0.25.6", optional = true }
 num-traits = { version = "0.2", optional = true }
 palette = { version = "0.7.6", optional = true }
 enterpolation = { version = "0.3.0", optional = true }
@@ -92,9 +102,9 @@ name = "dia"
 path = "src/main.rs"
 
 [dev-dependencies]
-imageproc = "0.25"
-memmap2 = "0.9"
-ab_glyph = "0.2"
+imageproc = "0.25.0"
+memmap2 = "0.9.7"
+ab_glyph = "0.2.30"
 
 # OS-specific acceleration dependencies 
 [target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]

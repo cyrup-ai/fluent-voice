@@ -1,8 +1,6 @@
 /// Oscillator display component
 use crossterm::event::Event;
 use ratatui::{
-    style::Color,
-    symbols::Marker,
     widgets::{Axis, GraphType},
 };
 

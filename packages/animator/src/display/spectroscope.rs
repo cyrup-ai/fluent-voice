@@ -1,8 +1,6 @@
 /// Spectroscope display component for frequency domain visualization
 use crossterm::event::Event;
 use ratatui::{
-    style::Color,
-    symbols::Marker,
     widgets::{Axis, GraphType},
 };
 
