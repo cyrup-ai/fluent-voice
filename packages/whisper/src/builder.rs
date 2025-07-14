@@ -44,7 +44,7 @@ impl WhisperTranscriber {
     /// Transcribe speech from the given source using domain objects.
     pub async fn transcribe(&self, source: SpeechSource) -> Result<Transcript, VoiceError> {
         match source {
-            SpeechSource::File { path, format: _ } => {
+            SpeechSource::File { path: _, format: _ } => {
                 // TODO: Use existing whisper.rs inference engine
                 // TODO: Map result to Transcript domain object
                 todo!("Implement file transcription using existing whisper.rs")
@@ -56,14 +56,6 @@ impl WhisperTranscriber {
             } => {
                 // TODO: Implement real-time microphone transcription
                 todo!("Implement microphone transcription")
-            }
-            SpeechSource::Memory {
-                data: _,
-                format: _,
-                sample_rate: _,
-            } => {
-                // TODO: Implement memory buffer transcription
-                todo!("Implement memory buffer transcription")
             }
             SpeechSource::Memory {
                 data: _,

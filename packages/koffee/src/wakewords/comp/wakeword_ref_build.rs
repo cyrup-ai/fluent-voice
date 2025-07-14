@@ -3,6 +3,7 @@
 //---
 use std::{collections::HashMap, io::BufReader, path::Path, sync::Arc};
 
+#[cfg(feature = "rayon")]
 use rayon::prelude::*;
 use std::cmp::Ordering;
 
@@ -65,28 +66,49 @@ where
         return Err(BuilderError::Empty);
     }
 
-    // ---------- Parallel KFC extraction ---------------------------------
-    let par_iter = sample_map.par_iter();
-
+    // ---------- KFC extraction (parallel if rayon available) -----------
     let mut rms_levels = Vec::<f32>::with_capacity(sample_map.len());
-    let samples_features: HashMap<_, _> = par_iter
-        .map(|(name, bytes)| {
-            let mut rms = 0.0;
-            let feats = KfcWavFileExtractor::compute_kfcs(
-                BufReader::new(&bytes[..]),
-                &mut rms,
-                kfc_size, // Ensure correct type for kfc_size
-            )
-            .map_err(|e| BuilderError::Kfc(e.to_string()))?;
-            Ok::<_, BuilderError>((name.clone(), feats, rms))
-        })
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .map(|(n, f, r)| {
-            rms_levels.push(r);
-            (n, f)
-        })
-        .collect();
+    
+    #[cfg(feature = "rayon")]
+    let samples_features: HashMap<_, _> = {
+        let par_iter = sample_map.par_iter();
+        par_iter
+            .map(|(name, bytes)| {
+                let mut rms = 0.0;
+                let feats = KfcWavFileExtractor::compute_kfcs(
+                    BufReader::new(&bytes[..]),
+                    &mut rms,
+                    kfc_size, // Ensure correct type for kfc_size
+                )
+                .map_err(|e| BuilderError::Kfc(e.to_string()))?;
+                Ok::<_, BuilderError>((name.clone(), feats, rms))
+            })
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .map(|(n, f, r)| {
+                rms_levels.push(r);
+                (n, f)
+            })
+            .collect()
+    };
+    
+    #[cfg(not(feature = "rayon"))]
+    let samples_features: HashMap<_, _> = {
+        sample_map
+            .iter()
+            .map(|(name, bytes)| {
+                let mut rms = 0.0;
+                let feats = KfcWavFileExtractor::compute_kfcs(
+                    BufReader::new(&bytes[..]),
+                    &mut rms,
+                    kfc_size, // Ensure correct type for kfc_size
+                )
+                .map_err(|e| BuilderError::Kfc(e.to_string()))?;
+                rms_levels.push(rms);
+                Ok::<_, BuilderError>((name.clone(), feats))
+            })
+            .collect::<Result<HashMap<_, _>, _>>()?
+    };
 
     // ---------- Median RMS -----------------------------------------------
     rms_levels.sort_by(|a, b| a.total_cmp(b));

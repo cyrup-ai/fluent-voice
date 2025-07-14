@@ -38,7 +38,7 @@ postage = "0.5.0"
 # smallvec = "2.0.0-alpha.10" # in workspace-hack
 # tokio = { version = "1.45.1", features = ["rt", "sync", "macros"] } # in workspace-hack
 tracing-subscriber = "0.3.19"
-wgpu = "26.0.1"
+wgpu = "25.0.0"
 raw-window-handle = "0.6.2"
 thiserror = "2.0.12"
 url = "2.5.4"

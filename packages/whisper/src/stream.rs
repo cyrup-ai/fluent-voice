@@ -6,7 +6,7 @@ use std::task::{Context, Poll};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::types::TtsChunk;
-use fluent_voice_domain::{TranscriptStream, VoiceError};
+use fluent_voice_domain::VoiceError;
 
 /// Async stream of Whisper transcript chunks.
 ///
@@ -35,9 +35,7 @@ impl Stream for WhisperStream {
     }
 }
 
-// impl TranscriptStream for WhisperStream {
-//     type Segment = TtsChunk;
-// }
+// TranscriptStream is implemented via blanket impl for streams that yield TranscriptSegment
 
 // Ensure the stream is Unpin for TranscriptStream requirement
 impl Unpin for WhisperStream {}

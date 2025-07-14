@@ -1,6 +1,6 @@
 //! Symphonia loader  → f32 mono PCM
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::{

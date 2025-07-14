@@ -19,26 +19,84 @@ use rand::distr::Distribution;
 use rand::distr::weighted::WeightedIndex;
 use tokenizers::Tokenizer;
 
+#[cfg(feature = "microphone")]
 use crate::microphone::Model;
-use candle_transformers::models::whisper::{self as m, Config, audio};
+use candle_transformers::models::whisper::{self as m, Config};
 
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-struct DecodingResult {
-    tokens: Vec<u32>,
-    text: String,
-    avg_logprob: f64,
-    no_speech_prob: f64,
-    temperature: f64,
-    compression_ratio: f64,
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
+use candle_transformers::models::whisper::audio;
+
+#[cfg(not(feature = "microphone"))]
+pub enum Model {
+    Normal(m::model::Whisper),
+    Quantized(m::quantized_model::Whisper),
+}
+
+#[cfg(not(feature = "microphone"))]
+impl Model {
+    pub fn config(&self) -> &Config {
+        match self {
+            Self::Normal(model) => &model.config,
+            Self::Quantized(model) => &model.config,
+        }
+    }
+
+    pub fn encoder_forward(&mut self, mel: &Tensor, flush: bool) -> candle_core::Result<Tensor> {
+        match self {
+            Self::Normal(model) => model.encoder.forward(mel, flush),
+            Self::Quantized(model) => model.encoder.forward(mel, flush),
+        }
+    }
+
+    pub fn decoder_forward(
+        &mut self,
+        tokens: &Tensor,
+        audio_features: &Tensor,
+        flush: bool,
+    ) -> candle_core::Result<Tensor> {
+        match self {
+            Self::Normal(model) => model.decoder.forward(tokens, audio_features, flush),
+            Self::Quantized(model) => model.decoder.forward(tokens, audio_features, flush),
+        }
+    }
+
+    pub fn decoder_final_linear(&mut self, xs: &Tensor) -> candle_core::Result<Tensor> {
+        match self {
+            Self::Normal(model) => model.decoder.final_linear(xs),
+            Self::Quantized(model) => model.decoder.final_linear(xs),
+        }
+    }
+}
+
+fn device_helper(cpu: bool) -> Result<Device> {
+    if cpu {
+        Ok(Device::Cpu)
+    } else if candle_core::utils::metal_is_available() {
+        Ok(Device::new_metal(0)?)
+    } else if candle_core::utils::cuda_is_available() {
+        Ok(Device::new_cuda(0)?)
+    } else {
+        Ok(Device::Cpu)
+    }
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-struct Segment {
-    start: f64,
-    duration: f64,
-    dr: DecodingResult,
+pub(crate) struct DecodingResult {
+    pub(crate) tokens: Vec<u32>,
+    pub(crate) text: String,
+    pub(crate) avg_logprob: f64,
+    pub(crate) no_speech_prob: f64,
+    pub(crate) temperature: f64,
+    pub(crate) compression_ratio: f64,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub(crate) struct Segment {
+    pub(crate) start: f64,
+    pub(crate) duration: f64,
+    pub(crate) dr: DecodingResult,
 }
 
 struct Decoder {
@@ -444,11 +502,7 @@ fn main() -> Result<()> {
     } else {
         None
     };
-    let device = if args.cpu {
-        Device::Cpu
-    } else {
-        Device::new_metal(0).unwrap_or(Device::Cpu)
-    };
+    let _device = device_helper(args.cpu)?;
     let (default_model, default_revision) = if args.quantized {
         ("lmz/candle-whisper", "main")
     } else {
@@ -463,7 +517,7 @@ fn main() -> Result<()> {
         (None, None) => (default_model, default_revision),
     };
 
-    let (config_filename, tokenizer_filename, weights_filename, input) = {
+    let (config_filename, tokenizer_filename, _weights_filename, _input) = {
         let api = Api::new()?;
         let dataset = api.dataset("Narsil/candle-examples".to_string());
         let repo = api.repo(Repo::with_revision(model_id, RepoType::Model, revision));
@@ -499,7 +553,7 @@ fn main() -> Result<()> {
         (config, tokenizer, model, sample)
     };
     let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
-    let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
+    let _tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
 
     let mel_bytes = match config.num_mel_bins {
         80 => include_bytes!("melfilters.bytes").as_slice(),
@@ -509,20 +563,39 @@ fn main() -> Result<()> {
     let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
     <byteorder::LittleEndian as byteorder::ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
 
-    let (pcm_data, sample_rate) = crate::pcm_decode::pcm_decode(input)?;
-    if sample_rate != m::SAMPLE_RATE as u32 {
-        anyhow::bail!("input file must have a {} sampling rate", m::SAMPLE_RATE)
+    #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
+    {
+        let (pcm_data, sample_rate) = crate::pcm_decode::pcm_decode(input)?;
+        if sample_rate != m::SAMPLE_RATE as u32 {
+            anyhow::bail!("input file must have a {} sampling rate", m::SAMPLE_RATE)
+        }
+        println!("pcm data loaded {}", pcm_data.len());
+        let mel = audio::pcm_to_mel(&config, &pcm_data, &mel_filters);
+        let mel_len = mel.len();
+        let mel = Tensor::from_vec(
+            mel,
+            (1, config.num_mel_bins, mel_len / config.num_mel_bins),
+            &device,
+        )?;
+        println!("loaded mel: {:?}", mel.dims());
+        
+        process_audio(args, config, device, weights_filename, tokenizer, mel)
     }
-    println!("pcm data loaded {}", pcm_data.len());
-    let mel = audio::pcm_to_mel(&config, &pcm_data, &mel_filters);
-    let mel_len = mel.len();
-    let mel = Tensor::from_vec(
-        mel,
-        (1, config.num_mel_bins, mel_len / config.num_mel_bins),
-        &device,
-    )?;
-    println!("loaded mel: {:?}", mel.dims());
+    
+    #[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
+    {
+        Err(anyhow::anyhow!("Audio decoding requires one of: encodec, mimi, or snac features"))
+    }
+}
 
+fn process_audio(
+    args: Args,
+    config: Config,
+    device: Device,
+    weights_filename: std::path::PathBuf,
+    tokenizer: Tokenizer,
+    mel: Tensor,
+) -> Result<()> {
     let mut model = if args.quantized {
         let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(
             &weights_filename,

@@ -3,12 +3,17 @@
 //! Decode any common audio file, loudness-normalise, resample to 24 kHz mono
 //! and run it through Facebook EnCodec (24 kHz) – all on the chosen device.
 
-use anyhow::{Context, Result, anyhow};
-use candle_core::{DType, Device, Tensor};
-use candle_nn::VarBuilder;
-use candle_transformers::models::encodec;
-use hf_hub::api::sync::Api;
-use once_cell::sync::OnceCell;
+use anyhow::Result;
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
+use anyhow::{anyhow, Context};
+#[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
+use anyhow;
+use candle_core::{Device, Tensor};
+
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
+use crate::audio::{SAMPLE_RATE, normalize_loudness, to_24k_mono};
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
+use crate::model::load_encodec;
 #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::core::{
     audio::{AudioBufferRef, Signal},
@@ -21,27 +26,27 @@ use symphonia::core::{
     sample::Sample,
 };
 
-use crate::audio::{SAMPLE_RATE, normalize_loudness, to_24k_mono};
+// pcm_decode import removed - unused
 
 // ----------------------------------------------------------------------------
 // One-time EnCodec loader (mmap'ed safetensors → Model on CPU / CUDA / Metal).
 // ----------------------------------------------------------------------------
-static ENCODEC_MODEL: OnceCell<encodec::Model> = OnceCell::new();
+// static ENCODEC_MODEL: OnceCell<encodec::Model> = OnceCell::new();
 
-fn load_encodec(device: &Device) -> Result<&'static encodec::Model> {
-    ENCODEC_MODEL.get_or_try_init(|| {
-        let api = Api::new().context("initialising HF hub")?;
-        let weights = api
-            .model("facebook/encodec_24khz".to_string())
-            .get("model.safetensors")
-            .context("downloading EnCodec weights")?;
-        let vb = unsafe {
-            VarBuilder::from_mmaped_safetensors(&[weights], DType::F32, device)
-                .context("mmap EnCodec weights")?
-        };
-        encodec::Model::new(&encodec::Config::default(), vb).context("building EnCodec model")
-    })
-}
+// fn load_encodec(device: &Device) -> Result<&'static encodec::Model> {
+//     ENCODEC_MODEL.get_or_try_init(|| {
+//         let api = Api::new().context("initialising HF hub")?;
+//         let weights = api
+//             .model("facebook/encodec_24khz".to_string())
+//             .get("model.safetensors")
+//             .context("downloading EnCodec weights")?;
+//         let vb = unsafe {
+//             VarBuilder::from_mmaped_safetensors(&[weights], DType::F32, device)
+//                 .context("mmap EnCodec weights")?
+//         };
+//         encodec::Model::new(&encodec::Config::default(), vb).context("building EnCodec model")
+//     })
+// }
 
 // ----------------------------------------------------------------------------
 // Public helper

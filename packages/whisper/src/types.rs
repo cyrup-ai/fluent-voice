@@ -110,7 +110,6 @@ type.  Enabled with the crate feature `internal` so this public
 module remains decoupled from private implementation details.
 ---------------------------------------------------------------- */
 
-#[cfg(feature = "internal")]
 impl From<crate::whisper::Segment> for TtsChunk {
     fn from(seg: crate::whisper::Segment) -> Self {
         let start = seg.start;

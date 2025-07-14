@@ -1,11 +1,3 @@
-#![cfg_attr(feature = "simd", feature(portable_simd))]
-
-#[cfg(not(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl")))]
-compile_error!("At least one candle acceleration feature must be enabled: cuda, metal, accelerate, or mkl");
-
-#[cfg(all(not(feature = "microphone"), not(feature = "encodec"), not(feature = "mimi"), not(feature = "snac")))]
-compile_error!("At least one audio feature must be enabled: microphone, encodec, mimi, or snac");
-
 //! # Fluent Voice API
 //!
 //! Pure-trait fluent builder API for TTS & STT engines.
@@ -55,6 +47,14 @@ compile_error!("At least one audio feature must be enabled: microphone, encodec,
 //!     })
 //!     .await?;
 //! ```
+
+#![cfg_attr(feature = "simd", feature(portable_simd))]
+
+#[cfg(not(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl")))]
+compile_error!("At least one candle acceleration feature must be enabled: cuda, metal, accelerate, or mkl");
+
+#[cfg(all(not(feature = "microphone"), not(feature = "encodec"), not(feature = "mimi"), not(feature = "snac")))]
+compile_error!("At least one audio feature must be enabled: microphone, encodec, mimi, or snac");
 
 /* ───── shared fundamentals ───── */
 pub mod audio_chunk;

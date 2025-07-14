@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 // use progresshub::ModelDownloader;
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -19,8 +19,8 @@ pub struct ModelPaths {
 
 /// Set up models for inference by downloading them if needed
 pub async fn setup(
-    weights_path: Option<String>,
-    tokenizer_path: Option<String>,
+    _weights_path: Option<String>,
+    _tokenizer_path: Option<String>,
     _tx: mpsc::Sender<ProgressUpdate>,
 ) -> Result<ModelPaths> {
     // TODO: Implement model downloading without progresshub

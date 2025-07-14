@@ -42,7 +42,7 @@ use once_cell::sync::OnceCell;
 /// Lazily-initialised global EnCodec (24 kHz, f32 weights – ~15 MB).
 static ENCODEC: OnceCell<Arc<EncodecModel>> = OnceCell::new();
 
-fn load_encodec(device: &Device) -> candle_core::Result<&'static EncodecModel> {
+pub fn load_encodec(device: &Device) -> candle_core::Result<&'static EncodecModel> {
     ENCODEC
         .get_or_try_init(|| {
             use hf_hub::api::sync::Api;

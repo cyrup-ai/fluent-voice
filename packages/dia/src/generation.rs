@@ -35,8 +35,7 @@ use crate::{
 // Import optimizations for GPU acceleration
 #[cfg(any(feature = "cuda", feature = "metal"))]
 use crate::optimizations::{
-    self, GpuConfig, MemoryPool,
-    benchmark::{Timer, log_gpu_memory},
+    GpuConfig, MemoryPool,
     channel_delay_gpu, get_compute_dtype, get_optimal_config,
 };
 
@@ -143,11 +142,11 @@ pub struct DiaTts {
     cfg: DiaConfig,
     device: Device,
     #[cfg(any(feature = "cuda", feature = "metal"))]
-    gpu_config: GpuConfig,
+    _gpu_config: GpuConfig,
     #[cfg(any(feature = "cuda", feature = "metal"))]
-    memory_pool: MemoryPool,
+    _memory_pool: MemoryPool,
     #[cfg(any(feature = "cuda", feature = "metal"))]
-    compute_dtype: DType,
+    _compute_dtype: DType,
 }
 
 impl DiaTts {
@@ -175,11 +174,11 @@ impl DiaTts {
             cfg,
             device,
             #[cfg(any(feature = "cuda", feature = "metal"))]
-            gpu_config,
+            _gpu_config: gpu_config,
             #[cfg(any(feature = "cuda", feature = "metal"))]
-            memory_pool,
+            _memory_pool: memory_pool,
             #[cfg(any(feature = "cuda", feature = "metal"))]
-            compute_dtype,
+            _compute_dtype: compute_dtype,
         }
     }
 

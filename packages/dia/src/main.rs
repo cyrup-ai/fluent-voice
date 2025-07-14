@@ -40,7 +40,7 @@ use std::{
 use tokenizers::Tokenizer;
 use tokio;
 
-use crate::{
+use dia::{
     app::{App, ProgressUpdate},
     audio::{SAMPLE_RATE, channel_delay, normalize_loudness, play_pcm, write_pcm_as_wav},
     codec::encode_wav, // optional audio-prompt support
@@ -51,8 +51,7 @@ use crate::{
 
 // Import optimizations when GPU features are enabled
 #[cfg(any(feature = "cuda", feature = "metal"))]
-use dia_voice::optimizations::{
-    benchmark::{Timer, log_gpu_memory},
+use dia::optimizations::{
     channel_delay_gpu,
 };
 
