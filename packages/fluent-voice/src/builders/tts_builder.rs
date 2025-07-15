@@ -3,7 +3,6 @@
 //! This module provides a non-macro implementation of the TTS conversation builder
 //! that can be used as a base for engine-specific implementations.
 
-use crate::speaker::Speaker;
 use crate::tts_conversation::{TtsConversation, TtsConversationBuilder};
 use core::future::Future;
 use fluent_voice_domain::VoiceError;
@@ -38,7 +37,7 @@ impl SpeakerLine {
     }
 }
 
-impl Speaker for SpeakerLine {
+impl crate::speaker::Speaker for SpeakerLine {
     fn id(&self) -> &str {
         &self.id
     }
@@ -413,7 +412,7 @@ where
 {
     type Conversation = TtsConversationImpl<AudioStream>;
 
-    fn with_speaker<S: Speaker>(self, speaker: S) -> Self {
+    fn with_speaker<S: fluent_voice_domain::Speaker>(self, speaker: S) -> Self {
         // Convert any Speaker to our concrete SpeakerLine
         let speaker_line = SpeakerLine {
             id: speaker.id().to_string(),
@@ -513,6 +512,21 @@ where
         self
     }
 
+    type ChunkBuilder = Self; // For now, same type handles chunk processing
+
+    fn on_chunk<F>(self, _processor: F) -> Self::ChunkBuilder
+    where
+        F: FnMut(
+                Result<crate::audio_chunk::AudioChunk, VoiceError>,
+            ) -> crate::audio_chunk::AudioChunk
+            + Send
+            + 'static,
+    {
+        // For now, return self since we're using the same type
+        // A full implementation would store the processor function
+        self
+    }
+
     fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
     where
         F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
@@ -537,6 +551,44 @@ where
                 synth_fn: self.synth_fn,
             };
             matcher(Ok(conversation))
+        }
+    }
+}
+
+impl<AudioStream> crate::tts_conversation::TtsConversationChunkBuilder for TtsConversationBuilderImpl<AudioStream>
+where
+    AudioStream: Stream<Item = i16> + Send + Unpin + 'static,
+{
+    type Conversation = TtsConversationImpl<AudioStream>;
+
+    fn synthesize_stream(
+        self,
+    ) -> impl Future<Output = Result<crate::AsyncStream<crate::audio_chunk::AudioChunk>, fluent_voice_domain::VoiceError>>
+    + Send {
+        async move {
+            let conversation = TtsConversationImpl {
+                lines: self.lines,
+                global_language: self.global_language,
+                global_speed: self.global_speed,
+                model: self.model,
+                stability: self.stability,
+                similarity: self.similarity,
+                speaker_boost: self.speaker_boost,
+                style_exaggeration: self.style_exaggeration,
+                output_format: self.output_format,
+                pronunciation_dictionaries: self.pronunciation_dictionaries,
+                seed: self.seed,
+                previous_text: self.previous_text,
+                next_text: self.next_text,
+                previous_request_ids: self.previous_request_ids,
+                next_request_ids: self.next_request_ids,
+                synth_fn: self.synth_fn,
+            };
+            
+            // Convert the TTS conversation to an audio stream and then to AudioChunk stream
+            let audio_stream = conversation.into_stream();
+            let chunk_stream = crate::async_stream_helpers::audio_stream_to_chunk_stream(audio_stream);
+            Ok(chunk_stream)
         }
     }
 }

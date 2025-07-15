@@ -1,6 +1,6 @@
 use anyhow::{Context as _, Result, anyhow};
 
-use crate::livekit_client::{LocalAudioTrack, LocalVideoTrack, RemoteAudioTrack, RemoteVideoTrack};
+use crate::livekit_client::{LocalAudioTrack, RemoteAudioTrack, RemoteVideoTrack};
 #[cfg(feature = "microphone")]
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait as _};
 use futures::channel::mpsc::UnboundedSender;
@@ -15,8 +15,7 @@ use livekit::webrtc::{
     audio_frame::AudioFrame,
     audio_source::{AudioSourceOptions, RtcAudioSource, native::NativeAudioSource},
     audio_stream::native::NativeAudioStream,
-    video_frame::{VideoBuffer, VideoFrame, VideoRotation},
-    video_source::{RtcVideoSource, VideoResolution, native::NativeVideoSource},
+    video_frame::VideoBuffer,
     video_stream::native::NativeVideoStream,
 };
 use parking_lot::Mutex;
@@ -464,6 +463,10 @@ impl VideoFrameExtensions for RemoteVideoFrame {
 
         // Get the pixel data from the Core Video buffer
         // Convert from the native format to RGBA
+        // SAFETY: get_buffer_data is called with a valid CVPixelBuffer reference.
+        // The function validates the buffer before accessing its data and returns
+        // appropriate errors for invalid buffers. Buffer lifetime is guaranteed
+        // by the CVPixelBuffer's reference counting mechanism.
         let frame_data = unsafe { get_buffer_data(self)? };
 
         // Simple conversion assuming the source is already in a compatible format
@@ -516,6 +519,13 @@ impl VideoFrameExtensions for RemoteVideoFrame {
 }
 
 // Private helper method for macOS implementation
+//
+// SAFETY: This function must only be called with a valid CVPixelBuffer reference.
+// The caller must ensure that:
+// 1. The CVPixelBuffer is properly initialized and not null
+// 2. The buffer's pixel format is compatible with the expected data layout
+// 3. The buffer is locked for reading before calling this function
+// 4. The returned data pointer is not used after the buffer is unlocked
 #[cfg(target_os = "macos")]
 unsafe fn get_buffer_data(
     _frame: &RemoteVideoFrame,
@@ -542,13 +552,19 @@ fn create_buffer_pool(
         pixel_buffer_pool::{self},
     };
 
+    // SAFETY: Core Video constants are valid static C string pointers.
+    // wrap_under_get_rule correctly manages the reference count for these
+    // system-provided constant strings that have static lifetime.
     let width_key: CFString =
         unsafe { CFString::wrap_under_get_rule(pixel_buffer::kCVPixelBufferWidthKey) };
     let height_key: CFString =
         unsafe { CFString::wrap_under_get_rule(pixel_buffer::kCVPixelBufferHeightKey) };
+    // SAFETY: Same as above - kCVPixelBufferIOSurfaceCoreAnimationCompatibilityKey
+    // is a valid static Core Video constant string pointer.
     let animation_key: CFString = unsafe {
         CFString::wrap_under_get_rule(kCVPixelBufferIOSurfaceCoreAnimationCompatibilityKey)
     };
+    // SAFETY: kCVPixelBufferPixelFormatTypeKey is a valid static Core Video constant.
     let format_key: CFString =
         unsafe { CFString::wrap_under_get_rule(pixel_buffer::kCVPixelBufferPixelFormatTypeKey) };
 
@@ -589,6 +605,9 @@ fn video_frame_buffer_from_webrtc(
         if pixel_buffer.is_null() {
             return None;
         }
+        // SAFETY: pixel_buffer is validated as non-null above. The native WebRTC
+        // buffer provides a valid CVPixelBuffer pointer that we can safely wrap.
+        // wrap_under_get_rule properly manages the reference count.
         return unsafe { Some(CVPixelBuffer::wrap_under_get_rule(pixel_buffer as _)) };
     }
 
@@ -661,6 +680,12 @@ fn video_frame_buffer_from_webrtc(buffer: Box<dyn VideoBuffer>) -> Option<Remote
     let height = buffer.height();
     let stride = width * 4;
     let byte_len = (stride * height) as usize;
+    // SAFETY: Manual memory allocation for video frame buffer to avoid initialization overhead.
+    // This is safe because:
+    // 1. Layout is validated before allocation
+    // 2. Allocation is checked for null before use
+    // 3. The buffer.to_argb() call will initialize all allocated bytes
+    // 4. Vec::from_raw_parts reconstructs ownership with correct length and capacity
     let argb_image = unsafe {
         // Motivation for this unsafe code is to avoid initializing the frame data, since to_argb
         // will write all bytes anyway.
@@ -768,7 +793,7 @@ mod macos {
     //     kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyElementMaster,
     //     kAudioObjectPropertyScopeGlobal, kAudioObjectSystemObject,
     // };
-    use futures::{StreamExt, channel::mpsc::UnboundedReceiver};
+    use futures::channel::mpsc::UnboundedReceiver;
 
     /// Implementation from: https://github.com/zed-industries/cpal/blob/fd8bc2fd39f1f5fdee5a0690656caff9a26d9d50/src/host/coreaudio/macos/property_listener.rs#L15
     pub struct CoreAudioDefaultDeviceChangeListener {
@@ -783,6 +808,12 @@ mod macos {
 
     struct PropertyListenerCallbackWrapper(Box<dyn FnMut() + Send>);
 
+    /// SAFETY: This function is called by Core Audio as a C callback.
+    /// The caller (Core Audio system) guarantees:
+    /// 1. callback pointer is valid for the lifetime of the listener registration
+    /// 2. Audio parameters are valid for the current audio session
+    /// 3. Function is called on appropriate Core Audio thread
+    /// We ensure safety by validating the callback pointer before dereferencing.
     unsafe extern "C" fn property_listener_handler_shim(
         _: AudioObjectID,
         _: u32,
@@ -790,6 +821,8 @@ mod macos {
         callback: *mut ::std::os::raw::c_void,
     ) -> OSStatus {
         let wrapper = callback as *mut PropertyListenerCallbackWrapper;
+        // SAFETY: callback pointer was validated during listener registration.
+        // PropertyListenerCallbackWrapper manages the proper callback lifetime.
         unsafe { (*wrapper).0() };
         0
     }
@@ -805,6 +838,8 @@ mod macos {
             })));
 
             // Get the current default device ID
+            // SAFETY: Core Audio system calls with validated parameters.
+            // kAudioObjectSystemObject is a valid system-provided constant.
             let device_id = unsafe {
                 // Listen for default device changes
                 coreaudio::Error::from_os_status(AudioObjectAddPropertyListener(

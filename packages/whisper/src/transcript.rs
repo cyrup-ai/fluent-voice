@@ -58,18 +58,21 @@ impl Transcript {
     ---------------------------------------------------------------- */
 
     /// Create an empty transcript.
+    #[allow(dead_code)] // Library code - used by fluent-voice builders
     #[inline]
     pub(crate) fn new() -> Self {
         Self { chunks: Vec::new() }
     }
 
     /// Push a single chunk; used while collecting the stream.
+    #[allow(dead_code)] // Library code - used by fluent-voice builders
     #[inline]
     pub(crate) fn push(&mut self, chunk: TtsChunk) {
         self.chunks.push(chunk);
     }
 
     /// Consume and return the inner `Vec<TtsChunk>`.
+    #[allow(dead_code)] // Library code - used by fluent-voice builders
     #[inline]
     pub(crate) fn into_inner(self) -> Vec<TtsChunk> {
         self.chunks

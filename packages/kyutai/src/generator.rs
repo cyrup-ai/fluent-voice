@@ -6,7 +6,7 @@ use candle_transformers::generation::LogitsProcessor;
 use std::sync::Arc;
 
 /// Generator trait for Moshi models.
-pub trait Generator {
+pub trait Generator: std::fmt::Debug {
     fn generate(&mut self, prompt: &Tensor, max_length: usize) -> Result<Tensor>;
     fn reset(&mut self);
 }
@@ -17,6 +17,17 @@ pub struct BasicGenerator {
     mimi: Arc<Mimi>,
     device: Device,
     logits_processor: LogitsProcessor,
+}
+
+impl std::fmt::Debug for BasicGenerator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BasicGenerator")
+            .field("model", &self.model)
+            .field("mimi", &self.mimi)
+            .field("device", &self.device)
+            .field("logits_processor", &"LogitsProcessor { ... }")
+            .finish()
+    }
 }
 
 impl BasicGenerator {
@@ -37,11 +48,13 @@ impl Generator for BasicGenerator {
 
         for _ in 0..max_length {
             let logits = self.model.forward(Some(generated.clone()), vec![])?.0;
-            let token = self
+            // Get the last token's logits from the sequence
+            let last_token_logits = logits.narrow(1, logits.dim(1)? - 1, 1)?.squeeze(1)?;
+            let token_id = self
                 .logits_processor
-                .sample(&logits.i((0, logits.dim(1)? - 1))?)?;
-            let token_tensor = Tensor::new(token, &self.device)?
-                .unsqueeze(0)?
+                .sample(&last_token_logits as &candle::Tensor)
+                .map_err(|e| crate::error::MoshiError::Generation(format!("Sampling error: {}", e)))?;
+            let token_tensor = Tensor::new(&[token_id], &self.device)?
                 .unsqueeze(0)?;
             generated = Tensor::cat(&[generated, token_tensor], 1)?;
         }

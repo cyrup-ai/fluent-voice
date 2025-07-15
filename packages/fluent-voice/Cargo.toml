@@ -29,6 +29,8 @@ encodec = ["dep:cpal", "dep:symphonia", "dep:rubato"]
 mimi = ["dep:cpal", "dep:symphonia", "dep:rubato"]
 snac = ["dep:cpal", "dep:symphonia", "dep:rubato"]
 depth_anything_v2 = ["dep:palette", "dep:enterpolation"]
+hashbrown-json = ["cyrup_sugars/hashbrown-json"]
+crossbeam-async = ["dep:crossbeam"]
 
 [dependencies]
 fluent-voice-workspace-hack = { path = "../../workspace-hack" }
@@ -47,7 +49,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 parking_lot = "0.12.4"
 derive_more = { version = "2.0.1", features = ["full"] }
 async-stream = "0.3.6"
-crossbeam = "0.8.4"
+crossbeam = { version = "0.8.4", optional = true }
 cpal = { version = "0.16.0", optional = true }
 rubato = { version = "0.16.2", optional = true, features = ["fft_resampler"] }
 symphonia = { version = "0.5.4", optional = true }

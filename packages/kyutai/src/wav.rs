@@ -2,7 +2,7 @@
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
 use crate::error::{MoshiError, Result};
@@ -73,7 +73,7 @@ pub fn write_pcm_as_wav<P: AsRef<Path>, S: AsRef<[f32]>>(
 
     // Write samples as i16
     for &sample in samples {
-        let i16_sample = ((sample.clamp(-1.0, 1.0) * 32767.0) as i16);
+        let i16_sample = (sample.clamp(-1.0, 1.0) * 32767.0) as i16;
         file.write_i16::<LittleEndian>(i16_sample)
             .map_err(|e| MoshiError::Io(e.into()))?;
     }

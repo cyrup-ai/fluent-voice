@@ -1,146 +1,51 @@
-# TODO: Add cyrup_sugars JSON Object Syntax
+# Domain-Builder Decoupling TODO
 
-## 🎯 USER OBJECTIVE
-Add cyrup_sugars hashbrown-json feature to enable JSON object syntax `{"key" => "value"}` in fluent-voice builders. Everything else already exists and works.
+## Phase 1: Extract Builder Traits from Domain
+- [ ] Move TtsConversationBuilder trait from domain to fluent-voice package. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving TtsConversationBuilder trait against requirements for clean decoupling and minimal surgical changes
+- [ ] Move TtsConversationChunkBuilder trait from domain to fluent-voice package. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving TtsConversationChunkBuilder trait against requirements for eliminating coupling and scope adherence
+- [ ] Move SttConversationBuilder trait from domain to fluent-voice package. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving SttConversationBuilder trait against requirements for clean architectural separation and minimal changes
+- [ ] Move all *Builder traits (MicrophoneBuilder, TranscriptionBuilder, etc.) from domain to fluent-voice. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving all builder traits against requirements for complete decoupling and surgical precision
 
-## 📋 MINIMAL TASKS
+## Phase 2: Remove Concrete Implementations from Domain
+- [ ] Move DefaultWakeWordDetector from domain to fluent-voice package. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving DefaultWakeWordDetector against requirements for pure domain abstractions and minimal scope changes
+- [ ] Move DefaultWakeWordBuilder from domain to fluent-voice package. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving DefaultWakeWordBuilder against requirements for eliminating concrete implementations from domain
+- [ ] Remove FluentVoiceImpl from domain package (move to fluent-voice if needed). DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on removing FluentVoiceImpl against requirements for pure domain abstractions and minimal changes
 
-### 1. Enable hashbrown-json feature in cyrup_sugars dependency
-**File:** `fluent-voice/packages/fluent-voice/Cargo.toml`
-**Line:** 31 (cyrup_sugars dependency)
-**Changes:** 
-- Change `cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", default-features = true }`
-- To `cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", features = ["hashbrown-json"] }`
+## Phase 3: Purify Domain FluentVoice Trait
+- [ ] Remove all `impl XxxBuilder` return types from domain FluentVoice trait. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on removing builder return types against requirements for eliminating circular dependencies and scope adherence
+- [ ] Convert domain FluentVoice trait to pure abstraction without builder references. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on purifying FluentVoice trait against requirements for clean domain abstractions and minimal surgical changes
+- [ ] Remove all TtsConversationExt, SttConversationExt references from domain. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on removing conversation extensions against requirements for domain purity and scope boundary compliance
 
-DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+## Phase 4: Update Fluent-Voice Package Structure
+- [ ] Create comprehensive builder module in fluent-voice with all moved builder traits. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on creating builder module against requirements for complete functionality and minimal changes
+- [ ] Implement FluentVoice trait in fluent-voice with concrete builder return types. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on implementing FluentVoice trait against requirements for proper concrete implementations and scope adherence
+- [ ] Update fluent-voice lib.rs exports to include all builder traits and implementations. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on updating exports against requirements for complete API exposure and minimal changes
 
-### 2. QA: Verify hashbrown-json feature enablement
-Act as an Objective QA Rust developer. Rate the work performed previously on enabling hashbrown-json feature. Verify that:
-- Feature is correctly specified in Cargo.toml
-- Dependency still points to correct repository
-- No other dependencies were modified unnecessarily
-- Feature enables JSON object syntax capabilities
+## Phase 5: Clean Domain Package
+- [ ] Remove builders module from domain package completely. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on removing builders module against requirements for pure domain package and surgical precision
+- [ ] Update domain lib.rs to export only pure domain types (no builder references). DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on cleaning domain exports against requirements for pure abstractions and scope compliance
+- [ ] Verify domain package has zero dependencies on builder concepts. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on verifying zero builder dependencies against requirements for complete decoupling and minimal scope
 
-### 3. Add JSON config method to TtsConversationBuilder
-**File:** `fluent-voice/packages/fluent-voice/src/builders/tts_builder.rs`
-**Lines:** Add new method to TtsConversationBuilderImpl impl block
-**Changes:**
-- Add `engine_config<F>(self, f: F) -> Self where F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>`
-- Store config in internal HashMap field
-- Route to engine during synthesis
-
-DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-
-### 4. QA: Verify TTS JSON configuration method
-Act as an Objective QA Rust developer. Rate the work performed previously on TTS JSON configuration. Verify that:
-- Method signature accepts hashbrown::HashMap closure
-- Implementation stores configuration properly
-- Method maintains fluent builder pattern
-- No unwrap() or expect() calls in implementation
-
-### 5. Add JSON config method to SttConversationBuilder
-**File:** `fluent-voice/packages/fluent-voice/src/builders/stt_builder.rs`
-**Lines:** Add new method to SttConversationBuilderImpl impl block
-**Changes:**
-- Add `engine_config<F>(self, f: F) -> Self where F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>`
-- Store config in internal HashMap field
-- Route to engine during listening
-
-DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-
-### 6. QA: Verify STT JSON configuration method
-Act as an Objective QA Rust developer. Rate the work performed previously on STT JSON configuration. Verify that:
-- JSON config method is properly implemented
-- Configuration routing works correctly
-- Method integrates with existing builder pattern
-- No blocking operations introduced
-
-### 7. Add JSON config methods to SpeakerBuilder
-**File:** `fluent-voice/packages/fluent-voice/src/builders/tts_builder.rs`
-**Lines:** Add methods to SpeakerLineBuilder impl block
-**Changes:**
-- Add `metadata<F>(self, f: F) -> Self where F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>`
-- Add `vocal_settings<F>(self, f: F) -> Self where F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>`
-- Store in HashMap fields
-
-DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-
-### 8. QA: Verify SpeakerBuilder JSON methods
-Act as an Objective QA Rust developer. Rate the work performed previously on SpeakerBuilder JSON methods. Verify that:
-- Methods follow cyrup_sugars patterns correctly
-- Configuration is stored properly
-- Integration with speaker system works
-- Type safety is maintained
-
-### 9. Update TTS example with JSON syntax
-**File:** `fluent-voice/packages/fluent-voice/examples/tts.rs`
-**Lines:** Enhance audio_stream creation (lines 25-63)
-**Changes:**
-- Add `.engine_config(|| hashbrown::hashmap!{"provider" => "dia", "quality" => "high"})`
-- Add `.metadata()` and `.vocal_settings()` to speaker configurations
-- Demonstrate JSON object syntax in action
-
-DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-
-### 10. QA: Verify TTS example enhancement
-Act as an Objective QA Rust developer. Rate the work performed previously on TTS example enhancement. Verify that:
-- JSON syntax demonstrates cyrup_sugars integration
-- Example runs successfully with enhanced syntax
-- Configuration demonstrates real usage patterns
-- Code is clean and demonstrates API properly
-
-### 11. Update STT example with JSON syntax
-**File:** `fluent-voice/packages/fluent-voice/examples/stt.rs`
-**Lines:** Enhance transcript_stream creation (lines 25-48)
-**Changes:**
-- Add `.engine_config(|| hashbrown::hashmap!{"provider" => "whisper", "model" => "large-v3"})`
-- Demonstrate JSON object syntax for STT configuration
-- Show integration with existing wake word and VAD
-
-DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-
-### 12. QA: Verify STT example enhancement
-Act as an Objective QA Rust developer. Rate the work performed previously on STT example enhancement. Verify that:
-- JSON configuration demonstrates API capabilities
-- Example works with existing engine integrations
-- Syntax is clean and intuitive
-- Integration with wake word/VAD is maintained
-
-### 13. Update README.md examples with JSON syntax
-**File:** `fluent-voice/packages/fluent-voice/README.md`
-**Lines:** Replace examples (lines 61-143) with JSON syntax
-**Changes:**
-- Show `.engine_config()` in TTS and STT examples
-- Demonstrate `.metadata()` and `.vocal_settings()` for speakers
-- Update advanced usage examples with JSON syntax
-- Maintain all existing functionality while showing enhanced API
-
-DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-
-### 14. QA: Verify README.md syntax update
-Act as an Objective QA Rust developer. Rate the work performed previously on README.md update. Verify that:
-- All examples demonstrate JSON object syntax
-- Documentation is accurate and complete
-- Examples are runnable and correct
-- API enhancements are properly showcased
-
-## 🎯 SUCCESS CRITERIA
-
-When all tasks are complete:
-
-1. **JSON Object Syntax Works**: `{"key" => "value"}` syntax functions in all builders
-2. **Examples Enhanced**: Both tts.rs and stt.rs demonstrate JSON configuration
-3. **Documentation Updated**: README.md shows enhanced API usage
-4. **Existing Functionality Preserved**: All current features continue working
-5. **Zero Allocation Maintained**: Performance characteristics unchanged
-
-## 🚫 ABSOLUTE CONSTRAINTS
-
-- Never use unwrap() in src/* files or examples/*
-- Never use expect() in src/* files or examples/*
-- DO USE expect() in tests/* files for assertions
-- No unsafe code anywhere
-- Complete implementation - no stubs or "TODO" comments
-- Maintain backward compatibility with existing API
-- Do not modify working engine implementations
-- Focus only on adding JSON syntax capabilities
+## Phase 6: Update Cross-Package Dependencies
+- [ ] Fix all import statements in fluent-voice to use local builder traits instead of domain. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on fixing imports against requirements for proper dependency flow and minimal changes
+- [ ] Update examples to use fluent-voice builder API without referencing domain builders. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on updating examples against requirements for clean API usage and scope adherence
+- [ ] Verify workspace compiles with clean one-way dependency flow (fluent-voice → domain only). DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
+- [ ] Act as an Objective QA Rust developer - rate the work performed previously on verifying dependency flow against requirements for complete decoupling and architectural cleanliness

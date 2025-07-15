@@ -3177,6 +3177,7 @@ dependencies = [
  "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
  "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle.git)",
  "nextest",
+ "rayon",
  "serde",
  "serde_json",
  "tokio",

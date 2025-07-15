@@ -59,7 +59,7 @@ impl DisplayMode for Oscillator {
         }
     }
 
-    fn axis(&self, cfg: &GraphConfig, dimension: Dimension) -> Axis {
+    fn axis<'a>(&'a self, cfg: &'a GraphConfig, dimension: Dimension) -> Axis<'a> {
         let (name, bounds) = match dimension {
             Dimension::X => ("time -", [0.0, cfg.samples as f64]),
             Dimension::Y => ("| amplitude", [-cfg.scale, cfg.scale]),

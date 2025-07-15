@@ -6,12 +6,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use candle_core::{Device, Result as CandleResult, Tensor};
-use candle_transformers::models::whisper::{Config, audio, model as w};
+use candle_core::{Device, Tensor};
+use candle_transformers::models::whisper::{Config, audio, model as w, DTYPE, SOT_TOKEN};
 use crossbeam_channel::{Receiver, Sender};
 
-use crate::asr::error::Error;
-use crate::asr::{Sample, VoiceActivityDetector};
+
 
 /// Hop length (sec) for incremental decoding – lower → lower latency.
 const HOP_SECS: f32 = 0.5;
@@ -23,6 +22,14 @@ pub enum PartialTranscript {
     Interim(String),
     /// A sentence boundary was reached.
     Final(String),
+}
+
+/// Convert a token string to token ID using the tokenizer.
+fn token_id(tokenizer: &tokenizers::Tokenizer, token: &str) -> anyhow::Result<u32> {
+    match tokenizer.token_to_id(token) {
+        None => anyhow::bail!("no token-id for {token}"),
+        Some(id) => Ok(id),
+    }
 }
 
 /// Kick-off a background thread that receives raw PCM samples *after* VAD
@@ -53,7 +60,7 @@ fn whisper_loop(
     text_tx: Sender<PartialTranscript>,
 ) -> anyhow::Result<()> {
     use candle_nn::ops::softmax;
-    use hf_hub::{RepoType, api::sync::Api};
+    use hf_hub::api::sync::Api;
     use tokenizers::Tokenizer;
 
     let tokenizer = Tokenizer::from_file(tokenizer).expect("tokenizer");
@@ -62,9 +69,9 @@ fn whisper_loop(
             .repo(cfg.model_id.clone())
             .with_revision("main".to_owned())
             .get("model.safetensors")?;
-        unsafe { candle_nn::VarBuilder::from_mmaped_safetensors(&[weights], w::DTYPE, &device)? }
+        unsafe { candle_nn::VarBuilder::from_mmaped_safetensors(&[weights], DTYPE, &device)? }
     };
-    let mut model = w::model::Whisper::load(&vb, cfg.clone())?;
+    let mut model = w::Whisper::load(&vb, cfg.clone())?;
 
     let mut mel_buf: Vec<f32> = Vec::with_capacity(cfg.sample_rate as usize * cfg.hop_length);
     let last_decode = Arc::new(Mutex::new(Instant::now()));
@@ -93,7 +100,8 @@ fn whisper_loop(
 
         let mel_t = Tensor::from_vec(mel, (1, cfg.num_mel_bins, mel_len), &device)?;
         // basic greedy decode – temperature 0
-        let tokens_t = Tensor::new(&[w::SOT_TOKEN_ID], &device)?.unsqueeze(0)?;
+        let sot_token_id = token_id(&tokenizer, SOT_TOKEN)?;
+        let tokens_t = Tensor::new(&[sot_token_id], &device)?.unsqueeze(0)?;
         let feats = model.encoder.forward(&mel_t, true)?;
         let ys = model.decoder.forward(&tokens_t, &feats, true)?;
         let logits = model.decoder.final_linear(&ys.i(..1)?)?.i(0)?.i(0)?;

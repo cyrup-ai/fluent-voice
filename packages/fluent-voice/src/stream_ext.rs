@@ -4,7 +4,7 @@
 //! using cyrup_sugars streaming patterns.
 
 use crate::audio_chunk::{AudioChunk, SynthesisChunk};
-use cyrup_sugars::{AsyncStream, AsyncTask, StreamExt as CyrupStreamExt};
+use cyrup_sugars::{AsyncStream, StreamExt as CyrupStreamExt};
 use fluent_voice_domain::VoiceError;
 
 /// Extension trait for TTS synthesis streams that provides chunk processing capabilities

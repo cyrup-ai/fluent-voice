@@ -176,6 +176,29 @@ pub trait TtsConversationBuilder: Sized + Send {
     /// * `request_ids` - Following synthesis request identifiers
     fn next_request_ids(self, request_ids: Vec<RequestId>) -> Self;
 
+    /// Associated type for chunk processing builder.
+    ///
+    /// This type handles chunk-by-chunk processing of audio synthesis.
+    /// It may be the same as the conversation builder type or a specialized type.
+    type ChunkBuilder: TtsConversationChunkBuilder;
+
+    /// Enable chunk-by-chunk processing with a processor function.
+    ///
+    /// This method sets up a processing function that will be called for each
+    /// audio chunk as it's generated, enabling real-time processing or streaming.
+    ///
+    /// # Arguments
+    ///
+    /// * `processor` - Function that processes each audio chunk
+    ///
+    /// # Returns
+    ///
+    /// A chunk builder that can continue the fluent chain
+    fn on_chunk<F, T>(self, processor: F) -> Self::ChunkBuilder
+    where
+        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
+        T: Send + 'static;
+
     /// Terminal method that executes synthesis with a matcher closure.
     ///
     /// This method terminates the fluent chain and executes the TTS synthesis.
@@ -205,6 +228,33 @@ pub trait TtsConversationBuilder: Sized + Send {
         F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static;
 
     /// The concrete conversation type produced by this builder.
+    type Conversation: TtsConversation;
+}
+
+/// Trait for chunk-by-chunk processing of TTS synthesis.
+///
+/// This trait extends the conversation builder to support processing
+/// audio chunks as they are generated, enabling streaming and real-time
+/// audio processing workflows.
+pub trait TtsConversationChunkBuilder: Sized + Send {
+    /// Terminal method that executes synthesis with chunk processing.
+    ///
+    /// This method terminates the fluent chain and executes the TTS synthesis
+    /// with chunk-by-chunk processing. The matcher closure receives either
+    /// the conversation object on success or a `VoiceError` on failure.
+    ///
+    /// # Arguments
+    ///
+    /// * `matcher` - Closure that handles success/error cases
+    ///
+    /// # Returns
+    ///
+    /// A future that resolves to the result of the matcher closure.
+    fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static;
+
+    /// The concrete conversation type produced by this chunk builder.
     type Conversation: TtsConversation;
 }
 

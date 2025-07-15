@@ -1,6 +1,6 @@
 // src/utils.rs
 
-use candle::{D, DType, Device, Result, Tensor};
+use candle::{D, DType, Result, Tensor};
 use std::collections::HashSet;
 
 /// Adds sinusoidal embeddings to the input tensor.
@@ -23,7 +23,9 @@ pub fn add_sin_embeddings(xs: &Tensor) -> Result<Tensor> {
     let freqs = Tensor::arange(0u32, half_d as u32, xs.device())?
         .to_dtype(DType::F32)?
         .unsqueeze(0)?;
-    let inv_freq = 10000.0f32.powf(-freqs / half_d as f32);
+    let half_d_tensor = Tensor::full(half_d as f32, freqs.shape(), freqs.device())?;
+    let ten_thousand = Tensor::full(10000.0f32, freqs.shape(), freqs.device())?;
+    let inv_freq = freqs.broadcast_div(&half_d_tensor)?.neg()?.broadcast_mul(&ten_thousand)?;
     let emb = positions.broadcast_mul(&inv_freq)?;
     let sin = emb.sin()?;
     let cos = emb.cos()?;
@@ -47,10 +49,11 @@ pub fn add_sin_embeddings(xs: &Tensor) -> Result<Tensor> {
 ///
 /// * `Result<Tensor>` - The normalized tensor.
 pub fn rms_norm(xs: &Tensor, alpha: &Tensor, eps: f32) -> Result<Tensor> {
+    let eps_tensor = Tensor::full(eps as f64, xs.shape(), xs.device())?;
     let rms = xs
         .sqr()?
         .mean_keepdim(D::Minus1)?
-        .add_scalar(eps as f64)?
+        .broadcast_add(&eps_tensor)?
         .sqrt()?;
     let norm = xs.broadcast_div(&rms)?;
     norm.broadcast_mul(alpha)

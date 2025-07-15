@@ -44,7 +44,7 @@ impl GraphConfig {
 #[allow(clippy::ptr_arg)] // TODO temporarily! it's a shitty solution
 pub trait DisplayMode {
     // MUST define
-    fn axis(&self, cfg: &GraphConfig, dimension: Dimension) -> Axis; // TODO simplify this
+    fn axis<'a>(&'a self, cfg: &'a GraphConfig, dimension: Dimension) -> Axis<'a>; // TODO simplify this
     fn process(&mut self, cfg: &GraphConfig, data: &Matrix<f64>) -> Vec<DataSet>;
     fn mode_str(&self) -> &'static str;
 

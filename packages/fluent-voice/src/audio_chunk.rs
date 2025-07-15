@@ -32,13 +32,18 @@ pub struct AudioChunk {
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
-/// Synthesis chunk that can contain either audio data or an error
+/// Synthesis chunk that contains audio data (errors are handled separately in stream)
 ///
-/// This type implements the cyrup_sugars pattern for handling Results
-/// in streaming operations while maintaining the NotResult constraint.
+/// This type implements the cyrup_sugars pattern for streaming operations
+/// while maintaining the NotResult constraint by not containing Result types.
 #[derive(Debug, Clone)]
 pub struct SynthesisChunk {
-    inner: Result<AudioChunk, VoiceError>,
+    /// The audio chunk data
+    pub chunk: AudioChunk,
+    /// Whether this represents a successful synthesis
+    pub success: bool,
+    /// Optional error message if synthesis failed
+    pub error_message: Option<String>,
 }
 
 impl AudioChunk {
@@ -70,7 +75,7 @@ impl AudioChunk {
 
     /// Create an error chunk containing error information
     pub fn error(error: VoiceError) -> SynthesisChunk {
-        SynthesisChunk { inner: Err(error) }
+        SynthesisChunk::err(error)
     }
 
     /// Set the duration of this chunk
@@ -148,42 +153,46 @@ impl AudioChunk {
 impl SynthesisChunk {
     /// Create a successful synthesis chunk
     pub fn ok(chunk: AudioChunk) -> Self {
-        Self { inner: Ok(chunk) }
+        Self {
+            chunk,
+            success: true,
+            error_message: None,
+        }
     }
 
     /// Create an error synthesis chunk
     pub fn err(error: VoiceError) -> Self {
-        Self { inner: Err(error) }
-    }
-
-    /// Consume this chunk and return the inner Result
-    pub fn into_inner(self) -> Result<AudioChunk, VoiceError> {
-        self.inner
-    }
-
-    /// Get a reference to the inner Result
-    pub fn as_ref(&self) -> Result<&AudioChunk, &VoiceError> {
-        self.inner.as_ref()
+        Self {
+            chunk: AudioChunk::new(Vec::new(), AudioFormat::Mp3_44100_192),
+            success: false,
+            error_message: Some(error.to_string()),
+        }
     }
 
     /// Check if this chunk contains a successful audio chunk
     pub fn is_ok(&self) -> bool {
-        self.inner.is_ok()
+        self.success
     }
 
     /// Check if this chunk contains an error
     pub fn is_err(&self) -> bool {
-        self.inner.is_err()
+        !self.success
+    }
+
+    /// Get the audio chunk (always available)
+    pub fn chunk(&self) -> &AudioChunk {
+        &self.chunk
+    }
+
+    /// Get the error message if any
+    pub fn error(&self) -> Option<&str> {
+        self.error_message.as_deref()
     }
 
     /// Convert into an AudioChunk, following the cyrup_sugars pattern
     /// This enables the `synthesis_chunk.into()` syntax
-    pub fn into(self) -> AudioChunk {
-        match self.inner {
-            Ok(chunk) => chunk,
-            Err(e) => AudioChunk::new(Vec::new(), AudioFormat::Mp3_44100_192)
-                .with_metadata("error", serde_json::Value::String(e.to_string())),
-        }
+    pub fn into_chunk(self) -> AudioChunk {
+        self.chunk
     }
 }
 
@@ -202,11 +211,14 @@ impl From<VoiceError> for SynthesisChunk {
 
 impl From<Result<AudioChunk, VoiceError>> for SynthesisChunk {
     fn from(result: Result<AudioChunk, VoiceError>) -> Self {
-        Self { inner: result }
+        match result {
+            Ok(chunk) => Self::ok(chunk),
+            Err(error) => Self::err(error),
+        }
     }
 }
 
 // Implement cyrup_sugars NotResult pattern
 // Both AudioChunk and SynthesisChunk can be used in AsyncStream/AsyncTask
-unsafe impl cyrup_sugars::NotResult for AudioChunk {}
-unsafe impl cyrup_sugars::NotResult for SynthesisChunk {}
+impl cyrup_sugars::NotResult for AudioChunk {}
+impl cyrup_sugars::NotResult for SynthesisChunk {}

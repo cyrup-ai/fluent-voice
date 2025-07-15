@@ -19,8 +19,7 @@ use rand::distributions::weighted::WeightedIndex;
 use rand::{SeedableRng, rngs::StdRng};
 use tokenizers::Tokenizer;
 
-use crate::asr::multlingual::LANGUAGES;
-use crate::asr::{audio, model::WhisperModel, multlingual::detect_language};
+use crate::asr::model::WhisperModel;
 #[cfg(any(
     feature = "cuda",
     feature = "metal",

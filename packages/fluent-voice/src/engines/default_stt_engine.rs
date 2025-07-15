@@ -569,11 +569,11 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
         }
     }
 
-    fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
+    fn listen<F>(self, callback: F) -> cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>
     where
         F: FnMut(
                 Result<Self::Conversation, VoiceError>,
-            ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
+            ) -> Result<cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>, VoiceError>
             + Send
             + 'static,
     {
@@ -997,11 +997,11 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
         self
     }
 
-    fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
+    fn listen<F>(self, callback: F) -> cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>
     where
         F: FnMut(
                 Result<Self::Conversation, VoiceError>,
-            ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
+            ) -> Result<cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>, VoiceError>
             + Send
             + 'static,
     {

@@ -71,4 +71,6 @@ mkl = ["candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
 microphone = []
 encodec = []
 mimi = []
+# Async support
+async = []
 snac = []

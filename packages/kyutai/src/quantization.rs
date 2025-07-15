@@ -1,7 +1,5 @@
 use candle::{D, IndexOp, Result, Tensor};
 use candle_nn::{Linear, VarBuilder};
-use rayon::prelude::*;
-use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
 pub struct EuclideanCodebook {
@@ -108,8 +106,8 @@ impl VectorQuantization {
         let (project_in, project_out) = if codebook_dim == dim {
             (None, None)
         } else {
-            let p_in = linear(dim, codebook_dim, vb.pp("project_in"))?;
-            let p_out = linear(codebook_dim, dim, vb.pp("project_out"))?;
+            let p_in = candle_nn::linear(dim, codebook_dim, vb.pp("project_in"))?;
+            let p_out = candle_nn::linear(codebook_dim, dim, vb.pp("project_out"))?;
             (Some(p_in), Some(p_out))
         };
         let codebook = EuclideanCodebook::new(codebook_dim, codebook_size, vb.pp("_codebook"))?;

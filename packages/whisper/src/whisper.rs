@@ -68,6 +68,7 @@ impl Model {
     }
 }
 
+#[allow(dead_code)] // Development utility function
 fn device_helper(cpu: bool) -> Result<Device> {
     if cpu {
         Ok(Device::Cpu)
@@ -99,6 +100,7 @@ pub(crate) struct Segment {
     pub(crate) dr: DecodingResult,
 }
 
+#[allow(dead_code)] // Library code - used by whisper inference
 struct Decoder {
     model: Model,
     rng: rand::rngs::StdRng,
@@ -117,6 +119,7 @@ struct Decoder {
 }
 
 impl Decoder {
+    #[allow(dead_code)] // Library code - decoder constructor
     #[allow(clippy::too_many_arguments)]
     fn new(
         model: Model,
@@ -172,7 +175,8 @@ impl Decoder {
         })
     }
 
-    fn decode(&mut self, mel: &Tensor, t: f64) -> Result<DecodingResult> {
+    #[allow(dead_code)] // Library code - decoder inference
+    pub fn decode(&mut self, mel: &Tensor, t: f64) -> Result<DecodingResult> {
         let model = &mut self.model;
         let audio_features = model.encoder_forward(mel, true)?;
         if self.verbose {
@@ -258,7 +262,8 @@ impl Decoder {
         })
     }
 
-    fn decode_with_fallback(&mut self, segment: &Tensor) -> Result<DecodingResult> {
+    #[allow(dead_code)] // Library code - decoder with fallback
+    pub fn decode_with_fallback(&mut self, segment: &Tensor) -> Result<DecodingResult> {
         for (i, &t) in m::TEMPERATURES.iter().enumerate() {
             let dr: Result<DecodingResult> = self.decode(segment, t);
             if i == m::TEMPERATURES.len() - 1 {
@@ -281,7 +286,8 @@ impl Decoder {
         unreachable!()
     }
 
-    fn run(&mut self, mel: &Tensor) -> Result<Vec<Segment>> {
+    #[allow(dead_code)] // Library code - run full transcription
+    pub fn run(&mut self, mel: &Tensor) -> Result<Vec<Segment>> {
         let (_, _, content_frames) = mel.dims3()?;
         let mut seek = 0;
         let mut segments = vec![];
@@ -397,7 +403,8 @@ enum WhichModel {
 }
 
 impl WhichModel {
-    fn is_multilingual(&self) -> bool {
+    #[allow(dead_code)] // Library code - multilingual detection
+    pub fn is_multilingual(&self) -> bool {
         match self {
             Self::Tiny
             | Self::Base
@@ -415,7 +422,8 @@ impl WhichModel {
         }
     }
 
-    fn model_and_revision(&self) -> (&'static str, &'static str) {
+    #[allow(dead_code)] // Library code - model metadata
+    pub fn model_and_revision(&self) -> (&'static str, &'static str) {
         match self {
             Self::Tiny => ("openai/whisper-tiny", "main"),
             Self::TinyEn => ("openai/whisper-tiny.en", "refs/pr/15"),
@@ -490,6 +498,7 @@ struct Args {
     verbose: bool,
 }
 
+#[allow(dead_code)] // Development/testing binary - not used in library
 fn main() -> Result<()> {
     use tracing_chrome::ChromeLayerBuilder;
     use tracing_subscriber::prelude::*;
@@ -590,6 +599,7 @@ fn main() -> Result<()> {
     }
 }
 
+#[allow(dead_code)] // Development/testing function
 fn process_audio(
     args: Args,
     config: Config,

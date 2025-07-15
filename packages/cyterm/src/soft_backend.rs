@@ -2,7 +2,7 @@ use std::{collections::HashSet, io};
 
 use cosmic_text::{
     Attrs, AttrsList, Buffer as CosmicBuffer, CacheKeyFlags, Family, FontSystem, LineEnding,
-    Metrics, Shaping, SwashCache, Weight, Wrap, fontdb::Database,
+    Metrics, SwashCache, Weight, Wrap, fontdb::Database,
 };
 use ratatui::{
     backend::{Backend, ClearType, WindowSize},
@@ -112,7 +112,7 @@ impl SoftBackend {
 
     fn recalc_cell_metrics(&mut self) {
         let m = self.cosmic_buf.metrics().font_size;
-        let line = self.cosmic_buf.lines.get_mut(0).unwrap();
+        let line = &mut self.cosmic_buf.lines[0];
         line.set_text(
             "█",
             LineEnding::None,
@@ -196,7 +196,7 @@ impl SoftBackend {
         }
 
         let m = self.cosmic_buf.metrics().font_size;
-        let line = self.cosmic_buf.lines.get_mut(0).unwrap();
+        let line = &mut self.cosmic_buf.lines[0];
         line.set_text(&text, LineEnding::None, AttrsList::new(&attrs));
         line.layout(&mut self.font_sys, m, None, Wrap::None, None, 1);
 
@@ -289,7 +289,7 @@ impl Backend for SoftBackend {
             ClearType::Rect(rect) => {
                 for y in rect.top()..rect.bottom() {
                     for x in rect.left()..rect.right() {
-                        if let Some(cell) = self.buffer.get_mut(x, y) {
+                        if let Some(cell) = self.buffer.cell_mut((x, y)) {
                             *cell = Cell::default();
                         }
                         let ox = x as usize * self.cw;

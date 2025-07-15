@@ -1,10 +1,10 @@
 // src/tts_streaming.rs
 
-use super::tts::{Config, Model};
+use super::tts::Model;
 use crate::conditioner::Condition;
 use crate::error::MoshiError;
-use crate::streaming::{StreamTensor, StreamingModule};
-use candle::{Device, Result, Tensor};
+use crate::streaming::StreamingModule;
+use candle::{Result, Tensor};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

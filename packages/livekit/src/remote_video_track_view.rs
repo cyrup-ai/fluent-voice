@@ -1,8 +1,6 @@
 use super::livekit_client::RemoteVideoTrack;
 use crate::playback::VideoFrameExtensions;
-use crate::util::ResultExt;
 use futures::{StreamExt as _, channel::mpsc};
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::{
     sync::{Arc, Mutex, RwLock},
     time::Duration,

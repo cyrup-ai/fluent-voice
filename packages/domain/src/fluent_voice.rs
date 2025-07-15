@@ -278,62 +278,8 @@ impl WakeWordBuilder for DefaultWakeWordBuilder {
 /// Default implementation entry point for FluentVoice
 pub struct FluentVoiceImpl;
 
-impl FluentVoice for FluentVoiceImpl {
-    fn tts() -> impl TtsConversationBuilder {
-        // Create a default implementation that returns an empty audio stream
-        crate::builders::tts_conversation_builder(|_lines, _lang| {
-            // Return an empty stream of i16 audio samples
-            futures::stream::empty::<i16>()
-        })
-    }
-
-    fn stt() -> impl SttConversationBuilder {
-        // Create a default implementation that returns an empty transcript stream
-        crate::builders::stt_conversation_builder(
-            |_source,
-             _vad,
-             _noise,
-             _lang,
-             _diarization,
-             _word_timestamps,
-             _timestamps_granularity,
-             _punctuation| {
-                // Return an empty stream - real implementations will be provided by concrete engines
-                futures::stream::empty::<
-                    Result<
-                        crate::transcript::ConcreteTranscriptSegment,
-                        crate::voice_error::VoiceError,
-                    >,
-                >()
-            },
-        )
-    }
-
-    fn wake_word() -> impl WakeWordBuilder {
-        // Default wake word builder - concrete implementations provided by engines
-        DefaultWakeWordBuilder::new()
-    }
-
-    fn voices() -> impl VoiceDiscoveryBuilder {
-        crate::builders::VoiceDiscoveryBuilderImpl::new()
-    }
-
-    fn clone_voice() -> impl VoiceCloneBuilder {
-        crate::builders::VoiceCloneBuilderImpl::new()
-    }
-
-    fn speech_to_speech() -> impl SpeechToSpeechBuilder {
-        crate::builders::SpeechToSpeechBuilderImpl::new()
-    }
-
-    fn audio_isolation() -> impl AudioIsolationBuilder {
-        crate::builders::AudioIsolationBuilderImpl::new()
-    }
-
-    fn sound_effects() -> impl SoundEffectsBuilder {
-        crate::builders::SoundEffectsBuilderImpl::new()
-    }
-}
+// Note: FluentVoice trait implementations should be provided by the fluent-voice crate,
+// not in the domain crate. The domain crate only contains trait definitions.
 
 // DummySegment removed - only real production transcript types allowed
 // Real TtsChunk from Whisper crate is used throughout the codebase

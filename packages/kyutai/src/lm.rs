@@ -1,11 +1,9 @@
-use super::streaming::{CaSrc, StreamingModule};
 use super::transformer;
-use crate::audio::NormType;
+use crate::transformer::NormType;
 use crate::conditioner;
 use crate::nn::{MaybeQuantizedEmbedding, MaybeQuantizedLinear, MaybeQuantizedVarBuilder, linear};
 use candle::{DType, Device, Result, Tensor};
 use candle_nn::Module;
-use candle_transformers::generation::LogitsProcessor;
 
 thread_local! {
     pub static VERBOSE: bool = {
@@ -234,13 +232,37 @@ impl LmModel {
     pub fn dtype(&self) -> DType {
         self.dtype
     }
+
+    /// Custom forward method for generator use case
+    /// Returns (logits, hidden_states) tuple
+    pub fn forward(&self, input_ids: Option<Tensor>, _conditions: Vec<Tensor>) -> Result<(Tensor, Option<Tensor>)> {
+        match input_ids {
+            Some(ids) => {
+                let embeddings = ids.apply(&self.text_in_embeddings)?;
+                let transformer_output = self.transformer.forward(&embeddings)?;
+                let logits = transformer_output.apply(&self.text_out_head)?;
+                Ok((logits, Some(transformer_output)))
+            }
+            None => {
+                // Return empty tensors for None input
+                let empty_logits = Tensor::zeros((1, 1, self.text_out_head.weight().dims()[1]), self.dtype, &self.device)?;
+                Ok((empty_logits, None))
+            }
+        }
+    }
+
+    /// Reset internal state for streaming
+    pub fn reset_state(&self) {
+        // Placeholder for state reset - implement when streaming is added
+        // In full implementation, this would use interior mutability for state
+    }
 }
 
 impl Module for LmModel {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        // Forward pass through the language model
+        // Simple forward pass for Module trait - delegate to embeddings and text head
         let embeddings = xs.apply(&self.text_in_embeddings)?;
-        let transformer_output = embeddings.apply(&self.transformer)?;
+        let transformer_output = self.transformer.forward(&embeddings)?;
         let output = transformer_output.apply(&self.text_out_head)?;
         Ok(output)
     }

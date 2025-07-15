@@ -7,7 +7,7 @@
 //  │   Status  •  device / FPS     │
 //  └───────────────────────────────┘
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use ratatui::{
     Frame,
@@ -66,7 +66,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, ui: &mut UiState) {
         Direction::Vertical,
         [Constraint::Min(2), Constraint::Length(1)],
     );
-    let [body, status] = layout.split(f.size());
+    let [body, status] = layout.split(f.area());
 
     // == transcript =========================================================
     let mut lines = Text::from(ui.transcript.clone()).lines;

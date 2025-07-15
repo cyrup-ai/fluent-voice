@@ -3,14 +3,14 @@
 //! This module provides helper functions to correctly construct AsyncStream instances
 //! from the cyrup_sugars crate, bridging the API gap between expected and actual methods.
 
-use cyrup_sugars::AsyncStream;
+use cyrup_sugars::{AsyncStream, NotResult};
 use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
-#[cfg(feature = "tokio-async")]
+#[cfg(feature = "tokio-runtime")]
 use tokio::sync::mpsc;
 
-#[cfg(all(feature = "std-async", not(feature = "tokio-async")))]
+#[cfg(all(feature = "std_async", not(feature = "tokio-runtime")))]
 use async_channel;
 
 /// Create an AsyncStream from a Stream of items
@@ -19,10 +19,10 @@ use async_channel;
 /// by using the appropriate channel implementation based on the async runtime feature.
 pub fn async_stream_from_stream<T, S>(stream: S) -> AsyncStream<T>
 where
-    T: Send + 'static,
+    T: Send + 'static + NotResult,
     S: Stream<Item = T> + Send + 'static,
 {
-    #[cfg(feature = "tokio-async")]
+    #[cfg(feature = "tokio-runtime")]
     {
         let (tx, rx) = mpsc::unbounded_channel();
         tokio::spawn(async move {
@@ -37,7 +37,7 @@ where
         AsyncStream::new(rx)
     }
 
-    #[cfg(all(feature = "std-async", not(feature = "tokio-async")))]
+    #[cfg(all(feature = "std_async", not(feature = "tokio-runtime")))]
     {
         let (tx, rx) = async_channel::unbounded();
         std::thread::spawn(move || {
@@ -56,8 +56,8 @@ where
 
     #[cfg(all(
         feature = "crossbeam-async",
-        not(feature = "tokio-async"),
-        not(feature = "std-async")
+        not(feature = "tokio-runtime"),
+        not(feature = "std_async")
     ))]
     {
         let (tx, rx) = async_channel::unbounded();
@@ -83,15 +83,15 @@ where
 /// an empty stream (as errors should be handled before streaming).
 pub fn async_stream_from_error<T>(_error: VoiceError) -> AsyncStream<T>
 where
-    T: Send + 'static,
+    T: Send + 'static + NotResult,
 {
-    #[cfg(feature = "tokio-async")]
+    #[cfg(feature = "tokio-runtime")]
     {
         let (_tx, rx) = mpsc::unbounded_channel();
         AsyncStream::new(rx)
     }
 
-    #[cfg(all(feature = "std-async", not(feature = "tokio-async")))]
+    #[cfg(all(feature = "std_async", not(feature = "tokio-runtime")))]
     {
         let (_tx, rx) = async_channel::unbounded();
         AsyncStream::new(rx)
@@ -99,8 +99,8 @@ where
 
     #[cfg(all(
         feature = "crossbeam-async",
-        not(feature = "tokio-async"),
-        not(feature = "std-async")
+        not(feature = "tokio-runtime"),
+        not(feature = "std_async")
     ))]
     {
         let (_tx, rx) = async_channel::unbounded();
@@ -114,7 +114,7 @@ where
 /// and need to convert it to an AsyncStream, handling both success and error cases.
 pub fn async_stream_from_result<T, S, E>(result: Result<S, E>) -> AsyncStream<T>
 where
-    T: Send + 'static,
+    T: Send + 'static + NotResult,
     S: Stream<Item = T> + Send + 'static,
     E: Into<VoiceError>,
 {
@@ -133,19 +133,98 @@ where
 /// a stream from an empty channel that is immediately closed.
 pub fn async_stream_empty<T>() -> AsyncStream<T>
 where
-    T: Send + 'static,
+    T: Send + 'static + NotResult,
 {
-    #[cfg(feature = "tokio-async")]
+    #[cfg(feature = "tokio-runtime")]
     {
         let (_tx, rx) = mpsc::unbounded_channel();
         // Don't send anything, just close the channel immediately
         AsyncStream::new(rx)
     }
 
-    #[cfg(all(feature = "std-async", not(feature = "tokio-async")))]
+    #[cfg(all(feature = "std_async", not(feature = "tokio-runtime")))]
     {
         let (_tx, rx) = async_channel::unbounded();
         // Don't send anything, just close the channel immediately
+        AsyncStream::new(rx)
+    }
+}
+
+/// Convert an audio stream of i16 samples to a stream of AudioChunk
+///
+/// This function takes a Stream<Item = i16> and converts it to an AsyncStream<AudioChunk>
+/// by batching the audio samples into chunks of a suitable size.
+pub fn audio_stream_to_chunk_stream<S>(audio_stream: S) -> AsyncStream<crate::audio_chunk::AudioChunk>
+where
+    S: Stream<Item = i16> + Send + 'static,
+{
+    #[cfg(feature = "tokio-runtime")]
+    {
+        let (tx, rx) = mpsc::unbounded_channel();
+        tokio::spawn(async move {
+            use futures_util::StreamExt;
+            let mut stream = std::pin::pin!(audio_stream);
+            let mut buffer = Vec::new();
+            const CHUNK_SIZE: usize = 1024; // 1024 samples per chunk
+            
+            while let Some(sample) = stream.next().await {
+                buffer.push(sample);
+                if buffer.len() >= CHUNK_SIZE {
+                    let chunk = crate::audio_chunk::AudioChunk::new(
+                        std::mem::take(&mut buffer),
+                        fluent_voice_domain::AudioFormat::Pcm16Khz,
+                    );
+                    if tx.send(chunk).is_err() {
+                        break;
+                    }
+                }
+            }
+            
+            // Send final chunk if there are remaining samples
+            if !buffer.is_empty() {
+                let chunk = crate::audio_chunk::AudioChunk::new(
+                    buffer,
+                    fluent_voice_domain::AudioFormat::Pcm16Khz,
+                );
+                let _ = tx.send(chunk);
+            }
+        });
+        AsyncStream::new(rx)
+    }
+
+    #[cfg(all(feature = "std_async", not(feature = "tokio-runtime")))]
+    {
+        let (tx, rx) = async_channel::unbounded();
+        std::thread::spawn(move || {
+            use futures_util::StreamExt;
+            futures_executor::block_on(async move {
+                let mut stream = std::pin::pin!(audio_stream);
+                let mut buffer = Vec::new();
+                const CHUNK_SIZE: usize = 1024; // 1024 samples per chunk
+                
+                while let Some(sample) = stream.next().await {
+                    buffer.push(sample);
+                    if buffer.len() >= CHUNK_SIZE {
+                        let chunk = crate::audio_chunk::AudioChunk::new(
+                            std::mem::take(&mut buffer),
+                            fluent_voice_domain::AudioFormat::Pcm16Khz,
+                        );
+                        if tx.send(chunk).await.is_err() {
+                            break;
+                        }
+                    }
+                }
+                
+                // Send final chunk if there are remaining samples
+                if !buffer.is_empty() {
+                    let chunk = crate::audio_chunk::AudioChunk::new(
+                        buffer,
+                        fluent_voice_domain::AudioFormat::Pcm16Khz,
+                    );
+                    let _ = tx.send(chunk).await;
+                }
+            });
+        });
         AsyncStream::new(rx)
     }
 }

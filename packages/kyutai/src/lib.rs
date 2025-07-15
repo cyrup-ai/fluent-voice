@@ -34,7 +34,7 @@ pub use self::error::{MoshiError, Result};
 
 // TODO: Uncomment when modules are implemented
 // pub use self::lm::LmModel;
-// pub use self::mimi::Mimi;
+pub use self::mimi::Mimi;
 // pub use self::stream_both::{
 //     Config as StreamConfig, LiveKitAudioIntegration, LiveKitAudioReceiver, StreamOut,
 //     StreamingModel,

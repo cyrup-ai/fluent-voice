@@ -1,8 +1,8 @@
 use anyhow::Result;
-use core_foundation::{base::TCFType, data::CFData};
-use core_video::{image_buffer::CVImageBuffer, pixel_buffer::CVPixelBuffer};
-use std::sync::{Arc, Mutex, RwLock};
-use std::time::Duration;
+use core_foundation::base::TCFType;
+use core_video::image_buffer::CVImageBuffer;
+use std::sync::{Arc, RwLock};
+
 
 use crate::native_video::{NativeVideoFrame, VideoRotation};
 use crate::video_frame::{VideoFrame, VideoFrameImpl};
@@ -52,6 +52,12 @@ impl MacOSVideoFrame {
     }
 
     /// Get the buffer data from a CVImageBuffer
+    ///
+    /// # Safety
+    /// This method is unsafe because it:
+    /// - Locks and unlocks Core Video pixel buffer base addresses
+    /// - Performs raw memory copy operations with Core Video buffers
+    /// - Assumes the pixel buffer memory layout is valid during the copy
     unsafe fn get_buffer_data(&self) -> Result<Vec<u8>> {
         if let Some(buffer) = &self.buffer {
             let pixel_buffer = CVImageBuffer::from_pixel_buffer(buffer.as_concrete_TypeRef())
@@ -69,6 +75,10 @@ impl MacOSVideoFrame {
             // Copy the data
             let buffer_size = bytes_per_row * height;
             let mut data = vec![0u8; buffer_size];
+            // SAFETY: We have locked the pixel buffer's base address above,
+            // ensuring the memory is valid for the duration of this copy.
+            // The buffer size is calculated from Core Video's reported dimensions
+            // and bytes_per_row, ensuring we don't read beyond allocated memory.
             unsafe {
                 std::ptr::copy_nonoverlapping(
                     base_address as *const u8,
@@ -93,6 +103,8 @@ impl VideoFrameImpl for MacOSVideoFrame {
     fn to_rgba_bytes(&self) -> Result<Vec<u8>> {
         if let Some(buffer) = &self.buffer {
             // Convert from the native format to RGBA
+            // SAFETY: get_buffer_data is unsafe but handles Core Video buffer
+            // access correctly with proper locking/unlocking of base addresses
             let frame_data = unsafe { self.get_buffer_data()? };
             let width = self.width as usize;
             let height = self.height as usize;

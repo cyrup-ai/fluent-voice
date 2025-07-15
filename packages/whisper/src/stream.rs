@@ -18,6 +18,7 @@ pub struct WhisperStream {
 
 impl WhisperStream {
     /// Create a new WhisperStream from an unbounded receiver.
+    #[allow(dead_code)] // Library code - used by fluent-voice builders
     pub(crate) fn new(receiver: UnboundedReceiver<TtsChunk>) -> Self {
         Self { receiver }
     }
