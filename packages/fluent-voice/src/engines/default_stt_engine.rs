@@ -255,7 +255,7 @@ impl AudioProcessor {
         processed
     }
 
-    /// Zero-allocation VAD processing with tensor optimization  
+    /// Zero-allocation VAD processing with tensor optimization
     #[inline(always)]
     pub fn process_vad(&mut self, audio_chunk: &[f32]) -> AnyhowResult<f32> {
         // Copy to pre-allocated buffer (zero allocation)
@@ -356,7 +356,7 @@ type DefaultTranscriptStream =
 ///
 /// PERFORMANCE GUARANTEES:
 /// - Zero heap allocations on audio processing hot path
-/// - Sub-millisecond wake word detection latency  
+/// - Sub-millisecond wake word detection latency
 /// - Lock-free concurrent processing with crossbeam channels
 /// - SIMD-optimized audio preprocessing
 /// - In-memory Whisper transcription (no temp files)
@@ -367,7 +367,7 @@ pub struct DefaultSTTEngine {
     whisper: Arc<WhisperTranscriber>,
     /// VAD configuration for voice activity detection
     vad_config: VadConfig,
-    /// Wake word configuration for activation detection  
+    /// Wake word configuration for activation detection
     wake_word_config: WakeWordConfig,
 }
 
@@ -378,7 +378,7 @@ pub struct VadConfig {
     pub sensitivity: f32,
     /// Minimum speech duration in milliseconds - compile-time constant
     pub min_speech_duration: u32,
-    /// Maximum silence duration in milliseconds - compile-time constant  
+    /// Maximum silence duration in milliseconds - compile-time constant
     pub max_silence_duration: u32,
     /// SIMD optimization level (0=none, 1=SSE, 2=AVX2, 3=AVX512)
     pub simd_level: u8,
@@ -569,11 +569,11 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
         }
     }
 
-    fn listen<F>(self, callback: F) -> cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>
+    fn listen<F>(self, callback: F) -> cyrup_sugars::AsyncStream<fluent_voice_domain::TranscriptSegmentImpl>
     where
         F: FnMut(
                 Result<Self::Conversation, VoiceError>,
-            ) -> Result<cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>, VoiceError>
+            ) -> cyrup_sugars::AsyncStream<fluent_voice_domain::TranscriptSegmentImpl>
             + Send
             + 'static,
     {
@@ -997,11 +997,11 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
         self
     }
 
-    fn listen<F>(self, callback: F) -> cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>
+    fn listen<F>(self, callback: F) -> cyrup_sugars::AsyncStream<fluent_voice_domain::TranscriptSegmentImpl>
     where
-        F: FnMut(
+        F: FnOnce(
                 Result<Self::Conversation, VoiceError>,
-            ) -> Result<cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>, VoiceError>
+            ) -> cyrup_sugars::AsyncStream<fluent_voice_domain::TranscriptSegmentImpl>
             + Send
             + 'static,
     {

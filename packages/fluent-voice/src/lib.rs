@@ -148,8 +148,8 @@ pub mod prelude {
 
     /* ElevenLabs extensions - fluent-voice concrete builders */
     pub use crate::builders::{
-        AudioIsolationBuilder, SoundEffectsBuilder, SpeechToSpeechBuilder,
-        VoiceCloneBuilder, VoiceDiscoveryBuilder,
+        AudioIsolationBuilderImpl, SoundEffectsBuilderImpl, SpeechToSpeechBuilderImpl,
+        VoiceCloneBuilderImpl, VoiceDiscoveryBuilderImpl,
     };
 }
 

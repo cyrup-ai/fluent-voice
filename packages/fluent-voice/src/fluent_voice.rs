@@ -6,7 +6,10 @@ use crate::{
     voice_clone::VoiceCloneBuilder, voice_discovery::VoiceDiscoveryBuilder,
     wake_word::WakeWordBuilder,
 };
-use fluent_voice_domain::SttConversationBuilder;
+use fluent_voice_domain::{
+    SttConversationBuilder, VadMode, NoiseReduction, Language, Diarization, 
+    WordTimestamps, TimestampsGranularity, Punctuation
+};
 use fluent_voice_domain::TranscriptSegment;
 // Real production types from Whisper crate
 use fluent_voice_whisper::TtsChunk;
@@ -164,12 +167,46 @@ impl SttEntry {
 pub struct FluentVoiceImpl;
 
 impl fluent_voice_domain::FluentVoice for FluentVoiceImpl {
-    fn tts() -> TtsEntry {
-        TtsEntry::new()
+    fn tts() -> impl TtsConversationBuilder {
+        // DefaultTtsBuilder already uses dia voice - just add optimal defaults
+        DefaultTtsBuilder::new()
+            .language(Language::ENGLISH_US)
+            .model(crate::model_id::ModelId::new("dia-neural-v3"))
+            .stability(crate::stability::Stability::new(0.7))
+            .similarity(crate::similarity::Similarity::new(0.8))
+            .speaker_boost(crate::speaker_boost::SpeakerBoost::new(0.75))
+            .style_exaggeration(crate::style_exaggeration::StyleExaggeration::new(0.5))
+            .output_format(fluent_voice_domain::AudioFormat::Pcm22Khz)
     }
 
-    fn stt() -> SttEntry {
-        SttEntry::new()
+    fn stt() -> impl SttConversationBuilder {
+        // Initialize Koffee wake word detector
+        let koffee_detector = koffee::KoffeeCandle::new(&koffee::KoffeeCandleConfig::default())
+            .expect("Failed to initialize Koffee wake word detector");
+        
+        // Initialize VAD detector  
+        let vad_detector = fluent_voice_vad::VoiceActivityDetector::builder()
+            .chunk_size(1024)
+            .sample_rate(16000)
+            .build()
+            .expect("Failed to initialize VAD");
+            
+        // Initialize Whisper transcriber
+        let whisper_transcriber = fluent_voice_whisper::WhisperTranscriber::new()
+            .expect("Failed to initialize Whisper");
+        
+        crate::engines::DefaultSTTConversationBuilder::new_with_engines(
+            koffee_detector,
+            vad_detector, 
+            whisper_transcriber
+        )
+        .vad_mode(VadMode::Accurate)
+        .noise_reduction(NoiseReduction::High)
+        .language_hint(Language::ENGLISH_US)
+        .diarization(Diarization::On)
+        .word_timestamps(WordTimestamps::On)
+        .timestamps_granularity(TimestampsGranularity::Word)
+        .punctuation(Punctuation::On)
     }
 
     fn wake_word() -> impl WakeWordBuilder {
@@ -306,7 +343,24 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
     }
 }
 
-// TtsConversationChunkBuilder implementation removed - trait doesn't define synthesize_stream method
+impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder {
+    type Conversation = DefaultTtsConversation;
+
+    fn synthesize<F, R>(self, matcher: F) -> impl core::future::Future<Output = R> + Send
+    where
+        F: FnOnce(Self::Conversation) -> R + Send + 'static,
+    {
+        async move {
+            // Create the conversation with dia voice - unwrapped, no Result
+            let dia_builder = DiaVoiceBuilder::new(self.pool.clone(), 
+                self.voice_clone_path.unwrap_or_else(|| std::path::PathBuf::from("default.wav")));
+            let conversation = DefaultTtsConversation::new(dia_builder);
+            
+            // Everything is unwrapped - user gets the conversation directly
+            matcher(conversation)
+        }
+    }
+}
 
 /// Simple TTS conversation wrapper around DiaVoiceBuilder
 pub struct DefaultTtsConversation {

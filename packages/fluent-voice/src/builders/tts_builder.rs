@@ -565,10 +565,10 @@ where
 {
     type Conversation = TtsConversationImpl<AudioStream>;
 
-    fn synthesize_stream(
-        self,
-    ) -> impl Future<Output = Result<crate::AsyncStream<crate::audio_chunk::AudioChunk>, fluent_voice_domain::VoiceError>>
-    + Send {
+    fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    where
+        F: FnOnce(Self::Conversation) -> R + Send + 'static,
+    {
         async move {
             let conversation = TtsConversationImpl {
                 lines: self.lines,
@@ -589,10 +589,8 @@ where
                 synth_fn: self.synth_fn,
             };
 
-            // Convert the TTS conversation to an audio stream and then to AudioChunk stream
-            let audio_stream = conversation.into_stream();
-            let chunk_stream = crate::async_stream_helpers::audio_stream_to_chunk_stream(audio_stream);
-            Ok(chunk_stream)
+            // Everything is unwrapped - user gets the conversation directly
+            matcher(conversation)
         }
     }
 }

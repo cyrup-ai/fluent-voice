@@ -50,7 +50,7 @@ where
 /// Uses `Cow<str>` for zero-copy string operations when possible,
 /// optimized for high-performance real-time transcription.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConcreteTranscriptSegment {
+pub struct TranscriptSegmentImpl {
     /// Recognized text content (zero-copy when possible)
     text: std::borrow::Cow<'static, str>,
     /// Start time in milliseconds (u32 for efficiency)
@@ -61,7 +61,7 @@ pub struct ConcreteTranscriptSegment {
     speaker_id: Option<std::borrow::Cow<'static, str>>,
 }
 
-impl ConcreteTranscriptSegment {
+impl TranscriptSegmentImpl {
     /// Create a new transcript segment with owned strings.
     #[inline]
     pub fn new(text: String, start_ms: u32, end_ms: u32, speaker_id: Option<String>) -> Self {
@@ -116,7 +116,7 @@ impl ConcreteTranscriptSegment {
     }
 }
 
-impl TranscriptSegment for ConcreteTranscriptSegment {
+impl TranscriptSegment for TranscriptSegmentImpl {
     #[inline]
     fn start_ms(&self) -> u32 {
         self.start_ms

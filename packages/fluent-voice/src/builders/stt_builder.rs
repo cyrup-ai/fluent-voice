@@ -261,33 +261,26 @@ where
         )
     }
 
-    fn listen<F>(self, callback: F) -> cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>
+    fn listen<F, R>(self, callback: F) -> impl Future<Output = R> + Send
     where
-        F: FnOnce(
-                Result<Self::Conversation, VoiceError>,
-            ) -> Result<cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>, VoiceError>
-            + Send
-            + 'static,
+        F: FnOnce(Self::Conversation) -> R + Send + 'static,
     {
-        let conversation = SttConversationImpl {
-            source: self.source,
-            vad_mode: self.vad_mode,
-            noise_reduction: self.noise_reduction,
-            language_hint: self.language_hint,
-            diarization: self.diarization,
-            word_timestamps: self.word_timestamps,
-            timestamps_granularity: self.timestamps_granularity,
-            punctuation: self.punctuation,
-            stream_fn: self.stream_fn,
-        };
+        async move {
+            // Create the conversation - unwrapped, no Result wrapping
+            let conversation = SttConversationImpl {
+                source: self.source,
+                vad_mode: self.vad_mode,
+                noise_reduction: self.noise_reduction,
+                language_hint: self.language_hint,
+                diarization: self.diarization,
+                word_timestamps: self.word_timestamps,
+                timestamps_granularity: self.timestamps_granularity,
+                punctuation: self.punctuation,
+                stream_fn: self.stream_fn,
+            };
 
-        // Use cyrup-sugars callback pattern - the callback handles the Result and returns Result<Stream, Error>
-        match callback(Ok(conversation)) {
-            Ok(stream) => stream,
-            Err(e) => {
-                // Return an empty stream when there's an error
-                cyrup_sugars::AsyncStream::empty()
-            }
+            // Everything is unwrapped - user gets the conversation directly
+            callback(conversation)
         }
     }
 }
@@ -411,13 +404,10 @@ where
         self
     }
 
-    fn listen<F>(self, callback: F) -> cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>
+    fn listen<F, S>(self, callback: F) -> S
     where
-        F: FnOnce(
-                Result<Self::Conversation, VoiceError>,
-            ) -> Result<cyrup_sugars::AsyncStream<Box<dyn crate::transcript::TranscriptSegment + Send>>, VoiceError>
-            + Send
-            + 'static,
+        F: FnOnce(Self::Conversation) -> S + Send + 'static,
+        S: Stream + Send + 'static,
     {
         // Use the device string to determine the backend
         let backend = if self.device == "default" || self.device.is_empty() {
@@ -444,14 +434,8 @@ where
             stream_fn: self.stream_fn,
         };
 
-        // Use cyrup-sugars callback pattern - the callback handles the Result and returns Result<Stream, Error>
-        match callback(Ok(conversation)) {
-            Ok(stream) => stream,
-            Err(e) => {
-                // Return an empty stream when there's an error
-                cyrup_sugars::AsyncStream::empty()
-            }
-        }
+        // Everything is unwrapped - user gets the conversation directly
+        callback(conversation)
     }
 }
 

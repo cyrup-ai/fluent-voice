@@ -1,51 +1,136 @@
-# Domain-Builder Decoupling TODO
+# Fluent-Voice Architecture Fix TODO
 
-## Phase 1: Extract Builder Traits from Domain
-- [ ] Move TtsConversationBuilder trait from domain to fluent-voice package. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving TtsConversationBuilder trait against requirements for clean decoupling and minimal surgical changes
-- [ ] Move TtsConversationChunkBuilder trait from domain to fluent-voice package. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving TtsConversationChunkBuilder trait against requirements for eliminating coupling and scope adherence
-- [ ] Move SttConversationBuilder trait from domain to fluent-voice package. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving SttConversationBuilder trait against requirements for clean architectural separation and minimal changes
-- [ ] Move all *Builder traits (MicrophoneBuilder, TranscriptionBuilder, etc.) from domain to fluent-voice. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving all builder traits against requirements for complete decoupling and surgical precision
+## CRITICAL ARCHITECTURE UNDERSTANDING
 
-## Phase 2: Remove Concrete Implementations from Domain
-- [ ] Move DefaultWakeWordDetector from domain to fluent-voice package. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving DefaultWakeWordDetector against requirements for pure domain abstractions and minimal scope changes
-- [ ] Move DefaultWakeWordBuilder from domain to fluent-voice package. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on moving DefaultWakeWordBuilder against requirements for eliminating concrete implementations from domain
-- [ ] Remove FluentVoiceImpl from domain package (move to fluent-voice if needed). DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on removing FluentVoiceImpl against requirements for pure domain abstractions and minimal changes
+**The fluent-voice architecture is FULLY UNWRAPPED:**
 
-## Phase 3: Purify Domain FluentVoice Trait
-- [ ] Remove all `impl XxxBuilder` return types from domain FluentVoice trait. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on removing builder return types against requirements for eliminating circular dependencies and scope adherence
-- [ ] Convert domain FluentVoice trait to pure abstraction without builder references. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on purifying FluentVoice trait against requirements for clean domain abstractions and minimal surgical changes
-- [ ] Remove all TtsConversationExt, SttConversationExt references from domain. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on removing conversation extensions against requirements for domain purity and scope boundary compliance
+1. **User writes matcher closures with both arms:**
+   ```rust
+   .on_chunk(|chunk| {
+       Ok => chunk.into(),     // User defines success handling
+       Err(e) => handle_error(e), // User defines error handling
+   })
+   ```
 
-## Phase 4: Update Fluent-Voice Package Structure
-- [ ] Create comprehensive builder module in fluent-voice with all moved builder traits. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on creating builder module against requirements for complete functionality and minimal changes
-- [ ] Implement FluentVoice trait in fluent-voice with concrete builder return types. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on implementing FluentVoice trait against requirements for proper concrete implementations and scope adherence
-- [ ] Update fluent-voice lib.rs exports to include all builder traits and implementations. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on updating exports against requirements for complete API exposure and minimal changes
+2. **Behind the scenes, the system:**
+   - Captures these closures
+   - Calls the appropriate arm based on actual results
+   - `Ok` arm gets called on success → data flows to stream
+   - `Err` arm gets called on error → error handling
 
-## Phase 5: Clean Domain Package
-- [ ] Remove builders module from domain package completely. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on removing builders module against requirements for pure domain package and surgical precision
-- [ ] Update domain lib.rs to export only pure domain types (no builder references). DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on cleaning domain exports against requirements for pure abstractions and scope compliance
-- [ ] Verify domain package has zero dependencies on builder concepts. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on verifying zero builder dependencies against requirements for complete decoupling and minimal scope
+3. **Final streams contain ONLY unwrapped data:**
+   - `AsyncStream<ConcreteTranscriptSegment>` (never `Result<AsyncStream<...>, Error>`)
+   - `AsyncStream<AudioChunk>` (never `Result<AsyncStream<...>, Error>`)
+   - All data in streams is unwrapped concrete types
 
-## Phase 6: Update Cross-Package Dependencies
-- [ ] Fix all import statements in fluent-voice to use local builder traits instead of domain. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on fixing imports against requirements for proper dependency flow and minimal changes
-- [ ] Update examples to use fluent-voice builder API without referencing domain builders. DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on updating examples against requirements for clean API usage and scope adherence
-- [ ] Verify workspace compiles with clean one-way dependency flow (fluent-voice → domain only). DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
-- [ ] Act as an Objective QA Rust developer - rate the work performed previously on verifying dependency flow against requirements for complete decoupling and architectural cleanliness
+4. **NotResult constraint enforces this:**
+   - `AsyncStream<T>` requires `T: NotResult`
+   - Prevents any Result types from entering streams
+   - Forces architecture to be fully unwrapped
+
+## PRIORITY FIXES
+
+### 1. Fix NotResult Constraint Violations (Critical - Blocks Examples)
+
+**Problem:** Using `Box<dyn TranscriptSegment + Send>` which doesn't implement `NotResult`
+**Solution:** Use concrete types that implement `NotResult`
+
+- [ ] **Fix default_stt_engine.rs transcript types**
+  - Change `Box<dyn crate::transcript::TranscriptSegment + Send>` to `fluent_voice_domain::ConcreteTranscriptSegment`
+  - Update all method signatures in default_stt_engine.rs lines 572 and 1000
+  - Ensure return types are `AsyncStream<ConcreteTranscriptSegment>` (unwrapped)
+  - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+- [ ] **QA Check:** Act as an Objective QA Rust developer - Verify that all AsyncStream types use concrete types that implement NotResult, not boxed trait objects. Confirm no Result types exist in any stream.
+
+### 2. Fix Method Signatures to Match Domain Traits
+
+**Problem:** Implementation methods have wrong number of type parameters
+**Solution:** Add missing type parameters to match domain trait signatures
+
+- [ ] **Fix STT listen method signatures**
+  - In stt_builder.rs line 264: Change `fn listen<F>` to `fn listen<F, R>`
+  - In stt_builder.rs line 414: Change `fn listen<F>` to `fn listen<F, S>`
+  - In default_stt_engine.rs line 572: Change `fn listen<F>` to `fn listen<F, R>`
+  - In default_stt_engine.rs line 1000: Change `fn listen<F>` to `fn listen<F, S>`
+  - Update where clauses to match domain trait requirements exactly
+  - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+- [ ] **QA Check:** Act as an Objective QA Rust developer - Verify that all listen method signatures match the domain trait signatures exactly with correct type parameters.
+
+### 3. Fix Missing Trait Implementations
+
+**Problem:** Missing required trait methods
+**Solution:** Implement missing methods or rename existing ones
+
+- [ ] **Fix TtsConversationChunkBuilder implementation**
+  - In tts_builder.rs line 562: Add missing `synthesize` method to TtsConversationChunkBuilder impl
+  - Either rename `synthesize_stream` to `synthesize` or add new `synthesize` method
+  - Ensure method returns unwrapped types (no Result wrapping)
+  - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+- [ ] **QA Check:** Act as an Objective QA Rust developer - Verify that all trait implementations are complete and methods return unwrapped types.
+
+### 4. Fix FluentVoice Return Types
+
+**Problem:** FluentVoice methods return types that don't implement required traits
+**Solution:** Make return types implement the required traits or return different types
+
+- [ ] **Fix FluentVoice::tts() and FluentVoice::stt() return types**
+  - In fluent_voice.rs line 167: Make TtsEntry implement TtsConversationBuilder trait
+  - In fluent_voice.rs line 171: Make SttEntry implement SttConversationBuilder trait
+  - Or change return types to types that already implement these traits
+  - Ensure all returned builders work with unwrapped data flows
+  - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+- [ ] **QA Check:** Act as an Objective QA Rust developer - Verify that FluentVoice trait implementation returns types that implement the required builder traits.
+
+### 5. Fix ChunkBuilder Type Issues
+
+**Problem:** ChunkBuilder type doesn't implement required trait
+**Solution:** Use correct type for ChunkBuilder
+
+- [ ] **Fix DefaultTtsBuilder ChunkBuilder type**
+  - In fluent_voice.rs line 276: Change `type ChunkBuilder = Self;` to use type that implements TtsConversationChunkBuilder
+  - Or implement TtsConversationChunkBuilder for DefaultTtsBuilder
+  - Ensure ChunkBuilder works with unwrapped data flows
+  - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+- [ ] **QA Check:** Act as an Objective QA Rust developer - Verify that ChunkBuilder type implements TtsConversationChunkBuilder trait correctly.
+
+### 6. Fix Import Errors
+
+**Problem:** Trying to import builders that don't exist
+**Solution:** Import the correct builder implementations
+
+- [ ] **Fix builder imports in lib.rs**
+  - In lib.rs lines 151-152: Change imports to use existing `*BuilderImpl` versions
+  - AudioIsolationBuilder → AudioIsolationBuilderImpl
+  - SoundEffectsBuilder → SoundEffectsBuilderImpl
+  - SpeechToSpeechBuilder → SpeechToSpeechBuilderImpl
+  - VoiceCloneBuilder → VoiceCloneBuilderImpl
+  - VoiceDiscoveryBuilder → VoiceDiscoveryBuilderImpl
+  - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+- [ ] **QA Check:** Act as an Objective QA Rust developer - Verify that all builder imports reference existing types and compile without errors.
+
+## VERIFICATION CRITERIA
+
+### Success Criteria:
+1. ✅ `cargo run --package fluent_voice --example tts` compiles and runs
+2. ✅ `cargo run --package fluent_voice --example stt` compiles and runs  
+3. ✅ All AsyncStream types use concrete types that implement NotResult
+4. ✅ No Result types exist in any stream data flows
+5. ✅ JSON syntax `{"key" => "value"}` works in examples (already working)
+6. ✅ User-defined matcher closures handle both Ok and Err arms
+7. ✅ All trait implementations are complete and match domain definitions
+
+### Architecture Validation:
+- User writes: `.engine_config({"provider" => "dia"})`
+- Gets transformed: `.engine_config(hash_map_fn!{"provider" => "dia"})`
+- Builder receives closure and calls it to get HashMap
+- User defines error handling in matcher closures
+- System calls appropriate arm based on actual results
+- Streams contain only unwrapped concrete data
+
+**CRITICAL:** Everything flows as unwrapped concrete types. The user's matcher closures handle both success and error cases, but the streams only contain the unwrapped success data.
