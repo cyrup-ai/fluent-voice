@@ -7,7 +7,7 @@ use anyhow::{Result, anyhow};
     feature = "accelerate",
     feature = "mkl"
 ))]
-use candle::{IndexOp, Tensor};
+use candle_core::{IndexOp, Tensor};
 #[cfg(any(
     feature = "cuda",
     feature = "metal",
@@ -19,8 +19,8 @@ use rand::distributions::weighted::WeightedIndex;
 use rand::{SeedableRng, rngs::StdRng};
 use tokenizers::Tokenizer;
 
-use crate::asr::multilingual::LANGUAGES;
-use crate::asr::{audio, model::WhisperModel, multilingual::detect_language};
+use crate::asr::multlingual::LANGUAGES;
+use crate::asr::{audio, model::WhisperModel, multlingual::detect_language};
 #[cfg(any(
     feature = "cuda",
     feature = "metal",
@@ -49,7 +49,11 @@ impl WhisperDecoder {
     pub fn new(model: WhisperModel, tokenizer: Tokenizer, seed: u64) -> Result<Self> {
         let device = &model
             .encoder_forward(
-                &Tensor::zeros((1, 1, 1), candle::DType::F32, &candle::Device::Cpu)?,
+                &Tensor::zeros(
+                    (1, 1, 1),
+                    candle_core::DType::F32,
+                    &candle_core::Device::Cpu,
+                )?,
                 true,
             )?
             .device(); // hack to grab device
@@ -152,7 +156,7 @@ fn sample(t: &Tensor, temp: f64, rng: &mut StdRng) -> Result<u32> {
 }
 
 /// Helper to fetch a special token id, with nicer error.
-fn token_id(tok: &Tokenizer, s: &str) -> Result<u32> {
+pub fn token_id(tok: &Tokenizer, s: &str) -> Result<u32> {
     tok.token_to_id(s)
         .ok_or_else(|| anyhow!("token {s} not found"))
 }

@@ -1,5 +1,5 @@
-use crate::Sample;
-use crate::predict::PredictState;
+use crate::asr::Sample;
+use crate::asr::predict::PredictState;
 
 /// Predicts speech in an iterator of audio samples.
 pub struct PredictIterator<'a, T, I>

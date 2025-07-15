@@ -51,9 +51,7 @@ use dia::{
 
 // Import optimizations when GPU features are enabled
 #[cfg(any(feature = "cuda", feature = "metal"))]
-use dia::optimizations::{
-    channel_delay_gpu,
-};
+use dia::optimizations::channel_delay_gpu;
 
 /// Anything below this RMS is considered silence (skip LUFS stage).
 const SILENCE_THRESHOLD: f32 = 1e-4;

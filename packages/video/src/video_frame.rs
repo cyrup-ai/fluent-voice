@@ -54,6 +54,27 @@ impl VideoFrame {
     pub fn timestamp_us(&self) -> i64 {
         self.inner.timestamp_us()
     }
+
+    /// Check if the video frame is empty
+    pub fn is_empty(&self) -> bool {
+        self.width() == 0 || self.height() == 0
+    }
+}
+
+impl Default for VideoFrame {
+    fn default() -> Self {
+        #[cfg(target_os = "macos")]
+        {
+            use crate::macos::MacOSVideoFrame;
+            Self::new(MacOSVideoFrame::default())
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            use crate::generic::GenericVideoFrame;
+            Self::new(GenericVideoFrame::default())
+        }
+    }
 }
 
 impl fmt::Debug for VideoFrame {

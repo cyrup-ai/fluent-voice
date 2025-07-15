@@ -27,9 +27,9 @@ pub use livekit_client::*;
 pub use playback::AudioStream;
 pub use remote_video_track_view::{RemoteVideoTrackView, RemoteVideoTrackViewEvent};
 
-// Re-export wgpu and raw_window_handle for consumers
+// Re-export raw_window_handle for consumers
 pub use raw_window_handle;
-pub use wgpu;
+// pub use wgpu; // Available through ratagpu if needed
 
 #[derive(Debug, Clone)]
 pub enum Participant {

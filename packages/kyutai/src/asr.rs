@@ -1,10 +1,10 @@
 //! Automatic Speech Recognition (ASR) module for Moshi
-//! 
+//!
 //! Provides real-time speech recognition capabilities with word-level timing information.
 
 use crate::model::LmModel;
-use crate::mimi::Mimi;
-use candle::{IndexOp, Result, Tensor};
+// use crate::mimi::Mimi; // TODO: uncomment when Mimi is implemented
+// use candle::{IndexOp, Result, Tensor}; // TODO: uncomment when Mimi is implemented
 use candle_transformers::generation::LogitsProcessor;
 
 /// Word structure containing tokens and timing information
@@ -21,25 +21,27 @@ pub struct Word {
 /// ASR processing state
 pub struct State {
     /// Delay in tokens for ASR processing
-    asr_delay_in_tokens: usize,
+    _asr_delay_in_tokens: usize,
     /// Current text token
-    text_token: u32,
+    _text_token: u32,
     /// Audio tokenizer for encoding PCM data
-    audio_tokenizer: Mimi,
+    // _audio_tokenizer: Mimi, // TODO: uncomment when Mimi is implemented
     /// Language model for text generation
-    lm: LmModel,
+    _lm: LmModel,
     /// Processing device
-    device: candle::Device,
+    _device: candle::Device,
     /// Current step index
-    step_idx: usize,
+    _step_idx: usize,
     /// Buffer for current word tokens
-    word_tokens: Vec<u32>,
+    _word_tokens: Vec<u32>,
     /// Last word stop time
-    last_stop_time: f64,
+    _last_stop_time: f64,
     /// Logits processor for sampling
-    lp: LogitsProcessor,
+    _lp: LogitsProcessor,
 }
 
+// TODO: implement State methods when Mimi is available
+/*
 impl State {
     /// Create a new ASR state
     pub fn new(asr_delay_in_tokens: usize, audio_tokenizer: Mimi, lm: LmModel) -> Result<Self> {
@@ -104,7 +106,7 @@ impl State {
         let (_one, codebooks, steps) = audio_tokens.dims3()?;
         let mut words = Vec::with_capacity(steps / 4); // Heuristic pre-allocation
         let mut audio_token_vec = Vec::with_capacity(codebooks);
-        
+
         for step in 0..steps {
             let step_audio = audio_tokens.narrow(2, step, 1)?;
             f(self.text_token, step_audio)?;
@@ -120,12 +122,12 @@ impl State {
             } else {
                 None
             };
-            
+
             let (text_logits, _) = self.lm.forward(text, audio_token_vec.clone())?;
             self.step_idx += 1;
             let text_logits = text_logits.i((0, 0))?;
             self.text_token = self.lp.sample(&text_logits)?;
-            
+
             if self.step_idx >= self.asr_delay_in_tokens {
                 if self.text_token == 0 {
                     // End of word token - flush current word
@@ -147,6 +149,7 @@ impl State {
         Ok(words)
     }
 }
+*/
 
 /// Builder for creating ASR state
 #[derive(Debug)]
@@ -161,17 +164,18 @@ impl StateBuilder {
             asr_delay_in_tokens: 6, // Default delay
         }
     }
-    
+
     /// Set the ASR delay in tokens
     pub fn asr_delay_in_tokens(mut self, delay: usize) -> Self {
         self.asr_delay_in_tokens = delay;
         self
     }
-    
-    /// Build the ASR state
-    pub fn build(self, audio_tokenizer: Mimi, lm: LmModel) -> Result<State> {
-        State::new(self.asr_delay_in_tokens, audio_tokenizer, lm)
-    }
+
+    // TODO: uncomment when Mimi is available
+    // /// Build the ASR state
+    // pub fn build(self, audio_tokenizer: Mimi, lm: LmModel) -> Result<State> {
+    //     State::new(self.asr_delay_in_tokens, audio_tokenizer, lm)
+    // }
 }
 
 impl Default for StateBuilder {

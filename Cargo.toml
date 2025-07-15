@@ -8,6 +8,7 @@ members = [
     "packages/elevenlabs",
     "packages/fluent-voice",
     "packages/koffee",
+    "packages/kyutai",
     "packages/livekit",
     "packages/vad",
     "packages/video",

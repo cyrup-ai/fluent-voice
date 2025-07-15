@@ -1,5 +1,6 @@
-use crate::{WhisperModel, token_id};
-use candle::{D, IndexOp, Result, Tensor};
+use crate::asr::decoder::token_id;
+use crate::asr::model::WhisperModel;
+use candle_core::{D, IndexOp, Result, Tensor};
 use candle_transformers::models::whisper as m;
 use tokenizers::Tokenizer;
 

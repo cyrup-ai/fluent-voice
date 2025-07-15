@@ -1,6 +1,6 @@
 use std::mem;
 
-use crate::{Sample, VoiceActivityDetector};
+use crate::asr::{Sample, VoiceActivityDetector};
 
 pub struct PredictState<'a, T> {
     vad: &'a mut VoiceActivityDetector,

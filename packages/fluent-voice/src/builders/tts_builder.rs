@@ -73,6 +73,8 @@ pub struct SpeakerLineBuilder {
     language: Option<fluent_voice_domain::Language>,
     speed_modifier: Option<fluent_voice_domain::VocalSpeedMod>,
     pitch_range: Option<fluent_voice_domain::PitchRange>,
+    metadata: std::collections::HashMap<String, String>,
+    vocal_settings: std::collections::HashMap<String, String>,
 }
 
 impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
@@ -86,6 +88,8 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
             language: None,
             speed_modifier: None,
             pitch_range: None,
+            metadata: std::collections::HashMap::new(),
+            vocal_settings: std::collections::HashMap::new(),
         }
     }
 
@@ -123,6 +127,34 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
             speed_modifier: self.speed_modifier,
             pitch_range: self.pitch_range,
         }
+    }
+}
+
+impl SpeakerLineBuilder {
+    /// Configure speaker metadata using JSON object syntax
+    #[cfg(feature = "hashbrown-json")]
+    pub fn metadata<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>,
+    {
+        let meta_map = f();
+        for (k, v) in meta_map {
+            self.metadata.insert(k.to_string(), v.to_string());
+        }
+        self
+    }
+
+    /// Configure vocal settings using JSON object syntax
+    #[cfg(feature = "hashbrown-json")]
+    pub fn vocal_settings<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>,
+    {
+        let settings_map = f();
+        for (k, v) in settings_map {
+            self.vocal_settings.insert(k.to_string(), v.to_string());
+        }
+        self
     }
 }
 
@@ -198,6 +230,8 @@ pub struct TtsConversationBuilderImpl<AudioStream> {
     global_language: Option<Language>,
     /// Global speaking rate setting
     global_speed: Option<crate::vocal_speed::VocalSpeedMod>,
+    /// Engine configuration parameters
+    engine_config: std::collections::HashMap<String, String>,
     /// Model ID to use for synthesis
     model: Option<crate::model_id::ModelId>,
     /// Voice stability setting (0.0-1.0)
@@ -239,6 +273,7 @@ where
             lines: Vec::new(),
             global_language: None,
             global_speed: None,
+            engine_config: std::collections::HashMap::new(),
             model: None,
             stability: None,
             similarity: None,
@@ -297,6 +332,19 @@ where
     /// Set the output audio format
     pub fn output_format(mut self, format: AudioFormat) -> Self {
         self.output_format = Some(format);
+        self
+    }
+
+    /// Configure engine parameters using JSON object syntax
+    #[cfg(feature = "hashbrown-json")]
+    pub fn engine_config<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>,
+    {
+        let config_map = f();
+        for (k, v) in config_map {
+            self.engine_config.insert(k.to_string(), v.to_string());
+        }
         self
     }
 

@@ -1,7 +1,7 @@
 use ort::{session::Session, session::builder::GraphOptimizationLevel};
 use std::sync::{Arc, LazyLock};
 
-use crate::{Sample, error::Error};
+use crate::asr::{Sample, error::Error};
 
 /// A voice activity detector session.
 #[derive(Debug)]
@@ -14,7 +14,7 @@ pub struct VoiceActivityDetector {
 }
 
 /// The silero ONNX model as bytes.
-const MODEL: &[u8] = include_bytes!("../onnx/silero_vad.onnx");
+const MODEL: &[u8] = include_bytes!("onnx/silero_vad.onnx");
 
 static DEFAULT_SESSION: LazyLock<Arc<Session>> = LazyLock::new(|| {
     Arc::new({

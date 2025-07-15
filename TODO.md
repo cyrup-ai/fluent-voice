@@ -1,87 +1,146 @@
-# ZERO TOLERANCE FOR ERRORS - Complete Build Restoration
+# TODO: Add cyrup_sugars JSON Object Syntax
 
-## OBJECTIVE: 0 Errors, 0 Warnings
+## 🎯 USER OBJECTIVE
+Add cyrup_sugars hashbrown-json feature to enable JSON object syntax `{"key" => "value"}` in fluent-voice builders. Everything else already exists and works.
 
-**Current Status:** 200+ Errors, 50+ Warnings  
-**Target:** 0 Errors, 0 Warnings
+## 📋 MINIMAL TASKS
 
----
+### 1. Enable hashbrown-json feature in cyrup_sugars dependency
+**File:** `fluent-voice/packages/fluent-voice/Cargo.toml`
+**Line:** 31 (cyrup_sugars dependency)
+**Changes:** 
+- Change `cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", default-features = true }`
+- To `cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", features = ["hashbrown-json"] }`
 
-## CRITICAL ERROR CATEGORIES
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
 
-### 1. Missing Dependencies (HIGH PRIORITY)
-**Packages affected:** fluent-voice, livekit, cyterm, whisper
+### 2. QA: Verify hashbrown-json feature enablement
+Act as an Objective QA Rust developer. Rate the work performed previously on enabling hashbrown-json feature. Verify that:
+- Feature is correctly specified in Cargo.toml
+- Dependency still points to correct repository
+- No other dependencies were modified unnecessarily
+- Feature enables JSON object syntax capabilities
 
-1. **fluent-voice missing deps**: serde_json, cpal, byteorder, tracing
-   - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
-2. **QA**: Act as an Objective QA Rust developer - rate the fluent-voice dependency additions (1-10) for correctness and minimal impact
-3. **livekit missing deps**: log, tracing, gpui, core_video, coreaudio, sugarloaf
-   - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
-4. **QA**: Act as an Objective QA Rust developer - rate the livekit dependency additions (1-10) for correctness and minimal impact
+### 3. Add JSON config method to TtsConversationBuilder
+**File:** `fluent-voice/packages/fluent-voice/src/builders/tts_builder.rs`
+**Lines:** Add new method to TtsConversationBuilderImpl impl block
+**Changes:**
+- Add `engine_config<F>(self, f: F) -> Self where F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>`
+- Store config in internal HashMap field
+- Route to engine during synthesis
 
-### 2. Feature Configuration Errors (HIGH PRIORITY)
-**Error:** "At least one audio feature must be enabled: microphone, encodec, mimi, or snac"
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
 
-5. **Enable required audio features in livekit and cyterm**
-   - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
-6. **QA**: Act as an Objective QA Rust developer - rate the audio feature configuration (1-10) for correctness
+### 4. QA: Verify TTS JSON configuration method
+Act as an Objective QA Rust developer. Rate the work performed previously on TTS JSON configuration. Verify that:
+- Method signature accepts hashbrown::HashMap closure
+- Implementation stores configuration properly
+- Method maintains fluent builder pattern
+- No unwrap() or expect() calls in implementation
 
-### 3. Module Redefinition Errors (HIGH PRIORITY)
-**Package:** cyterm - multiple definitions of `error`, `llm`, `VoiceActivityDetector`
+### 5. Add JSON config method to SttConversationBuilder
+**File:** `fluent-voice/packages/fluent-voice/src/builders/stt_builder.rs`
+**Lines:** Add new method to SttConversationBuilderImpl impl block
+**Changes:**
+- Add `engine_config<F>(self, f: F) -> Self where F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>`
+- Store config in internal HashMap field
+- Route to engine during listening
 
-7. **Fix cyterm module redefinitions and import conflicts**
-   - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
-8. **QA**: Act as an Objective QA Rust developer - rate the cyterm module conflict resolution (1-10)
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
 
-### 4. Missing Files (HIGH PRIORITY)
-**Files:** README.md, silero_vad.onnx in cyterm
+### 6. QA: Verify STT JSON configuration method
+Act as an Objective QA Rust developer. Rate the work performed previously on STT JSON configuration. Verify that:
+- JSON config method is properly implemented
+- Configuration routing works correctly
+- Method integrates with existing builder pattern
+- No blocking operations introduced
 
-9. **Create or locate missing README.md and onnx files for cyterm**
-   - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
-10. **QA**: Act as an Objective QA Rust developer - rate the missing file resolution (1-10)
+### 7. Add JSON config methods to SpeakerBuilder
+**File:** `fluent-voice/packages/fluent-voice/src/builders/tts_builder.rs`
+**Lines:** Add methods to SpeakerLineBuilder impl block
+**Changes:**
+- Add `metadata<F>(self, f: F) -> Self where F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>`
+- Add `vocal_settings<F>(self, f: F) -> Self where F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>`
+- Store in HashMap fields
 
-### 5. Trait Implementation Issues (MEDIUM PRIORITY)
-**Package:** fluent-voice - missing trait methods, type parameter mismatches
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
 
-11. **Fix fluent-voice trait implementations and type parameters**
-    - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
-12. **QA**: Act as an Objective QA Rust developer - rate the trait implementation fixes (1-10)
+### 8. QA: Verify SpeakerBuilder JSON methods
+Act as an Objective QA Rust developer. Rate the work performed previously on SpeakerBuilder JSON methods. Verify that:
+- Methods follow cyrup_sugars patterns correctly
+- Configuration is stored properly
+- Integration with speaker system works
+- Type safety is maintained
 
-### 6. Import Resolution Errors (MEDIUM PRIORITY)
-**Packages:** Multiple - unresolved imports and missing modules
+### 9. Update TTS example with JSON syntax
+**File:** `fluent-voice/packages/fluent-voice/examples/tts.rs`
+**Lines:** Enhance audio_stream creation (lines 25-63)
+**Changes:**
+- Add `.engine_config(|| hashbrown::hashmap!{"provider" => "dia", "quality" => "high"})`
+- Add `.metadata()` and `.vocal_settings()` to speaker configurations
+- Demonstrate JSON object syntax in action
 
-13. **Resolve all unresolved import errors across packages**
-    - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
-14. **QA**: Act as an Objective QA Rust developer - rate the import resolution fixes (1-10)
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
 
-### 7. Workspace Dependencies (LOW PRIORITY)
-**Action:** Update workspace-hack after dependency changes
+### 10. QA: Verify TTS example enhancement
+Act as an Objective QA Rust developer. Rate the work performed previously on TTS example enhancement. Verify that:
+- JSON syntax demonstrates cyrup_sugars integration
+- Example runs successfully with enhanced syntax
+- Configuration demonstrates real usage patterns
+- Code is clean and demonstrates API properly
 
-15. **Run cargo hakari generate to update workspace-hack**
-    - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
-16. **QA**: Act as an Objective QA Rust developer - rate the hakari update (1-10)
+### 11. Update STT example with JSON syntax
+**File:** `fluent-voice/packages/fluent-voice/examples/stt.rs`
+**Lines:** Enhance transcript_stream creation (lines 25-48)
+**Changes:**
+- Add `.engine_config(|| hashbrown::hashmap!{"provider" => "whisper", "model" => "large-v3"})`
+- Demonstrate JSON object syntax for STT configuration
+- Show integration with existing wake word and VAD
 
-### 8. Final Verification (LOW PRIORITY)
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
 
-17. **Verify zero errors and warnings with full build**
-    - DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
-18. **QA**: Act as an Objective QA Rust developer - rate the final build verification (1-10)
+### 12. QA: Verify STT example enhancement
+Act as an Objective QA Rust developer. Rate the work performed previously on STT example enhancement. Verify that:
+- JSON configuration demonstrates API capabilities
+- Example works with existing engine integrations
+- Syntax is clean and intuitive
+- Integration with wake word/VAD is maintained
 
----
+### 13. Update README.md examples with JSON syntax
+**File:** `fluent-voice/packages/fluent-voice/README.md`
+**Lines:** Replace examples (lines 61-143) with JSON syntax
+**Changes:**
+- Show `.engine_config()` in TTS and STT examples
+- Demonstrate `.metadata()` and `.vocal_settings()` for speakers
+- Update advanced usage examples with JSON syntax
+- Maintain all existing functionality while showing enhanced API
 
-## CONSTRAINTS & STANDARDS
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required. Do not modify or rewrite any portion of the app outside scope.
 
-- ❌ NO EXCUSES: Fix every single error and warning
-- ❌ NO SHORTCUTS: Production quality code only  
-- ❌ NO BLOCKING CODE: Unless explicitly approved by David Maple with timestamp
-- ❌ NO unwrap() anywhere in src/* or examples/*
-- ❌ NO expect() in src/* or examples/* 
-- ✅ DO USE expect() in ./tests/*
-- ✅ RESEARCH THOROUGHLY: Understand each issue and all call sites
-- ✅ ASK QUESTIONS: When uncertain, ask David for clarification
-- ✅ QA EVERYTHING: Score 9+ required, redo if less
-- ✅ TEST LIKE USER: Verify actual functionality works
+### 14. QA: Verify README.md syntax update
+Act as an Objective QA Rust developer. Rate the work performed previously on README.md update. Verify that:
+- All examples demonstrate JSON object syntax
+- Documentation is accurate and complete
+- Examples are runnable and correct
+- API enhancements are properly showcased
 
----
+## 🎯 SUCCESS CRITERIA
 
-**SUCCESS CRITERIA: `cargo check --features metal --message-format short --quiet` shows ZERO errors and ZERO warnings**
+When all tasks are complete:
+
+1. **JSON Object Syntax Works**: `{"key" => "value"}` syntax functions in all builders
+2. **Examples Enhanced**: Both tts.rs and stt.rs demonstrate JSON configuration
+3. **Documentation Updated**: README.md shows enhanced API usage
+4. **Existing Functionality Preserved**: All current features continue working
+5. **Zero Allocation Maintained**: Performance characteristics unchanged
+
+## 🚫 ABSOLUTE CONSTRAINTS
+
+- Never use unwrap() in src/* files or examples/*
+- Never use expect() in src/* files or examples/*
+- DO USE expect() in tests/* files for assertions
+- No unsafe code anywhere
+- Complete implementation - no stubs or "TODO" comments
+- Maintain backward compatibility with existing API
+- Do not modify working engine implementations
+- Focus only on adding JSON syntax capabilities

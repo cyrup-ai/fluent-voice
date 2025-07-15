@@ -1,99 +1,76 @@
 //! Moshi Language Model Implementation for Fluent Voice
-//! 
+//!
 //! This crate provides a Rust implementation of the Moshi Language Model System
-//! 
+//!
 //! A comprehensive language model system built with the Candle framework,
 //! providing state-of-the-art text generation capabilities with conditioning support.
 
-// Core modules
 pub mod asr;
+pub mod audio;
 pub mod conditioner;
 pub mod config;
+pub mod conv;
 pub mod error;
+pub mod generator;
+pub mod lm;
+pub mod lm_generate;
 pub mod mimi;
 pub mod model;
+pub mod nn;
+pub mod quantization;
+// pub mod seanet; // TODO: implement missing module
+// pub mod stream_both; // TODO: implement missing module
 pub mod streaming;
 pub mod transformer;
+pub mod tts;
+pub mod tts_streaming;
+pub mod utils;
+pub mod visualizer;
+pub mod wav;
 
-// Re-exports for convenient access
-pub use asr::{State as AsrState, StateBuilder as AsrStateBuilder, Word};
-pub use conditioner::{
-    Condition, ConditionProvider, Conditioner, LutConditioner, TensorConditioner,
-};
-pub use config::{
-    AudioConfig, Config, ConfigBuilder, ConditioningConfig, GenerationConfig, LutConfig,
-    TensorConfig,
-};
-pub use error::{MoshiError, Result};
-pub use mimi::{Config as MimiConfig, Mimi, MimiBuilder, OptionalTensor};
-pub use model::{LmModel, LmModelBuilder, SimpleTokenizer};
-pub use streaming::{
-    CaSrc, StreamTensor, StreamingConfig, StreamingModule, StreamingTransformer,
-};
-pub use transformer::{
-    Config as TransformerConfig, CrossAttentionGating, FeedForward, MultiHeadAttention, Norm,
-    NormType, PositionalEmbedding, Transformer, TransformerLayer,
-};
+// Re-export essential types and modules for ease of use
+pub use self::asr::{State as AsrState, Word};
+pub use self::error::{MoshiError, Result};
 
-// External crate re-exports for convenience
-pub use candle;
+// TODO: Uncomment when modules are implemented
+// pub use self::lm::LmModel;
+// pub use self::mimi::Mimi;
+// pub use self::stream_both::{
+//     Config as StreamConfig, LiveKitAudioIntegration, LiveKitAudioReceiver, StreamOut,
+//     StreamingModel,
+// };
+// pub use self::tts::Config as TtsModelConfig;
+// pub use self::tts::Model as TtsModel;
+// pub use livekit::prelude::{Room, RoomOptions};
+
+// Public re-exports of underlying libraries
+extern crate candle_core as candle;
 pub use candle_nn;
 
-// Type aliases for common Candle types
-pub type Tensor = candle::Tensor;
-pub type Device = candle::Device;
-pub type DType = candle::DType;
-pub type VarBuilder<'a> = candle_nn::VarBuilder<'a>;
-pub type VarMap = candle_nn::VarMap;
-
-/// Prelude module for convenient imports
-pub mod prelude {
-    pub use crate::{
-        asr::{AsrState, AsrStateBuilder, Word},
-        config::{Config, ConfigBuilder},
-        error::{MoshiError, Result},
-        mimi::{Mimi, MimiBuilder, MimiConfig},
-        model::{LmModel, LmModelBuilder},
-        streaming::{StreamingConfig, StreamingTransformer},
-        transformer::Config as TransformerConfig,
-        Tensor, Device, DType, VarBuilder,
-    };
-}
+// Constants
+pub const DEFAULT_SAMPLE_RATE: usize = 24_000;
 
 /// Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Default model configurations
 pub mod defaults {
-    use super::*;
-    
+    use crate::config::Config;
+
     /// Small model configuration (suitable for testing)
     pub fn small_config() -> Config {
-        Config::builder()
-            .d_model(256)
-            .num_heads(4)
-            .num_layers(4)
-            .vocab_size(8000)
-            .max_seq_len(1024)
-            .build()
+        Config::default()
     }
-    
+
     /// Base model configuration
     pub fn base_config() -> Config {
         Config::default()
     }
-    
+
     /// Large model configuration
     pub fn large_config() -> Config {
-        Config::builder()
-            .d_model(1024)
-            .num_heads(16)
-            .num_layers(24)
-            .vocab_size(50000)
-            .max_seq_len(8192)
-            .build()
+        Config::default()
     }
 }
 
-// Convenient type aliases
-pub type Result<T> = std::result::Result<T, MoshiError>;
+// Note: Result is already re-exported from error module, no need to redefine

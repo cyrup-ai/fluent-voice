@@ -50,14 +50,27 @@
 
 #![cfg_attr(feature = "simd", feature(portable_simd))]
 
-#[cfg(not(any(feature = "cuda", feature = "metal", feature = "accelerate", feature = "mkl")))]
-compile_error!("At least one candle acceleration feature must be enabled: cuda, metal, accelerate, or mkl");
+#[cfg(not(any(
+    feature = "cuda",
+    feature = "metal",
+    feature = "accelerate",
+    feature = "mkl"
+)))]
+compile_error!(
+    "At least one candle acceleration feature must be enabled: cuda, metal, accelerate, or mkl"
+);
 
 // Note: Default features include "microphone" so this should not trigger
-#[cfg(all(not(feature = "microphone"), not(feature = "encodec"), not(feature = "mimi"), not(feature = "snac")))]
+#[cfg(all(
+    not(feature = "microphone"),
+    not(feature = "encodec"),
+    not(feature = "mimi"),
+    not(feature = "snac")
+))]
 compile_error!("At least one audio feature must be enabled: microphone, encodec, mimi, or snac");
 
 /* ───── shared fundamentals ───── */
+pub mod async_stream_helpers;
 pub mod audio_chunk;
 pub mod audio_device_manager;
 pub mod language;
@@ -124,8 +137,8 @@ pub mod prelude {
 
     /* shared */
     pub use crate::language::Language;
-    pub use fluent_voice_domain::{AudioFormat, SpeechSource, VoiceError};
     pub use crate::{AsyncStream, AsyncTask};
+    pub use fluent_voice_domain::{AudioFormat, SpeechSource, VoiceError};
 
     /* TTS */
     pub use crate::{
@@ -134,7 +147,10 @@ pub mod prelude {
         pitch_range::PitchRange,
         speaker_builder::SpeakerBuilder,
         stream_ext::TtsStreamExt,
-        tts_conversation::{TtsConversation, TtsConversationBuilder, TtsConversationChunkBuilder, TtsConversationExt},
+        tts_conversation::{
+            TtsConversation, TtsConversationBuilder, TtsConversationChunkBuilder,
+            TtsConversationExt,
+        },
         tts_engine::TtsEngine,
         tts_settings::{Similarity, SpeakerBoost, Stability, StyleExaggeration},
         vocal_speed::VocalSpeedMod,
@@ -161,7 +177,8 @@ pub mod prelude {
         FluentVoice as FluentVoiceTrait, FluentVoiceImpl as FluentVoice, SttEntry, TtsEntry,
     };
 
-    /* cyrup-sugars macros for Ok => Err => syntax */
+    /* cyrup-sugars macros for Ok => Err => syntax and JSON object syntax */
+    pub use cyrup_sugars::prelude::*;
     pub use cyrup_sugars::macros::*;
     // Real production transcript segment type from Whisper crate
     pub use fluent_voice_whisper::TtsChunk;
@@ -200,5 +217,5 @@ pub mod prelude {
 
 // Re-export at crate root for internal use
 pub use cyrup_sugars::{AsyncStream, AsyncTask};
-pub use transcript::{TranscriptSegment, TranscriptStream};
 pub use fluent_voice_whisper::TtsChunk;
+pub use transcript::{TranscriptSegment, TranscriptStream};

@@ -6,7 +6,7 @@
     feature = "accelerate",
     feature = "mkl"
 ))]
-use candle::{Result, Tensor};
+use candle_core::{Result, Tensor};
 #[cfg(any(
     feature = "cuda",
     feature = "metal",

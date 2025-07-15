@@ -89,6 +89,10 @@ async fn main() -> Result<(), VoiceError> {
                 .speak("Hi Alice! How are you today?")
                 .build()
         )
+        .on_chunk(|synthesis_chunk| {
+            Ok => synthesis_chunk.into(), // Unwrap each audio chunk
+            Err(e) => Err(e),
+        })
         .synthesize(|conversation| {
             Ok  => conversation.into_stream(),  // Returns audio stream
             Err(e) => Err(e),
@@ -124,6 +128,10 @@ async fn main() -> Result<(), VoiceError> {
         .diarization(Diarization::On)  // Speaker identification
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
+        .on_chunk(|transcription_chunk| {
+            Ok => transcription_chunk.into(), // Unwrap each chunk
+            Err(e) => Err(e),
+        })
         .listen(|conversation| {
             Ok  => conversation.into_stream(),  // Returns transcript stream
             Err(e) => Err(e),
@@ -189,6 +197,10 @@ let conversation = engine.conversation()
             .build()
     )
     .language(Language("en-US"))  // Global language setting
+    .on_chunk(|synthesis_chunk| {
+        Ok => synthesis_chunk.into(),
+        Err(e) => Err(e),
+    })
     .synthesize(/* matcher */)
     .await?;
 ```
@@ -207,6 +219,10 @@ let conversation = engine.conversation()
     .diarization(Diarization::On)                          // Speaker identification
     .timestamps_granularity(TimestampsGranularity::Word)   // Timing precision
     .punctuation(Punctuation::On)                          // Auto-punctuation
+    .on_chunk(|transcription_chunk| {
+        Ok => transcription_chunk.into(),
+        Err(e) => Err(e),
+    })
     .listen(|conversation|{ Ok => })
     .await?;
 ```
@@ -294,6 +310,10 @@ let audio = primary_engine.conversation()
         // Fallback to different engine or settings
         fallback_engine.conversation()
             .with_speaker(speaker)
+            .on_chunk(|synthesis_chunk| {
+                Ok => synthesis_chunk.into(),
+                Err(e) => Err(e),
+            })
             .synthesize(|conv| {
                 Ok => conv.into_stream(),
                 Err(e) => Err(e),
@@ -306,6 +326,10 @@ let audio = primary_engine.conversation()
 ```rust
 let mut audio_stream = engine.conversation()
     .with_speaker(speaker)
+    .on_chunk(|synthesis_chunk| {
+        Ok => synthesis_chunk.into(),
+        Err(e) => Err(e),
+    })
     .synthesize(|conv| Ok => conv.into_stream(), Err(e) => Err(e))
     .await?;
 
@@ -322,6 +346,10 @@ while let Some(sample) = audio_stream.next().await {
 let mut transcript_stream = engine.conversation()
     .with_source(SpeechSource::from_file("meeting.wav", AudioFormat::Pcm16Khz))
     .diarization(Diarization::On)
+    .on_chunk(|transcription_chunk| {
+        Ok => transcription_chunk.into(),
+        Err(e) => Err(e),
+    })
     .listen(|conv| Ok => conv.into_stream(), Err(e) => Err(e))
     .await?;
 

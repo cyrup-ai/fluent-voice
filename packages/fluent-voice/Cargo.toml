@@ -37,7 +37,7 @@ fluent_voice_whisper = {  path = "../whisper", features = ["async-stream", "audi
 fluent_voice_vad = { path = "../vad", features = ["async", "load-dynamic", "ort"] }
 koffee = { path = "../koffee" }
 dia = { path = "../dia" }
-cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", default-features = true }
+cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", features = ["hashbrown-json"] }
 futures-core = "0.3.31"
 futures = "0.3.31"
 futures-util = "0.3.31"
@@ -96,7 +96,7 @@ ab_glyph = "0.2"
 tracing = "0.1"
 tracing-chrome = "0.7"
 
-# OS-specific acceleration dependencies 
+# OS-specific acceleration dependencies
 [target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
 cudarc = { version = "0.16.6", optional = true, default-features = false, features = ["cublas", "cublaslt", "cudnn", "curand", "dynamic-linking", "f16", "std"] }
 intel-mkl-src = { version = "0.8", optional = true }

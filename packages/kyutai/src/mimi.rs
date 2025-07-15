@@ -1,353 +1,238 @@
-//! Mimi audio tokenizer for encoding/decoding audio
-//! 
-//! Provides audio tokenization capabilities for the Moshi language model system.
+// use super::NormType; // TODO: uncomment when audio module is available
+// use super::streaming::StreamingModule; // TODO: uncomment when needed
+use super::transformer;
+// use super::{conv, nn, quantization, seanet}; // TODO: uncomment when modules are implemented
+// use candle::{DType, Device, Module, Result, Tensor}; // TODO: uncomment when needed
+// use candle_nn::VarBuilder; // TODO: uncomment when needed
 
-use candle::{Result, Tensor, Device, DType, D};
-use candle_nn::{VarBuilder, Module};
-use serde::{Deserialize, Serialize};
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ResampleMethod {
+    Conv,
+    Interpolate,
+}
 
-/// Configuration for Mimi audio tokenizer
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Config {
-    /// Number of audio codebooks
-    pub n_codebooks: usize,
-    /// Codebook size
-    pub codebook_size: usize,
-    /// Frame rate for audio processing
-    pub frame_rate: f64,
-    /// Sample rate for audio
-    pub sample_rate: u32,
-    /// Number of channels
     pub channels: usize,
-    /// Compression dimension
-    pub compression: usize,
-    /// Model dimension
-    pub model_dim: usize,
+    pub sample_rate: f64,
+    pub frame_rate: f64,
+    pub renormalize: bool,
+    pub resample_method: ResampleMethod,
+    // pub seanet: seanet::Config, // TODO: uncomment when seanet module is implemented
+    pub transformer: transformer::Config,
+    pub quantizer_n_q: usize,
+    pub quantizer_bins: usize,
+    pub quantizer_dim: usize,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            n_codebooks: 8,
-            codebook_size: 2048,
-            frame_rate: 12.5,
-            sample_rate: 24000,
+impl Config {
+    // TODO: implement v0_1 method when seanet and conv modules are available
+    /*
+    // /lustre/scwpod02/client/kyutai/alex/mimi_exp/xps/b7d2bd5a/.hydra/config.yaml
+    pub fn v0_1(num_codebooks: Option<usize>) -> Self {
+        let seanet_cfg = seanet::Config {
+            dimension: 512,
             channels: 1,
-            compression: 8,
-            model_dim: 512,
+            causal: true,
+            n_filters: 64,
+            n_residual_layers: 1,
+            activation: candle_nn::Activation::Elu(1.),
+            compress: 2,
+            dilation_base: 2,
+            disable_norm_outer_blocks: 0,
+            final_activation: None,
+            kernel_size: 7,
+            residual_kernel_size: 3,
+            last_kernel_size: 3,
+            lstm: 0,
+            norm: conv::Norm::WeightNorm,
+            pad_mode: conv::PadMode::Constant,
+            ratios: vec![8, 6, 5, 4],
+            true_skip: true,
+        };
+        let transformer_cfg = transformer::Config {
+            d_model: seanet_cfg.dimension,
+            num_heads: 8,
+            num_layers: 8,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: Some(0.01),
+            context: 250,
+            conv_kernel_size: 5,
+            use_conv_bias: true,
+            use_conv_block: false,
+            cross_attention: None,
+            max_period: 10000,
+            gating: None,
+            norm: NormType::LayerNorm,
+            positional_embedding: transformer::PositionalEmbedding::Rope,
+
+            dim_feedforward: 2048,
+            kv_repeat: 1,
+            conv_layout: true, // see builders.py
+            max_seq_len: 8192, // the transformer works at 25hz so this is ~5 mins.
+            shared_cross_attn: false,
+        };
+        Config {
+            channels: 1,
+            sample_rate: 24_000.,
+            frame_rate: 12.5,
+            renormalize: true,
+            resample_method: ResampleMethod::Conv,
+            seanet: seanet_cfg,
+            transformer: transformer_cfg,
+            quantizer_n_q: num_codebooks.unwrap_or(16),
+            quantizer_bins: 2048,
+            quantizer_dim: 256,
         }
     }
+    */
 }
 
-/// Audio tokenizer state for streaming
-#[derive(Debug)]
-pub struct AudioTokenizerState {
-    /// Internal buffer for audio data
-    buffer: Vec<f32>,
-    /// Current position in buffer
-    position: usize,
-    /// Frame size for processing
-    frame_size: usize,
-}
-
-impl AudioTokenizerState {
-    pub fn new(frame_size: usize) -> Self {
-        Self {
-            buffer: Vec::with_capacity(frame_size * 2),
-            position: 0,
-            frame_size,
-        }
-    }
-    
-    pub fn reset(&mut self) {
-        self.buffer.clear();
-        self.position = 0;
-    }
-}
-
-/// Optional tensor wrapper for streaming results
-#[derive(Debug)]
-pub struct OptionalTensor {
-    inner: Option<Tensor>,
-}
-
-impl OptionalTensor {
-    pub fn some(tensor: Tensor) -> Self {
-        Self { inner: Some(tensor) }
-    }
-    
-    pub fn none() -> Self {
-        Self { inner: None }
-    }
-    
-    pub fn as_option(&self) -> Option<&Tensor> {
-        self.inner.as_ref()
-    }
-    
-    pub fn is_some(&self) -> bool {
-        self.inner.is_some()
-    }
-    
-    pub fn is_none(&self) -> bool {
-        self.inner.is_none()
-    }
-}
-
-impl From<Tensor> for OptionalTensor {
-    fn from(tensor: Tensor) -> Self {
-        Self::some(tensor)
-    }
-}
-
-impl From<Option<Tensor>> for OptionalTensor {
-    fn from(option: Option<Tensor>) -> Self {
-        Self { inner: option }
-    }
-}
-
-/// Mimi audio tokenizer
-#[derive(Debug)]
+// TODO: implement Mimi struct when missing modules are available
+/*
+#[derive(Debug, Clone)]
 pub struct Mimi {
-    /// Tokenizer configuration
+    encoder: seanet::SeaNetEncoder,
+    decoder: seanet::SeaNetDecoder,
+    encoder_transformer: transformer::ProjectedTransformer,
+    decoder_transformer: transformer::ProjectedTransformer,
+    downsample: conv::ConvDownsample1d,
+    upsample: conv::ConvTrUpsample1d,
+    quantizer: quantization::SplitResidualVectorQuantizer,
     config: Config,
-    /// Processing device
-    device: Device,
-    /// Streaming state
-    state: AudioTokenizerState,
-    /// Encoder network (placeholder)
-    encoder: Option<MimiEncoder>,
-    /// Decoder network (placeholder)
-    decoder: Option<MimiDecoder>,
 }
+*/
 
+// TODO: implement Mimi methods when missing modules are available
+/*
 impl Mimi {
-    /// Create a new Mimi tokenizer
-    pub fn new(config: Config, device: Device) -> Result<Self> {
-        let frame_size = (config.sample_rate as f64 / config.frame_rate) as usize;
-        let state = AudioTokenizerState::new(frame_size);
-        
+    pub fn new(cfg: Config, vb: VarBuilder) -> Result<Self> {
+        let dim = cfg.seanet.dimension;
+        let encoder = seanet::SeaNetEncoder::new(&cfg.seanet, vb.pp("encoder"))?;
+        let decoder = seanet::SeaNetDecoder::new(&cfg.seanet, vb.pp("decoder"))?;
+        let encoder_transformer = transformer::ProjectedTransformer::new(
+            dim,
+            &[dim],
+            &cfg.transformer,
+            nn::MaybeQuantizedVarBuilder::Real(vb.pp("encoder_transformer")),
+        )?;
+        let decoder_transformer = transformer::ProjectedTransformer::new(
+            dim,
+            &[dim],
+            &cfg.transformer,
+            nn::MaybeQuantizedVarBuilder::Real(vb.pp("decoder_transformer")),
+        )?;
+        let quantizer = quantization::SplitResidualVectorQuantizer::new(
+            /* dim */ cfg.quantizer_dim,
+            /* input_dim */ Some(dim),
+            /* output_dim */ Some(dim),
+            /* n_q */ cfg.quantizer_n_q,
+            /* bins */ cfg.quantizer_bins,
+            vb.pp("quantizer"),
+        )?;
+        let encoder_frame_rate =
+            cfg.sample_rate / cfg.seanet.ratios.iter().product::<usize>() as f64;
+
+        let downsample_stride = (encoder_frame_rate / cfg.frame_rate) as usize;
+        // `upsample` and `downsample` only apply if frame_rate is different from encoder_frame_rate.
+        let downsample = conv::ConvDownsample1d::new(
+            /* stride */ downsample_stride,
+            /* dim */ dim,
+            /* causal */ true,
+            /* learnt */ true,
+            vb.pp("downsample"),
+        )?;
+        let upsample = conv::ConvTrUpsample1d::new(
+            /* stride */ downsample_stride,
+            /* dim */ dim,
+            /* causal */ true,
+            /* learnt */ true,
+            vb.pp("upsample"),
+        )?;
+
         Ok(Self {
-            config,
-            device,
-            state,
-            encoder: None,
-            decoder: None,
-        })
-    }
-    
-    /// Create from variable builder
-    pub fn load(config: &Config, vb: VarBuilder) -> Result<Self> {
-        let device = vb.device().clone();
-        let frame_size = (config.sample_rate as f64 / config.frame_rate) as usize;
-        let state = AudioTokenizerState::new(frame_size);
-        
-        // Load encoder and decoder (placeholder implementations)
-        let encoder = Some(MimiEncoder::new(config, vb.pp("encoder"))?);
-        let decoder = Some(MimiDecoder::new(config, vb.pp("decoder"))?);
-        
-        Ok(Self {
-            config: config.clone(),
-            device,
-            state,
             encoder,
             decoder,
+            encoder_transformer,
+            decoder_transformer,
+            quantizer,
+            downsample,
+            upsample,
+            config: cfg,
         })
     }
-    
-    /// Reset the tokenizer state
-    pub fn reset_state(&mut self) {
-        self.state.reset();
-    }
-    
-    /// Encode PCM audio to tokens (streaming step)
-    pub fn encode_step(&mut self, pcm: &Tensor) -> Result<OptionalTensor> {
-        // Add PCM data to buffer
-        let pcm_data: Vec<f32> = pcm.flatten_all()?.to_vec1()?;
-        self.state.buffer.extend_from_slice(&pcm_data);
-        
-        // Check if we have enough data for a frame
-        if self.state.buffer.len() >= self.state.frame_size {
-            // Extract frame
-            let frame_data: Vec<f32> = self.state.buffer
-                .drain(0..self.state.frame_size)
-                .collect();
-            
-            // Convert to tensor
-            let frame_tensor = Tensor::from_vec(
-                frame_data, 
-                (1, 1, self.state.frame_size), 
-                &self.device
-            )?;
-            
-            // Encode frame to tokens
-            if let Some(encoder) = &self.encoder {
-                let tokens = encoder.forward(&frame_tensor)?;
-                Ok(OptionalTensor::some(tokens))
-            } else {
-                // Placeholder implementation - generate dummy tokens
-                let dummy_tokens = Tensor::zeros(
-                    (1, self.config.n_codebooks, 1), 
-                    DType::U32, 
-                    &self.device
-                )?;
-                Ok(OptionalTensor::some(dummy_tokens))
-            }
-        } else {
-            Ok(OptionalTensor::none())
-        }
-    }
-    
-    /// Encode full PCM audio to tokens
-    pub fn encode(&mut self, pcm: &Tensor) -> Result<Tensor> {
-        if let Some(encoder) = &self.encoder {
-            encoder.forward(pcm)
-        } else {
-            // Placeholder implementation
-            let (_batch, _channels, samples) = pcm.dims3()?;
-            let frames = samples / self.state.frame_size;
-            let tokens = Tensor::zeros(
-                (1, self.config.n_codebooks, frames), 
-                DType::U32, 
-                &self.device
-            )?;
-            Ok(tokens)
-        }
-    }
-    
-    /// Decode tokens to PCM audio
-    pub fn decode(&self, tokens: &Tensor) -> Result<Tensor> {
-        if let Some(decoder) = &self.decoder {
-            decoder.forward(tokens)
-        } else {
-            // Placeholder implementation
-            let (_batch, _codebooks, frames) = tokens.dims3()?;
-            let samples = frames * self.state.frame_size;
-            let pcm = Tensor::zeros(
-                (1, 1, samples), 
-                DType::F32, 
-                &self.device
-            )?;
-            Ok(pcm)
-        }
-    }
-    
-    /// Get the configuration
+
     pub fn config(&self) -> &Config {
         &self.config
     }
-    
-    /// Get the device
-    pub fn device(&self) -> &Device {
-        &self.device
+
+    pub fn encode_pre_quantize(&mut self, xs: &Tensor) -> Result<Tensor> {
+        let xs = self.encoder.forward(xs)?;
+        self.encoder_transformer.reset_state();
+        let xs = self.encoder_transformer.forward(&xs)?;
+        let xs = &xs[0];
+        xs.apply(&self.downsample)
     }
-}
 
-/// Placeholder encoder implementation
-#[derive(Debug)]
-struct MimiEncoder {
-    config: Config,
-}
-
-impl MimiEncoder {
-    fn new(config: &Config, _vb: VarBuilder) -> Result<Self> {
-        Ok(Self {
-            config: config.clone(),
-        })
+    pub fn encode(&mut self, xs: &Tensor) -> Result<Tensor> {
+        let xs = self.encoder.forward(xs)?;
+        self.encoder_transformer.reset_state();
+        let xs = self.encoder_transformer.forward(&xs)?;
+        let xs = &xs[0];
+        let xs = xs.apply(&self.downsample)?;
+        let codes = self.quantizer.encode(&xs)?;
+        Ok(codes)
     }
-}
 
-impl Module for MimiEncoder {
-    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        // Placeholder implementation - in a real implementation this would be a complex encoder network
-        let (_batch, _channels, samples) = xs.dims3()?;
-        let frames = samples / (self.config.sample_rate as usize / self.config.frame_rate as usize);
-        let frames = frames.max(1);
-        
-        // Generate dummy tokens
-        let tokens = Tensor::zeros(
-            (1, self.config.n_codebooks, frames), 
-            candle::DType::U32, 
-            xs.device()
-        )?;
-        Ok(tokens)
-    }
-}
-
-/// Placeholder decoder implementation
-#[derive(Debug)]
-struct MimiDecoder {
-    config: Config,
-}
-
-impl MimiDecoder {
-    fn new(config: &Config, _vb: VarBuilder) -> Result<Self> {
-        Ok(Self {
-            config: config.clone(),
-        })
-    }
-}
-
-impl Module for MimiDecoder {
-    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        // Placeholder implementation - in a real implementation this would be a complex decoder network
-        let (_batch, _codebooks, frames) = xs.dims3()?;
-        let samples = frames * (self.config.sample_rate as usize / self.config.frame_rate as usize);
-        
-        // Generate dummy PCM
-        let pcm = Tensor::zeros(
-            (1, 1, samples), 
-            candle::DType::F32, 
-            xs.device()
-        )?;
-        Ok(pcm)
-    }
-}
-
-/// Builder for creating Mimi tokenizer
-#[derive(Debug)]
-pub struct MimiBuilder {
-    config: Config,
-}
-
-impl MimiBuilder {
-    /// Create a new Mimi builder
-    pub fn new() -> Self {
-        Self {
-            config: Config::default(),
+    pub fn encode_step(&mut self, xs: &StreamTensor) -> Result<StreamTensor> {
+        let xs = self.encoder.step(xs)?;
+        let xs = self.encoder_transformer.step(&xs)?;
+        let xs = self.downsample.step(&xs)?;
+        match xs.as_option() {
+            None => Ok(().into()),
+            Some(xs) => {
+                let codes = self.quantizer.encode(xs)?;
+                Ok(codes.into())
+            }
         }
     }
-    
-    /// Set the configuration
-    pub fn config(mut self, config: Config) -> Self {
-        self.config = config;
-        self
+
+    pub fn decode(&mut self, codes: &Tensor) -> Result<Tensor> {
+        let emb = self.quantizer.decode(codes)?;
+        let emb = emb.apply(&self.upsample)?;
+        self.decoder_transformer.reset_state();
+        let outs = self.decoder_transformer.forward(&emb)?;
+        let out = &outs[0];
+        self.decoder.forward(out)
     }
-    
-    /// Set the number of codebooks
-    pub fn n_codebooks(mut self, n_codebooks: usize) -> Self {
-        self.config.n_codebooks = n_codebooks;
-        self
+
+    pub fn decode_step(&mut self, codes: &StreamTensor) -> Result<StreamTensor> {
+        let emb = match codes.as_option() {
+            Some(codes) => StreamTensor::from_tensor(self.quantizer.decode(codes)?),
+            None => StreamTensor::empty(),
+        };
+        let emb = self.upsample.step(&emb)?;
+        let out = self.decoder_transformer.step(&emb)?;
+        self.decoder.step(&out)
     }
-    
-    /// Set the sample rate
-    pub fn sample_rate(mut self, sample_rate: u32) -> Self {
-        self.config.sample_rate = sample_rate;
-        self
-    }
-    
-    /// Build the tokenizer
-    pub fn build(self, device: Device) -> Result<Mimi> {
-        Mimi::new(self.config, device)
-    }
-    
-    /// Build with variable builder
-    pub fn build_with_vb(self, vb: VarBuilder) -> Result<Mimi> {
-        Mimi::load(&self.config, vb)
+
+    pub fn reset_state(&mut self) {
+        self.encoder.reset_state();
+        self.encoder_transformer.reset_state();
+        self.decoder.reset_state();
+        self.decoder_transformer.reset_state();
+        self.upsample.reset_state();
     }
 }
 
-impl Default for MimiBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+pub fn load(model_file: &str, num_codebooks: Option<usize>, dev: &Device) -> Result<Mimi> {
+    let vb =
+        unsafe { candle_nn::VarBuilder::from_mmaped_safetensors(&[model_file], DType::F32, dev)? };
+    let cfg = Config::v0_1(num_codebooks);
+    let mimi = Mimi::new(cfg, vb)?;
+    Ok(mimi)
 }
+*/

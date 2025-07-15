@@ -22,8 +22,8 @@ pub mod features;
 pub mod llm;
 pub mod pixmap;
 pub mod soft_backend;
-pub mod wake_word; // KWS-based keyword detector // Whisper microphone pipeline (main entry)
 pub mod ui;
+pub mod wake_word; // KWS-based keyword detector // Whisper microphone pipeline (main entry)
 
 pub use pixmap::RgbPixmap;
 pub use soft_backend::SoftBackend;

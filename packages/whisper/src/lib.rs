@@ -12,9 +12,9 @@ mod whisper;
 pub use builder::WhisperTranscriber;
 #[cfg(feature = "microphone")]
 pub use microphone::{Model, token_id};
-#[cfg(not(feature = "microphone"))]
-pub use whisper::{Model, token_id};
 pub use multilingual::detect_language;
 pub use stream::WhisperStream;
 pub use transcript::Transcript;
 pub use types::TtsChunk;
+#[cfg(not(feature = "microphone"))]
+pub use whisper::{Model, token_id};

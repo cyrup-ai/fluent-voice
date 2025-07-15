@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use std::collections::HashMap;
 use futures::{SinkExt, channel::mpsc};
 use playback::capture_local_video_track;
 use rustls_platform_verifier::ConfigVerifierExt;
+use std::collections::HashMap;
 use tokio::task::JoinHandle;
 
 use crate::playback;
@@ -46,7 +46,7 @@ impl Room {
         url: String,
         token: String,
     ) -> Result<(Self, mpsc::UnboundedReceiver<RoomEvent>)> {
-        let connector = tokio_tungstenite::Connector::Rustls(Arc::new(
+        let connector = tokio_tungstenite::Connector::from(Arc::new(
             rustls::ClientConfig::with_platform_verifier(),
         ));
         let mut config = livekit::RoomOptions::default();

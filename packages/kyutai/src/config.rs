@@ -1,9 +1,814 @@
-//! Configuration module for Moshi language model
+// src/config.rs
 
+use super::transformer::{
+    Config as TransformerConfig, CrossAttentionGating, NormType, PositionalEmbedding,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Main configuration for the Moshi language model
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct LutConfig {
+    pub n_bins: usize,
+    pub dim: usize,
+    pub tokenizer: String,
+    pub possible_values: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct TensorConfig {
+    pub dim: usize,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(tag = "type")]
+pub enum ConditionerConfig {
+    Lut(LutConfig),
+    Tensor(TensorConfig),
+}
+
+pub type ConditionersConfig = HashMap<String, ConditionerConfig>;
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct FuserConfig {
+    pub cross_attention_pos_emb: bool,
+    pub cross_attention_pos_emb_scale: f32,
+    pub sum: Vec<String>,
+    pub prepend: Vec<String>,
+    pub cross: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct DepFormerConfig {
+    pub transformer: TransformerConfig,
+    pub num_slices: usize,
+    pub low_rank_embeddings: Option<usize>,
+    pub shared: bool,
+    pub multi_linear: bool,
+    pub weights_per_step: bool,
+    pub pos_emb: String,
+    pub weights_per_step_schedule: Option<Vec<usize>>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct LmConfig {
+    pub transformer: TransformerConfig,
+    pub depformer: Option<DepFormerConfig>,
+    pub fuser: Option<FuserConfig>,
+    pub conditioners: Option<ConditionersConfig>,
+    pub audio_vocab_size: usize,
+    pub text_in_vocab_size: usize,
+    pub text_out_vocab_size: usize,
+    pub audio_codebooks: usize,
+}
+
+impl LmConfig {
+    pub fn tts_1_6b_en_fr() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 2048,
+            num_heads: 16,
+            num_layers: 16,
+            dim_feedforward: 8448,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 500,
+            max_period: 10000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: Some((CrossAttentionGating::Normal, NormType::RmsNorm, None)),
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        let mut conditioners = HashMap::new();
+        conditioners.insert(
+            "speaker_wavs".to_string(),
+            ConditionerConfig::Tensor(TensorConfig { dim: 512 }),
+        );
+        conditioners.insert(
+            "cfg".to_string(),
+            ConditionerConfig::Lut(LutConfig {
+                n_bins: 7,
+                dim: 16,
+                tokenizer: "noop".to_string(),
+                possible_values: vec![
+                    "1.0".into(),
+                    "1.5".into(),
+                    "2.0".into(),
+                    "2.5".into(),
+                    "3.0".into(),
+                    "3.5".into(),
+                    "4.0".into(),
+                ],
+            }),
+        );
+        conditioners.insert(
+            "control".to_string(),
+            ConditionerConfig::Lut(LutConfig {
+                n_bins: 1,
+                dim: 2048,
+                tokenizer: "noop".to_string(),
+                possible_values: vec!["ok".into()],
+            }),
+        );
+        Self {
+            transformer: lm_cfg,
+            depformer: Some(DepFormerConfig {
+                transformer: TransformerConfig {
+                    d_model: 1024,
+                    num_heads: 16,
+                    num_layers: 4,
+                    dim_feedforward: 3072,
+                    causal: true,
+                    norm_first: true,
+                    bias_ff: false,
+                    bias_attn: false,
+                    layer_scale: None,
+                    context: 32,
+                    max_period: 10000,
+                    use_conv_block: false,
+                    use_conv_bias: true,
+                    cross_attention: None,
+                    gating: Some(candle_nn::Activation::Silu),
+                    norm: NormType::RmsNorm,
+                    positional_embedding: PositionalEmbedding::None,
+                    conv_layout: false,
+                    conv_kernel_size: 3,
+                    kv_repeat: 1,
+                    max_seq_len: 4096,
+                    shared_cross_attn: false,
+                },
+                num_slices: 32,
+                low_rank_embeddings: Some(128),
+                shared: true,
+                multi_linear: true,
+                weights_per_step: true,
+                pos_emb: "none".to_string(),
+                weights_per_step_schedule: Some(vec![
+                    0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10,
+                    10, 10, 10, 10, 10, 10,
+                ]),
+            }),
+            fuser: Some(FuserConfig {
+                cross_attention_pos_emb: true,
+                cross_attention_pos_emb_scale: 1.0,
+                sum: vec!["control".into(), "cfg".into()],
+                prepend: vec![],
+                cross: vec!["speaker_wavs".into()],
+            }),
+            conditioners: Some(conditioners),
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 8001,
+            text_out_vocab_size: 8000,
+            audio_codebooks: 32,
+        }
+    }
+
+    pub fn stt_2_6b_en() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 2048,
+            num_heads: 32,
+            num_layers: 48,
+            dim_feedforward: 8448,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 375,
+            max_period: 100000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: None,
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: Some(DepFormerConfig {
+                transformer: TransformerConfig {
+                    d_model: 1024,
+                    num_heads: 16,
+                    num_layers: 6,
+                    dim_feedforward: 4096,
+                    causal: true,
+                    norm_first: true,
+                    bias_ff: false,
+                    bias_attn: false,
+                    layer_scale: None,
+                    context: 0,
+                    max_period: 10000,
+                    use_conv_block: false,
+                    use_conv_bias: true,
+                    cross_attention: None,
+                    gating: Some(candle_nn::Activation::Silu),
+                    norm: NormType::RmsNorm,
+                    positional_embedding: PositionalEmbedding::None,
+                    conv_layout: false,
+                    conv_kernel_size: 3,
+                    kv_repeat: 1,
+                    max_seq_len: 4096,
+                    shared_cross_attn: false,
+                },
+                num_slices: 0,
+                low_rank_embeddings: None,
+                shared: true,
+                multi_linear: true,
+                weights_per_step: true,
+                pos_emb: "none".to_string(),
+                weights_per_step_schedule: None,
+            }),
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 4001,
+            text_out_vocab_size: 4000,
+            audio_codebooks: 32,
+        }
+    }
+
+    pub fn v0_1() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 4096,
+            num_heads: 32,
+            num_layers: 32,
+            dim_feedforward: 4096 * 4,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 3000,
+            max_period: 10000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: None,
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: Some(DepFormerConfig {
+                transformer: TransformerConfig {
+                    d_model: 1024,
+                    num_heads: 16,
+                    num_layers: 6,
+                    dim_feedforward: 1024 * 4,
+                    causal: true,
+                    norm_first: true,
+                    bias_ff: false,
+                    bias_attn: false,
+                    layer_scale: None,
+                    context: 8,
+                    max_period: 10000,
+                    use_conv_block: false,
+                    use_conv_bias: true,
+                    cross_attention: None,
+                    gating: Some(candle_nn::Activation::Silu),
+                    norm: NormType::RmsNorm,
+                    positional_embedding: PositionalEmbedding::None,
+                    conv_layout: false,
+                    conv_kernel_size: 3,
+                    kv_repeat: 1,
+                    max_seq_len: 4096,
+                    shared_cross_attn: false,
+                },
+                num_slices: 8,
+                low_rank_embeddings: None,
+                shared: true,
+                multi_linear: true,
+                weights_per_step: true,
+                pos_emb: "none".to_string(),
+                weights_per_step_schedule: None,
+            }),
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 32001,
+            text_out_vocab_size: 32000,
+            audio_codebooks: 8,
+        }
+    }
+
+    pub fn v0_1_vision() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 4096,
+            num_heads: 32,
+            num_layers: 32,
+            dim_feedforward: 4096 * 4,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 3000,
+            max_period: 10000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: Some((
+                CrossAttentionGating::ConditionalGatedSigmoid,
+                NormType::RmsNorm,
+                None,
+            )),
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: true,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: Some(DepFormerConfig {
+                transformer: TransformerConfig {
+                    d_model: 1024,
+                    num_heads: 16,
+                    num_layers: 6,
+                    dim_feedforward: 1024 * 4,
+                    causal: true,
+                    norm_first: true,
+                    bias_ff: false,
+                    bias_attn: false,
+                    layer_scale: None,
+                    context: 8,
+                    max_period: 10000,
+                    use_conv_block: false,
+                    use_conv_bias: true,
+                    cross_attention: None,
+                    gating: Some(candle_nn::Activation::Silu),
+                    norm: NormType::RmsNorm,
+                    positional_embedding: PositionalEmbedding::None,
+                    conv_layout: false,
+                    conv_kernel_size: 3,
+                    kv_repeat: 1,
+                    max_seq_len: 4096,
+                    shared_cross_attn: false,
+                },
+                num_slices: 8,
+                low_rank_embeddings: None,
+                shared: true,
+                multi_linear: true,
+                weights_per_step: true,
+                pos_emb: "none".to_string(),
+                weights_per_step_schedule: None,
+            }),
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 32001,
+            text_out_vocab_size: 32000,
+            audio_codebooks: 8,
+        }
+    }
+
+    pub fn v0_1_vision_streaming(num_slices: usize) -> Self {
+        let mut cfg = Self::v0_1_vision();
+        cfg.audio_codebooks = 16;
+        if let Some(depformer) = cfg.depformer.as_mut() {
+            depformer.num_slices = num_slices;
+            depformer.transformer.context = num_slices;
+        }
+        cfg
+    }
+
+    pub fn v0_1_streaming(num_slices: usize) -> Self {
+        let mut cfg = Self::v0_1();
+        cfg.audio_codebooks = 16;
+        if let Some(depformer) = cfg.depformer.as_mut() {
+            depformer.num_slices = num_slices;
+            depformer.transformer.context = num_slices;
+        }
+        cfg
+    }
+
+    pub fn v0_1_asr() -> Self {
+        let mut cfg = Self::v0_1();
+        cfg.audio_codebooks = 8;
+        if let Some(depformer) = cfg.depformer.as_mut() {
+            depformer.num_slices = 0;
+            depformer.transformer.context = 0;
+        }
+        cfg
+    }
+
+    pub fn tts_v0_1() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 2048,
+            num_heads: 32,
+            num_layers: 48,
+            dim_feedforward: 4096 * 2,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 4096,
+            max_period: 10000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: Some((CrossAttentionGating::Normal, NormType::LayerNorm, None)),
+            gating: None,
+            norm: NormType::LayerNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: Some(DepFormerConfig {
+                transformer: TransformerConfig {
+                    d_model: 1024,
+                    num_heads: 16,
+                    num_layers: 6,
+                    dim_feedforward: 1024 * 4,
+                    causal: true,
+                    norm_first: true,
+                    bias_ff: false,
+                    bias_attn: false,
+                    layer_scale: None,
+                    context: 16,
+                    max_period: 10000,
+                    use_conv_block: false,
+                    use_conv_bias: true,
+                    cross_attention: None,
+                    gating: Some(candle_nn::Activation::Silu),
+                    norm: NormType::RmsNorm,
+                    positional_embedding: PositionalEmbedding::None,
+                    conv_layout: false,
+                    conv_kernel_size: 3,
+                    kv_repeat: 1,
+                    max_seq_len: 4096,
+                    shared_cross_attn: false,
+                },
+                num_slices: 16,
+                low_rank_embeddings: None,
+                shared: true,
+                multi_linear: true,
+                weights_per_step: true,
+                pos_emb: "none".to_string(),
+                weights_per_step_schedule: None,
+            }),
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2050,
+            text_in_vocab_size: 32001,
+            text_out_vocab_size: 32001,
+            audio_codebooks: 16,
+        }
+    }
+
+    pub fn s2s_v0_1() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 2048,
+            num_heads: 16,
+            num_layers: 16,
+            dim_feedforward: 4096 * 2,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 3000,
+            max_period: 10000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: None,
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: Some(DepFormerConfig {
+                transformer: TransformerConfig {
+                    d_model: 1024,
+                    num_heads: 16,
+                    num_layers: 6,
+                    dim_feedforward: 1024 * 4,
+                    causal: true,
+                    norm_first: true,
+                    bias_ff: false,
+                    bias_attn: false,
+                    layer_scale: None,
+                    context: 16,
+                    max_period: 10000,
+                    use_conv_block: false,
+                    use_conv_bias: true,
+                    cross_attention: None,
+                    gating: Some(candle_nn::Activation::Silu),
+                    norm: NormType::RmsNorm,
+                    positional_embedding: PositionalEmbedding::None,
+                    conv_layout: false,
+                    conv_kernel_size: 3,
+                    kv_repeat: 1,
+                    max_seq_len: 4096,
+                    shared_cross_attn: false,
+                },
+                num_slices: 16,
+                low_rank_embeddings: None,
+                shared: true,
+                multi_linear: true,
+                weights_per_step: true,
+                pos_emb: "none".to_string(),
+                weights_per_step_schedule: None,
+            }),
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 48001,
+            text_out_vocab_size: 48000,
+            audio_codebooks: 16,
+        }
+    }
+
+    pub fn s2s_v0_1_streaming(num_slices: usize) -> Self {
+        let mut cfg = Self::s2s_v0_1();
+        cfg.audio_codebooks = 16;
+        if let Some(depformer) = cfg.depformer.as_mut() {
+            depformer.num_slices = num_slices;
+            depformer.transformer.context = num_slices;
+        }
+        cfg
+    }
+
+    pub fn asr_v0_1_1b() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 2048,
+            num_heads: 16,
+            num_layers: 16,
+            dim_feedforward: 2048 * 4,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 750,
+            max_period: 100_000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: None,
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: None,
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 48001,
+            text_out_vocab_size: 48000,
+            audio_codebooks: 8,
+        }
+    }
+
+    pub fn asr_300m_202501() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 1024,
+            num_heads: 8,
+            num_layers: 16,
+            dim_feedforward: 1024 * 4,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 750,
+            max_period: 100_000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: None,
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: None,
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 48001,
+            text_out_vocab_size: 48000,
+            audio_codebooks: 32,
+        }
+    }
+
+    pub fn tts_202501() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 2048,
+            num_heads: 32,
+            num_layers: 48,
+            dim_feedforward: 2048 * 4,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 500,
+            max_period: 10000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: Some((CrossAttentionGating::Normal, NormType::LayerNorm, None)),
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: Some(DepFormerConfig {
+                transformer: TransformerConfig {
+                    d_model: 1024,
+                    num_heads: 16,
+                    num_layers: 6,
+                    dim_feedforward: 1024 * 4,
+                    causal: true,
+                    norm_first: true,
+                    bias_ff: false,
+                    bias_attn: false,
+                    layer_scale: None,
+                    context: 32,
+                    max_period: 10000,
+                    use_conv_block: false,
+                    use_conv_bias: true,
+                    cross_attention: None,
+                    gating: Some(candle_nn::Activation::Silu),
+                    norm: NormType::RmsNorm,
+                    positional_embedding: PositionalEmbedding::None,
+                    conv_layout: false,
+                    conv_kernel_size: 3,
+                    kv_repeat: 1,
+                    max_seq_len: 4096,
+                    shared_cross_attn: false,
+                },
+                num_slices: 32,
+                low_rank_embeddings: None,
+                shared: true,
+                multi_linear: true,
+                weights_per_step: true,
+                pos_emb: "none".to_string(),
+                weights_per_step_schedule: None,
+            }),
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 8001,
+            text_out_vocab_size: 8000,
+            audio_codebooks: 32,
+        }
+    }
+
+    pub fn s2s_2b_16rvq_202501() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 2560,
+            num_heads: 20,
+            num_layers: 24,
+            dim_feedforward: 2560 * 4,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 3000,
+            max_period: 100000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: None,
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: Some(DepFormerConfig {
+                transformer: TransformerConfig {
+                    d_model: 1024,
+                    num_heads: 16,
+                    num_layers: 6,
+                    dim_feedforward: 1024 * 4,
+                    causal: true,
+                    norm_first: true,
+                    bias_ff: false,
+                    bias_attn: false,
+                    layer_scale: None,
+                    context: 16,
+                    max_period: 10000,
+                    use_conv_block: false,
+                    use_conv_bias: true,
+                    cross_attention: None,
+                    gating: Some(candle_nn::Activation::Silu),
+                    norm: NormType::RmsNorm,
+                    positional_embedding: PositionalEmbedding::None,
+                    conv_layout: false,
+                    conv_kernel_size: 3,
+                    kv_repeat: 1,
+                    max_seq_len: 4096,
+                    shared_cross_attn: false,
+                },
+                num_slices: 16,
+                low_rank_embeddings: None,
+                shared: true,
+                multi_linear: true,
+                weights_per_step: true,
+                pos_emb: "none".to_string(),
+                weights_per_step_schedule: None,
+            }),
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 48001,
+            text_out_vocab_size: 48000,
+            audio_codebooks: 32,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TtsConfig {
+    pub acoustic_delay: usize,
+    pub text_pad_token: u32,
+    pub text_bos_token: u32,
+    pub text_eos_token: u32,
+    pub text_eop_token: u32,
+    pub text_start_token: u32,
+    pub text_audio_delay_in_tokens: usize,
+    pub max_consecutive_pads: usize,
+    pub speaker_cond_duration_s: f64,
+    pub speaker_cond_dim: usize,
+    pub speaker_cond_n_speakers: usize,
+    pub second_stream_ahead: usize,
+}
+
+impl TtsConfig {
+    pub fn v202501() -> Self {
+        Self {
+            acoustic_delay: 2,
+            text_eop_token: 0,
+            text_bos_token: 1,
+            text_eos_token: 2,
+            text_pad_token: 3,
+            text_start_token: 8000,
+            text_audio_delay_in_tokens: 16,
+            max_consecutive_pads: 10,
+            speaker_cond_duration_s: 10.,
+            speaker_cond_dim: 512,
+            speaker_cond_n_speakers: 5,
+            second_stream_ahead: 2,
+        }
+    }
+}
+
+/// Main configuration struct (compatible with old interface)
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     /// Model dimension
@@ -21,11 +826,11 @@ pub struct Config {
     /// Audio configuration
     pub audio: AudioConfig,
     /// Transformer configuration
-    pub transformer: crate::transformer::Config,
+    pub transformer: TransformerConfig,
     /// Conditioning configuration
     pub conditioning: ConditioningConfig,
     /// Streaming configuration
-    pub streaming: crate::streaming::StreamingConfig,
+    pub streaming: super::streaming::StreamingConfig,
 }
 
 impl Default for Config {
@@ -38,10 +843,37 @@ impl Default for Config {
             max_seq_len: 4096,
             vocab_size: 32000,
             audio: AudioConfig::default(),
-            transformer: crate::transformer::Config::default(),
+            transformer: TransformerConfig::default(),
             conditioning: ConditioningConfig::default(),
-            streaming: crate::streaming::StreamingConfig::default(),
+            streaming: super::streaming::StreamingConfig::default(),
         }
+    }
+}
+
+impl Config {
+    /// Validate the configuration
+    pub fn validate(&self) -> crate::Result<()> {
+        if self.d_model == 0 {
+            return Err(crate::error::MoshiError::Config(
+                "d_model must be > 0".to_string(),
+            ));
+        }
+        if self.num_heads == 0 {
+            return Err(crate::error::MoshiError::Config(
+                "num_heads must be > 0".to_string(),
+            ));
+        }
+        if self.d_model % self.num_heads != 0 {
+            return Err(crate::error::MoshiError::Config(
+                "d_model must be divisible by num_heads".to_string(),
+            ));
+        }
+        if self.vocab_size == 0 {
+            return Err(crate::error::MoshiError::Config(
+                "vocab_size must be > 0".to_string(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -99,186 +931,5 @@ impl Default for ConditioningConfig {
             tensor_conditioners: HashMap::new(),
             global_dim: None,
         }
-    }
-}
-
-/// Configuration for lookup table conditioner
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct LutConfig {
-    /// Output dimension
-    pub output_dim: usize,
-    /// Number of bins
-    pub n_bins: usize,
-    /// Embedding dimension
-    pub dim: usize,
-    /// Possible values
-    pub possible_values: Vec<String>,
-}
-
-impl Default for LutConfig {
-    fn default() -> Self {
-        Self {
-            output_dim: 256,
-            n_bins: 100,
-            dim: 128,
-            possible_values: vec![],
-        }
-    }
-}
-
-/// Configuration for tensor conditioner
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TensorConfig {
-    /// Input dimension
-    pub dim: usize,
-}
-
-impl Default for TensorConfig {
-    fn default() -> Self {
-        Self { dim: 256 }
-    }
-}
-
-/// Configuration for model generation
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GenerationConfig {
-    /// Maximum number of tokens to generate
-    pub max_length: usize,
-    /// Temperature for sampling
-    pub temperature: f64,
-    /// Top-k sampling parameter
-    pub top_k: Option<usize>,
-    /// Top-p (nucleus) sampling parameter
-    pub top_p: Option<f64>,
-    /// Repetition penalty
-    pub repetition_penalty: f64,
-    /// Whether to use sampling
-    pub do_sample: bool,
-    /// Number of beams for beam search
-    pub num_beams: usize,
-    /// Early stopping for beam search
-    pub early_stopping: bool,
-}
-
-impl Default for GenerationConfig {
-    fn default() -> Self {
-        Self {
-            max_length: 512,
-            temperature: 1.0,
-            top_k: Some(50),
-            top_p: Some(0.9),
-            repetition_penalty: 1.0,
-            do_sample: true,
-            num_beams: 1,
-            early_stopping: true,
-        }
-    }
-}
-
-/// Builder for creating configurations
-#[derive(Debug, Default)]
-pub struct ConfigBuilder {
-    config: Config,
-}
-
-impl ConfigBuilder {
-    /// Create a new config builder
-    pub fn new() -> Self {
-        Self::default()
-    }
-    
-    /// Set the model dimension
-    pub fn d_model(mut self, d_model: usize) -> Self {
-        self.config.d_model = d_model;
-        self.config.transformer.d_model = d_model;
-        self
-    }
-    
-    /// Set the number of attention heads
-    pub fn num_heads(mut self, num_heads: usize) -> Self {
-        self.config.num_heads = num_heads;
-        self.config.transformer.num_heads = num_heads;
-        self
-    }
-    
-    /// Set the number of transformer layers
-    pub fn num_layers(mut self, num_layers: usize) -> Self {
-        self.config.num_layers = num_layers;
-        self.config.transformer.num_layers = num_layers;
-        self
-    }
-    
-    /// Set the vocabulary size
-    pub fn vocab_size(mut self, vocab_size: usize) -> Self {
-        self.config.vocab_size = vocab_size;
-        self
-    }
-    
-    /// Set the maximum sequence length
-    pub fn max_seq_len(mut self, max_seq_len: usize) -> Self {
-        self.config.max_seq_len = max_seq_len;
-        self.config.transformer.max_seq_len = max_seq_len;
-        self
-    }
-    
-    /// Set the audio configuration
-    pub fn audio_config(mut self, audio_config: AudioConfig) -> Self {
-        self.config.audio = audio_config;
-        self
-    }
-    
-    /// Set the transformer configuration
-    pub fn transformer_config(mut self, transformer_config: crate::transformer::Config) -> Self {
-        self.config.transformer = transformer_config;
-        self
-    }
-    
-    /// Set the conditioning configuration
-    pub fn conditioning_config(mut self, conditioning_config: ConditioningConfig) -> Self {
-        self.config.conditioning = conditioning_config;
-        self
-    }
-    
-    /// Build the final configuration
-    pub fn build(self) -> Config {
-        self.config
-    }
-}
-
-impl Config {
-    /// Create a new config builder
-    pub fn builder() -> ConfigBuilder {
-        ConfigBuilder::new()
-    }
-    
-    /// Load configuration from JSON file
-    pub fn from_json_file(path: &str) -> crate::Result<Self> {
-        let content = std::fs::read_to_string(path)?;
-        let config: Config = serde_json::from_str(&content)?;
-        Ok(config)
-    }
-    
-    /// Save configuration to JSON file
-    pub fn to_json_file(&self, path: &str) -> crate::Result<()> {
-        let content = serde_json::to_string_pretty(self)?;
-        std::fs::write(path, content)?;
-        Ok(())
-    }
-    
-    /// Validate the configuration
-    pub fn validate(&self) -> crate::Result<()> {
-        if self.d_model == 0 {
-            return Err(crate::error::MoshiError::Config("d_model must be > 0".to_string()));
-        }
-        if self.num_heads == 0 {
-            return Err(crate::error::MoshiError::Config("num_heads must be > 0".to_string()));
-        }
-        if self.d_model % self.num_heads != 0 {
-            return Err(crate::error::MoshiError::Config("d_model must be divisible by num_heads".to_string()));
-        }
-        if self.vocab_size == 0 {
-            return Err(crate::error::MoshiError::Config("vocab_size must be > 0".to_string()));
-        }
-        Ok(())
     }
 }

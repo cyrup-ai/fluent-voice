@@ -151,7 +151,7 @@ pub trait SttConversationBuilder: Sized + Send {
     /// ```
     fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnMut(
+        F: FnOnce(
                 Result<Self::Conversation, VoiceError>,
             ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
             + Send
@@ -208,7 +208,7 @@ pub trait MicrophoneBuilder: Sized + Send {
     /// ```
     fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnMut(
+        F: FnOnce(
                 Result<Self::Conversation, VoiceError>,
             ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
             + Send

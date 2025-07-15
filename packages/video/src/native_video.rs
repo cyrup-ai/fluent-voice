@@ -6,7 +6,7 @@ use std::fmt;
 #[derive(Clone)]
 pub struct NativeVideoBuffer {
     #[cfg(not(all(target_os = "windows", target_env = "gnu")))]
-    buffer: libwebrtc::buffer::VideoFrameBuffer,
+    buffer: Box<dyn libwebrtc::video_frame::VideoBuffer>,
 
     #[cfg(all(target_os = "windows", target_env = "gnu"))]
     buffer: Vec<u8>,
@@ -18,7 +18,7 @@ pub struct NativeVideoBuffer {
 impl NativeVideoBuffer {
     /// Create a new NativeVideoBuffer from libwebrtc VideoFrameBuffer
     #[cfg(not(all(target_os = "windows", target_env = "gnu")))]
-    pub fn new(buffer: libwebrtc::buffer::VideoFrameBuffer) -> Self {
+    pub fn new(buffer: Box<dyn libwebrtc::video_frame::VideoBuffer>) -> Self {
         let width = buffer.width();
         let height = buffer.height();
         Self {
@@ -56,7 +56,7 @@ impl NativeVideoBuffer {
             // on the specific type of VideoFrameBuffer (I420, NV12, ARGB, etc.)
             let buffer_type = self.buffer.type_();
             match buffer_type {
-                libwebrtc::buffer::VideoFrameBufferType::I420 => {
+                libwebrtc::video_frame::VideoBufferType::kI420 => {
                     let i420 = self.buffer.to_i420();
                     let mut rgba_buffer = vec![0u8; (self.width * self.height * 4) as usize];
 
@@ -97,7 +97,7 @@ impl NativeVideoBuffer {
 
                     Ok(rgba_buffer)
                 }
-                libwebrtc::buffer::VideoFrameBufferType::ARGB => {
+                libwebrtc::video_frame::VideoBufferType::kARGB => {
                     // For ARGB, we can directly access the data
                     let argb = self.buffer.to_argb();
                     let argb_data = argb.data();
@@ -167,7 +167,7 @@ impl NativeVideoFrame {
     /// Create a new NativeVideoFrame
     #[cfg(not(all(target_os = "windows", target_env = "gnu")))]
     pub fn new(
-        buffer: libwebrtc::buffer::VideoFrameBuffer,
+        buffer: Box<dyn libwebrtc::video_frame::VideoBuffer>,
         timestamp_us: i64,
         rotation: VideoRotation,
     ) -> Self {

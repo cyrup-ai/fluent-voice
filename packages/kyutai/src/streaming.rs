@@ -1,8 +1,8 @@
 //! Streaming module for Moshi language model
-//! 
+//!
 //! Provides streaming functionality for real-time audio processing and generation.
 
-use candle::{DType, Device, Result, Tensor, Module};
+use candle::{DType, Device, Result, Tensor};
 use candle_nn::VarBuilder;
 use std::collections::VecDeque;
 
@@ -10,16 +10,16 @@ use std::collections::VecDeque;
 pub trait StreamingModule {
     /// Process a single step of streaming input
     fn forward_streaming(&mut self, input: &Tensor) -> Result<Tensor>;
-    
+
     /// Reset the streaming state
     fn reset_streaming(&mut self);
-    
+
     /// Get the current streaming state size
     fn streaming_state_size(&self) -> usize;
 }
 
 /// Configuration for streaming transformer
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StreamingConfig {
     pub chunk_size: usize,
     pub overlap: usize,
@@ -48,11 +48,11 @@ pub struct StreamingTransformer {
 
 impl StreamingTransformer {
     pub fn new(config: &crate::transformer::Config, vb: VarBuilder) -> Result<Self> {
-        let transformer = crate::transformer::Transformer::new(config, vb)?;
-        let streaming_config = StreamingConfig::default();
         let device = vb.device().clone();
         let dtype = vb.dtype();
-        
+        let transformer = crate::transformer::Transformer::new(config, vb.pp("transformer"))?;
+        let streaming_config = StreamingConfig::default();
+
         Ok(Self {
             transformer,
             cache: VecDeque::new(),
@@ -61,50 +61,46 @@ impl StreamingTransformer {
             dtype,
         })
     }
-    
+
     pub fn with_streaming_config(mut self, config: StreamingConfig) -> Self {
         self.config = config;
         self
     }
-    
+
     /// Forward pass with optional cross-attention source
-    pub fn forward_ca(&mut self, input: &Tensor, ca_src: Option<&CaSrc>) -> Result<Tensor> {
+    pub fn forward_ca(&mut self, input: &Tensor, _ca_src: Option<&CaSrc>) -> Result<Tensor> {
         // For now, ignore cross-attention and just forward through transformer
         // This can be extended to handle cross-attention properly
         self.forward(input)
     }
-    
+
     /// Standard forward pass
     pub fn forward(&mut self, input: &Tensor) -> Result<Tensor> {
-        // Create causal mask for the input sequence
-        let seq_len = input.dim(1)?;
-        let mask = crate::transformer::create_causal_mask(seq_len, &self.device, self.dtype)?;
-        
-        // Forward through transformer with mask
-        let output = self.transformer.forward(input, Some(&mask))?;
-        
+        // Forward through transformer
+        let output = self.transformer.forward(input)?;
+
         // Update cache for streaming
         self.update_cache(&output)?;
-        
+
         Ok(output)
     }
-    
+
     fn update_cache(&mut self, output: &Tensor) -> Result<()> {
         // Add new output to cache
         self.cache.push_back(output.clone());
-        
+
         // Maintain cache size limit
         while self.cache.len() > self.config.max_cache_size {
             self.cache.pop_front();
         }
-        
+
         Ok(())
     }
-    
+
     pub fn reset_cache(&mut self) {
         self.cache.clear();
     }
-    
+
     pub fn get_cached_output(&self, steps_back: usize) -> Option<&Tensor> {
         if steps_back < self.cache.len() {
             self.cache.get(self.cache.len() - 1 - steps_back)
@@ -118,11 +114,11 @@ impl StreamingModule for StreamingTransformer {
     fn forward_streaming(&mut self, input: &Tensor) -> Result<Tensor> {
         self.forward(input)
     }
-    
+
     fn reset_streaming(&mut self) {
         self.reset_cache();
     }
-    
+
     fn streaming_state_size(&self) -> usize {
         self.cache.len()
     }
@@ -142,7 +138,7 @@ impl CaSrc {
             _ => None,
         }
     }
-    
+
     pub fn embeddings(&self) -> Option<&Tensor> {
         match self {
             CaSrc::Embeddings(e) => Some(e),
@@ -167,11 +163,11 @@ impl StreamTensor {
             current_pos: 0,
         }
     }
-    
+
     pub fn add_chunk(&mut self, chunk: Tensor) {
         self.data.push_back(chunk);
     }
-    
+
     pub fn next_chunk(&mut self) -> Option<Tensor> {
         if !self.data.is_empty() {
             self.current_pos += 1;
@@ -180,29 +176,46 @@ impl StreamTensor {
             None
         }
     }
-    
+
     pub fn reset(&mut self) {
         self.data.clear();
         self.current_pos = 0;
     }
-    
+
     pub fn len(&self) -> usize {
         self.data.len()
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+
+    /// Create a StreamTensor from a single tensor
+    pub fn from_tensor(tensor: Tensor) -> Self {
+        let mut stream = Self::new(1); // Single chunk size
+        stream.add_chunk(tensor);
+        stream
+    }
+
+    /// Create an empty StreamTensor
+    pub fn empty() -> Self {
+        Self::new(1)
+    }
+
+    /// Get the current tensor as an option (peek without removing)
+    pub fn as_option(&self) -> Option<&Tensor> {
+        self.data.front()
     }
 }
 
 /// Utility function to add sinusoidal embeddings for positional encoding
 pub fn add_sin_embeddings(tensor: &Tensor) -> Result<Tensor> {
-    let (batch_size, seq_len, d_model) = tensor.dims3()?;
+    let (_batch_size, seq_len, d_model) = tensor.dims3()?;
     let device = tensor.device();
     let dtype = tensor.dtype();
-    
+
     let mut pos_encoding = vec![0.0f32; seq_len * d_model];
-    
+
     for pos in 0..seq_len {
         for i in 0..(d_model / 2) {
             let angle = pos as f32 / 10000_f32.powf(2.0 * i as f32 / d_model as f32);
@@ -210,10 +223,10 @@ pub fn add_sin_embeddings(tensor: &Tensor) -> Result<Tensor> {
             pos_encoding[pos * d_model + 2 * i + 1] = angle.cos();
         }
     }
-    
+
     let pos_tensor = Tensor::from_slice(&pos_encoding, (1, seq_len, d_model), device)?
         .to_dtype(dtype)?
         .broadcast_as(tensor.shape())?;
-    
+
     tensor.broadcast_add(&pos_tensor)
 }

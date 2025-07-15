@@ -1,3 +1,4 @@
+use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{
     Terminal,
@@ -13,12 +14,13 @@ use std::{
     io,
     time::{Duration, Instant},
 };
-use anyhow::Result;
 
 use crate::{
     display::{oscillator::Oscillator, spectroscope::Spectrograph},
-    oscillator::{Dimension, DisplayMode, GraphConfig, update_value_f, update_value_i, vector::Vector},
     input::{DataSource, Matrix},
+    oscillator::{
+        Dimension, DisplayMode, GraphConfig, update_value_f, update_value_i, vector::Vector,
+    },
 };
 
 pub enum CurrentDisplayMode {

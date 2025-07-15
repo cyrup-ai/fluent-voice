@@ -1,5 +1,5 @@
-use crate::label::{LabelState, LabeledAudio};
-use crate::{PredictIterator, Sample};
+use crate::asr::label::{LabelState, LabeledAudio};
+use crate::asr::{PredictIterator, Sample};
 
 /// Labels an iterator of speech samples as either speech or non-speech according
 /// to the provided speech sensitity.

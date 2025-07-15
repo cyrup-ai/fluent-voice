@@ -35,8 +35,7 @@ use crate::{
 // Import optimizations for GPU acceleration
 #[cfg(any(feature = "cuda", feature = "metal"))]
 use crate::optimizations::{
-    GpuConfig, MemoryPool,
-    channel_delay_gpu, get_compute_dtype, get_optimal_config,
+    GpuConfig, MemoryPool, channel_delay_gpu, get_compute_dtype, get_optimal_config,
 };
 
 /// Convenience: extremely small ε to replace `-inf` when we build masks.

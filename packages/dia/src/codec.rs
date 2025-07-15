@@ -3,11 +3,11 @@
 //! Decode any common audio file, loudness-normalise, resample to 24 kHz mono
 //! and run it through Facebook EnCodec (24 kHz) – all on the chosen device.
 
-use anyhow::Result;
-#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
-use anyhow::{anyhow, Context};
 #[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
 use anyhow;
+use anyhow::Result;
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
+use anyhow::{Context, anyhow};
 use candle_core::{Device, Tensor};
 
 #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
@@ -119,7 +119,9 @@ pub fn encode_wav(path: &str, device: &Device, compress: bool) -> Result<Tensor>
 
 #[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
 pub fn encode_wav(_path: &str, _device: &Device, _compress: bool) -> Result<Tensor> {
-    Err(anyhow::anyhow!("WAV encoding requires encodec, mimi, or snac features"))
+    Err(anyhow::anyhow!(
+        "WAV encoding requires encodec, mimi, or snac features"
+    ))
 }
 
 // ------------ tiny generic helper ------------------------------------------

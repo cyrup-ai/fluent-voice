@@ -87,7 +87,9 @@ impl AudioInput {
     /// Decode audio bytes using `symphonia` (disabled - requires audio codec features).
     #[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
     pub fn from_bytes(_bytes: &[u8]) -> Result<Self> {
-        Err(anyhow::anyhow!("Audio decoding requires one of: encodec, mimi, or snac features"))
+        Err(anyhow::anyhow!(
+            "Audio decoding requires one of: encodec, mimi, or snac features"
+        ))
     }
 
     /// Convert multi channel audio to mono by averaging channels.

@@ -1,5 +1,14 @@
-use crate::wake_word::{Config, error::WakeWordError, model::KwModel};
+use crate::asr::VoiceActivityDetector;
+use crate::features::{FRAME, RING_SIZE, extract as features};
 use log::{debug, trace};
+
+pub mod config;
+pub mod error;
+pub mod model;
+
+pub use config::Config;
+pub use error::WakeWordError;
+pub use model::KwModel;
 
 pub struct WakeWordDetector {
     model: KwModel,
@@ -65,7 +74,7 @@ impl WakeWordDetector {
         trace!("VAD=1");
 
         // ---- feature extraction + score ---------------------------------------
-        let feats = features::extract(&self.ring, self.pos);
+        let feats = features(&self.ring, self.pos);
         let score = self.model.dot(&feats).sigmoid();
         debug!("wake-score = {:.3}", score);
 

@@ -1,12 +1,12 @@
 use crate::VideoFrame;
 use crate::VideoSource;
 use anyhow::Result;
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 /// Represents a video track that can be played, recorded, or transmitted
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct VideoTrack {
     source: VideoSource,
     current_frame: Arc<RwLock<Option<VideoFrame>>>,
@@ -17,6 +17,16 @@ pub struct VideoTrack {
 pub trait FrameProcessor {
     /// Process a video frame
     fn process(&mut self, frame: &VideoFrame) -> Result<VideoFrame>;
+}
+
+impl std::fmt::Debug for VideoTrack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("VideoTrack")
+            .field("source", &self.source)
+            .field("current_frame", &"<frame data>")
+            .field("frame_processor", &"<processor>")
+            .finish()
+    }
 }
 
 impl VideoTrack {
@@ -96,15 +106,16 @@ impl VideoTrack {
     pub fn get_frame_stream(&self) -> impl Stream<Item = VideoFrame> + Send + 'static {
         let current_frame = self.current_frame.clone();
 
-        async_stream::stream! {
-            loop {
-                if let Ok(read_guard) = current_frame.read() {
-                    if let Some(frame) = read_guard.clone() {
-                        yield frame;
-                    }
+        futures::stream::unfold(current_frame, |current_frame| async move {
+            if let Ok(read_guard) = current_frame.read() {
+                if let Some(frame) = read_guard.clone() {
+                    tokio::time::sleep(Duration::from_millis(16)).await; // ~60fps
+                    return Some((frame, current_frame));
                 }
-                tokio::time::sleep(Duration::from_millis(16)).await; // ~60fps
             }
-        }
+            tokio::time::sleep(Duration::from_millis(16)).await; // ~60fps
+            Some((VideoFrame::default(), current_frame))
+        })
+        .filter(|frame| futures::future::ready(!frame.is_empty()))
     }
 }

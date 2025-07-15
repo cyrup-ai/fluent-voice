@@ -87,5 +87,7 @@ where
 
 #[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
 pub fn load(_path: &str) -> Result<(Vec<f32>, u32)> {
-    Err(anyhow::anyhow!("PCM loading requires encodec, mimi, or snac features"))
+    Err(anyhow::anyhow!(
+        "PCM loading requires encodec, mimi, or snac features"
+    ))
 }

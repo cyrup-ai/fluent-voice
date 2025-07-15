@@ -68,7 +68,7 @@ where
 
     // ---------- KFC extraction (parallel if rayon available) -----------
     let mut rms_levels = Vec::<f32>::with_capacity(sample_map.len());
-    
+
     #[cfg(feature = "rayon")]
     let samples_features: HashMap<_, _> = {
         let par_iter = sample_map.par_iter();
@@ -91,7 +91,7 @@ where
             })
             .collect()
     };
-    
+
     #[cfg(not(feature = "rayon"))]
     let samples_features: HashMap<_, _> = {
         sample_map

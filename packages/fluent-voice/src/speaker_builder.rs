@@ -40,7 +40,7 @@ pub trait SpeakerExt {
     fn speaker(name: impl Into<String>) -> impl SpeakerBuilder {
         Self::SpeakerType::speaker(name)
     }
-    
+
     /// The concrete speaker builder type this extension provides.
     type SpeakerType: SpeakerBuilder;
 }

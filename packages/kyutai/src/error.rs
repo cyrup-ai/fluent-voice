@@ -19,6 +19,8 @@ pub enum MoshiError {
     Io(std::io::Error),
     /// Serialization errors
     Serde(serde_json::Error),
+    /// Custom error messages
+    Custom(String),
 }
 
 impl fmt::Display for MoshiError {
@@ -28,6 +30,7 @@ impl fmt::Display for MoshiError {
             MoshiError::Config(msg) => write!(f, "Configuration error: {}", msg),
             MoshiError::ModelLoad(msg) => write!(f, "Model loading error: {}", msg),
             MoshiError::Audio(msg) => write!(f, "Audio processing error: {}", msg),
+            MoshiError::Custom(msg) => write!(f, "Custom error: {}", msg),
             MoshiError::Generation(msg) => write!(f, "Generation error: {}", msg),
             MoshiError::Io(e) => write!(f, "I/O error: {}", e),
             MoshiError::Serde(e) => write!(f, "Serialization error: {}", e),

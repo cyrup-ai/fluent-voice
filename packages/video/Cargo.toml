@@ -38,12 +38,15 @@ postage = "0.5.0"
 # smallvec = "2.0.0-alpha.10" # in workspace-hack
 # tokio = { version = "1.45.1", features = ["rt", "sync", "macros"] } # in workspace-hack
 tracing-subscriber = "0.3.19"
-wgpu = "25.0.0"
+# wgpu = { path = "../../../zeroshot/wgpu/wgpu" } # in workspace-hack
 raw-window-handle = "0.6.2"
 thiserror = "2.0.12"
 url = "2.5.4"
-sugarloaf = "0.2.20"
+ratagpu = { path = "../../../zeroshot/ratagpu", default-features = false }
+pollster = "0.4"
+winit = "0.30"
 tokio = "1.46.1"
+# naga = "26.0.0" # in workspace-hack
 
 
 [target.'cfg(not(all(target_os = "windows", target_env = "gnu")))'.dependencies]

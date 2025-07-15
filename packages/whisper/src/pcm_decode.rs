@@ -80,5 +80,7 @@ pub(crate) fn pcm_decode<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<(
 
 #[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
 pub(crate) fn pcm_decode<P: AsRef<std::path::Path>>(_path: P) -> anyhow::Result<(Vec<f32>, u32)> {
-    Err(anyhow::anyhow!("PCM decode requires encodec, mimi, or snac features"))
+    Err(anyhow::anyhow!(
+        "PCM decode requires encodec, mimi, or snac features"
+    ))
 }

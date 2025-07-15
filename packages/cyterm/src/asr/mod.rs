@@ -1,12 +1,13 @@
 #![warn(missing_docs)]
-#![doc = include_str!("../README.md")]
+#![doc = include_str!("../../README.md")]
 
 mod audio;
 mod decoder;
 mod error;
 mod iterator;
 mod label;
-mod multilingual;
+mod model;
+mod multlingual;
 mod predict;
 mod sample;
 mod whisper_loop;
@@ -15,7 +16,7 @@ mod whisper_loop;
 mod stream;
 mod vad;
 
-use error;
+// use error; // Note: already imported by mod error above
 pub use error::Error;
 pub use iterator::{IteratorExt, LabelIterator, PredictIterator};
 pub use label::LabeledAudio;

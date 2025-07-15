@@ -12,7 +12,7 @@ use std::{
     feature = "accelerate",
     feature = "mkl"
 ))]
-use candle::{Device, Tensor};
+use candle_core::{Device, Tensor};
 #[cfg(any(
     feature = "cuda",
     feature = "metal",

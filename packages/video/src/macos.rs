@@ -1,6 +1,6 @@
 use anyhow::Result;
 use core_foundation::{base::TCFType, data::CFData};
-use core_video::{CVImageBuffer, CVPixelBuffer};
+use core_video::{image_buffer::CVImageBuffer, pixel_buffer::CVPixelBuffer};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
@@ -14,7 +14,7 @@ pub struct MacOSVideoFrame {
     native: Option<NativeVideoFrame>,
 
     // macOS-specific fields
-    buffer: Option<core_video::cv_buffer::CVImageBuffer>,
+    buffer: Option<CVImageBuffer>,
     width: u32,
     height: u32,
     timestamp_us: i64,
@@ -33,7 +33,7 @@ impl MacOSVideoFrame {
     }
 
     /// Create a new MacOSVideoFrame from a CVImageBuffer
-    pub fn from_cv_buffer(buffer: core_video::cv_buffer::CVImageBuffer, timestamp_us: i64) -> Self {
+    pub fn from_cv_buffer(buffer: CVImageBuffer, timestamp_us: i64) -> Self {
         let width = buffer.width() as u32;
         let height = buffer.height() as u32;
 
@@ -47,7 +47,7 @@ impl MacOSVideoFrame {
     }
 
     /// Get the underlying CVImageBuffer
-    pub fn cv_buffer(&self) -> Option<&core_video::cv_buffer::CVImageBuffer> {
+    pub fn cv_buffer(&self) -> Option<&CVImageBuffer> {
         self.buffer.as_ref()
     }
 
@@ -136,7 +136,20 @@ impl VideoFrameImpl for MacOSVideoFrame {
     }
 }
 
+impl Default for MacOSVideoFrame {
+    fn default() -> Self {
+        Self {
+            native: None,
+            buffer: None,
+            width: 0,
+            height: 0,
+            timestamp_us: 0,
+        }
+    }
+}
+
 /// macOS-specific implementation of VideoSource
+#[derive(Debug)]
 pub struct MacOSVideoSource {
     info: VideoSourceInfo,
     current_frame: Arc<RwLock<Option<VideoFrame>>>,

@@ -690,5 +690,7 @@ pub fn record() -> Result<()> {
 
 #[cfg(not(feature = "microphone"))]
 pub fn record() -> Result<()> {
-    Err(anyhow::anyhow!("Microphone recording requires microphone feature"))
+    Err(anyhow::anyhow!(
+        "Microphone recording requires microphone feature"
+    ))
 }

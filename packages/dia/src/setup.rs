@@ -24,5 +24,7 @@ pub async fn setup(
     _tx: mpsc::Sender<ProgressUpdate>,
 ) -> Result<ModelPaths> {
     // TODO: Implement model downloading without progresshub
-    Err(anyhow!("Model downloading not yet implemented without progresshub"))
+    Err(anyhow!(
+        "Model downloading not yet implemented without progresshub"
+    ))
 }

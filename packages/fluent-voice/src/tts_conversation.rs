@@ -191,7 +191,11 @@ pub trait TtsConversationBuilder: Sized + Send {
     /// * `processor` - Function that processes each synthesis chunk
     fn on_chunk<F>(self, processor: F) -> Self::ChunkBuilder
     where
-        F: FnMut(Result<crate::audio_chunk::AudioChunk, VoiceError>) -> crate::audio_chunk::AudioChunk + Send + 'static;
+        F: FnMut(
+                Result<crate::audio_chunk::AudioChunk, VoiceError>,
+            ) -> crate::audio_chunk::AudioChunk
+            + Send
+            + 'static;
 
     /// Terminal method that executes synthesis with cyrup-sugars syntax.
     ///
@@ -214,7 +218,7 @@ pub trait TtsConversationBuilder: Sized + Send {
 
     /// The concrete conversation type produced by this builder.
     type Conversation: TtsConversation;
-    
+
     /// Builder type that handles chunk processing for streaming synthesis.
     type ChunkBuilder: TtsConversationChunkBuilder<Conversation = Self::Conversation>;
 }
@@ -267,7 +271,10 @@ pub trait TtsConversationChunkBuilder: Sized + Send {
     ///     .synthesize_stream()
     ///     .await?;
     /// ```
-    fn synthesize_stream(self) -> impl Future<Output = Result<crate::AsyncStream<crate::audio_chunk::AudioChunk>, VoiceError>> + Send;
+    fn synthesize_stream(
+        self,
+    ) -> impl Future<Output = Result<crate::AsyncStream<crate::audio_chunk::AudioChunk>, VoiceError>>
+    + Send;
 
     /// Execute synthesis and collect all chunks into a single result.
     ///
@@ -285,7 +292,9 @@ pub trait TtsConversationChunkBuilder: Sized + Send {
     ///     .synthesize_collected()
     ///     .await?;
     /// ```
-    fn synthesize_collected(self) -> impl Future<Output = Result<Vec<crate::audio_chunk::AudioChunk>, VoiceError>> + Send {
+    fn synthesize_collected(
+        self,
+    ) -> impl Future<Output = Result<Vec<crate::audio_chunk::AudioChunk>, VoiceError>> + Send {
         async move {
             let stream = self.synthesize_stream().await?;
             Ok(stream.collect().await)

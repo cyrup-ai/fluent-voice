@@ -578,13 +578,15 @@ fn main() -> Result<()> {
             &device,
         )?;
         println!("loaded mel: {:?}", mel.dims());
-        
+
         process_audio(args, config, device, weights_filename, tokenizer, mel)
     }
-    
+
     #[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
     {
-        Err(anyhow::anyhow!("Audio decoding requires one of: encodec, mimi, or snac features"))
+        Err(anyhow::anyhow!(
+            "Audio decoding requires one of: encodec, mimi, or snac features"
+        ))
     }
 }
 

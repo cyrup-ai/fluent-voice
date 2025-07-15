@@ -6,12 +6,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-use candle::{Device, Result as CandleResult, Tensor};
+use candle_core::{Device, Result as CandleResult, Tensor};
 use candle_transformers::models::whisper::{Config, audio, model as w};
 use crossbeam_channel::{Receiver, Sender};
 
+use crate::asr::error::Error;
 use crate::asr::{Sample, VoiceActivityDetector};
-use crate::error::Error;
 
 /// Hop length (sec) for incremental decoding – lower → lower latency.
 const HOP_SECS: f32 = 0.5;
@@ -97,7 +97,7 @@ fn whisper_loop(
         let feats = model.encoder.forward(&mel_t, true)?;
         let ys = model.decoder.forward(&tokens_t, &feats, true)?;
         let logits = model.decoder.final_linear(&ys.i(..1)?)?.i(0)?.i(0)?;
-        let next_id = softmax(&logits, candle::D::Minus1)?
+        let next_id = softmax(&logits, candle_core::D::Minus1)?
             .argmax(None)?
             .to_scalar::<i64>()? as u32;
 

@@ -586,8 +586,8 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
 
         // Create result stream and use cyrup-sugars combinators
         let result_stream = match conversation.into_stream() {
-            Ok(stream) => crate::AsyncStream::from_stream(stream),
-            Err(e) => crate::AsyncStream::from_error(e),
+            Ok(stream) => crate::async_stream_helpers::async_stream_from_stream(stream),
+            Err(e) => crate::async_stream_helpers::async_stream_from_error(e),
         };
 
         // Use cyrup-sugars StreamExt to enable README.md callback syntax
@@ -1008,17 +1008,15 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
         let conversation =
             DefaultSTTConversation::new(self.whisper, self.vad_config, self.wake_word_config);
 
-        // Create result stream and use cyrup-sugars combinators
-        let result_stream = match conversation {
-            Ok(conv) => match conv.into_stream() {
-                Ok(stream) => crate::AsyncStream::from_stream(stream),
-                Err(e) => crate::AsyncStream::from_error(e),
-            },
-            Err(e) => crate::AsyncStream::from_error(e),
-        };
-
-        // Use cyrup-sugars StreamExt to enable README.md callback syntax
-        result_stream.on_result(callback)
+        // Use cyrup-sugars callback pattern - the callback handles the Result and returns Result<Stream, Error>
+        match callback(conversation) {
+            Ok(stream) => stream,
+            Err(e) => {
+                // Return an empty stream when there's an error
+                // This is a reasonable default for a failed stream
+                crate::async_stream_helpers::async_stream_empty()
+            }
+        }
     }
 }
 

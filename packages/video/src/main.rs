@@ -1,9 +1,15 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use clap::Parser;
+use fluent_video::{VideoSource, VideoSourceOptions, VideoTrack, VideoTrackView};
 use futures::StreamExt;
-use raw_window_handle::{HasRawWindowHandle, RawDisplayHandle, RawWindowHandle};
-use rio_window::{
+use rustls_platform_verifier::ConfigVerifierExt;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use tokio::runtime::Runtime;
+use tracing::{error, info};
+use tracing_subscriber::EnvFilter;
+use winit::{
     dpi::{LogicalSize, PhysicalSize},
     event::{Event, StartCause, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
@@ -11,13 +17,6 @@ use rio_window::{
     monitor::MonitorHandle,
     window::{Window, WindowAttributes, WindowId},
 };
-use rustls_platform_verifier::ConfigVerifierExt;
-use speakrs_video::{VideoSource, VideoSourceOptions, VideoTrack, VideoTrackView};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
-use tokio::runtime::Runtime;
-use tracing::{error, info};
-use tracing_subscriber::EnvFilter;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -53,22 +52,6 @@ struct Args {
     /// Enable screen sharing
     #[arg(short, long)]
     screen: bool,
-}
-
-struct WindowWrapper {
-    window: Window,
-}
-
-impl HasRawWindowHandle for WindowWrapper {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.window.raw_window_handle().unwrap()
-    }
-}
-
-impl HasRawDisplayHandle for WindowWrapper {
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        self.window.raw_display_handle().unwrap()
-    }
 }
 
 enum CustomEvent {
@@ -157,10 +140,7 @@ impl VideoChat {
 
         // Initialize local video track view
         if let Some(track_view) = &mut self.local_track_view {
-            let mut window_wrapper = WindowWrapper {
-                window: window.clone(),
-            };
-            track_view.initialize_renderer(window_wrapper.raw_window_handle())?;
+            track_view.initialize_renderer(&window)?;
         }
 
         Ok(window)

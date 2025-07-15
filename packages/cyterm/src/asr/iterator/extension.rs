@@ -1,6 +1,6 @@
-use crate::label::LabelState;
-use crate::predict::PredictState;
-use crate::{LabelIterator, PredictIterator, Sample, VoiceActivityDetector};
+use crate::asr::label::LabelState;
+use crate::asr::predict::PredictState;
+use crate::asr::{LabelIterator, PredictIterator, Sample, VoiceActivityDetector};
 
 /// Extensions for iterators.
 pub trait IteratorExt: Iterator {

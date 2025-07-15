@@ -92,6 +92,8 @@ pub struct SttConversationBuilderImpl<S> {
     timestamps_granularity: Option<TimestampsGranularity>,
     /// Punctuation setting
     punctuation: Option<Punctuation>,
+    /// Engine configuration parameters
+    engine_config: std::collections::HashMap<String, String>,
     /// Function to convert configuration to transcript stream
     stream_fn: Box<
         dyn FnOnce(
@@ -137,6 +139,7 @@ where
             word_timestamps: None,
             timestamps_granularity: None,
             punctuation: None,
+            engine_config: std::collections::HashMap::new(),
             stream_fn: Box::new(stream_fn),
         }
     }
@@ -211,6 +214,19 @@ where
         self
     }
 
+    /// Configure engine parameters using JSON object syntax
+    #[cfg(feature = "hashbrown-json")]
+    pub fn engine_config<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>,
+    {
+        let config_map = f();
+        for (k, v) in config_map {
+            self.engine_config.insert(k.to_string(), v.to_string());
+        }
+        self
+    }
+
     fn with_microphone(
         self,
         device: impl Into<String>,
@@ -247,7 +263,7 @@ where
 
     fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnMut(
+        F: FnOnce(
                 Result<Self::Conversation, VoiceError>,
             ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
             + Send
@@ -265,14 +281,14 @@ where
             stream_fn: self.stream_fn,
         };
 
-        // Create result stream and use cyrup-sugars combinators
-        let result_stream = match conversation.into_stream() {
-            Ok(stream) => crate::AsyncStream::from_stream(stream),
-            Err(e) => crate::AsyncStream::from_error(e),
-        };
-
-        // Use cyrup-sugars StreamExt to enable README.md callback syntax
-        result_stream.on_result(callback)
+        // Use cyrup-sugars callback pattern - the callback handles the Result and returns Result<Stream, Error>
+        match callback(Ok(conversation)) {
+            Ok(stream) => stream,
+            Err(e) => {
+                // Return an empty stream when there's an error
+                cyrup_sugars::AsyncStream::empty()
+            }
+        }
     }
 }
 
@@ -397,7 +413,7 @@ where
 
     fn listen<F>(self, callback: F) -> crate::AsyncStream<crate::TranscriptSegment>
     where
-        F: FnMut(
+        F: FnOnce(
                 Result<Self::Conversation, VoiceError>,
             ) -> Result<crate::AsyncStream<crate::TranscriptSegment>, VoiceError>
             + Send
@@ -428,14 +444,14 @@ where
             stream_fn: self.stream_fn,
         };
 
-        // Create result stream and use cyrup-sugars combinators
-        let result_stream = match conversation.into_stream() {
-            Ok(stream) => crate::AsyncStream::from_stream(stream),
-            Err(e) => crate::AsyncStream::from_error(e),
-        };
-
-        // Use cyrup-sugars StreamExt to enable README.md callback syntax
-        result_stream.on_result(callback)
+        // Use cyrup-sugars callback pattern - the callback handles the Result and returns Result<Stream, Error>
+        match callback(Ok(conversation)) {
+            Ok(stream) => stream,
+            Err(e) => {
+                // Return an empty stream when there's an error
+                cyrup_sugars::AsyncStream::empty()
+            }
+        }
     }
 }
 

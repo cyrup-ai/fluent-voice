@@ -4,18 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Structure
 
-This is a Rust workspace with 17 member crates implementing a comprehensive voice processing ecosystem:
+This is a Rust workspace with 12 member crates implementing a comprehensive voice processing ecosystem:
 
 - **`fluent-voice/`** - Core pure-trait fluent builder API for TTS/STT engines
-- **`candle/koffee/`** - Cross-platform wake-word detection using Candle ML framework
-- **`candle/whisper/`** - Speech-to-text implementation (currently has build errors)
-- **`candle/moshi/`** - Advanced audio processing
+- **`kyutai/`** - Moshi language model implementation using Kyutai research (currently has build errors)
+- **`koffee/`** - Cross-platform wake-word detection using Candle ML framework
+- **`whisper/`** - Speech-to-text implementation
 - **`elevenlabs/`** - ElevenLabs TTS API integration
-- **`dia-voice/`** - Voice conversation system
+- **`dia/`** - Voice conversation system with justfile commands
 - **`cyterm/`** - Terminal-based voice interface
 - **`livekit/`** - Real-time audio/video streaming
 - **`vad/`** - Voice Activity Detection
-- **`kokoros/`** - TTS system (koko/kokoros subprojects)
+- **`video/`** - Video processing components
+- **`animator/`** - Animation and visual components
+- **`domain/`** - Shared domain types and error handling
 
 ## Development Commands
 
@@ -34,12 +36,24 @@ cargo build --release --message-format short --quiet
 cargo run --message-format short --quiet
 ```
 
-**Using justfile (dia-voice subproject):**
+**Using workspace-level justfile:**
 ```bash
-just check    # Format, check, and clippy
-just test     # Format and run tests  
+just check    # Format, check, and clippy across entire workspace
+just test     # Format and run tests across entire workspace
+just build    # Format and build release across entire workspace
+just hakari   # Regenerate workspace-hack after dependency changes
+just lock     # Make all Cargo.toml files read-only
+just unlock   # Make all Cargo.toml files writable
+just status   # Show Cargo.toml file permissions
+```
+
+**Using dia-specific justfile (packages/dia/):**
+```bash
+just check    # Format, check, and clippy with auto-fix
+just test     # Format and run tests
 just build    # Format and build release
 just run      # Format and run
+just dia      # Run dia binary with metal features and custom args
 ```
 
 **Dependency Management with cargo-hakari:**
@@ -113,9 +127,9 @@ cargo hakari manage-deps
 ## Current Build Status
 
 **Critical Issues:**
-- `candle/whisper/` has 188 build errors (missing dependencies)
-- `candle/koffee/` has 9 build errors (import/type resolution)
-- Total: 197 errors, 9 warnings across workspace
+- `kyutai/` has multiple build errors (StreamTensor method issues, VarMap API mismatches, type errors)
+- 10+ warnings across workspace (mostly unused imports)
+- Active development on Moshi language model implementation
 
 **Before Development:**
 1. Run `cargo fmt && cargo check --message-format short --quiet`
@@ -125,17 +139,23 @@ cargo hakari manage-deps
 ## Key Dependencies
 
 **ML/Audio Processing:**
-- `candle-*` for neural networks and ML
+- `candle-*` (from GitHub main branch) for neural networks and ML
 - `tokio` for async runtime
 - `hound` for audio file handling
-- `cpal` for audio I/O
-- `rustfft` for signal processing
+- `cpal` for audio I/O (optional, enabled with microphone feature)
+- `rubato` for audio resampling (optional)
+- `symphonia` for audio format support (optional)
 
 **Development Tools:**
 - `nextest` for fast parallel testing
 - `tracing` for structured logging
 - `clap` for CLI interfaces
 - `serde` for serialization
+- `cyrup-sugars` for enhanced async syntax patterns
+
+**Workspace Management:**
+- `fluent-voice-workspace-hack` for dependency optimization
+- `cargo-hakari` for workspace dependency management
 
 ## Testing Strategy
 
@@ -159,3 +179,29 @@ cargo hakari manage-deps
 - Edition = "2024" for cutting-edge Rust features
 - All crates follow the same quality standards
 - Use `cargo workspace` commands for cross-crate operations
+
+## Feature Flags
+
+**fluent-voice core features:**
+- `default = ["metal", "microphone"]` - Metal acceleration + microphone support
+- `cuda`, `cudnn`, `metal`, `accelerate`, `mkl` - ML acceleration backends
+- `microphone`, `encodec`, `mimi`, `snac` - Audio processing features
+- `tokio-runtime`, `wasm-runtime`, `std_async` - Runtime variants
+
+**kyutai features:**
+- `default = []` - No default features
+- `cuda`, `metal` - GPU acceleration options
+
+## Single Test Execution
+
+**Run specific tests:**
+```bash
+# Run a single test file
+cargo nextest run --package package-name test-name
+
+# Run tests matching a pattern
+cargo nextest run --package fluent-voice test_pattern
+
+# Run tests in specific crate
+cd packages/kyutai && cargo nextest run
+```

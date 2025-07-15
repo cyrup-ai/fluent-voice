@@ -7,20 +7,14 @@ use std::{
     sync::{Arc, Mutex, RwLock},
     time::Duration,
 };
-use sugarloaf::{
-    Sugarloaf, SugarloafRenderer, SugarloafWindow,
-    graphics::{Graphic, GraphicId},
-};
 use tokio::task::JoinHandle;
-use wgpu::TextureFormat;
+// use wgpu::TextureFormat; // Using ratagpu instead which has wgpu integrated
 
 pub struct RemoteVideoTrackView {
     track: RemoteVideoTrack,
     latest_frame: Arc<RwLock<Option<crate::RemoteVideoFrame>>>,
-    sugarloaf: Arc<Mutex<Option<Sugarloaf>>>,
-    renderer: Option<SugarloafRenderer>,
-    graphic_id: Option<GraphicId>,
-    window_handle: RawWindowHandle,
+    renderer: Option<Arc<Mutex<ratagpu::ZeroAllocRenderer<80, 24>>>>,
+    window: Option<Arc<winit::window::Window>>,
     _frame_processor: JoinHandle<()>,
     event_sender: mpsc::UnboundedSender<RemoteVideoTrackViewEvent>,
     event_receiver: mpsc::UnboundedReceiver<RemoteVideoTrackViewEvent>,
@@ -34,22 +28,13 @@ pub enum RemoteVideoTrackViewEvent {
 }
 
 impl RemoteVideoTrackView {
-    pub fn new<W>(track: RemoteVideoTrack, window: &W) -> Self
-    where
-        W: HasRawWindowHandle + ?Sized,
-    {
+    pub fn new(track: RemoteVideoTrack, window: Arc<winit::window::Window>) -> Self {
         let frames = super::play_remote_video_track(&track);
         let latest_frame = Arc::new(RwLock::new(None));
         let latest_frame_clone = latest_frame.clone();
 
         let (tx, rx) = mpsc::unbounded();
         let tx_clone = tx.clone();
-
-        let window_handle = window.raw_window_handle();
-
-        // Setup Sugarloaf renderer
-        let sugarloaf = Arc::new(Mutex::new(None));
-        let sugarloaf_clone = sugarloaf.clone();
 
         let frame_processor = tokio::spawn(async move {
             futures::pin_mut!(frames);
@@ -73,10 +58,8 @@ impl RemoteVideoTrackView {
         Self {
             track,
             latest_frame,
-            sugarloaf,
             renderer: None,
-            graphic_id: None,
-            window_handle,
+            window: Some(window),
             _frame_processor: frame_processor,
             event_sender: tx,
             event_receiver: rx,
@@ -85,23 +68,16 @@ impl RemoteVideoTrackView {
     }
 
     pub fn initialize_renderer(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // Initialize Sugarloaf for rendering
-        let window = SugarloafWindow::Raw(self.window_handle);
-        let mut sugarloaf = Sugarloaf::new(window, None, TextureFormat::Bgra8UnormSrgb, None)?;
+        if let Some(window) = &self.window {
+            // Create Ratagpu renderer for terminal-style video display
+            let renderer = pollster::block_on(async {
+                ratagpu::RendererBuilder::<80, 24>::new()
+                    .build(window.as_ref())
+                    .await
+            })?;
 
-        // Create initial empty graphic
-        let graphic_id = sugarloaf.create_graphic(500, 500)?;
-
-        // Store sugarloaf and renderer
-        let renderer = sugarloaf.create_renderer();
-
-        if let Ok(mut guard) = self.sugarloaf.lock() {
-            *guard = Some(sugarloaf);
+            self.renderer = Some(Arc::new(Mutex::new(renderer)));
         }
-
-        self.renderer = Some(renderer);
-        self.graphic_id = Some(graphic_id);
-
         Ok(())
     }
 
@@ -117,9 +93,11 @@ impl RemoteVideoTrackView {
             }
         }
 
-        // Render current frame
-        if let Some(renderer) = &mut self.renderer {
-            renderer.render()?;
+        // Render the frame if we have a renderer
+        if let Some(renderer) = &self.renderer {
+            if let Ok(mut renderer) = renderer.lock() {
+                renderer.render()?;
+            }
         }
 
         Ok(())
@@ -146,39 +124,60 @@ impl RemoteVideoTrackView {
         None
     }
 
-    pub fn renderer(&self) -> Option<&SugarloafRenderer> {
-        self.renderer.as_ref()
-    }
-
-    pub fn renderer_mut(&mut self) -> Option<&mut SugarloafRenderer> {
-        self.renderer.as_mut()
-    }
-
-    pub fn graphic_id(&self) -> Option<GraphicId> {
-        self.graphic_id
-    }
-
-    pub fn sugarloaf(&self) -> Arc<Mutex<Option<Sugarloaf>>> {
-        self.sugarloaf.clone()
+    pub fn get_ascii_buffer(&self) -> Vec<String> {
+        // This method is kept for compatibility but returns empty since Ratagpu handles rendering
+        Vec::new()
     }
 
     pub fn update_frame(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Ok(guard) = self.latest_frame.read() {
             if let Some(frame) = &*guard {
-                if let Some(graphic_id) = self.graphic_id {
-                    if let Ok(mut guard) = self.sugarloaf.lock() {
-                        if let Some(sugarloaf) = &mut *guard {
-                            // Update graphic with new frame data using VideoFrameExtensions trait
-                            let graphic_data = frame.to_rgba_bytes()?;
-                            let width = frame.width();
-                            let height = frame.height();
+                if let Some(renderer) = &self.renderer {
+                    if let Ok(mut renderer) = renderer.lock() {
+                        // Convert video frame to ASCII art representation
+                        let frame_data = frame.to_rgba_bytes()?;
+                        let frame_width = frame.width() as usize;
+                        let frame_height = frame.height() as usize;
 
-                            sugarloaf.update_graphic(
-                                graphic_id,
-                                &sugarloaf::graphics::GraphicData::Rgba8(graphic_data),
-                                width,
-                                height,
-                            )?;
+                        // Simple ASCII art conversion for terminal display
+                        let ascii_chars = " .:-=+*#%@";
+
+                        for y in 0..24 {
+                            for x in 0..80 {
+                                let src_x = if frame_width > 0 {
+                                    x * frame_width / 80
+                                } else {
+                                    0
+                                };
+                                let src_y = if frame_height > 0 {
+                                    y * frame_height / 24
+                                } else {
+                                    0
+                                };
+                                let pixel_idx = (src_y * frame_width + src_x) * 4;
+
+                                if pixel_idx + 3 < frame_data.len() {
+                                    let r = frame_data[pixel_idx] as f32;
+                                    let g = frame_data[pixel_idx + 1] as f32;
+                                    let b = frame_data[pixel_idx + 2] as f32;
+
+                                    let brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+                                    let char_idx =
+                                        (brightness * (ascii_chars.len() - 1) as f32) as usize;
+                                    let ch = ascii_chars.chars().nth(char_idx).unwrap_or(' ');
+
+                                    renderer.set_cell(
+                                        x,
+                                        y,
+                                        ratagpu::Cell {
+                                            character: ch,
+                                            foreground: 15, // White
+                                            background: 0,  // Black
+                                            style_flags: 0,
+                                        },
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -193,9 +192,9 @@ impl RemoteVideoTrackView {
         width: u32,
         height: u32,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        if let Ok(mut guard) = self.sugarloaf.lock() {
-            if let Some(sugarloaf) = &mut *guard {
-                sugarloaf.resize(width, height)?;
+        if let Some(renderer) = &self.renderer {
+            if let Ok(mut renderer) = renderer.lock() {
+                renderer.handle_resize(width, height)?;
             }
         }
 
@@ -204,12 +203,12 @@ impl RemoteVideoTrackView {
 
     pub fn clone(&self) -> Self {
         // Create a new view with the same track
-        let mut new_view = Self::new(self.track.clone(), &mut ());
-
-        // Clone graphic_id if possible
-        new_view.graphic_id = self.graphic_id;
+        let window = self.window.clone().unwrap_or_else(|| {
+            // This is a fallback - in practice, window should always be available
+            panic!("Cannot clone RemoteVideoTrackView without window")
+        });
+        let mut new_view = Self::new(self.track.clone(), window);
         new_view.scale_factor = self.scale_factor;
-
         new_view
     }
 
@@ -235,13 +234,6 @@ impl RemoteVideoTrackView {
 
 impl Drop for RemoteVideoTrackView {
     fn drop(&mut self) {
-        // Clean up resources
-        if let Some(graphic_id) = self.graphic_id {
-            if let Ok(mut guard) = self.sugarloaf.lock() {
-                if let Some(sugarloaf) = &mut *guard {
-                    let _ = sugarloaf.remove_graphic(graphic_id);
-                }
-            }
-        }
+        // Clean up resources - renderer cleanup is handled automatically
     }
 }

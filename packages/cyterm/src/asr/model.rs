@@ -1,6 +1,6 @@
 //! Thin wrapper around Candle Whisper variants (fp32 + gguf‐quantized).
 
-use candle::{Result, Tensor};
+use candle_core::{Result, Tensor};
 use candle_transformers::models::whisper::{self as m, Config};
 
 /// Either an ordinary fp32 Whisper or a quantized gguf snapshot.

@@ -19,61 +19,121 @@
 use crate::audio::{Endianness, Sample, SampleFormat};
 use crate::config::AudioFmt;
 
-#[cfg(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac"))]
+#[cfg(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+))]
 use rubato::{FftFixedIn, ResampleError, Resampler, ResamplerConstructionError};
 
 // Dummy types for when audio features are disabled
-#[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
 #[derive(Debug)]
 pub struct ResampleError;
 
-#[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
 impl std::fmt::Display for ResampleError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Resample error (audio features disabled)")
     }
 }
 
-#[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
 impl std::error::Error for ResampleError {}
 
-#[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
 #[derive(Debug)]
 pub struct ResamplerConstructionError;
 
-#[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
 impl std::fmt::Display for ResamplerConstructionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Resampler construction error (audio features disabled)")
     }
 }
 
-#[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
 impl std::error::Error for ResamplerConstructionError {}
 
-#[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
 pub struct FftFixedIn<T>(std::marker::PhantomData<T>);
 
-#[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+#[cfg(not(any(
+    feature = "microphone",
+    feature = "encodec",
+    feature = "mimi",
+    feature = "snac"
+)))]
 impl<T> FftFixedIn<T> {
-    pub fn new(_sr_in: usize, _sr_out: usize, _out_frames: usize, _in_channels: usize, _out_channels: usize) -> std::result::Result<Self, ResamplerConstructionError> {
+    pub fn new(
+        _sr_in: usize,
+        _sr_out: usize,
+        _out_frames: usize,
+        _in_channels: usize,
+        _out_channels: usize,
+    ) -> std::result::Result<Self, ResamplerConstructionError> {
         Err(ResamplerConstructionError)
     }
-    
+
     pub fn reset(&mut self) {}
-    
-    pub fn process_into_buffer(&mut self, _input: &[Vec<f32>], _output: &mut [Vec<f32>], _nbr_frames: Option<usize>) -> std::result::Result<(usize, usize), ResampleError> {
+
+    pub fn process_into_buffer(
+        &mut self,
+        _input: &[Vec<f32>],
+        _output: &mut [Vec<f32>],
+        _nbr_frames: Option<usize>,
+    ) -> std::result::Result<(usize, usize), ResampleError> {
         Err(ResampleError)
     }
-    
-    pub fn input_frames_next(&self) -> usize { 0 }
-    
-    pub fn output_frames_next(&self) -> usize { 0 }
-    
+
+    pub fn input_frames_next(&self) -> usize {
+        0
+    }
+
+    pub fn output_frames_next(&self) -> usize {
+        0
+    }
+
     pub fn input_buffer_allocate(&self, _avoid_reallocation: bool) -> Vec<Vec<f32>> {
         vec![vec![]]
     }
-    
+
     pub fn output_buffer_allocate(&self, _avoid_reallocation: bool) -> Vec<Vec<f32>> {
         vec![vec![]]
     }
@@ -125,7 +185,12 @@ impl AudioEncoder {
         let out_spf = target_sr * frame_ms / 1_000; // samples / frame (out)
 
         /* optional FFT resampler --------------------------------------------------- */
-        #[cfg(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac"))]
+        #[cfg(any(
+            feature = "microphone",
+            feature = "encodec",
+            feature = "mimi",
+            feature = "snac"
+        ))]
         let resampler = if fmt.sample_rate != target_sr {
             // `FftFixedIn::new` now yields a **`ResamplerConstructionError`** which
             // is transparently converted into our `EncoderError::Construct` variant
@@ -144,14 +209,24 @@ impl AudioEncoder {
         } else {
             None
         };
-        
-        #[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+
+        #[cfg(not(any(
+            feature = "microphone",
+            feature = "encodec",
+            feature = "mimi",
+            feature = "snac"
+        )))]
         let resampler: Option<FftFixedIn<f32>> = None;
 
         let bytes_per_frame = in_spf * fmt.sample_format.get_bytes_per_sample() as usize;
 
         // Ensure proper buffer allocation based on actual channel count
-        #[cfg(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac"))]
+        #[cfg(any(
+            feature = "microphone",
+            feature = "encodec",
+            feature = "mimi",
+            feature = "snac"
+        ))]
         let resampler_in = resampler.as_ref().map(|r| {
             let mut buffers = r.input_buffer_allocate(false);
             // Ensure we have the correct number of channel buffers
@@ -167,11 +242,21 @@ impl AudioEncoder {
             }
             buffers
         });
-        
-        #[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+
+        #[cfg(not(any(
+            feature = "microphone",
+            feature = "encodec",
+            feature = "mimi",
+            feature = "snac"
+        )))]
         let resampler_in = None;
 
-        #[cfg(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac"))]
+        #[cfg(any(
+            feature = "microphone",
+            feature = "encodec",
+            feature = "mimi",
+            feature = "snac"
+        ))]
         let resampler_out = resampler.as_ref().map(|r| {
             let mut buffers = r.output_buffer_allocate(true);
             // Output is always mono (1 channel) after mix-down
@@ -184,8 +269,13 @@ impl AudioEncoder {
             }
             buffers
         });
-        
-        #[cfg(not(any(feature = "microphone", feature = "encodec", feature = "mimi", feature = "snac")))]
+
+        #[cfg(not(any(
+            feature = "microphone",
+            feature = "encodec",
+            feature = "mimi",
+            feature = "snac"
+        )))]
         let resampler_out = None;
 
         Ok(Self {

@@ -1,8 +1,6 @@
 /// Oscillator display component
 use crossterm::event::Event;
-use ratatui::{
-    widgets::{Axis, GraphType},
-};
+use ratatui::widgets::{Axis, GraphType};
 
 use crate::{
     input::Matrix,
