@@ -989,7 +989,7 @@ dependencies = [
 [[package]]
 name = "candle-core"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
+source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
  "accelerate-src",
  "byteorder",
@@ -1040,11 +1040,11 @@ dependencies = [
 [[package]]
 name = "candle-datasets"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
+source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "hf-hub 0.4.3",
  "image",
  "memmap2",
@@ -1057,18 +1057,18 @@ dependencies = [
 [[package]]
 name = "candle-flash-attn"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
+source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
  "anyhow",
  "bindgen_cuda",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "half",
 ]
 
 [[package]]
 name = "candle-kernels"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
+source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
  "bindgen_cuda",
 ]
@@ -1076,7 +1076,7 @@ dependencies = [
 [[package]]
 name = "candle-metal-kernels"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
+source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
  "half",
  "metal 0.27.0",
@@ -1088,10 +1088,10 @@ dependencies = [
 [[package]]
 name = "candle-nn"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
+source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
  "accelerate-src",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-metal-kernels",
  "half",
  "intel-mkl-src",
@@ -1120,10 +1120,10 @@ dependencies = [
 [[package]]
 name = "candle-onnx"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
+source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "prost",
  "prost-build",
 ]
@@ -1131,13 +1131,13 @@ dependencies = [
 [[package]]
 name = "candle-transformers"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
+source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
  "accelerate-src",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-flash-attn",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "fancy-regex 0.13.0",
  "intel-mkl-src",
  "num-traits",
@@ -2083,10 +2083,10 @@ name = "cyterm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-datasets",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "cosmic-text",
  "cpal 0.16.0",
  "crossbeam-channel",
@@ -2300,12 +2300,12 @@ dependencies = [
  "bindgen_cuda",
  "bytemuck",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-datasets",
  "candle-flash-attn",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-onnx",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "clap",
  "cpal 0.16.0",
  "crossterm",
@@ -3173,8 +3173,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle.git)",
  "nextest",
  "rayon",
@@ -3230,12 +3230,12 @@ dependencies = [
  "async-stream",
  "bindgen_cuda",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-datasets",
  "candle-flash-attn",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-onnx",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "clap",
  "cpal 0.16.0",
  "crossbeam",
@@ -3256,6 +3256,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "half",
+ "hashbrown 0.15.4",
  "hf-hub 0.3.2",
  "hound",
  "image",
@@ -3408,12 +3409,12 @@ dependencies = [
  "async-stream",
  "bindgen_cuda",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-datasets",
  "candle-flash-attn",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-onnx",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "ciborium",
  "clap",
  "console_error_panic_hook",
@@ -5092,12 +5093,12 @@ dependencies = [
  "arrayvec",
  "bindgen_cuda",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-datasets",
  "candle-flash-attn",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "candle-onnx",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle.git?branch=main)",
+ "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
  "ciborium",
  "clap",
  "console_error_panic_hook",

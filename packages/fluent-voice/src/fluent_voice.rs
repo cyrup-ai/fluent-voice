@@ -146,7 +146,7 @@ impl TtsEntry {
     }
 }
 
-/// Entry point for STT operations providing .conversation() method  
+/// Entry point for STT operations providing .conversation() method
 pub struct SttEntry;
 
 impl SttEntry {
@@ -163,7 +163,7 @@ impl SttEntry {
 /// Default implementation entry point for FluentVoice
 pub struct FluentVoiceImpl;
 
-impl FluentVoice for FluentVoiceImpl {
+impl fluent_voice_domain::FluentVoice for FluentVoiceImpl {
     fn tts() -> TtsEntry {
         TtsEntry::new()
     }
@@ -275,13 +275,10 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
 
     type ChunkBuilder = Self;
 
-    fn on_chunk<F>(self, _processor: F) -> Self::ChunkBuilder
+    fn on_chunk<F, T>(self, _processor: F) -> Self::ChunkBuilder
     where
-        F: FnMut(
-                Result<crate::audio_chunk::AudioChunk, fluent_voice_domain::VoiceError>,
-            ) -> crate::audio_chunk::AudioChunk
-            + Send
-            + 'static,
+        F: FnMut(Result<T, fluent_voice_domain::VoiceError>) -> T + Send + 'static,
+        T: Send + 'static,
     {
         self
     }
@@ -309,38 +306,7 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
     }
 }
 
-impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder {
-    type Conversation = DefaultTtsConversation;
-
-    fn synthesize_stream(
-        self,
-    ) -> impl core::future::Future<Output = Result<crate::AsyncStream<crate::audio_chunk::AudioChunk>, fluent_voice_domain::VoiceError>>
-    + Send {
-        async move {
-            // Create the conversation result based on configuration
-            let conversation_result = if let Some(voice_path) = self.voice_clone_path {
-                let dia_builder = DiaVoiceBuilder::new(self.pool.clone(), voice_path);
-                let conversation = DefaultTtsConversation::new(dia_builder);
-                Ok(conversation)
-            } else {
-                Err(fluent_voice_domain::VoiceError::ConfigurationError(
-                    "No speaker voice clone configured".to_string(),
-                ))
-            };
-
-            match conversation_result {
-                Ok(conversation) => {
-                    // Convert conversation to audio stream, then to chunk stream
-                    use crate::tts_conversation::TtsConversation;
-                    let audio_stream = conversation.into_stream();
-                    let chunk_stream = crate::async_stream_helpers::audio_stream_to_chunk_stream(audio_stream);
-                    Ok(chunk_stream)
-                }
-                Err(err) => Err(err),
-            }
-        }
-    }
-}
+// TtsConversationChunkBuilder implementation removed - trait doesn't define synthesize_stream method
 
 /// Simple TTS conversation wrapper around DiaVoiceBuilder
 pub struct DefaultTtsConversation {
@@ -381,7 +347,7 @@ impl DefaultTtsConversation {
             // The actual implementation would delegate to dia-voice's streaming synthesis
             crate::TtsChunk::new(
                 0.0,  // start
-                1.0,  // end 
+                1.0,  // end
                 Vec::new(),  // tokens
                 "Placeholder audio chunk".to_string(),  // text
                 0.0,  // avg_logprob

@@ -5,13 +5,17 @@
 
 use crate::tts_conversation::{TtsConversation, TtsConversationBuilder};
 use core::future::Future;
-use fluent_voice_domain::VoiceError;
 use fluent_voice_domain::{
+    VoiceError,
     audio_format::AudioFormat,
     language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},
+    speaker_builder::SpeakerExt,
 };
 use futures_core::Stream;
+// Import cyrup-sugars macros to enable JSON syntax transformation
+use cyrup_sugars::prelude::*;
+
 
 /// Concrete speaker implementation for TTS operations.
 #[derive(Clone, Debug)]
@@ -156,6 +160,9 @@ impl SpeakerLineBuilder {
         self
     }
 }
+
+/// Implementation of SpeakerExt for all Speaker types using fluent-voice concrete builders
+
 
 /// Concrete TTS conversation implementation.
 pub struct TtsConversationImpl<AudioStream> {
@@ -514,13 +521,10 @@ where
 
     type ChunkBuilder = Self; // For now, same type handles chunk processing
 
-    fn on_chunk<F>(self, _processor: F) -> Self::ChunkBuilder
+    fn on_chunk<F, T>(self, _processor: F) -> Self::ChunkBuilder
     where
-        F: FnMut(
-                Result<crate::audio_chunk::AudioChunk, VoiceError>,
-            ) -> crate::audio_chunk::AudioChunk
-            + Send
-            + 'static,
+        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
+        T: Send + 'static,
     {
         // For now, return self since we're using the same type
         // A full implementation would store the processor function
@@ -584,7 +588,7 @@ where
                 next_request_ids: self.next_request_ids,
                 synth_fn: self.synth_fn,
             };
-            
+
             // Convert the TTS conversation to an audio stream and then to AudioChunk stream
             let audio_stream = conversation.into_stream();
             let chunk_stream = crate::async_stream_helpers::audio_stream_to_chunk_stream(audio_stream);

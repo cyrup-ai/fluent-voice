@@ -2,7 +2,7 @@
 
 use crate::language::Language;
 use crate::pitch_range::PitchRange;
-use crate::speaker_builder::SpeakerBuilder;
+// SpeakerBuilder import should be in fluent-voice crate where concrete implementations are
 use crate::vocal_speed::VocalSpeedMod;
 use crate::voice_id::VoiceId;
 
@@ -33,12 +33,5 @@ pub trait Speaker: Clone + Send + Sync {
     fn pitch_range(&self) -> Option<&PitchRange>;
 }
 
-/// Implementation of SpeakerExt for all Speaker types
-impl<T> crate::speaker_builder::SpeakerExt for T
-where
-    T: Speaker,
-{
-    fn speaker(name: impl Into<String>) -> impl crate::speaker_builder::SpeakerBuilder {
-        <crate::builders::SpeakerLineBuilder as SpeakerBuilder>::speaker(name)
-    }
-}
+// SpeakerExt implementation should be provided by the fluent-voice crate,
+// not the domain crate. The domain crate only contains trait definitions.

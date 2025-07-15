@@ -284,23 +284,5 @@ pub struct FluentVoiceImpl;
 // DummySegment removed - only real production transcript types allowed
 // Real TtsChunk from Whisper crate is used throughout the codebase
 
-/// Implementation of TtsConversationExt for FluentVoiceImpl
-impl crate::tts_conversation::TtsConversationExt for FluentVoiceImpl {
-    fn builder() -> impl TtsConversationBuilder {
-        Self::tts()
-    }
-}
-
-/// Implementation of SttConversationExt for FluentVoiceImpl
-impl crate::stt_conversation::SttConversationExt for FluentVoiceImpl {
-    fn builder() -> impl SttConversationBuilder {
-        Self::stt()
-    }
-}
-
-/// Implementation of WakeWordConversationExt for FluentVoiceImpl
-impl crate::wake_word_conversation::WakeWordConversationExt for FluentVoiceImpl {
-    fn builder() -> impl WakeWordBuilder {
-        Self::wake_word()
-    }
-}
+// Extension trait implementations should be provided by the fluent-voice crate,
+// not the domain crate. The domain crate only contains trait definitions.

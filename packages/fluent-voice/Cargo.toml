@@ -89,6 +89,7 @@ candle-flash-attn = { git = "https://github.com/huggingface/candle", branch = "m
 candle-onnx = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
 candle-datasets = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
 tracing = "0.1"
+hashbrown = "0.15.4"
 
 [dev-dependencies]
 # tokio is in workspace-hack

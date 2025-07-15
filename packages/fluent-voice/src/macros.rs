@@ -153,3 +153,18 @@ macro_rules! stt {
         FluentVoice::stt()
     }};
 }
+
+/// Macro to enable JSON object syntax {"key" => "value"} in builder methods
+///
+/// This macro transforms the JSON-like syntax used in examples into proper HashMap
+/// creation that can be used by builder methods.
+#[macro_export]
+macro_rules! json_config {
+    ({ $($key:expr => $value:expr),* $(,)? }) => {{
+        let mut map = hashbrown::HashMap::new();
+        $(
+            map.insert($key, $value);
+        )*
+        map
+    }};
+}
