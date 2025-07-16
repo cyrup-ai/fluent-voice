@@ -1,6 +1,5 @@
 //! PCM → log-mel conversion (same parameters as OpenAI Whisper).
 
-
 #[cfg(any(
     feature = "cuda",
     feature = "metal",
@@ -57,38 +56,38 @@ pub fn pcm_to_mel(cfg: &Config, pcm: &[f32], mel_filters: &[f32]) -> Vec<f32> {
 }
 
 /// Build mel filter bank for the given configuration.
-/// 
+///
 /// Creates a mel-scale filter bank with triangular filters.
 pub fn build_mel_filters(cfg: &Config) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
     const N_FFT: usize = 400; // Whisper uses 400 point FFT
     let n_mels = cfg.num_mel_bins;
     let sample_rate = SAMPLE_RATE as f32;
     let fmax = sample_rate / 2.0;
-    
+
     // Convert frequencies to mel scale
     let mel_min = 0.0;
     let mel_max = hz_to_mel(fmax);
-    
+
     // Create equally spaced mel frequencies
     let mel_points: Vec<f32> = (0..=n_mels + 1)
         .map(|i| mel_min + (mel_max - mel_min) * i as f32 / (n_mels + 1) as f32)
         .collect();
-    
+
     // Convert mel frequencies back to Hz
     let freq_points: Vec<f32> = mel_points.iter().map(|&mel| mel_to_hz(mel)).collect();
-    
+
     // Create filter bank
     let n_freqs = N_FFT / 2 + 1;
     let mut filters = vec![0.0f32; n_mels * n_freqs];
-    
+
     for m in 0..n_mels {
         let left = freq_points[m];
-        let center = freq_points[m + 1]; 
+        let center = freq_points[m + 1];
         let right = freq_points[m + 2];
-        
+
         for k in 0..n_freqs {
             let freq = k as f32 * sample_rate / N_FFT as f32;
-            
+
             let weight = if freq >= left && freq <= center {
                 if center != left {
                     (freq - left) / (center - left)
@@ -104,11 +103,11 @@ pub fn build_mel_filters(cfg: &Config) -> Result<Vec<f32>, Box<dyn std::error::E
             } else {
                 0.0
             };
-            
+
             filters[m * n_freqs + k] = weight;
         }
     }
-    
+
     Ok(filters)
 }
 

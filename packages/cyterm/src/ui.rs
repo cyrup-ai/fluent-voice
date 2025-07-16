@@ -58,7 +58,7 @@ impl UiState {
 }
 
 /// Draw once.
-pub fn draw<B: Backend>(f: &mut Frame<B>, ui: &mut UiState) {
+pub fn draw<B: Backend>(f: &mut Frame, ui: &mut UiState) {
     ui.tick();
 
     // Split vertical: main area + status bar.
@@ -66,7 +66,9 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, ui: &mut UiState) {
         Direction::Vertical,
         [Constraint::Min(2), Constraint::Length(1)],
     );
-    let [body, status] = layout.split(f.area());
+    let rects = layout.split(f.area());
+    let body = rects[0];
+    let status = rects[1];
 
     // == transcript =========================================================
     let mut lines = Text::from(ui.transcript.clone()).lines;

@@ -3,49 +3,49 @@
 //! Pure-trait fluent builder API for TTS & STT engines.
 //!
 //! This crate provides trait-based interfaces for Text-to-Speech (TTS) and
-//! Speech-to-Text (STT) engines with a fluent builder pattern that maintains
-//! exactly one `.await?` per chain.
+//! Speech-to-Text (STT) engines with a fluent builder pattern that returns
+//! streams directly for real-time processing.
 //!
 //! ## Usage Pattern
 //!
 //! ### TTS (Text-to-Speech)
 //!
 //! ```ignore
-//! let audio = FluentVoice::tts()
+//! let audio_stream = FluentVoice::tts()
 //!     .with_speaker(
 //!         Speaker::named("Bob")
 //!             .with_speed_modifier(VocalSpeedMod(0.9))
 //!             .speak("Hello, world!")
 //!             .build()
 //!     )
-//!     .synthesize(|conversation| {
-//!         Ok => conversation.into_stream(),
-//!         Err(e) => Err(e),
+//!     .on_chunk(|chunk_result| match chunk_result {
+//!         Ok(chunk) => chunk,
+//!         Err(e) => BadAudioStreamSegment::new(e)
 //!     })
-//!     .await?;
+//!     .synthesize();
 //! ```
 //!
 //! ### STT (Speech-to-Text)
 //!
 //! ```ignore
 //! // Live microphone transcription
-//! let mut segments = MyEngine::stt()
+//! let text_stream = MyEngine::stt()
 //!     .with_microphone("default")
 //!     .vad_mode(VadMode::Accurate)
-//!     .listen(|conversation| {
-//!         Ok => conversation.into_stream(),
-//!         Err(e) => Err(e),
+//!     .on_chunk(|segment_result| match segment_result {
+//!         Ok(segment) => segment.text().to_string(),
+//!         Err(e) => String::new()
 //!     })
-//!     .await?;
+//!     .listen();
 //!
 //! // File transcription
-//! let transcript = MyEngine::stt()
+//! let text_stream = MyEngine::stt()
 //!     .transcribe("audio.wav")
-//!     .emit(|transcript| {
-//!         Ok => transcript.into_stream(),
-//!         Err(e) => Err(e),
+//!     .on_chunk(|segment_result| match segment_result {
+//!         Ok(segment) => segment.text().to_string(),
+//!         Err(e) => String::new()
 //!     })
-//!     .await?;
+//!     .emit();
 //! ```
 
 #![cfg_attr(feature = "simd", feature(portable_simd))]
@@ -125,8 +125,8 @@ pub mod prelude {
     pub use crate::fluent_voice::FluentVoiceImpl as FluentVoiceStaticMethods;
 
     /* cyrup-sugars macros for Ok => Err => syntax and JSON object syntax */
-    pub use cyrup_sugars::prelude::*;
     pub use cyrup_sugars::macros::*;
+    pub use cyrup_sugars::prelude::*;
     // Real production transcript segment type from Whisper crate
     pub use fluent_voice_whisper::TtsChunk;
 
@@ -155,5 +155,5 @@ pub mod prelude {
 
 // Re-export at crate root for internal use
 pub use cyrup_sugars::{AsyncStream, AsyncTask};
-pub use fluent_voice_whisper::TtsChunk;
 pub use fluent_voice_domain::{TranscriptSegment, TranscriptStream};
+pub use fluent_voice_whisper::TtsChunk;

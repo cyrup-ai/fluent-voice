@@ -46,6 +46,30 @@ pub struct SynthesisChunk {
     pub error_message: Option<String>,
 }
 
+/// Error audio stream segment for default error handling
+///
+/// This type is returned by default error handling when synthesis fails.
+/// It logs the error using env_logger and provides a placeholder AudioChunk.
+#[derive(Debug, Clone)]
+pub struct BadAudioStreamSegment {
+    /// The error that occurred
+    pub error: VoiceError,
+    /// Placeholder audio chunk for the error
+    pub placeholder_chunk: AudioChunk,
+}
+
+impl BadAudioStreamSegment {
+    /// Create a new BadAudioStreamSegment with the given error
+    pub fn new(error: VoiceError) -> AudioChunk {
+        // Log the error using env_logger
+        log::error!("Audio stream error: {}", error);
+        
+        // Return a placeholder AudioChunk
+        AudioChunk::new(Vec::new(), AudioFormat::Mp3Khz44_192)
+            .with_metadata("error", serde_json::json!(error.to_string()))
+    }
+}
+
 impl AudioChunk {
     /// Create a new audio chunk with the specified data and format
     pub fn new(audio_data: Vec<u8>, format: AudioFormat) -> Self {
@@ -64,7 +88,7 @@ impl AudioChunk {
     pub fn final_chunk() -> Self {
         Self {
             audio_data: Vec::new(),
-            format: AudioFormat::Mp3_44100_192,
+            format: AudioFormat::Mp3Khz44_192,
             duration_ms: Some(0),
             sample_rate: None,
             is_final: true,
@@ -121,15 +145,20 @@ impl AudioChunk {
     /// Convert to PCM i16 samples if the format supports it
     pub fn to_pcm_samples(&self) -> Option<Vec<i16>> {
         match self.format {
-            AudioFormat::Mp3_22050_64
-            | AudioFormat::Mp3_44100_64
-            | AudioFormat::Mp3_44100_96
-            | AudioFormat::Mp3_44100_128
-            | AudioFormat::Mp3_44100_192 => {
-                // For MP3, we'd need to decode - this is a placeholder
+            AudioFormat::Mp3Khz22_32
+            | AudioFormat::Mp3Khz44_32
+            | AudioFormat::Mp3Khz44_64
+            | AudioFormat::Mp3Khz44_96
+            | AudioFormat::Mp3Khz44_128
+            | AudioFormat::Mp3Khz44_192
+            | AudioFormat::OggOpusKhz48 => {
+                // For MP3 and Ogg, we'd need to decode - this is a placeholder
                 None
             }
-            AudioFormat::PcmI16Le22050 | AudioFormat::PcmI16Le44100 => {
+            AudioFormat::Pcm16Khz
+            | AudioFormat::Pcm22Khz
+            | AudioFormat::Pcm24Khz
+            | AudioFormat::Pcm48Khz => {
                 // Convert raw bytes to i16 samples
                 if self.audio_data.len() % 2 != 0 {
                     return None;
@@ -142,11 +171,21 @@ impl AudioChunk {
                     .collect();
                 Some(samples)
             }
-            AudioFormat::UlawMonoI16Le8000 => {
+            AudioFormat::ULaw8Khz => {
                 // μ-law decoding would be needed here
                 None
             }
         }
+    }
+
+    /// Create an AudioChunk from i16 PCM samples
+    pub fn from_pcm_samples(samples: &[i16], format: AudioFormat) -> Self {
+        let audio_data: Vec<u8> = samples
+            .iter()
+            .flat_map(|&sample| sample.to_le_bytes())
+            .collect();
+        
+        Self::new(audio_data, format)
     }
 }
 
@@ -163,7 +202,7 @@ impl SynthesisChunk {
     /// Create an error synthesis chunk
     pub fn err(error: VoiceError) -> Self {
         Self {
-            chunk: AudioChunk::new(Vec::new(), AudioFormat::Mp3_44100_192),
+            chunk: AudioChunk::new(Vec::new(), AudioFormat::Mp3Khz44_192),
             success: false,
             error_message: Some(error.to_string()),
         }
@@ -222,3 +261,67 @@ impl From<Result<AudioChunk, VoiceError>> for SynthesisChunk {
 // Both AudioChunk and SynthesisChunk can be used in AsyncStream/AsyncTask
 impl cyrup_sugars::NotResult for AudioChunk {}
 impl cyrup_sugars::NotResult for SynthesisChunk {}
+
+/// Helper function to convert Stream<i16> to Stream<Vec<u8>>
+/// 
+/// This function batches i16 samples into Vec<u8> segments for streaming synthesis.
+/// It chunks the samples into reasonable-sized audio segments.
+pub fn i16_stream_to_bytes_stream<S>(
+    stream: S,
+    chunk_size: usize,
+) -> impl futures_core::Stream<Item = Vec<u8>> + Send + Unpin
+where
+    S: futures_core::Stream<Item = i16> + Send + Unpin + 'static,
+{
+    use futures_util::StreamExt;
+    
+    stream
+        .chunks(chunk_size)
+        .map(|samples| {
+            samples
+                .into_iter()
+                .flat_map(|sample| sample.to_le_bytes())
+                .collect()
+        })
+}
+
+/// Helper function to convert Stream<i16> to Stream<AudioChunk>
+/// 
+/// This function batches i16 samples into AudioChunk segments for streaming synthesis.
+/// It chunks the samples into reasonable-sized audio segments.
+pub fn i16_stream_to_audio_chunk_stream<S>(
+    stream: S,
+    format: AudioFormat,
+    chunk_size: usize,
+) -> impl futures_core::Stream<Item = AudioChunk> + Send + Unpin
+where
+    S: futures_core::Stream<Item = i16> + Send + Unpin + 'static,
+{
+    use futures_util::StreamExt;
+    
+    stream
+        .chunks(chunk_size)
+        .map(move |samples| AudioChunk::from_pcm_samples(&samples, format))
+}
+
+/// Helper function to convert TranscriptStream to Stream<String>
+/// 
+/// This function converts a transcript stream (which yields Result<TranscriptSegment, VoiceError>)
+/// to a stream of strings for direct consumption.
+pub fn transcript_stream_to_string_stream<S, T>(
+    stream: S,
+) -> impl futures_core::Stream<Item = String> + Send + Unpin
+where
+    S: futures_core::Stream<Item = Result<T, VoiceError>> + Send + Unpin + 'static,
+    T: fluent_voice_domain::transcript::TranscriptSegment,
+{
+    use futures_util::StreamExt;
+    
+    stream.map(|result| match result {
+        Ok(segment) => segment.text().to_string(),
+        Err(e) => {
+            log::error!("Transcript error: {}", e);
+            String::new()
+        }
+    })
+}

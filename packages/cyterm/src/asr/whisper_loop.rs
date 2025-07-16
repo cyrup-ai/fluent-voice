@@ -7,10 +7,8 @@ use std::{
 };
 
 use candle_core::{Device, Tensor};
-use candle_transformers::models::whisper::{Config, audio, model as w, DTYPE, SOT_TOKEN};
+use candle_transformers::models::whisper::{Config, DTYPE, SOT_TOKEN, audio, model as w};
 use crossbeam_channel::{Receiver, Sender};
-
-
 
 /// Hop length (sec) for incremental decoding – lower → lower latency.
 const HOP_SECS: f32 = 0.5;

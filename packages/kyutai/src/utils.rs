@@ -1,6 +1,6 @@
 // src/utils.rs
 
-use candle::{D, DType, Result, Tensor};
+use candle_core::{D, DType, Result, Tensor};
 use std::collections::HashSet;
 
 /// Adds sinusoidal embeddings to the input tensor.
@@ -25,7 +25,10 @@ pub fn add_sin_embeddings(xs: &Tensor) -> Result<Tensor> {
         .unsqueeze(0)?;
     let half_d_tensor = Tensor::full(half_d as f32, freqs.shape(), freqs.device())?;
     let ten_thousand = Tensor::full(10000.0f32, freqs.shape(), freqs.device())?;
-    let inv_freq = freqs.broadcast_div(&half_d_tensor)?.neg()?.broadcast_mul(&ten_thousand)?;
+    let inv_freq = freqs
+        .broadcast_div(&half_d_tensor)?
+        .neg()?
+        .broadcast_mul(&ten_thousand)?;
     let emb = positions.broadcast_mul(&inv_freq)?;
     let sin = emb.sin()?;
     let cos = emb.cos()?;

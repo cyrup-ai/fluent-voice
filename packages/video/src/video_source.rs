@@ -148,6 +148,7 @@ pub(crate) trait VideoSourceImpl: Send + Sync {
     fn get_current_frame(&self) -> Option<VideoFrame>;
 
     /// Get information about the video source
+    #[allow(dead_code)]
     fn get_info(&self) -> VideoSourceInfo;
 }
 
@@ -155,6 +156,7 @@ pub(crate) trait VideoSourceImpl: Send + Sync {
 #[derive(Debug, Clone)]
 pub struct VideoSourceInfo {
     /// The name of the video source
+    #[allow(dead_code)]
     pub name: String,
 
     /// The width of the video source

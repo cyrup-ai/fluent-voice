@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::lm::LmModel;
 use crate::mimi::Mimi;
-use candle::{Device, Tensor};
+use candle_core::{Device, Tensor};
 use candle_transformers::generation::LogitsProcessor;
 use std::sync::Arc;
 
@@ -52,10 +52,11 @@ impl Generator for BasicGenerator {
             let last_token_logits = logits.narrow(1, logits.dim(1)? - 1, 1)?.squeeze(1)?;
             let token_id = self
                 .logits_processor
-                .sample(&last_token_logits as &candle::Tensor)
-                .map_err(|e| crate::error::MoshiError::Generation(format!("Sampling error: {}", e)))?;
-            let token_tensor = Tensor::new(&[token_id], &self.device)?
-                .unsqueeze(0)?;
+                .sample(&last_token_logits)
+                .map_err(|e| {
+                    crate::error::MoshiError::Generation(format!("Sampling error: {}", e))
+                })?;
+            let token_tensor = Tensor::new(&[token_id], &self.device)?.unsqueeze(0)?;
             generated = Tensor::cat(&[generated, token_tensor], 1)?;
         }
 

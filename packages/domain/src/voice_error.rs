@@ -2,7 +2,7 @@
 use thiserror::Error;
 
 /// Top-level error covering both TTS & STT operations.
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum VoiceError {
     /// TTS-related failure reason.
     #[error("tts: {0}")]

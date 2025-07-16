@@ -195,8 +195,8 @@ mod tests {
 
         let mut d1 = Dtw::new(abs);
         let mut d2 = Dtw::new(abs);
-        let d_unw = d1.compute_optimal_path(&a, &b);
-        let d_w = d2.compute_optimal_path_with_window(&a, &b, 200);
+        let d_unw = d1.compute_optimal_path(&a[..], &b[..]);
+        let d_w = d2.compute_optimal_path_with_window(&a[..], &b[..], 200);
         assert!((d_unw - d_w).abs() < 1e-6);
         assert_eq!(
             d1.retrieve_optimal_path().unwrap().len(),

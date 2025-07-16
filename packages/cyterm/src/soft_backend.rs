@@ -119,11 +119,13 @@ impl SoftBackend {
             AttrsList::new(&Attrs::new().family(Family::Monospace)),
         );
         line.layout(&mut self.font_sys, m, None, Wrap::None, None, 1);
-        let glyph = line.layout_runs().next().unwrap().glyphs[0].physical((0., 0.), 1.0);
+        let mut layout_runs = self.cosmic_buf.layout_runs();
+        let glyph = layout_runs.next().unwrap().glyphs[0].physical((0., 0.), 1.0);
         let bbox = self
             .cache
             .get_image(&mut self.font_sys, glyph.cache_key)
             .unwrap()
+            .as_ref()
             .placement;
         self.cw = bbox.width as usize;
         self.ch = bbox.height as usize;
@@ -201,7 +203,7 @@ impl SoftBackend {
         line.layout(&mut self.font_sys, m, None, Wrap::None, None, 1);
 
         for run in self.cosmic_buf.layout_runs() {
-            for g in &run.glyphs {
+            for g in run.glyphs.iter() {
                 let pg = g.physical((0., 0.), 1.0);
                 if let Some(img) = self.cache.get_image(&mut self.font_sys, pg.cache_key) {
                     let px = pg.x + img.placement.left;
@@ -254,7 +256,8 @@ impl Backend for SoftBackend {
             self.draw_cell(x, y);
         }
         /* re-draw dirty blink cells */
-        for &(x, y) in &self.dirty {
+        let dirty_positions: Vec<(u16, u16)> = self.dirty.iter().copied().collect();
+        for (x, y) in dirty_positions {
             self.draw_cell(x, y);
         }
         Ok(())
@@ -286,9 +289,13 @@ impl Backend for SoftBackend {
     fn clear_region(&mut self, region: ClearType) -> io::Result<()> {
         match region {
             ClearType::All => self.clear(),
-            ClearType::Rect(rect) => {
-                for y in rect.top()..rect.bottom() {
-                    for x in rect.left()..rect.right() {
+            ClearType::AfterCursor => {
+                // Clear from cursor position to end
+                let pos = self.get_cursor_position()?;
+                let area = self.buffer.area;
+                for y in pos.y..area.bottom() {
+                    let start_x = if y == pos.y { pos.x } else { area.left() };
+                    for x in start_x..area.right() {
                         if let Some(cell) = self.buffer.cell_mut((x, y)) {
                             *cell = Cell::default();
                         }
@@ -302,6 +309,75 @@ impl Backend for SoftBackend {
                                     rat_to_rgb(&Cell::EMPTY.bg, false),
                                 );
                             }
+                        }
+                    }
+                }
+                Ok(())
+            }
+            ClearType::BeforeCursor => {
+                // Clear from start to cursor position
+                let pos = self.get_cursor_position()?;
+                let area = self.buffer.area;
+                for y in area.top()..=pos.y {
+                    let end_x = if y == pos.y { pos.x } else { area.right() };
+                    for x in area.left()..end_x {
+                        if let Some(cell) = self.buffer.cell_mut((x, y)) {
+                            *cell = Cell::default();
+                        }
+                        let ox = x as usize * self.cw;
+                        let oy = y as usize * self.ch;
+                        for yy in 0..self.ch {
+                            for xx in 0..self.cw {
+                                self.rgb.put_pixel(
+                                    ox + xx,
+                                    oy + yy,
+                                    rat_to_rgb(&Cell::EMPTY.bg, false),
+                                );
+                            }
+                        }
+                    }
+                }
+                Ok(())
+            }
+            ClearType::CurrentLine => {
+                // Clear current line
+                let pos = self.get_cursor_position()?;
+                let area = self.buffer.area;
+                for x in area.left()..area.right() {
+                    if let Some(cell) = self.buffer.cell_mut((x, pos.y)) {
+                        *cell = Cell::default();
+                    }
+                    let ox = x as usize * self.cw;
+                    let oy = pos.y as usize * self.ch;
+                    for yy in 0..self.ch {
+                        for xx in 0..self.cw {
+                            self.rgb.put_pixel(
+                                ox + xx,
+                                oy + yy,
+                                rat_to_rgb(&Cell::EMPTY.bg, false),
+                            );
+                        }
+                    }
+                }
+                Ok(())
+            }
+            ClearType::UntilNewLine => {
+                // Clear from cursor to end of line
+                let pos = self.get_cursor_position()?;
+                let area = self.buffer.area;
+                for x in pos.x..area.right() {
+                    if let Some(cell) = self.buffer.cell_mut((x, pos.y)) {
+                        *cell = Cell::default();
+                    }
+                    let ox = x as usize * self.cw;
+                    let oy = pos.y as usize * self.ch;
+                    for yy in 0..self.ch {
+                        for xx in 0..self.cw {
+                            self.rgb.put_pixel(
+                                ox + xx,
+                                oy + yy,
+                                rat_to_rgb(&Cell::EMPTY.bg, false),
+                            );
                         }
                     }
                 }

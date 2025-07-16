@@ -1,6 +1,6 @@
 //! Transformer architecture components for Moshi language model
 
-use candle::{DType, Device, Result, Tensor};
+use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::{Linear, VarBuilder};
 use serde::{Deserialize, Serialize};
 
@@ -121,7 +121,7 @@ pub struct AttentionLayer {
     causal: bool,
     num_heads: usize,
     kv_repeat: usize,
-    max_seq_len: usize,
+    _max_seq_len: usize,
 }
 
 impl AttentionLayer {
@@ -149,7 +149,7 @@ impl AttentionLayer {
             causal,
             num_heads,
             kv_repeat,
-            max_seq_len,
+            _max_seq_len: max_seq_len,
         })
     }
 
@@ -240,7 +240,7 @@ pub struct TransformerLayer {
     ffn: FFN,
     norm1: Norm,
     norm2: Norm,
-    layer_scale: Option<f32>,
+    _layer_scale: Option<f32>,
     norm_first: bool,
 }
 
@@ -269,7 +269,7 @@ impl TransformerLayer {
             ffn,
             norm1,
             norm2,
-            layer_scale: cfg.layer_scale,
+            _layer_scale: cfg.layer_scale,
             norm_first: cfg.norm_first,
         })
     }

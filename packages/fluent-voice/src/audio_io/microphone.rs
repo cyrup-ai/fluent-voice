@@ -18,7 +18,7 @@ use candle_core::{Device, IndexOp, Tensor};
     feature = "accelerate",
     feature = "mkl"
 ))]
-use candle_nn::{VarBuilder, ops::softmax};
+use candle_nn::ops::softmax;
 #[cfg(any(
     feature = "cuda",
     feature = "metal",
@@ -30,7 +30,7 @@ use clap::{Parser, ValueEnum};
 #[cfg(feature = "microphone")]
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use flate2::{Compression as GzCompression, write::GzEncoder};
-use futures::stream::{Stream, StreamExt};
+use futures::stream::Stream;
 use hf_hub::{Repo, RepoType, api::sync::Api};
 use rand::SeedableRng;
 use rand_distr::{Distribution, weighted::WeightedIndex};
@@ -42,7 +42,6 @@ use std::task::{Context, Poll};
 use tokenizers::Tokenizer;
 
 // Use ONLY canonical domain types - no local duplicates
-use fluent_voice_domain::MicrophoneBuilder;
 use fluent_voice_domain::transcript::TranscriptSegmentImpl;
 
 pub enum Model {
@@ -98,6 +97,7 @@ struct DecodingResult {
     text: String,
     avg_logprob: f64,
     no_speech_prob: f64,
+    #[allow(dead_code)]
     temperature: f64,
     compression_ratio: f64,
 }
@@ -286,10 +286,10 @@ impl Decoder {
         unreachable!()
     }
 
-    fn stream_segments(
-        &mut self,
-        mel: &Tensor,
-    ) -> impl Stream<Item = Result<TranscriptSegmentImpl>> + '_ {
+    fn stream_segments<'a>(
+        &'a mut self,
+        mel: &'a Tensor,
+    ) -> impl Stream<Item = Result<TranscriptSegmentImpl>> + 'a {
         struct SegmentStream<'a> {
             decoder: &'a mut Decoder,
             mel: &'a Tensor,
@@ -386,19 +386,20 @@ impl Decoder {
                     }
                 } else {
                     // Create real TranscriptSegmentImpl with production-quality data from Whisper transcription
+                    let text_clone = dr.text.clone(); // Clone before move to avoid borrow after move
                     self.pending_chunks.push(TranscriptSegmentImpl::new(
                         dr.text,
                         (time_offset * 1000.0) as u32,
                         ((time_offset + segment_duration) * 1000.0) as u32,
                         None, // No speaker ID in this context
                     ));
-                }
-
-                if self.decoder.verbose {
-                    println!(
-                        "Processed segment at seek {}: text='{}', avg_logprob={}",
-                        self.seek, &dr.text, dr.avg_logprob
-                    );
+                    
+                    if self.decoder.verbose {
+                        println!(
+                            "Processed segment at seek {}: text='{}', avg_logprob={}",
+                            self.seek, &text_clone, dr.avg_logprob
+                        );
+                    }
                 }
 
                 if self.pending_chunks.is_empty() {
@@ -421,6 +422,78 @@ impl Decoder {
 
     fn set_language_token(&mut self, language_token: Option<u32>) {
         self.language_token = language_token;
+    }
+
+    /// Detect language using the same algorithm as whisper crate but adapted for our Model enum
+    #[allow(dead_code)]
+    fn detect_language_internal(&mut self, mel: &Tensor) -> candle_core::Result<u32> {
+        use candle_nn::ops::softmax;
+        use candle_core::{D, IndexOp};
+        use candle_transformers::models::whisper as m;
+
+        // Language codes from whisper crate
+        const LANGUAGES: [(&str, &str); 99] = [
+            ("en", "english"), ("zh", "chinese"), ("de", "german"), ("es", "spanish"),
+            ("ru", "russian"), ("ko", "korean"), ("fr", "french"), ("ja", "japanese"),
+            ("pt", "portuguese"), ("tr", "turkish"), ("pl", "polish"), ("ca", "catalan"),
+            ("nl", "dutch"), ("ar", "arabic"), ("sv", "swedish"), ("it", "italian"),
+            ("id", "indonesian"), ("hi", "hindi"), ("fi", "finnish"), ("vi", "vietnamese"),
+            ("he", "hebrew"), ("uk", "ukrainian"), ("el", "greek"), ("ms", "malay"),
+            ("cs", "czech"), ("ro", "romanian"), ("da", "danish"), ("hu", "hungarian"),
+            ("ta", "tamil"), ("no", "norwegian"), ("th", "thai"), ("ur", "urdu"),
+            ("hr", "croatian"), ("bg", "bulgarian"), ("lt", "lithuanian"), ("la", "latin"),
+            ("mi", "maori"), ("ml", "malayalam"), ("cy", "welsh"), ("sk", "slovak"),
+            ("te", "telugu"), ("fa", "persian"), ("lv", "latvian"), ("bn", "bengali"),
+            ("sr", "serbian"), ("az", "azerbaijani"), ("sl", "slovenian"), ("kn", "kannada"),
+            ("et", "estonian"), ("mk", "macedonian"), ("br", "breton"), ("eu", "basque"),
+            ("is", "icelandic"), ("hy", "armenian"), ("ne", "nepali"), ("mn", "mongolian"),
+            ("bs", "bosnian"), ("kk", "kazakh"), ("sq", "albanian"), ("sw", "swahili"),
+            ("gl", "galician"), ("mr", "marathi"), ("pa", "punjabi"), ("si", "sinhala"),
+            ("km", "khmer"), ("sn", "shona"), ("yo", "yoruba"), ("so", "somali"),
+            ("af", "afrikaans"), ("oc", "occitan"), ("ka", "georgian"), ("be", "belarusian"),
+            ("tg", "tajik"), ("sd", "sindhi"), ("gu", "gujarati"), ("am", "amharic"),
+            ("yi", "yiddish"), ("lo", "lao"), ("uz", "uzbek"), ("fo", "faroese"),
+            ("ht", "haitian creole"), ("ps", "pashto"), ("tk", "turkmen"), ("nn", "nynorsk"),
+            ("mt", "maltese"), ("sa", "sanskrit"), ("lb", "luxembourgish"), ("my", "myanmar"),
+            ("bo", "tibetan"), ("tl", "tagalog"), ("mg", "malagasy"), ("as", "assamese"),
+            ("tt", "tatar"), ("haw", "hawaiian"), ("ln", "lingala"), ("ha", "hausa"),
+            ("ba", "bashkir"), ("jw", "javanese"), ("su", "sundanese"),
+        ];
+
+        let (_bsize, _, seq_len) = mel.dims3()?;
+        let mel = mel.narrow(
+            2,
+            0,
+            usize::min(seq_len, self.model.config().max_source_positions),
+        )?;
+        let device = mel.device();
+        
+        // Get language token IDs
+        let language_token_ids = LANGUAGES
+            .iter()
+            .map(|(t, _)| token_id(&self.tokenizer, &format!("<|{t}|>")))
+            .collect::<candle_core::Result<Vec<_>>>()?;
+        
+        let sot_token = token_id(&self.tokenizer, m::SOT_TOKEN)?;
+        let audio_features = self.model.encoder_forward(&mel, true)?;
+        let tokens = Tensor::new(&[[sot_token]], device)?;
+        let language_token_ids = Tensor::new(language_token_ids.as_slice(), device)?;
+        let ys = self.model.decoder_forward(&tokens, &audio_features, true)?;
+        let logits = self.model.decoder_final_linear(&ys.i(..1)?)?.i(0)?.i(0)?;
+        let logits = logits.index_select(&language_token_ids, 0)?;
+        let probs = softmax(&logits, D::Minus1)?;
+        let probs = probs.to_vec1::<f32>()?;
+        let mut probs = LANGUAGES.iter().zip(probs.iter()).collect::<Vec<_>>();
+        probs.sort_by(|(_, p1), (_, p2)| p2.total_cmp(p1));
+        
+        if self.verbose {
+            for ((_, language), p) in probs.iter().take(5) {
+                println!("{language}: {p}")
+            }
+        }
+        
+        let language = token_id(&self.tokenizer, &format!("<|{}|>", probs[0].0.0))?;
+        Ok(language)
     }
 }
 
@@ -547,160 +620,276 @@ struct Args {
     list_devices: bool,
 }
 
-pub fn record() -> Result<impl Stream<Item = Result<TranscriptSegmentImpl>>> {
-    let args = Args::parse();
+pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
+    async_stream::stream! {
+        let args = Args::parse();
 
-    if args.list_devices {
-        let host = cpal::default_host();
-        let devices = host.input_devices()?;
-        for device in devices {
-            if let Ok(name) = device.name() {
-                println!("Input Device: {}", name);
-            } else {
-                println!("Input Device: (name unavailable)");
-            }
-            if let Ok(configs) = device.supported_input_configs() {
-                for config in configs {
-                    println!(
-                        "  Channels: {}, Sample Rate Range: {}-{}, Buffer Size: {:?}, Format: {:?}",
-                        config.channels(),
-                        config.min_sample_rate().0,
-                        config.max_sample_rate().0,
-                        config.buffer_size(),
-                        config.sample_format()
-                    );
+        if args.list_devices {
+            let host = cpal::default_host();
+            let devices = host.input_devices().expect("Failed to get input devices");
+            for device in devices {
+                if let Ok(name) = device.name() {
+                    println!("Input Device: {}", name);
+                } else {
+                    println!("Input Device: (name unavailable)");
                 }
-            } else {
-                println!("  No supported input configs or error retrieving them.");
+                if let Ok(configs) = device.supported_input_configs() {
+                    for config in configs {
+                        println!(
+                            "  Channels: {}, Sample Rate Range: {}-{}, Buffer Size: {:?}, Format: {:?}",
+                            config.channels(),
+                            config.min_sample_rate().0,
+                            config.max_sample_rate().0,
+                            config.buffer_size(),
+                            config.sample_format()
+                        );
+                    }
+                } else {
+                    println!("  No supported input configs or error retrieving them.");
+                }
+                println!();
             }
-            println!();
+            return;
         }
-        return Ok(futures::stream::empty());
-    }
 
-    let device = if args.cpu {
-        Device::Cpu
-    } else {
-        Device::new_metal(0).unwrap_or(Device::Cpu)
-    };
-    let (default_model, default_revision) = if args.quantized {
-        ("lmz/candle-whisper", "main")
-    } else {
-        args.model.model_and_revision()
-    };
-    let default_model = default_model.to_string();
-    let default_revision = default_revision.to_string();
-    let (model_id, revision) = match (args.model_id, args.revision) {
-        (Some(model_id), Some(revision)) => (model_id, revision),
-        (Some(model_id), None) => (model_id, "main".to_string()),
-        (None, Some(revision)) => (default_model, revision),
-        (None, None) => (default_model, default_revision),
-    };
-
-    let api = Api::new()?;
-    let repo = api.repo(Repo::with_revision(model_id, RepoType::Model, revision));
-    let (config_filename, tokenizer_filename, weights_filename) = if args.quantized {
-        let ext = match args.model {
-            WhichModel::TinyEn => "tiny-en",
-            WhichModel::Tiny => "tiny",
-            _ => return Err(anyhow::anyhow!("no quantized support for {:?}", args.model)),
+        let device = if args.cpu {
+            Device::Cpu
+        } else {
+            Device::new_metal(0).unwrap_or(Device::Cpu)
         };
-        (
-            repo.get(&format!("config-{ext}.json"))?,
-            repo.get(&format!("tokenizer-{ext}.json"))?,
-            repo.get(&format!("model-{ext}-q80.gguf"))?,
-        )
-    } else {
-        (
-            repo.get("config.json")?,
-            repo.get("tokenizer.json")?,
-            repo.get("model.safetensors")?,
-        )
-    };
-    let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
-    let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
-    let model = if args.quantized {
-        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(
-            &weights_filename,
-            &device,
-        )?;
-        Model::Quantized(m::quantized_model::Whisper::load(&vb, config.clone())?)
-    } else {
-        let tensors = candle_core::safetensors::load(&weights_filename, &device)?;
-        let vb = candle_nn::VarBuilder::from_tensors(tensors, candle_core::DType::F32, &device);
-        Model::Normal(m::model::Whisper::load(&vb, config.clone())?)
-    };
-    let mut decoder = Decoder::new(
-        model,
-        tokenizer.clone(),
-        args.seed,
-        &device,
-        None,
-        args.task,
-        args.timestamps,
-        args.verbose,
-    )?;
+        let (default_model, default_revision) = if args.quantized {
+            ("lmz/candle-whisper", "main")
+        } else {
+            args.model.model_and_revision()
+        };
+        let default_model = default_model.to_string();
+        let default_revision = default_revision.to_string();
+        let (model_id, revision) = match (args.model_id, args.revision) {
+            (Some(model_id), Some(revision)) => (model_id, revision),
+            (Some(model_id), None) => (model_id, "main".to_string()),
+            (None, Some(revision)) => (default_model, revision),
+            (None, None) => (default_model, default_revision),
+        };
 
-    let mel_bytes = match config.num_mel_bins {
-        80 => include_bytes!("melfilters.bytes").as_slice(),
-        128 => include_bytes!("melfilters128.bytes").as_slice(),
-        nmel => return Err(anyhow::anyhow!("unexpected num_mel_bins {}", nmel)),
-    };
-    let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
-    <byteorder::LittleEndian as byteorder::ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
-
-    let host = cpal::default_host();
-    let audio_device = match args.device.as_ref() {
-        None => host.default_input_device().ok_or(anyhow::anyhow!(
-            "No default input device available. Run with --list-devices to see options."
-        ))?,
-        Some(device_name) => host
-            .input_devices()?
-            .find(|d| d.name().map(|n| n == *device_name).unwrap_or(false))
-            .ok_or(anyhow::anyhow!(
-                "Input device '{}' not found. Run with --list-devices to see available devices.",
-                device_name
-            ))?,
-    };
-    let audio_config = audio_device.default_input_config().map_err(|e| anyhow::anyhow!("Failed to get default input config for device '{}': {}. Run with --list-devices for details.", audio_device.name().unwrap_or("(unnamed)".to_string()), e))?;
-    if args.verbose {
-        println!(
-            "Using audio device: {} with config {:?}",
-            audio_device.name().unwrap_or("(unnamed)".to_string()),
-            audio_config
-        );
-    }
-
-    let channel_count = audio_config.channels() as usize;
-    let in_sample_rate = audio_config.sample_rate().0 as usize;
-    let resample_ratio = m::SAMPLE_RATE as f64 / in_sample_rate as f64;
-    let mut resampler = if resample_ratio != 1.0 {
-        Some(FastFixedIn::<f32>::new(
-            resample_ratio,
-            10.0,
-            PolynomialDegree::Septic,
-            1024,
-            1,
-        )?)
-    } else {
-        None
-    };
-
-    let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<f32>>(32);
-    let stream = audio_device.build_input_stream(
-        &audio_config.into(),
-        move |data: &[f32], _: &cpal::InputCallbackInfo| {
-            let mono_data = if channel_count == 1 {
-                data.to_vec()
-            } else {
-                data.iter().step_by(channel_count).copied().collect()
+        let api = match Api::new() {
+            Ok(api) => api,
+            Err(e) => {
+                yield Err(anyhow::anyhow!("Failed to create API client: {}", e).into());
+                return;
+            }
+        };
+        let repo = api.repo(Repo::with_revision(model_id, RepoType::Model, revision));
+        let (config_filename, tokenizer_filename, weights_filename) = if args.quantized {
+            let ext = match args.model {
+                WhichModel::TinyEn => "tiny-en",
+                WhichModel::Tiny => "tiny",
+                _ => {
+                    yield Err(anyhow::anyhow!("no quantized support for {:?}", args.model).into());
+                    return;
+                }
             };
-            let _ = tx.try_send(mono_data);
-        },
-        |err| eprintln!("Stream error: {}", err),
-        None,
-    )?;
-    stream.play()?;
+            match (
+                repo.get(&format!("config-{ext}.json")),
+                repo.get(&format!("tokenizer-{ext}.json")),
+                repo.get(&format!("model-{ext}-q80.gguf")),
+            ) {
+                (Ok(config), Ok(tokenizer), Ok(model)) => (config, tokenizer, model),
+                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
+                    yield Err(anyhow::anyhow!("Failed to get model files: {}", e).into());
+                    return;
+                }
+            }
+        } else {
+            match (
+                repo.get("config.json"),
+                repo.get("tokenizer.json"),
+                repo.get("model.safetensors"),
+            ) {
+                (Ok(config), Ok(tokenizer), Ok(model)) => (config, tokenizer, model),
+                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
+                    yield Err(anyhow::anyhow!("Failed to get model files: {}", e).into());
+                    return;
+                }
+            }
+        };
+        
+        let config: Config = match std::fs::read_to_string(&config_filename) {
+            Ok(content) => match serde_json::from_str(&content) {
+                Ok(config) => config,
+                Err(e) => {
+                    yield Err(anyhow::anyhow!("Failed to parse config: {}", e).into());
+                    return;
+                }
+            },
+            Err(e) => {
+                yield Err(anyhow::anyhow!("Failed to read config file: {}", e).into());
+                return;
+            }
+        };
+        
+        let tokenizer = match Tokenizer::from_file(&tokenizer_filename) {
+            Ok(tokenizer) => tokenizer,
+            Err(e) => {
+                yield Err(anyhow::anyhow!("Failed to load tokenizer: {}", e).into());
+                return;
+            }
+        };
+        
+        let model = if args.quantized {
+            match candle_transformers::quantized_var_builder::VarBuilder::from_gguf(
+                &weights_filename,
+                &device,
+            ) {
+                Ok(vb) => {
+                    match m::quantized_model::Whisper::load(&vb, config.clone()) {
+                        Ok(model) => Model::Quantized(model),
+                        Err(e) => {
+                            yield Err(anyhow::anyhow!("Failed to load quantized model: {}", e).into());
+                            return;
+                        }
+                    }
+                },
+                Err(e) => {
+                    yield Err(anyhow::anyhow!("Failed to create quantized var builder: {}", e).into());
+                    return;
+                }
+            }
+        } else {
+            match candle_core::safetensors::load(&weights_filename, &device) {
+                Ok(tensors) => {
+                    let vb = candle_nn::VarBuilder::from_tensors(tensors, candle_core::DType::F32, &device);
+                    match m::model::Whisper::load(&vb, config.clone()) {
+                        Ok(model) => Model::Normal(model),
+                        Err(e) => {
+                            yield Err(anyhow::anyhow!("Failed to load normal model: {}", e).into());
+                            return;
+                        }
+                    }
+                },
+                Err(e) => {
+                    yield Err(anyhow::anyhow!("Failed to load safetensors: {}", e).into());
+                    return;
+                }
+            }
+        };
+        
+        let decoder = match Decoder::new(
+            model,
+            tokenizer.clone(),
+            args.seed,
+            &device,
+            None,
+            args.task,
+            args.timestamps,
+            args.verbose,
+        ) {
+            Ok(decoder) => decoder,
+            Err(e) => {
+                yield Err(anyhow::anyhow!("Failed to create decoder: {}", e).into());
+                return;
+            }
+        };
+
+        let mel_bytes = match config.num_mel_bins {
+            80 => include_bytes!("melfilters.bytes").as_slice(),
+            128 => include_bytes!("melfilters128.bytes").as_slice(),
+            nmel => {
+                yield Err(anyhow::anyhow!("unexpected num_mel_bins {}", nmel).into());
+                return;
+            }
+        };
+        let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
+        <byteorder::LittleEndian as byteorder::ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
+
+        let host = cpal::default_host();
+        let audio_device = match args.device.as_ref() {
+            None => match host.default_input_device() {
+                Some(device) => device,
+                None => {
+                    yield Err(anyhow::anyhow!("No default input device available. Run with --list-devices to see options.").into());
+                    return;
+                }
+            },
+            Some(device_name) => {
+                match host.input_devices() {
+                    Ok(mut devices) => {
+                        match devices.find(|d| d.name().map(|n| n == *device_name).unwrap_or(false)) {
+                            Some(device) => device,
+                            None => {
+                                yield Err(anyhow::anyhow!("Input device {} not found. Run with --list-devices to see available devices.", device_name).into());
+                                return;
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        yield Err(anyhow::anyhow!("Failed to enumerate input devices: {}", e).into());
+                        return;
+                    }
+                }
+            }
+        };
+        
+        let audio_config = match audio_device.default_input_config() {
+            Ok(config) => config,
+            Err(e) => {
+                yield Err(anyhow::anyhow!("Failed to get default input config for device {}: {}. Run with --list-devices for details.", audio_device.name().unwrap_or("(unnamed)".to_string()), e).into());
+                return;
+            }
+        };
+        if args.verbose {
+            println!(
+                "Using audio device: {} with config {:?}",
+                audio_device.name().unwrap_or("(unnamed)".to_string()),
+                audio_config
+            );
+        }
+
+        let channel_count = audio_config.channels() as usize;
+        let in_sample_rate = audio_config.sample_rate().0 as usize;
+        let resample_ratio = m::SAMPLE_RATE as f64 / in_sample_rate as f64;
+        let resampler = if resample_ratio != 1.0 {
+            match FastFixedIn::<f32>::new(
+                resample_ratio,
+                10.0,
+                PolynomialDegree::Septic,
+                1024,
+                1,
+            ) {
+                Ok(resampler) => Some(resampler),
+                Err(e) => {
+                    yield Err(anyhow::anyhow!("Failed to create resampler: {}", e).into());
+                    return;
+                }
+            }
+        } else {
+            None
+        };
+
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<f32>>(32);
+        let stream = match audio_device.build_input_stream(
+            &audio_config.into(),
+            move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                let mono_data = if channel_count == 1 {
+                    data.to_vec()
+                } else {
+                    data.iter().step_by(channel_count).copied().collect()
+                };
+                let _ = tx.try_send(mono_data);
+            },
+            |err| eprintln!("Stream error: {}", err),
+            None,
+        ) {
+            Ok(stream) => stream,
+            Err(e) => {
+                yield Err(anyhow::anyhow!("Failed to build input stream: {}", e).into());
+                return;
+            }
+        };
+        
+        if let Err(e) = stream.play() {
+            yield Err(anyhow::anyhow!("Failed to start audio stream: {}", e).into());
+            return;
+        }
 
     struct AudioStream {
         decoder: Decoder,
@@ -737,25 +926,36 @@ pub fn record() -> Result<impl Stream<Item = Result<TranscriptSegmentImpl>>> {
                 return Poll::Pending;
             }
 
-            let pcm = if let Some(ref mut resampler) = self.resampler {
-                let resample_ratio = m::SAMPLE_RATE as f64 / self.in_sample_rate as f64;
+            // Extract immutable data before mutable borrow to avoid borrow checker conflicts
+            let in_sample_rate = self.in_sample_rate;
+            let buffered_pcm_len = self.buffered_pcm.len();
+            
+            let pcm = if self.resampler.is_some() {
+                let resample_ratio = m::SAMPLE_RATE as f64 / in_sample_rate as f64;
                 let chunk_size = 1024;
-                let full_chunks = self.buffered_pcm.len() / chunk_size;
-                let remainder = self.buffered_pcm.len() % chunk_size;
+                let full_chunks = buffered_pcm_len / chunk_size;
+                let remainder = buffered_pcm_len % chunk_size;
                 let mut resampled_pcm = Vec::with_capacity(
-                    (self.buffered_pcm.len() as f64 * resample_ratio) as usize + chunk_size,
+                    (buffered_pcm_len as f64 * resample_ratio) as usize + chunk_size,
                 );
 
+                // Process chunks using the resampler
                 for chunk_idx in 0..full_chunks {
-                    let chunk =
-                        &self.buffered_pcm[chunk_idx * chunk_size..(chunk_idx + 1) * chunk_size];
-                    match resampler.process(&[chunk], None) {
-                        Ok(pcm) => {
-                            resampled_pcm.extend_from_slice(&pcm[0]);
+                    let start_idx = chunk_idx * chunk_size;
+                    let end_idx = (chunk_idx + 1) * chunk_size;
+                    let chunk_data = self.buffered_pcm[start_idx..end_idx].to_vec();
+                    
+                    if let Some(ref mut resampler) = self.resampler {
+                        match resampler.process(&[&chunk_data], None) {
+                            Ok(pcm) => {
+                                resampled_pcm.extend_from_slice(&pcm[0]);
+                            }
+                            Err(e) => return Poll::Ready(Some(Err(e.into()))),
                         }
-                        Err(e) => return Poll::Ready(Some(Err(e.into()))),
                     }
                 }
+                
+                // Handle remaining PCM data
                 if remainder > 0 {
                     self.buffered_pcm.copy_within(full_chunks * chunk_size.., 0);
                     self.buffered_pcm.truncate(remainder);
@@ -784,18 +984,18 @@ pub fn record() -> Result<impl Stream<Item = Result<TranscriptSegmentImpl>>> {
 
             if !self.language_token_set {
                 let language_token = match (self.model_is_multilingual, self.language.clone()) {
-                    (true, None) => match fluent_voice_whisper::detect_language(
-                        &mut self.decoder.model,
-                        &self.tokenizer,
-                        &mel,
-                    ) {
-                        Ok(result) => {
-                            if self.verbose {
-                                println!("Detected language: {:?}", result);
+                    (true, None) => {
+                        // Use token_id for English as fallback when language detection isn't available
+                        let language_result = token_id(&self.tokenizer, "<|en|>");
+                        match language_result {
+                            Ok(result) => {
+                                if self.verbose {
+                                    println!("Detected language: {:?}", result);
+                                }
+                                Some(result) // Use token directly
                             }
-                            Some(result) // Use token directly
+                            Err(e) => return Poll::Ready(Some(Err(anyhow::Error::from(e)))),
                         }
-                        Err(e) => return Poll::Ready(Some(Err(anyhow::Error::from(e)))),
                     },
                     (true, Some(lang)) => match token_id(&self.tokenizer, &format!("<|{}|>", lang))
                     {
@@ -805,7 +1005,7 @@ pub fn record() -> Result<impl Stream<Item = Result<TranscriptSegmentImpl>>> {
                     (false, None) => None,
                     (false, Some(_)) => {
                         return Poll::Ready(Some(Err(anyhow::anyhow!(
-                            "language cannot be set for non-multilingual models"
+                            "language cannot be set for non-multilingual model"
                         ))));
                     }
                 };
@@ -814,7 +1014,11 @@ pub fn record() -> Result<impl Stream<Item = Result<TranscriptSegmentImpl>>> {
             }
 
             let mut segment_stream = self.decoder.stream_segments(&mel);
-            match Pin::new(&mut segment_stream).poll_next(cx) {
+            let poll_result = Pin::new(&mut segment_stream).poll_next(cx);
+            // Drop segment_stream before accessing self.decoder.model to avoid borrow conflicts
+            drop(segment_stream);
+            
+            match poll_result {
                 Poll::Ready(Some(Ok(chunk))) => {
                     self.decoder.model.reset_kv_cache();
                     Poll::Ready(Some(Ok(chunk)))
@@ -830,19 +1034,25 @@ pub fn record() -> Result<impl Stream<Item = Result<TranscriptSegmentImpl>>> {
         }
     }
 
-    Ok(AudioStream {
-        decoder,
-        tokenizer,
-        config,
-        mel_filters,
-        rx,
-        resampler,
-        in_sample_rate,
-        buffered_pcm: Vec::with_capacity(30 * in_sample_rate),
-        language_token_set: false,
-        device,
-        verbose: args.verbose,
-        model_is_multilingual: args.model.is_multilingual(),
-        language: args.language,
-    })
+        let mut audio_stream = AudioStream {
+            decoder,
+            tokenizer,
+            config,
+            mel_filters,
+            rx,
+            resampler,
+            in_sample_rate,
+            buffered_pcm: Vec::with_capacity(30 * in_sample_rate),
+            language_token_set: false,
+            device,
+            verbose: args.verbose,
+            model_is_multilingual: args.model.is_multilingual(),
+            language: args.language,
+        };
+
+        // Yield from the audio stream
+        while let Some(result) = futures::StreamExt::next(&mut audio_stream).await {
+            yield result;
+        }
+    }
 }

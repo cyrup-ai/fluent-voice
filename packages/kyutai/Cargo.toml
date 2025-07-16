@@ -10,7 +10,14 @@ repository = "https://github.com/cyrup-ai/fluent-voice"
 # Latest candle from GitHub main branch
 candle-core = { git = "https://github.com/huggingface/candle.git", branch = "main" }
 candle-nn = { git = "https://github.com/huggingface/candle.git", branch = "main" }
-candle-transformers = { git = "https://github.com/huggingface/candle.git" }
+candle-transformers = { git = "https://github.com/huggingface/candle.git", branch = "main" }
+
+# Fluent-voice integration
+fluent_voice_domain = { path = "../domain" }
+futures-core = "0.3"
+futures-util = "0.3"
+crossbeam-channel = "0.5"
+crossbeam-utils = "0.8"
 
 # Core dependencies
 serde = { version = "1.0.219", features = ["derive"] }
@@ -19,6 +26,7 @@ tracing = "0.1.41"
 serde_json = "1.0.140"
 byteorder = "1.5.0"
 rayon = "1.10.0"
+thiserror = "2.0"
 
 # Future async support (not currently used)
 
@@ -29,4 +37,3 @@ metal = ["candle-core/metal", "candle-nn/metal"]
 
 [dev-dependencies]
 tokio = { version = "1.46.1", features = ["full"] }
-nextest = "0.1.1"

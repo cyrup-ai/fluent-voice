@@ -52,12 +52,15 @@ pub use speaker::Speaker;
 pub use speaker_builder::{SpeakerBuilder, SpeakerExt};
 pub use speech_source::SpeechSource;
 pub use stt_conversation::{
-    MicrophoneBuilder, SttConversation, SttConversationBuilder, TranscriptionBuilder,
+    MicrophoneBuilder, SttConversation, SttConversationBuilder, SttConversationExt,
+    SttPostChunkBuilder, TranscriptionBuilder,
 };
 pub use stt_engine::SttEngine;
 pub use timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps};
 pub use transcript::{TranscriptSegment, TranscriptSegmentImpl, TranscriptStream};
-pub use tts_conversation::{TtsConversation, TtsConversationBuilder, TtsConversationChunkBuilder, TtsConversationExt};
+pub use tts_conversation::{
+    TtsConversation, TtsConversationBuilder, TtsConversationChunkBuilder, TtsConversationExt,
+};
 pub use tts_engine::TtsEngine;
 pub use vad_mode::VadMode;
 pub use vocal_speed::VocalSpeedMod;

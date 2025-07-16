@@ -10,6 +10,7 @@ pub mod audio;
 pub mod conditioner;
 pub mod config;
 pub mod conv;
+pub mod engine;
 pub mod error;
 pub mod generator;
 pub mod lm;
@@ -19,6 +20,7 @@ pub mod model;
 pub mod nn;
 pub mod quantization;
 // pub mod seanet; // TODO: implement missing module
+pub mod speech_generator;
 // pub mod stream_both; // TODO: implement missing module
 pub mod streaming;
 pub mod transformer;
@@ -30,7 +32,12 @@ pub mod wav;
 
 // Re-export essential types and modules for ease of use
 pub use self::asr::{State as AsrState, Word};
+pub use self::engine::{KyutaiEngine, KyutaiSttConversationBuilder, KyutaiTtsConversationBuilder};
 pub use self::error::{MoshiError, Result};
+pub use self::speech_generator::{
+    AudioStream, GenerationStats, SpeechGenerationError, SpeechGenerator, SpeechGeneratorBuilder,
+    VoiceParameters,
+};
 
 // TODO: Uncomment when modules are implemented
 // pub use self::lm::LmModel;

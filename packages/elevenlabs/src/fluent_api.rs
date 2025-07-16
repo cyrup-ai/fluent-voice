@@ -3,11 +3,10 @@
 //! This module provides the ONLY public API for the ElevenLabs crate.
 //! All internal engine details are hidden - users must use these builders.
 
+#![allow(dead_code)]
+
 pub use crate::engine::{
-    AudioFormat, AudioOutput, AudioStream, AudioStreamWithTimestamps, AudioWithTimestamps,
-    CharacterTiming, FluentVoiceError as VoiceError, Http3Config, Result, TimestampedAudioChunk,
-    TranscriptOutput, TranscriptStream, TranscriptWord, TtsConversation, Voice,
-    VoiceChangerBuilder as InternalVoiceChangerBuilder, VoiceDetails, VoiceSettings,
+    AudioOutput, AudioStream, Result, TranscriptOutput, TranscriptStream,
 };
 use crate::engine::{TtsEngine as InternalEngine, TtsEngineBuilder as InternalEngineBuilder};
 

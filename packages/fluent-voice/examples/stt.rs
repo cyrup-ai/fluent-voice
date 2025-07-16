@@ -28,11 +28,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("🎙️  Syrup Wake Word STT Demo");
     println!("============================\n");
 
-    // Create STT conversation using exact README.md syntax with enhanced JSON configuration
+    // Create STT conversation using new stream-based API
     // Default engines: VAD, koffee wake word, whisper STT with JSON configuration
     let mut transcript_stream = FluentVoice::stt()
-        .conversation()
-        .engine_config({"provider" => "whisper", "model" => "large-v3"})
         .with_source(SpeechSource::Microphone {
             backend: MicBackend::Default,
             format: AudioFormat::Pcm16Khz,
@@ -43,12 +41,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .diarization(Diarization::On) // Speaker identification
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
-        .on_chunk(|transcription_chunk| {
-            Ok => transcription_chunk.into(), // Unwrap each chunk
-            Err(e) => Err(e),
+        .on_chunk(|result| match result {
+            Ok(segment) => segment.text().to_string(),
+            Err(e) => {
+                eprintln!("STT error: {}", e);
+                String::new()
+            }
         })
-        .listen(|conversation| conversation.into_stream()) // Returns transcript stream
-        .await?; // Single await point
+        .listen();
 
     println!("🔊 Listening for wake word 'syrup'...");
     println!("💬 Say 'syrup' to start dictation, 'syrup stop' to end\n");
@@ -56,50 +56,41 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut is_awake = false;
     let mut turn_count = 0;
 
-    while let Some(transcript_result) = transcript_stream.next().await {
-        match transcript_result {
-            Ok(segment) => {
-                let text = segment.text().to_lowercase();
+    // Process transcript segments from the stream
+    while let Some(text) = transcript_stream.next().await {
+        let text = text.to_lowercase();
 
-                // Wake word detection
-                if !is_awake && text.contains("syrup") {
-                    is_awake = true;
-                    println!("🟢 WAKE WORD DETECTED: 'syrup'");
-                    println!("🎤 Dictation ACTIVE - speak now...\n");
-                    continue;
-                }
+        // Skip empty text
+        if text.trim().is_empty() {
+            continue;
+        }
 
-                // Stop command detection
-                if is_awake && text.contains("syrup stop") {
-                    is_awake = false;
-                    println!("🔴 STOP COMMAND: 'syrup stop'");
-                    println!("😴 Dictation INACTIVE - say 'syrup' to wake\n");
-                    continue;
-                }
+        // Wake word detection
+        if !is_awake && text.contains("syrup") {
+            is_awake = true;
+            println!("🟢 WAKE WORD DETECTED: 'syrup'");
+            println!("🎤 Dictation ACTIVE - speak now...\n");
+            continue;
+        }
 
-                // Process dictation when awake
-                if is_awake {
-                    turn_count += 1;
+        // Stop command detection
+        if is_awake && text.contains("syrup stop") {
+            is_awake = false;
+            println!("🔴 STOP COMMAND: 'syrup stop'");
+            println!("😴 Dictation INACTIVE - say 'syrup' to wake\n");
+            continue;
+        }
 
-                    // Turn detection (VAD boundary)
-                    println!("🔄 TURN {} DETECTED (VAD boundary)", turn_count);
+        // Process dictation when awake
+        if is_awake {
+            turn_count += 1;
 
-                    // Real-time dictation to console
-                    println!("📝 DICTATION: {}", segment.text());
+            // Turn detection (VAD boundary)
+            println!("🔄 TURN {} DETECTED (VAD boundary)", turn_count);
 
-                    // Show timing and speaker info if available
-                    if let Some(speaker) = segment.speaker() {
-                        println!("👤 Speaker: {}", speaker);
-                    }
-                    println!(
-                        "⏱️  Duration: {:.2}s\n",
-                        (segment.end_ms() - segment.start_ms()) as f32 / 1000.0
-                    );
-                }
-            }
-            Err(e) => {
-                println!("❌ Transcription error: {}", e);
-            }
+            // Real-time dictation to console
+            println!("📝 {}", text);
+            println!();
         }
     }
 

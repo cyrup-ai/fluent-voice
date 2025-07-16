@@ -107,14 +107,19 @@ impl VideoTrack {
         let current_frame = self.current_frame.clone();
 
         futures::stream::unfold(current_frame, |current_frame| async move {
-            if let Ok(read_guard) = current_frame.read() {
-                if let Some(frame) = read_guard.clone() {
-                    tokio::time::sleep(Duration::from_millis(16)).await; // ~60fps
-                    return Some((frame, current_frame));
-                }
-            }
+            let frame = if let Ok(read_guard) = current_frame.read() {
+                read_guard.clone()
+            } else {
+                None
+            };
+
             tokio::time::sleep(Duration::from_millis(16)).await; // ~60fps
-            Some((VideoFrame::default(), current_frame))
+
+            if let Some(frame) = frame {
+                Some((frame, current_frame))
+            } else {
+                Some((VideoFrame::default(), current_frame))
+            }
         })
         .filter(|frame| futures::future::ready(!frame.is_empty()))
     }

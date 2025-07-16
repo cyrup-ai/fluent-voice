@@ -107,6 +107,13 @@ pub fn read_wav<P: AsRef<Path>>(path: P) -> Result<(Vec<f32>, u32, u16)> {
         .read_u32::<LittleEndian>()
         .map_err(|e| MoshiError::Io(e.into()))?;
 
+    // Validate chunk size is reasonable (WAV files should be at least 44 bytes)
+    if chunk_size < 36 {
+        return Err(MoshiError::Custom(
+            "Invalid chunk size in RIFF header".into(),
+        ));
+    }
+
     let mut wave = [0u8; 4];
     file.read_exact(&mut wave)
         .map_err(|e| MoshiError::Io(e.into()))?;

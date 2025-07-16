@@ -2,13 +2,13 @@ use crate::client::Result;
 use bytes::Bytes;
 use bytes::{BufMut, BytesMut};
 use futures_util::{Stream, StreamExt, pin_mut};
-use rodio::{Decoder, OutputStream, Sink};
+use rodio::Decoder;
 
 /// Play audio
 pub fn play(data: Bytes) -> Result<()> {
-    let (_stream, stream_handle) = OutputStream::try_default()?;
+    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
+    let sink = rodio::Sink::connect_new(&stream_handle.mixer());
     let source = Decoder::new(std::io::Cursor::new(data))?;
-    let sink = Sink::try_new(&stream_handle)?;
     sink.append(source);
     sink.sleep_until_end();
     Ok(())
@@ -28,8 +28,8 @@ pub async fn stream_audio(data: impl Stream<Item = Result<Bytes>>) -> Result<()>
 
     // Setup Rodio output stream and sink.
     // `audio_output_stream` must be kept alive for the duration of playback.
-    let (audio_output_stream, stream_handle) = rodio::OutputStream::try_default()?;
-    let audio_sink = rodio::Sink::try_new(&stream_handle)?;
+    let audio_output_stream = rodio::OutputStreamBuilder::open_default_stream()?;
+    let audio_sink = rodio::Sink::connect_new(&audio_output_stream.mixer());
 
     while let Some(resulting_bytes) = data.next().await {
         let bytes = resulting_bytes?; // Handle potential errors from the stream

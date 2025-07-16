@@ -12,26 +12,23 @@
 
 use fluent_voice_domain::{
     AudioFormat, Diarization, Language, MicrophoneBuilder, NoiseReduction, Punctuation,
-    SpeechSource, SttConversation, SttConversationBuilder, SttEngine, TimestampsGranularity,
-    TranscriptSegment, TranscriptionBuilder, VadMode, VoiceError, WordTimestamps,
+    SpeechSource, SttConversation, SttConversationBuilder, SttEngine, SttPostChunkBuilder,
+    TimestampsGranularity, TranscriptSegment, TranscriptionBuilder, VadMode, VoiceError,
+    WordTimestamps,
 };
 
 // Zero-allocation, lock-free concurrent processing
-use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
-use crossbeam_utils::thread;
+use crossbeam_channel::{Receiver, Sender};
 
 // High-performance audio processing (scalar operations)
 
 // Pre-allocated ring buffer management
 use ringbuf::{HeapCons, HeapProd, HeapRb};
 
-// Zero-copy tensor operations
-use ndarray::{Array1, ArrayView1};
 
 // Blazing-fast async streaming
 use async_stream::stream;
 use futures_core::Stream;
-use futures_util::StreamExt;
 
 // High-performance components
 use fluent_voice_vad::VoiceActivityDetector;
@@ -40,32 +37,22 @@ use fluent_voice_whisper::WhisperTranscriber;
 // Error handling with context
 use koffee::{KoffeeCandle, KoffeeCandleConfig, KoffeeCandleDetection};
 
-// Real-time audio capture
-#[cfg(feature = "microphone")]
-use cpal::{BufferSize, SampleRate, StreamConfig};
 
 // Lock-free atomic operations
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 // Zero-allocation time tracking
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
-// Memory-mapped audio processing
-use memmap2::MmapOptions;
 
 // Production-grade error handling
 use anyhow::{Context, Result as AnyhowResult};
 
-// High-performance I/O
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::mpsc;
-use tokio::time::{sleep, timeout};
 
 // Pin for zero-allocation async
 use std::io::Write;
 use std::pin::Pin;
-use std::task::{Context as TaskContext, Poll};
 
 /// Write PCM f32 samples to WAV file for Whisper processing
 /// Zero-allocation WAV header generation with optimal I/O
@@ -121,11 +108,13 @@ pub struct DefaultTranscriptSegment {
 
 /// Lock-Free Audio Ring Buffer: Zero-allocation circular buffer for real-time audio
 const RING_BUFFER_SIZE: usize = 1024 * 1024; // 1MB ring buffer
+#[allow(dead_code)]
 const AUDIO_CHUNK_SIZE: usize = 1024; // 64ms at 16kHz
 const VAD_CHUNK_SIZE: usize = 1600; // 100ms at 16kHz
 const WHISPER_CHUNK_SIZE: usize = 16000; // 1 second at 16kHz
 
 /// Production-Quality Audio Processor: Zero-allocation, SIMD-optimized
+#[allow(dead_code)]
 struct AudioProcessor {
     // Pre-allocated ring buffers (zero allocation on hot path)
     ring_buffer: HeapRb<f32>,
@@ -155,17 +144,18 @@ struct AudioProcessor {
     last_speech_time: AtomicU64,
 }
 
+#[allow(dead_code)]
 impl AudioProcessor {
     /// Create new AudioProcessor with zero-allocation, blazing-fast initialization
     #[inline(always)]
-    pub fn new(vad_config: &VadConfig, wake_word_config: &WakeWordConfig) -> AnyhowResult<Self> {
+    pub fn new(_vad_config: &VadConfig, _wake_word_config: &WakeWordConfig) -> AnyhowResult<Self> {
         // Initialize components with optimal configurations
         let wake_word_detector = {
             let mut config = KoffeeCandleConfig::default();
             // Use model index instead of string allocation
             // KoffeeCandleConfig uses detector.threshold for sensitivity
             // Note: model selection is handled during wakeword loading, not in config
-            config.detector.threshold = wake_word_config.sensitivity;
+            config.detector.threshold = _wake_word_config.sensitivity;
 
             KoffeeCandle::new(&config).map_err(|e| {
                 anyhow::Error::msg(format!("Failed to initialize wake word detector: {}", e))
@@ -310,6 +300,7 @@ impl AudioProcessor {
 }
 
 /// Lock-Free Audio Stream: Cross-thread communication without locking
+#[allow(dead_code)]
 struct AudioStream {
     producer: HeapProd<f32>,
     consumer: HeapCons<f32>,
@@ -319,6 +310,7 @@ struct AudioStream {
 
 /// Stream Control Messages: Lock-free command system
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum StreamControl {
     Start,
     Stop,
@@ -479,10 +471,15 @@ pub struct DefaultSTTConversationBuilder {
     wake_word_config: WakeWordConfig,
     speech_source: Option<SpeechSource>,
     vad_mode: Option<VadMode>,
+    #[allow(dead_code)]
     noise_reduction: Option<NoiseReduction>,
+    #[allow(dead_code)]
     language_hint: Option<Language>,
+    #[allow(dead_code)]
     diarization: Option<Diarization>,
+    #[allow(dead_code)]
     timestamps_granularity: Option<TimestampsGranularity>,
+    #[allow(dead_code)]
     punctuation: Option<Punctuation>,
 }
 
@@ -519,87 +516,80 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
         self
     }
 
-    fn noise_reduction(mut self, level: NoiseReduction) -> Self {
+    fn noise_reduction(self, _level: NoiseReduction) -> Self {
         // TODO: Configure noise reduction
         self
     }
 
-    fn language_hint(mut self, lang: Language) -> Self {
+    fn language_hint(self, _lang: Language) -> Self {
         // TODO: Configure language hint for Whisper
         self
     }
 
-    fn diarization(mut self, d: Diarization) -> Self {
+    fn diarization(self, _d: Diarization) -> Self {
         // TODO: Configure speaker diarization
         self
     }
 
-    fn word_timestamps(mut self, w: WordTimestamps) -> Self {
+    fn word_timestamps(self, _w: WordTimestamps) -> Self {
         // TODO: Configure word-level timestamps
         self
     }
 
-    fn timestamps_granularity(mut self, g: TimestampsGranularity) -> Self {
+    fn timestamps_granularity(self, _g: TimestampsGranularity) -> Self {
         // TODO: Configure timestamp granularity
         self
     }
 
-    fn punctuation(mut self, p: Punctuation) -> Self {
+    fn punctuation(self, _p: Punctuation) -> Self {
         // TODO: Configure automatic punctuation
         self
     }
 
-    fn with_microphone(self, device: impl Into<String>) -> impl MicrophoneBuilder {
-        // TODO: Return DefaultMicrophoneBuilder
-        DefaultMicrophoneBuilder {
-            device: device.into(),
-            whisper: self.whisper,
-            vad_config: self.vad_config,
-            wake_word_config: self.wake_word_config,
-        }
-    }
-
-    fn transcribe(self, path: impl Into<String>) -> impl TranscriptionBuilder {
-        // TODO: Return DefaultTranscriptionBuilder
-        DefaultTranscriptionBuilder {
-            path: path.into(),
-            whisper: self.whisper,
-            vad_config: self.vad_config,
-            wake_word_config: self.wake_word_config,
-        }
-    }
-
-    fn listen<F>(self, callback: F) -> cyrup_sugars::AsyncStream<fluent_voice_domain::TranscriptSegmentImpl>
+    fn on_chunk<F, T>(self, _f: F) -> impl SttPostChunkBuilder
     where
-        F: FnMut(
-                Result<Self::Conversation, VoiceError>,
-            ) -> cyrup_sugars::AsyncStream<fluent_voice_domain::TranscriptSegmentImpl>
-            + Send
-            + 'static,
+        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
+        T: TranscriptSegment + Send + 'static,
     {
-        // Create default conversation
-        let conversation = DefaultSTTConversation {
-            whisper: self.whisper,
-            vad_config: self.vad_config,
-            wake_word_config: self.wake_word_config,
-        };
+        DefaultSTTPostChunkBuilder {
+            inner: self,
+            chunk_processor: Box::new(|_| String::new()),
+        }
+    }
 
-        // Create result stream and use cyrup-sugars combinators
-        let result_stream = match conversation.into_stream() {
-            Ok(stream) => crate::async_stream_helpers::async_stream_from_stream(stream),
-            Err(e) => crate::async_stream_helpers::async_stream_from_error(e),
-        };
+    fn on_result<F>(self, _f: F) -> Self
+    where
+        F: FnMut(VoiceError) -> String + Send + 'static,
+    {
+        // TODO: Store error handler
+        self
+    }
 
-        // Use cyrup-sugars StreamExt to enable README.md callback syntax
-        result_stream.on_result(callback)
+    fn on_wake<F>(self, _f: F) -> Self
+    where
+        F: FnMut(String) + Send + 'static,
+    {
+        // TODO: Store wake word handler
+        self
+    }
+
+    fn on_turn_detected<F>(self, _f: F) -> Self
+    where
+        F: FnMut(Option<String>, String) + Send + 'static,
+    {
+        // TODO: Store turn detection handler
+        self
     }
 }
 
 /// Complete STT conversation that handles the full pipeline:
 /// microphone input -> wake word detection -> VAD turn detection -> Whisper transcription
 pub struct DefaultSTTConversation {
+    #[allow(dead_code)]
     whisper: Arc<WhisperTranscriber>,
+    #[allow(dead_code)]
     vad_config: VadConfig,
+    #[allow(dead_code)]
     wake_word_config: WakeWordConfig,
 }
 
@@ -793,7 +783,7 @@ impl SttConversation for DefaultSTTConversation {
                                 continue;
                             }
                             let transcription_result = {
-                                let mut whisper_guard = whisper.lock().await;
+                                let whisper_guard = whisper.lock().await;
                                 whisper_guard.transcribe(speech_source).await
                             };
                             match transcription_result {
@@ -847,7 +837,7 @@ impl SttConversation for DefaultSTTConversation {
                                 continue;
                             }
                             let transcription_result = {
-                                let mut whisper_guard = whisper.lock().await;
+                                let whisper_guard = whisper.lock().await;
                                 whisper_guard.transcribe(speech_source).await
                             }; // Mutex guard dropped here
                             match transcription_result {
@@ -928,7 +918,7 @@ impl DefaultSTTEngineBuilder {
 
     /// Configure wake word model (default: "syrup").
     /// Note: Model selection is handled during detector initialization, not in config.
-    pub fn with_wake_word_model<S: Into<String>>(mut self, _model: S) -> Self {
+    pub fn with_wake_word_model<S: Into<String>>(self, _model: S) -> Self {
         // WakeWordConfig doesn't store model name - it's handled during detector creation
         self
     }
@@ -951,8 +941,61 @@ impl Default for DefaultSTTEngineBuilder {
     }
 }
 
+/// Post-chunk builder that provides access to action methods.
+pub struct DefaultSTTPostChunkBuilder {
+    inner: DefaultSTTConversationBuilder,
+    #[allow(dead_code)]
+    chunk_processor: Box<dyn FnMut(String) -> String + Send>,
+}
+
+impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
+    type Conversation = DefaultSTTConversation;
+
+    fn with_microphone(self, device: impl Into<String>) -> impl MicrophoneBuilder {
+        DefaultMicrophoneBuilder {
+            device: device.into(),
+            whisper: self.inner.whisper,
+            vad_config: self.inner.vad_config,
+            wake_word_config: self.inner.wake_word_config,
+        }
+    }
+
+    fn transcribe(self, path: impl Into<String>) -> impl TranscriptionBuilder {
+        DefaultTranscriptionBuilder {
+            path: path.into(),
+            whisper: self.inner.whisper,
+            vad_config: self.inner.vad_config,
+            wake_word_config: self.inner.wake_word_config,
+        }
+    }
+
+    fn listen(self) -> impl futures_core::Stream<Item = String> + Send + Unpin {
+        use futures::StreamExt;
+        use async_stream::stream;
+
+        let conversation = DefaultSTTConversation {
+            whisper: self.inner.whisper,
+            vad_config: self.inner.vad_config,
+            wake_word_config: self.inner.wake_word_config,
+        };
+
+        let stream = stream! {
+            let mut transcript_stream = conversation.into_stream();
+            while let Some(result) = transcript_stream.next().await {
+                match result {
+                    Ok(segment) => yield segment.text().to_string(),
+                    Err(_) => yield String::new(),
+                }
+            }
+        };
+
+        Box::pin(stream)
+    }
+}
+
 /// Builder for microphone-based speech recognition using the default STT engine.
 pub struct DefaultMicrophoneBuilder {
+    #[allow(dead_code)]
     device: String,
     whisper: Arc<WhisperTranscriber>,
     vad_config: VadConfig,
@@ -962,66 +1005,69 @@ pub struct DefaultMicrophoneBuilder {
 impl MicrophoneBuilder for DefaultMicrophoneBuilder {
     type Conversation = DefaultSTTConversation;
 
-    fn vad_mode(mut self, mode: VadMode) -> Self {
+    fn vad_mode(self, _mode: VadMode) -> Self {
         // TODO: Configure VAD mode in vad_config
         self
     }
 
-    fn noise_reduction(mut self, level: NoiseReduction) -> Self {
+    fn noise_reduction(self, _level: NoiseReduction) -> Self {
         // TODO: Configure noise reduction
         self
     }
 
-    fn language_hint(mut self, lang: Language) -> Self {
+    fn language_hint(self, _lang: Language) -> Self {
         // TODO: Configure language hint for Whisper
         self
     }
 
-    fn diarization(mut self, d: Diarization) -> Self {
+    fn diarization(self, _d: Diarization) -> Self {
         // TODO: Configure speaker diarization
         self
     }
 
-    fn word_timestamps(mut self, w: WordTimestamps) -> Self {
+    fn word_timestamps(self, _w: WordTimestamps) -> Self {
         // TODO: Configure word-level timestamps
         self
     }
 
-    fn timestamps_granularity(mut self, g: TimestampsGranularity) -> Self {
+    fn timestamps_granularity(self, _g: TimestampsGranularity) -> Self {
         // TODO: Configure timestamp granularity
         self
     }
 
-    fn punctuation(mut self, p: Punctuation) -> Self {
+    fn punctuation(self, _p: Punctuation) -> Self {
         // TODO: Configure automatic punctuation
         self
     }
 
-    fn listen<F>(self, callback: F) -> cyrup_sugars::AsyncStream<fluent_voice_domain::TranscriptSegmentImpl>
-    where
-        F: FnOnce(
-                Result<Self::Conversation, VoiceError>,
-            ) -> cyrup_sugars::AsyncStream<fluent_voice_domain::TranscriptSegmentImpl>
-            + Send
-            + 'static,
-    {
-        let conversation =
-            DefaultSTTConversation::new(self.whisper, self.vad_config, self.wake_word_config);
+    fn listen(self) -> impl futures_core::Stream<Item = String> + Send + Unpin {
+        use futures::StreamExt;
+        use async_stream::stream;
 
-        // Use cyrup-sugars callback pattern - the callback handles the Result and returns Result<Stream, Error>
-        match callback(conversation) {
-            Ok(stream) => stream,
-            Err(e) => {
-                // Return an empty stream when there's an error
-                // This is a reasonable default for a failed stream
-                crate::async_stream_helpers::async_stream_empty()
+        let conversation_result = DefaultSTTConversation::new(self.whisper, self.vad_config, self.wake_word_config);
+        
+        let stream = stream! {
+            match conversation_result {
+                Ok(conversation) => {
+                    let mut transcript_stream = conversation.into_stream();
+                    while let Some(result) = transcript_stream.next().await {
+                        match result {
+                            Ok(segment) => yield segment.text().to_string(),
+                            Err(_) => yield String::new(),
+                        }
+                    }
+                },
+                Err(_) => yield String::new(),
             }
-        }
+        };
+
+        Box::pin(stream)
     }
 }
 
 /// Builder for file-based transcription using the default STT engine.
 pub struct DefaultTranscriptionBuilder {
+    #[allow(dead_code)]
     path: String,
     whisper: Arc<WhisperTranscriber>,
     vad_config: VadConfig,
@@ -1031,59 +1077,68 @@ pub struct DefaultTranscriptionBuilder {
 impl TranscriptionBuilder for DefaultTranscriptionBuilder {
     type Transcript = String;
 
-    fn vad_mode(mut self, mode: VadMode) -> Self {
+    fn vad_mode(self, _mode: VadMode) -> Self {
         // TODO: Configure VAD mode in vad_config
         self
     }
 
-    fn noise_reduction(mut self, level: NoiseReduction) -> Self {
+    fn noise_reduction(self, _level: NoiseReduction) -> Self {
         // TODO: Configure noise reduction
         self
     }
 
-    fn language_hint(mut self, lang: Language) -> Self {
+    fn language_hint(self, _lang: Language) -> Self {
         // TODO: Configure language hint for Whisper
         self
     }
 
-    fn diarization(mut self, d: Diarization) -> Self {
+    fn diarization(self, _d: Diarization) -> Self {
         // TODO: Configure speaker diarization
         self
     }
 
-    fn word_timestamps(mut self, w: WordTimestamps) -> Self {
+    fn word_timestamps(self, _w: WordTimestamps) -> Self {
         // TODO: Configure word-level timestamps
         self
     }
 
-    fn timestamps_granularity(mut self, g: TimestampsGranularity) -> Self {
+    fn timestamps_granularity(self, _g: TimestampsGranularity) -> Self {
         // TODO: Configure timestamp granularity
         self
     }
 
-    fn punctuation(mut self, p: Punctuation) -> Self {
+    fn punctuation(self, _p: Punctuation) -> Self {
         // TODO: Configure automatic punctuation
         self
     }
 
-    fn with_progress<S: Into<String>>(mut self, template: S) -> Self {
+    fn with_progress<S: Into<String>>(self, _template: S) -> Self {
         // TODO: Store progress template
         self
     }
 
-    fn emit<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
-    where
-        F: FnOnce(Result<Self::Transcript, VoiceError>) -> R + Send + 'static,
-    {
-        async move {
-            let conversation_result =
-                DefaultSTTConversation::new(self.whisper, self.vad_config, self.wake_word_config);
-            let transcript_result = match conversation_result {
-                Ok(conversation) => conversation.collect().await,
-                Err(e) => Err(e),
-            };
-            matcher(transcript_result)
-        }
+    fn emit(self) -> impl futures_core::Stream<Item = String> + Send + Unpin {
+        use futures::StreamExt;
+        use async_stream::stream;
+
+        let conversation_result = DefaultSTTConversation::new(self.whisper, self.vad_config, self.wake_word_config);
+        
+        let stream = stream! {
+            match conversation_result {
+                Ok(conversation) => {
+                    let mut transcript_stream = conversation.into_stream();
+                    while let Some(result) = transcript_stream.next().await {
+                        match result {
+                            Ok(segment) => yield segment.text().to_string(),
+                            Err(_) => yield String::new(),
+                        }
+                    }
+                },
+                Err(_) => yield String::new(),
+            }
+        };
+
+        Box::pin(stream)
     }
 
     fn collect(

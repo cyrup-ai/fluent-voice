@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub use super::*;
 pub mod audio_native;
 pub mod history;

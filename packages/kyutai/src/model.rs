@@ -5,7 +5,7 @@ use crate::{
     config::Config,
     streaming::{CaSrc, StreamingModule, StreamingTransformer},
 };
-use candle::{D, Device, Result, Tensor};
+use candle_core::{D, Device, Result, Tensor};
 use candle_nn::{Embedding, Linear, VarBuilder};
 
 /// Core Moshi language model
@@ -189,7 +189,7 @@ impl LmModel {
     pub fn create_condition(&self, conditioner_name: &str, value: &str) -> Result<Condition> {
         if let Some(provider) = &self.condition_provider {
             let tensor = provider.get_condition(conditioner_name, value, &self.device)?;
-            Ok(Condition { tensor })
+            Ok(Condition::Tensor(tensor))
         } else {
             Err(candle::Error::msg("No condition provider available").into())
         }

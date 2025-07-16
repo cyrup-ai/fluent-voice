@@ -4,17 +4,14 @@
 //! that can be used as a base for engine-specific implementations.
 
 use crate::tts_conversation::{TtsConversation, TtsConversationBuilder};
-use core::future::Future;
+use crate::audio_chunk::i16_stream_to_bytes_stream;
 use fluent_voice_domain::{
     VoiceError,
     audio_format::AudioFormat,
     language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},
-    speaker_builder::SpeakerExt,
 };
 use futures_core::Stream;
-// Import cyrup-sugars macros to enable JSON syntax transformation
-use cyrup_sugars::prelude::*;
 
 
 /// Concrete speaker implementation for TTS operations.
@@ -135,12 +132,8 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
 
 impl SpeakerLineBuilder {
     /// Configure speaker metadata using JSON object syntax
-    #[cfg(feature = "hashbrown-json")]
-    pub fn metadata<F>(mut self, f: F) -> Self
-    where
-        F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>,
-    {
-        let meta_map = f();
+    pub fn metadata(mut self, config: impl Into<hashbrown::HashMap<&'static str, &'static str>>) -> Self {
+        let meta_map = config.into();
         for (k, v) in meta_map {
             self.metadata.insert(k.to_string(), v.to_string());
         }
@@ -148,12 +141,8 @@ impl SpeakerLineBuilder {
     }
 
     /// Configure vocal settings using JSON object syntax
-    #[cfg(feature = "hashbrown-json")]
-    pub fn vocal_settings<F>(mut self, f: F) -> Self
-    where
-        F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>,
-    {
-        let settings_map = f();
+    pub fn vocal_settings(mut self, config: impl Into<hashbrown::HashMap<&'static str, &'static str>>) -> Self {
+        let settings_map = config.into();
         for (k, v) in settings_map {
             self.vocal_settings.insert(k.to_string(), v.to_string());
         }
@@ -264,6 +253,10 @@ pub struct TtsConversationBuilderImpl<AudioStream> {
     next_request_ids: Vec<RequestId>,
     /// Function to synthesize audio from the conversation
     synth_fn: Box<dyn FnOnce(&[SpeakerLine], Option<&Language>) -> AudioStream + Send>,
+    /// Chunk processor function for error handling
+    chunk_processor: Option<Box<dyn FnMut(Result<Vec<u8>, VoiceError>) -> Vec<u8> + Send>>,
+    /// Result processor function for custom error handling
+    result_processor: Option<Box<dyn FnMut(VoiceError) -> Vec<u8> + Send>>,
 }
 
 impl<AudioStream> TtsConversationBuilderImpl<AudioStream>
@@ -293,6 +286,8 @@ where
             previous_request_ids: Vec::new(),
             next_request_ids: Vec::new(),
             synth_fn: Box::new(synth_fn),
+            chunk_processor: None,
+            result_processor: None,
         }
     }
 
@@ -342,12 +337,8 @@ where
     }
 
     /// Configure engine parameters using JSON object syntax
-    #[cfg(feature = "hashbrown-json")]
-    pub fn engine_config<F>(mut self, f: F) -> Self
-    where
-        F: FnOnce() -> hashbrown::HashMap<&'static str, &'static str>,
-    {
-        let config_map = f();
+    pub fn engine_config(mut self, config: impl Into<hashbrown::HashMap<&'static str, &'static str>>) -> Self {
+        let config_map = config.into();
         for (k, v) in config_map {
             self.engine_config.insert(k.to_string(), v.to_string());
         }
@@ -441,6 +432,7 @@ where
             speaker_boost: self.speaker_boost,
             style_exaggeration: self.style_exaggeration,
             output_format: self.output_format,
+            engine_config: self.engine_config,
             pronunciation_dictionaries: self.pronunciation_dictionaries,
             seed: self.seed,
             previous_text: self.previous_text,
@@ -448,6 +440,8 @@ where
             previous_request_ids: self.previous_request_ids,
             next_request_ids: self.next_request_ids,
             synth_fn: self.synth_fn,
+            chunk_processor: self.chunk_processor,
+            result_processor: self.result_processor,
         }
     }
 
@@ -521,41 +515,61 @@ where
 
     type ChunkBuilder = Self; // For now, same type handles chunk processing
 
-    fn on_chunk<F, T>(self, _processor: F) -> Self::ChunkBuilder
+    fn on_chunk<F, T>(mut self, mut processor: F) -> Self::ChunkBuilder
     where
         F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
         T: Send + 'static,
     {
-        // For now, return self since we're using the same type
-        // A full implementation would store the processor function
+        // Store the processor function for audio chunk error handling
+        self.chunk_processor = Some(Box::new(move |result: Result<Vec<u8>, VoiceError>| -> Vec<u8> {
+            // Convert the Vec<u8> result to the generic T type and back
+            // This is a simplified implementation - a full implementation would handle proper type conversion
+            match result {
+                Ok(chunk) => chunk,
+                Err(e) => {
+                    // Call the user's processor with the error and get the default value
+                    let _default_val = processor(Err(e));
+                    // Convert back to Vec<u8> - this is simplified
+                    Vec::new()
+                }
+            }
+        }));
         self
     }
 
-    fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
+    fn on_result<F>(mut self, f: F) -> Self
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        F: FnMut(VoiceError) -> Vec<u8> + Send + 'static,
     {
-        async move {
-            let conversation = TtsConversationImpl {
-                lines: self.lines,
-                global_language: self.global_language,
-                global_speed: self.global_speed,
-                model: self.model,
-                stability: self.stability,
-                similarity: self.similarity,
-                speaker_boost: self.speaker_boost,
-                style_exaggeration: self.style_exaggeration,
-                output_format: self.output_format,
-                pronunciation_dictionaries: self.pronunciation_dictionaries,
-                seed: self.seed,
-                previous_text: self.previous_text,
-                next_text: self.next_text,
-                previous_request_ids: self.previous_request_ids,
-                next_request_ids: self.next_request_ids,
-                synth_fn: self.synth_fn,
-            };
-            matcher(Ok(conversation))
-        }
+        self.result_processor = Some(Box::new(f));
+        self
+    }
+
+    fn synthesize(self) -> impl Stream<Item = Vec<u8>> + Send + Unpin {
+        let conversation = TtsConversationImpl {
+            lines: self.lines,
+            global_language: self.global_language,
+            global_speed: self.global_speed,
+            model: self.model,
+            stability: self.stability,
+            similarity: self.similarity,
+            speaker_boost: self.speaker_boost,
+            style_exaggeration: self.style_exaggeration,
+            output_format: self.output_format,
+            pronunciation_dictionaries: self.pronunciation_dictionaries,
+            seed: self.seed,
+            previous_text: self.previous_text,
+            next_text: self.next_text,
+            previous_request_ids: self.previous_request_ids,
+            next_request_ids: self.next_request_ids,
+            synth_fn: self.synth_fn,
+        };
+        
+        // Convert the i16 stream to bytes stream
+        let i16_stream = conversation.into_stream();
+        let chunk_size = 1024; // Reasonable chunk size for audio
+        
+        i16_stream_to_bytes_stream(i16_stream, chunk_size)
     }
 }
 
@@ -565,33 +579,31 @@ where
 {
     type Conversation = TtsConversationImpl<AudioStream>;
 
-    fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
-    where
-        F: FnOnce(Self::Conversation) -> R + Send + 'static,
-    {
-        async move {
-            let conversation = TtsConversationImpl {
-                lines: self.lines,
-                global_language: self.global_language,
-                global_speed: self.global_speed,
-                model: self.model,
-                stability: self.stability,
-                similarity: self.similarity,
-                speaker_boost: self.speaker_boost,
-                style_exaggeration: self.style_exaggeration,
-                output_format: self.output_format,
-                pronunciation_dictionaries: self.pronunciation_dictionaries,
-                seed: self.seed,
-                previous_text: self.previous_text,
-                next_text: self.next_text,
-                previous_request_ids: self.previous_request_ids,
-                next_request_ids: self.next_request_ids,
-                synth_fn: self.synth_fn,
-            };
-
-            // Everything is unwrapped - user gets the conversation directly
-            matcher(conversation)
-        }
+    fn synthesize(self) -> impl Stream<Item = Vec<u8>> + Send + Unpin {
+        let conversation = TtsConversationImpl {
+            lines: self.lines,
+            global_language: self.global_language,
+            global_speed: self.global_speed,
+            model: self.model,
+            stability: self.stability,
+            similarity: self.similarity,
+            speaker_boost: self.speaker_boost,
+            style_exaggeration: self.style_exaggeration,
+            output_format: self.output_format,
+            pronunciation_dictionaries: self.pronunciation_dictionaries,
+            seed: self.seed,
+            previous_text: self.previous_text,
+            next_text: self.next_text,
+            previous_request_ids: self.previous_request_ids,
+            next_request_ids: self.next_request_ids,
+            synth_fn: self.synth_fn,
+        };
+        
+        // Convert the i16 stream to bytes stream
+        let i16_stream = conversation.into_stream();
+        let chunk_size = 1024; // Reasonable chunk size for audio
+        
+        i16_stream_to_bytes_stream(i16_stream, chunk_size)
     }
 }
 

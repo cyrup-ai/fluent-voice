@@ -3,10 +3,12 @@ use super::*;
 
 /// Creates AudioNative enabled project, optionally starts conversion and returns project id and embeddable html snippet.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AudioNative {
     body: AudioNativeBody,
 }
 
+#[allow(dead_code)]
 impl AudioNative {
     pub fn new(body: AudioNativeBody) -> Self {
         AudioNative { body }
@@ -140,8 +142,11 @@ impl From<AudioNativeBody> for Form {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct AudioNativeResponseBody {
     pub project_id: String,
+    #[allow(dead_code)]
     pub converting: bool,
+    #[allow(dead_code)]
     pub html_snippet: String,
 }

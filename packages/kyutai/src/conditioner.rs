@@ -1,6 +1,6 @@
 // src/conditioner.rs
 
-use candle::{DType, Device, Result, Tensor};
+use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::{Embedding, Linear, VarBuilder};
 use std::collections::HashMap;
 
@@ -45,7 +45,7 @@ impl LutConditioner {
         let idx = *self
             .possible_values
             .get(value)
-            .ok_or_else(|| candle::Error::msg(format!("unknown value '{}'", value)))?;
+            .ok_or_else(|| candle_core::Error::Msg(format!("unknown value '{}'", value)))?;
         let cond = Tensor::from_slice(&[idx as u32], (1, 1), device)?
             .apply(&self.embed)?
             .apply(&self.output_proj)?;
@@ -64,9 +64,9 @@ impl TensorConditioner {
     }
 
     pub fn condition(&self, tensor: Tensor) -> Result<Tensor> {
-        if tensor.dim(candle::D::Minus1)? != self.dim {
-            return Err(candle::Error::msg(
-                "dimension mismatch in tensor conditioner",
+        if tensor.dim(candle_core::D::Minus1)? != self.dim {
+            return Err(candle_core::Error::Msg(
+                "dimension mismatch in tensor conditioner".to_string(),
             ));
         }
         Ok(tensor)
@@ -85,10 +85,28 @@ pub struct ConditionProvider {
 }
 
 impl Conditioner {
-    pub fn new(config: &Config, vb: VarBuilder) -> Result<Self> {
+    pub fn new(_config: &Config, _vb: VarBuilder) -> Result<Self> {
         // For now, create a simple tensor conditioner
         // This can be expanded based on the config
         Ok(Conditioner::Tensor(TensorConditioner::new(512)))
+    }
+
+    pub fn condition(
+        &self,
+        conditions: &HashMap<String, Condition>,
+    ) -> Result<HashMap<String, Tensor>> {
+        let mut result = HashMap::new();
+        for (name, condition) in conditions {
+            match condition {
+                Condition::Tensor(tensor) => {
+                    result.insert(name.clone(), tensor.clone());
+                }
+                Condition::AddToInput(tensor) => {
+                    result.insert(name.clone(), tensor.clone());
+                }
+            }
+        }
+        Ok(result)
     }
 }
 
@@ -111,7 +129,7 @@ impl ConditionProvider {
                 )?),
                 "tensor" => Conditioner::Tensor(TensorConditioner::new(*dim)),
                 _ => {
-                    return Err(candle::Error::msg(format!(
+                    return Err(candle_core::Error::Msg(format!(
                         "unknown conditioner type '{}'",
                         typ
                     )));
@@ -128,20 +146,43 @@ impl ConditionProvider {
             Some(Conditioner::Tensor(tensor)) => {
                 tensor.condition(Tensor::zeros((1, 1, tensor.dim), DType::F32, device)?)
             }
-            None => Err(candle::Error::msg(format!(
+            None => Err(candle_core::Error::Msg(format!(
                 "unknown conditioner '{}'",
                 name
             ))),
         }
     }
+
+    pub fn condition(
+        &self,
+        conditions: &HashMap<String, Condition>,
+    ) -> Result<HashMap<String, Tensor>> {
+        let mut result = HashMap::new();
+        for (name, condition) in conditions {
+            match condition {
+                Condition::Tensor(tensor) => {
+                    result.insert(name.clone(), tensor.clone());
+                }
+                Condition::AddToInput(tensor) => {
+                    result.insert(name.clone(), tensor.clone());
+                }
+            }
+        }
+        Ok(result)
+    }
 }
 
-pub struct Condition {
-    pub tensor: Tensor,
+#[derive(Debug, Clone)]
+pub enum Condition {
+    Tensor(Tensor),
+    AddToInput(Tensor),
 }
 
 impl Condition {
     pub fn add_to_input(&self, input: &Tensor) -> Result<Tensor> {
-        input.broadcast_add(&self.tensor)
+        match self {
+            Self::Tensor(tensor) => input.broadcast_add(tensor),
+            Self::AddToInput(tensor) => input.broadcast_add(tensor),
+        }
     }
 }

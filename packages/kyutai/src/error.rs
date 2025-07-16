@@ -55,6 +55,15 @@ impl From<candle::Error> for MoshiError {
     }
 }
 
+impl From<MoshiError> for candle_core::Error {
+    fn from(error: MoshiError) -> Self {
+        match error {
+            MoshiError::Candle(e) => e,
+            _ => candle_core::Error::Msg(error.to_string()),
+        }
+    }
+}
+
 // Note: LogitsProcessor errors are handled via manual conversion in generator.rs
 
 impl From<std::io::Error> for MoshiError {

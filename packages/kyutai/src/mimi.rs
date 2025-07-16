@@ -100,10 +100,10 @@ pub struct Mimi {
 
 // Minimal Mimi implementation stub to satisfy interface requirements
 impl Mimi {
-    pub fn new(cfg: Config, _vb: candle_nn::VarBuilder) -> candle::Result<Self> {
+    pub fn new(cfg: Config, _vb: candle_nn::VarBuilder) -> candle_core::Result<Self> {
         Ok(Self {
             config: cfg,
-            device: candle::Device::Cpu,
+            device: candle_core::Device::Cpu,
         })
     }
 
@@ -111,30 +111,61 @@ impl Mimi {
         &self.config
     }
 
-    pub fn decode(&self, codes: &candle::Tensor) -> candle::Result<candle::Tensor> {
+    pub fn decode(&self, codes: &candle_core::Tensor) -> candle_core::Result<candle_core::Tensor> {
         // Stub implementation - returns a zero tensor of appropriate shape
         let shape = codes.shape();
         let output_shape = if shape.dims().len() >= 2 {
             let mut new_shape = shape.dims().to_vec();
-            new_shape[new_shape.len() - 1] = (new_shape[new_shape.len() - 1] * 4).max(1024); // Approximate audio expansion
+            let last_idx = new_shape.len() - 1;
+            let old_value = new_shape[last_idx];
+            new_shape[last_idx] = (old_value * 4).max(1024); // Approximate audio expansion
             new_shape
         } else {
             vec![1024] // Default audio length
         };
-        candle::Tensor::zeros(output_shape, candle::DType::F32, &self.device)
+        candle_core::Tensor::zeros(output_shape, candle_core::DType::F32, &self.device)
     }
 
-    pub fn encode(&self, _xs: &candle::Tensor) -> candle::Result<candle::Tensor> {
+    pub fn encode(&self, _xs: &candle_core::Tensor) -> candle_core::Result<candle_core::Tensor> {
         // Stub implementation - returns a zero tensor
-        candle::Tensor::zeros((1, 16, 100), candle::DType::U32, &self.device)
+        candle_core::Tensor::zeros((1, 16, 100), candle_core::DType::U32, &self.device)
     }
 
     pub fn reset_state(&self) {
         // Stub implementation - nothing to reset in minimal version
     }
+
+    pub fn decode_step(
+        &self,
+        codes: &candle_core::Tensor,
+    ) -> candle_core::Result<Option<candle_core::Tensor>> {
+        // Decode a single step and return optional tensor
+        let shape = codes.shape();
+        let output_shape = if shape.dims().len() >= 2 {
+            let mut new_shape = shape.dims().to_vec();
+            // For single step, generate a small chunk of audio
+            let last_idx = new_shape.len() - 1;
+            new_shape[last_idx] = 256; // Small chunk size
+            new_shape
+        } else {
+            vec![256] // Default small audio chunk
+        };
+        let result =
+            candle_core::Tensor::zeros(output_shape, candle_core::DType::F32, &self.device)?;
+        Ok(Some(result))
+    }
+
+    pub fn flush(&mut self) -> candle_core::Result<()> {
+        // Flush any pending state - stub implementation
+        Ok(())
+    }
 }
 
-pub fn load(_model_file: &str, _num_codebooks: Option<usize>, dev: &candle::Device) -> candle::Result<Mimi> {
+pub fn load(
+    _model_file: &str,
+    _num_codebooks: Option<usize>,
+    dev: &candle::Device,
+) -> candle::Result<Mimi> {
     let cfg = Config {
         channels: 1,
         sample_rate: 24_000.0,

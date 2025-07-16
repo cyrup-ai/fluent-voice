@@ -1,7 +1,7 @@
 // src/conv.rs
 
 use crate::streaming::StreamTensor;
-use candle::Result;
+use candle_core::Result;
 use candle_nn::{Conv1d, Conv1dConfig, Module, VarBuilder};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,7 +50,7 @@ impl ConvDownsample1d {
             // Apply causal masking if enabled
             if self.causal {
                 // For causal convolution, trim the output to avoid looking into the future
-                let (batch_size, channels, seq_len) = out.dims3()?;
+                let (_batch_size, _channels, seq_len) = out.dims3()?;
                 if seq_len > 1 {
                     out = out.narrow(2, 0, seq_len - 1)?;
                 }
@@ -107,7 +107,7 @@ impl ConvTrUpsample1d {
             // Apply causal masking if enabled
             if self.causal {
                 // For causal transpose convolution, ensure we don't use future information
-                let (batch_size, channels, seq_len) = out.dims3()?;
+                let (_batch_size, _channels, seq_len) = out.dims3()?;
                 if seq_len > 1 {
                     out = out.narrow(2, 0, seq_len - 1)?;
                 }

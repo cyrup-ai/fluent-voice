@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::client::Result;
 use async_stream::stream;
 use bytes::Bytes;

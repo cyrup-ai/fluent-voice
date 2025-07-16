@@ -25,11 +25,15 @@ test-support = []
 fluent-voice-workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 
-# tracing = "0.1.41" # in workspace-hack
+async-trait = "0.1.87"
 anyhow = "1.0.98"
 async-stream = "0.3.6"
 clap = { version = "4.5.40", features = ["derive"] }
 futures = "0.3.31"
+rustls = "0.23.20"
+rustls-platform-verifier = "0.6.0"
+tokio-tungstenite = "0.24.0"
+tracing = "0.1.41"
 # image = "0.25.6" # in workspace-hack
 # log = "0.4.27" # in workspace-hack
 nanoid = "0.4.0"
@@ -37,12 +41,12 @@ parking_lot = "0.12.4"
 postage = "0.5.0"
 # smallvec = "2.0.0-alpha.10" # in workspace-hack
 # tokio = { version = "1.45.1", features = ["rt", "sync", "macros"] } # in workspace-hack
-tracing-subscriber = "0.3.19"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 # wgpu = { path = "../../../zeroshot/wgpu/wgpu" } # in workspace-hack
 raw-window-handle = "0.6.2"
 thiserror = "2.0.12"
 url = "2.5.4"
-ratagpu = { path = "../../../zeroshot/ratagpu", default-features = false }
+# ratagpu = { path = "../../../zeroshot/ratagpu", default-features = false }
 pollster = "0.4"
 winit = "0.30"
 tokio = "1.46.1"

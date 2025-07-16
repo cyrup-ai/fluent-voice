@@ -1,4 +1,4 @@
-use candle::{D, IndexOp, Result, Tensor};
+use candle_core::{D, IndexOp, Result, Tensor};
 use candle_nn::{Linear, VarBuilder};
 
 #[derive(Debug, Clone)]
@@ -38,7 +38,19 @@ impl EuclideanCodebook {
         })
     }
 
+    /// Check if the codebook has been initialized
+    pub fn is_initialized(&self) -> Result<bool> {
+        let init_value = self.initialized.to_scalar::<f32>()?;
+        Ok(init_value > 0.0)
+    }
+
     fn get_embedding(&self) -> Result<Tensor> {
+        // Check if codebook is initialized before using it
+        if !self.is_initialized()? {
+            return Err(candle_core::Error::Msg(
+                "Codebook not initialized".to_string(),
+            ));
+        }
         let cluster_usage = self.cluster_usage.maximum(self.epsilon)?.unsqueeze(1)?;
         self.embedding_sum.broadcast_div(&cluster_usage)
     }
@@ -73,8 +85,31 @@ impl EuclideanCodebook {
     }
 
     pub fn encode(&self, xs: &Tensor) -> Result<Tensor> {
-        // For now, use the slow implementation until custom op is fully implemented
-        self.encode_slow(xs)
+        // Try to use optimized custom op, fall back to slow implementation if not available
+        if self.can_use_custom_op() {
+            self.encode_with_custom_op(xs)
+        } else {
+            self.encode_slow(xs)
+        }
+    }
+
+    /// Check if custom op can be used for optimization
+    fn can_use_custom_op(&self) -> bool {
+        // For now, always use slow implementation
+        // This can be enabled when custom op is fully implemented
+        false
+    }
+
+    /// Encode using custom op for optimization
+    fn encode_with_custom_op(&self, xs: &Tensor) -> Result<Tensor> {
+        let _enter = self.span_encode.enter();
+        let (xs, target_shape) = self.prepare_for_encoding(xs)?;
+        let embedding = self.get_embedding()?;
+
+        // Use custom op for efficient encoding
+        let custom_op = CodebookEncode;
+        let result = xs.apply_op2(&embedding, custom_op)?;
+        result.reshape(target_shape)
     }
 
     pub fn decode(&self, indexes: &Tensor) -> Result<Tensor> {
@@ -106,8 +141,8 @@ impl VectorQuantization {
         let (project_in, project_out) = if codebook_dim == dim {
             (None, None)
         } else {
-            let p_in = candle_nn::linear(dim, codebook_dim, vb.pp("project_in"))?;
-            let p_out = candle_nn::linear(codebook_dim, dim, vb.pp("project_out"))?;
+            let p_in = linear(dim, codebook_dim, vb.pp("project_in"))?;
+            let p_out = linear(codebook_dim, dim, vb.pp("project_out"))?;
             (Some(p_in), Some(p_out))
         };
         let codebook = EuclideanCodebook::new(codebook_dim, codebook_size, vb.pp("_codebook"))?;
@@ -348,10 +383,10 @@ impl candle::CustomOp2 for CodebookEncode {
 
     fn cpu_fwd(
         &self,
-        xs: &candle::CpuStorage,
-        xs_layout: &candle::Layout,
-        embedding: &candle::CpuStorage,
-        embedding_layout: &candle::Layout,
+        _xs: &candle::CpuStorage,
+        _xs_layout: &candle::Layout,
+        _embedding: &candle::CpuStorage,
+        _embedding_layout: &candle::Layout,
     ) -> candle::Result<(candle::CpuStorage, candle::Shape)> {
         // For now, fall back to basic implementation using direct tensor operations
         // This can be optimized later with proper custom op implementation

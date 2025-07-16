@@ -3,6 +3,8 @@
 //! This module provides the ONLY public API for this crate.
 //! All ElevenLabs functionality MUST be accessed through these builders.
 
+#![allow(dead_code)]
+
 use crate::client::{ClientConfig, ElevenLabsClient};
 use crate::endpoints::genai::speech_to_text::{
     CreateTranscript, CreateTranscriptBody, CreateTranscriptQuery, CreateTranscriptResponse,

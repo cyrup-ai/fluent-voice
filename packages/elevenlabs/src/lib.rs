@@ -54,4 +54,4 @@ mod fluent_api;
 pub mod voice;
 
 // Re-export ONLY FluentVoice entry point - hide raw engine bypasses
-pub use fluent_api::{FluentVoice, Result, VoiceError};
+pub use fluent_api::{FluentVoice, Result};

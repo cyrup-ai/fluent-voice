@@ -1,6 +1,6 @@
 // src/nn.rs
 
-use candle::{DType, Result, Tensor};
+use candle_core::{DType, Result, Tensor};
 use candle_nn::{Embedding, Linear, Module, VarBuilder};
 
 pub type MaybeQuantizedEmbedding = Embedding;

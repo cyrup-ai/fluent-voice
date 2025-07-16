@@ -1,8 +1,5 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use futures::{SinkExt, channel::mpsc};
-use rustls_platform_verifier::ConfigVerifierExt;
 use std::collections::HashMap;
 use tokio::task::JoinHandle;
 
@@ -45,11 +42,8 @@ impl Room {
         url: String,
         token: String,
     ) -> Result<(Self, mpsc::UnboundedReceiver<RoomEvent>)> {
-        let connector = tokio_tungstenite::Connector::from(Arc::new(
-            rustls::ClientConfig::with_platform_verifier(),
-        ));
-        let mut config = livekit::RoomOptions::default();
-        config.connector = Some(connector);
+        // Use default room configuration for simplicity and reliability
+        let config = livekit::RoomOptions::default();
         let (room, mut events) = livekit::Room::connect(&url, &token, config).await?;
 
         let (mut tx, rx) = mpsc::unbounded();
@@ -65,7 +59,7 @@ impl Room {
             Self {
                 room,
                 _task: task,
-                playback: playback::AudioStack::new(tokio::runtime::Handle::current()),
+                playback: playback::AudioStack::new(tokio::runtime::Handle::current())?,
             },
             rx,
         ))

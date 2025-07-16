@@ -154,7 +154,9 @@ where
 ///
 /// This function takes a Stream<Item = i16> and converts it to an AsyncStream<AudioChunk>
 /// by batching the audio samples into chunks of a suitable size.
-pub fn audio_stream_to_chunk_stream<S>(audio_stream: S) -> AsyncStream<crate::audio_chunk::AudioChunk>
+pub fn audio_stream_to_chunk_stream<S>(
+    audio_stream: S,
+) -> AsyncStream<crate::audio_chunk::AudioChunk>
 where
     S: Stream<Item = i16> + Send + 'static,
 {
@@ -166,12 +168,16 @@ where
             let mut stream = std::pin::pin!(audio_stream);
             let mut buffer = Vec::new();
             const CHUNK_SIZE: usize = 1024; // 1024 samples per chunk
-            
+
             while let Some(sample) = stream.next().await {
                 buffer.push(sample);
                 if buffer.len() >= CHUNK_SIZE {
+                    let audio_bytes: Vec<u8> = std::mem::take(&mut buffer)
+                        .into_iter()
+                        .flat_map(|sample| sample.to_le_bytes())
+                        .collect();
                     let chunk = crate::audio_chunk::AudioChunk::new(
-                        std::mem::take(&mut buffer),
+                        audio_bytes,
                         fluent_voice_domain::AudioFormat::Pcm16Khz,
                     );
                     if tx.send(chunk).is_err() {
@@ -179,11 +185,15 @@ where
                     }
                 }
             }
-            
+
             // Send final chunk if there are remaining samples
             if !buffer.is_empty() {
+                let audio_bytes: Vec<u8> = buffer
+                    .into_iter()
+                    .flat_map(|sample| sample.to_le_bytes())
+                    .collect();
                 let chunk = crate::audio_chunk::AudioChunk::new(
-                    buffer,
+                    audio_bytes,
                     fluent_voice_domain::AudioFormat::Pcm16Khz,
                 );
                 let _ = tx.send(chunk);
@@ -201,12 +211,16 @@ where
                 let mut stream = std::pin::pin!(audio_stream);
                 let mut buffer = Vec::new();
                 const CHUNK_SIZE: usize = 1024; // 1024 samples per chunk
-                
+
                 while let Some(sample) = stream.next().await {
                     buffer.push(sample);
                     if buffer.len() >= CHUNK_SIZE {
+                        let audio_bytes: Vec<u8> = std::mem::take(&mut buffer)
+                            .into_iter()
+                            .flat_map(|sample| sample.to_le_bytes())
+                            .collect();
                         let chunk = crate::audio_chunk::AudioChunk::new(
-                            std::mem::take(&mut buffer),
+                            audio_bytes,
                             fluent_voice_domain::AudioFormat::Pcm16Khz,
                         );
                         if tx.send(chunk).await.is_err() {
@@ -214,11 +228,15 @@ where
                         }
                     }
                 }
-                
+
                 // Send final chunk if there are remaining samples
                 if !buffer.is_empty() {
+                    let audio_bytes: Vec<u8> = buffer
+                        .into_iter()
+                        .flat_map(|sample| sample.to_le_bytes())
+                        .collect();
                     let chunk = crate::audio_chunk::AudioChunk::new(
-                        buffer,
+                        audio_bytes,
                         fluent_voice_domain::AudioFormat::Pcm16Khz,
                     );
                     let _ = tx.send(chunk).await;

@@ -4,9 +4,8 @@ mod track;
 mod video_frame;
 mod video_source;
 
-
-use video_frame::*;
-use video_source::*;
+// use video_frame::*;
+// use video_source::*;
 
 #[cfg(target_os = "macos")]
 mod macos;
@@ -16,14 +15,42 @@ mod generic;
 
 pub use track::VideoTrack;
 pub use video_frame::VideoFrame;
-pub use video_source::VideoSource;
+pub use video_source::{VideoSource, VideoSourceOptions};
+
+// VideoTrackView is defined later in this file
 
 use std::sync::{Arc, Mutex};
+
+// Placeholder renderer until ratagpu is available
+pub struct PlaceholderRenderer {
+    width: u32,
+    height: u32,
+}
+
+impl PlaceholderRenderer {
+    pub fn new() -> Self {
+        Self {
+            width: 80,
+            height: 24,
+        }
+    }
+
+    pub fn render(&mut self) -> anyhow::Result<()> {
+        // Placeholder implementation
+        Ok(())
+    }
+
+    pub fn handle_resize(&mut self, width: u32, height: u32) -> anyhow::Result<()> {
+        self.width = width;
+        self.height = height;
+        Ok(())
+    }
+}
 
 #[derive(Clone)]
 pub struct VideoTrackView {
     track: VideoTrack,
-    renderer: Option<Arc<Mutex<ratagpu::ZeroAllocRenderer<80, 24>>>>,
+    renderer: Option<Arc<Mutex<PlaceholderRenderer>>>,
     window: Option<Arc<winit::window::Window>>,
 }
 
@@ -46,13 +73,9 @@ impl VideoTrackView {
         }
     }
 
-    pub fn initialize_renderer(&mut self, window: &winit::window::Window) -> anyhow::Result<()> {
-        // Create Ratagpu renderer for terminal-style video display
-        let renderer = pollster::block_on(async {
-            ratagpu::RendererBuilder::<80, 24>::new()
-                .build(window)
-                .await
-        })?;
+    pub fn initialize_renderer(&mut self, _window: &winit::window::Window) -> anyhow::Result<()> {
+        // Create placeholder renderer until ratagpu is available
+        let renderer = PlaceholderRenderer::new();
 
         self.renderer = Some(Arc::new(Mutex::new(renderer)));
         Ok(())
@@ -94,16 +117,9 @@ impl VideoTrackView {
                                     (brightness * (ascii_chars.len() - 1) as f32) as usize;
                                 let ch = ascii_chars.chars().nth(char_idx).unwrap_or(' ');
 
-                                renderer.set_cell(
-                                    x,
-                                    y,
-                                    ratagpu::Cell {
-                                        character: ch,
-                                        foreground: 15, // White
-                                        background: 0,  // Black
-                                        style_flags: 0,
-                                    },
-                                );
+                                // TODO: Implement actual cell rendering when ratagpu is available
+                                // For now, just store the character (placeholder)
+                                let _cell_data = (x, y, ch);
                             }
                         }
                     }

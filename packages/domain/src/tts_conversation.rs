@@ -6,7 +6,6 @@ use crate::{
     speaker::Speaker,
     voice_error::VoiceError,
 };
-use core::future::Future;
 use futures_core::Stream;
 
 /// Engine-specific conversation object.
@@ -199,33 +198,36 @@ pub trait TtsConversationBuilder: Sized + Send {
         F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
         T: Send + 'static;
 
-    /// Terminal method that executes synthesis with a matcher closure.
+    /// Capture result processing closure (optional).
     ///
-    /// This method terminates the fluent chain and executes the TTS synthesis.
-    /// The matcher closure receives either the conversation object on success
-    /// or a `VoiceError` on failure, and returns the final result.
+    /// This method captures a closure that will be called for handling errors.
+    /// If not provided, defaults to logging errors and returning BadChunk.
+    fn on_result<F>(self, f: F) -> Self
+    where
+        F: FnMut(VoiceError) -> Vec<u8> + Send + 'static;
+
+    /// Terminal method that executes synthesis and returns an audio chunk stream.
     ///
-    /// # Arguments
-    ///
-    /// * `matcher` - Closure that handles success/error cases
+    /// This method terminates the fluent chain and executes the TTS synthesis,
+    /// returning a stream of audio chunks directly without Result wrapping.
+    /// Error handling is done through the stream processing with on_chunk() callbacks.
     ///
     /// # Returns
     ///
-    /// A future that resolves to the result of the matcher closure.
+    /// A stream of audio chunks that can be processed with on_chunk() callbacks.
     ///
     /// # Examples
     ///
     /// ```ignore
-    /// let audio = conversation
-    ///     .synthesize(|conversation| {
-    ///         Ok => conversation.into_stream(),
-    ///         Err(e) => Err(e),
-    ///     })
-    ///     .await?;
+    /// let audio_stream = conversation.synthesize();
+    /// audio_stream.on_chunk(|chunk_result| {
+    ///     match chunk_result {
+    ///         Ok(chunk) => chunk,
+    ///         Err(e) => AudioChunk::error(e),
+    ///     }
+    /// });
     /// ```
-    fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
-    where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static;
+    fn synthesize(self) -> impl Stream<Item = Vec<u8>> + Send + Unpin;
 
     /// The concrete conversation type produced by this builder.
     type Conversation: TtsConversation;
@@ -240,19 +242,13 @@ pub trait TtsConversationChunkBuilder: Sized + Send {
     /// Terminal method that executes synthesis with chunk processing.
     ///
     /// This method terminates the fluent chain and executes the TTS synthesis
-    /// with chunk-by-chunk processing. The matcher closure receives either
-    /// the conversation object on success or a `VoiceError` on failure.
-    ///
-    /// # Arguments
-    ///
-    /// * `matcher` - Closure that handles success/error cases
+    /// with chunk-by-chunk processing, returning a stream of audio chunks directly.
+    /// Error handling is done through the stream processing with on_chunk() callbacks.
     ///
     /// # Returns
     ///
-    /// A future that resolves to the result of the matcher closure.
-    fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
-    where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static;
+    /// A stream of audio chunks that can be processed with on_chunk() callbacks.
+    fn synthesize(self) -> impl Stream<Item = Vec<u8>> + Send + Unpin;
 
     /// The concrete conversation type produced by this chunk builder.
     type Conversation: TtsConversation;

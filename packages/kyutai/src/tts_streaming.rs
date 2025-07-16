@@ -4,7 +4,7 @@ use super::tts::Model;
 use crate::conditioner::Condition;
 use crate::error::MoshiError;
 use crate::streaming::StreamingModule;
-use candle::{Result, Tensor};
+use candle_core::{Result, Tensor};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -58,11 +58,23 @@ impl StreamingModel {
                 .map_err(|e| MoshiError::Custom(e.to_string()))?;
         }
 
+        // Convert conditions from Condition enum to Tensor
+        let tensor_conditions: HashMap<String, Tensor> = conditions
+            .iter()
+            .map(|(k, v)| {
+                let tensor = match v {
+                    crate::conditioner::Condition::Tensor(t) => t.clone(),
+                    crate::conditioner::Condition::AddToInput(t) => t.clone(),
+                };
+                (k.clone(), tensor)
+            })
+            .collect();
+
         model.lm_mut().step_without_ca_src(
             self.state.text_token,
             &self.state.audio_codes,
             None,
-            Some(conditions),
+            Some(&tensor_conditions),
         )?;
 
         if let Some(codes) = model.lm().last_audio_tokens() {
@@ -71,8 +83,8 @@ impl StreamingModel {
                 (1, 1, model.config().mimi_num_codebooks),
                 model.lm().device(),
             )?;
-            let pcm_step = model.mimi_mut().decode_step(&codes_tensor.into())?;
-            if let Some(pcm) = pcm_step.as_option() {
+            let pcm_step = model.mimi_mut().decode_step(&codes_tensor)?;
+            if let Some(pcm) = pcm_step {
                 let pcm_vec = pcm.to_vec1::<f32>()?;
                 self.state.pcm_buffer.extend_from_slice(&pcm_vec);
                 self.state.audio_codes = codes;
@@ -95,6 +107,51 @@ impl StreamingModel {
         self.state.pcm_buffer.clear();
         Ok(output)
     }
+
+    fn step_internal(
+        &mut self,
+        conditions: &HashMap<String, crate::conditioner::Condition>,
+    ) -> Result<Vec<f32>> {
+        let mut model = self
+            .inner
+            .lock()
+            .map_err(|_| MoshiError::Custom("Lock failed".into()))?;
+
+        // Convert conditions from Condition enum to Tensor
+        let tensor_conditions: HashMap<String, Tensor> = conditions
+            .iter()
+            .map(|(k, v)| {
+                let tensor = match v {
+                    crate::conditioner::Condition::Tensor(t) => t.clone(),
+                    crate::conditioner::Condition::AddToInput(t) => t.clone(),
+                };
+                (k.clone(), tensor)
+            })
+            .collect();
+
+        model.lm_mut().step_without_ca_src(
+            self.state.text_token,
+            &self.state.audio_codes,
+            None,
+            Some(&tensor_conditions),
+        )?;
+
+        if let Some(codes) = model.lm().last_audio_tokens() {
+            let codes_tensor = Tensor::from_vec(
+                codes.clone(),
+                (1, 1, model.config().mimi_num_codebooks),
+                model.lm().device(),
+            )?;
+            let pcm_step = model.mimi_mut().decode_step(&codes_tensor)?;
+            if let Some(pcm) = pcm_step {
+                let pcm_vec = pcm.to_vec1::<f32>()?;
+                self.state.audio_codes = codes;
+                return Ok(pcm_vec);
+            }
+        }
+
+        Ok(vec![])
+    }
 }
 
 impl StreamingModule for StreamingModel {
@@ -109,7 +166,8 @@ impl StreamingModule for StreamingModel {
         }
 
         let pcm = self.step_internal(&conditions)?;
-        Ok(Tensor::from_vec(pcm, (1, pcm.len()), input.device())?)
+        let pcm_len = pcm.len();
+        Ok(Tensor::from_vec(pcm, (1, pcm_len), input.device())?)
     }
 
     fn reset_streaming(&mut self) {

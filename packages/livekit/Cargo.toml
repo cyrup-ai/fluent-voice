@@ -31,6 +31,7 @@ fluent_voice_domain = { path = "../domain" }
 tracing = "0.1.41"
 anyhow = "1.0.98"
 cpal = "0.16.0"
+crossbeam-queue = "0.3.11"
 futures = "0.3.31"
 rustls-platform-verifier = "0.6"
 rustls = "0.23"
@@ -50,7 +51,7 @@ pollster = "0.4"
 winit = "0.30"
 core-video = "0.4.3"
 coreaudio-rs = "0.13.0"
-ratagpu = { path = "../../../zeroshot/ratagpu", default-features = false, version = "0.1.0" }
+ratagpu = { path = "/Volumes/samsung_t9/zeroshot/packages/ratagpu", default-features = false, version = "0.1.0" }
 # naga = "26.0.0" # in workspace-hack
 
 [target.'cfg(not(all(target_os = "windows", target_env = "gnu")))'.dependencies]

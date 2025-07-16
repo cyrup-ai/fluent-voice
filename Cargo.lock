@@ -1017,41 +1017,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "candle-core"
-version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#be411aa562740c04944097675a2c11d7ed79c72d"
-dependencies = [
- "byteorder",
- "gemm 0.17.1",
- "half",
- "memmap2",
- "num-traits",
- "num_cpus",
- "rand 0.9.1",
- "rand_distr 0.5.1",
- "rayon",
- "safetensors 0.4.5",
- "thiserror 1.0.69",
- "ug",
- "yoke 0.7.5",
- "zip 1.1.4",
-]
-
-[[package]]
 name = "candle-datasets"
 version = "0.9.1"
 source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
+ "candle-nn",
  "hf-hub 0.4.3",
  "image",
  "memmap2",
  "parquet",
  "rand 0.9.1",
  "thiserror 1.0.69",
- "tokenizers 0.21.2",
+ "tokenizers",
 ]
 
 [[package]]
@@ -1061,7 +1040,7 @@ source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04
 dependencies = [
  "anyhow",
  "bindgen_cuda",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
  "half",
 ]
 
@@ -1091,7 +1070,7 @@ version = "0.9.1"
 source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
  "accelerate-src",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
  "candle-metal-kernels",
  "half",
  "intel-mkl-src",
@@ -1104,26 +1083,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "candle-nn"
-version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#be411aa562740c04944097675a2c11d7ed79c72d"
-dependencies = [
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git)",
- "half",
- "num-traits",
- "rayon",
- "safetensors 0.4.5",
- "serde",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "candle-onnx"
 version = "0.9.1"
 source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04944097675a2c11d7ed79c72d"
 dependencies = [
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
+ "candle-nn",
  "prost",
  "prost-build",
 ]
@@ -1135,29 +1100,11 @@ source = "git+https://github.com/huggingface/candle?branch=main#be411aa562740c04
 dependencies = [
  "accelerate-src",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
  "candle-flash-attn",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-nn",
  "fancy-regex 0.13.0",
  "intel-mkl-src",
- "num-traits",
- "rand 0.9.1",
- "rayon",
- "serde",
- "serde_json",
- "serde_plain",
- "tracing",
-]
-
-[[package]]
-name = "candle-transformers"
-version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#be411aa562740c04944097675a2c11d7ed79c72d"
-dependencies = [
- "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle.git)",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle.git)",
- "fancy-regex 0.13.0",
  "num-traits",
  "rand 0.9.1",
  "rayon",
@@ -2079,41 +2026,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cyterm"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-datasets",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
- "cosmic-text",
- "cpal 0.16.0",
- "crossbeam-channel",
- "crossbeam-utils",
- "fluent-voice-workspace-hack",
- "fluent_voice_whisper",
- "hf-hub 0.3.2",
- "hound",
- "koffee",
- "log",
- "ndarray",
- "once_cell",
- "ort",
- "pin-project",
- "rand 0.8.5",
- "ratatui",
- "rustfft",
- "serde",
- "thiserror 2.0.12",
- "tokenizers 0.20.4",
- "tokio-stream",
- "tracing-chrome",
- "tracing-subscriber",
- "typed-builder",
-]
-
-[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2300,12 +2212,12 @@ dependencies = [
  "bindgen_cuda",
  "bytemuck",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
  "candle-datasets",
  "candle-flash-attn",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-nn",
  "candle-onnx",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-transformers",
  "clap",
  "cpal 0.16.0",
  "crossterm",
@@ -2345,7 +2257,7 @@ dependencies = [
  "sha2",
  "symphonia",
  "thiserror 2.0.12",
- "tokenizers 0.21.2",
+ "tokenizers",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -3173,13 +3085,18 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle.git)",
- "nextest",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "crossbeam-channel",
+ "crossbeam-utils",
+ "fluent_voice_domain",
+ "futures-core",
+ "futures-util",
  "rayon",
  "serde",
  "serde_json",
+ "thiserror 2.0.12",
  "tokio",
  "tracing",
 ]
@@ -3194,6 +3111,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-stream",
+ "async-trait",
  "clap",
  "core-foundation 0.10.1",
  "core-video",
@@ -3208,13 +3126,16 @@ dependencies = [
  "parking_lot",
  "pollster 0.4.0",
  "postage",
- "ratagpu",
  "raw-window-handle",
+ "rustls 0.23.29",
+ "rustls-platform-verifier",
  "scap",
  "sha2",
  "simplelog",
  "thiserror 2.0.12",
  "tokio",
+ "tokio-tungstenite 0.24.0",
+ "tracing",
  "tracing-subscriber",
  "url",
  "winit",
@@ -3230,12 +3151,12 @@ dependencies = [
  "async-stream",
  "bindgen_cuda",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
  "candle-datasets",
  "candle-flash-attn",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-nn",
  "candle-onnx",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-transformers",
  "clap",
  "cpal 0.16.0",
  "crossbeam",
@@ -3263,6 +3184,7 @@ dependencies = [
  "imageproc",
  "intel-mkl-src",
  "koffee",
+ "log",
  "memmap2",
  "ndarray",
  "num-traits",
@@ -3278,7 +3200,7 @@ dependencies = [
  "serde",
  "serde_json",
  "symphonia",
- "tokenizers 0.21.2",
+ "tokenizers",
  "tokio",
  "tracing",
  "tracing-chrome",
@@ -3357,6 +3279,7 @@ dependencies = [
  "core-video",
  "coreaudio-rs 0.13.0",
  "cpal 0.16.0",
+ "crossbeam-queue",
  "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "futures",
@@ -3409,12 +3332,12 @@ dependencies = [
  "async-stream",
  "bindgen_cuda",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
  "candle-datasets",
  "candle-flash-attn",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-nn",
  "candle-onnx",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-transformers",
  "ciborium",
  "clap",
  "console_error_panic_hook",
@@ -3447,7 +3370,7 @@ dependencies = [
  "serde_json",
  "symphonia",
  "thiserror 2.0.12",
- "tokenizers 0.21.2",
+ "tokenizers",
  "tokio",
  "tracing",
  "tracing-chrome",
@@ -5093,12 +5016,12 @@ dependencies = [
  "arrayvec",
  "bindgen_cuda",
  "byteorder",
- "candle-core 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
  "candle-datasets",
  "candle-flash-attn",
- "candle-nn 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-nn",
  "candle-onnx",
- "candle-transformers 0.9.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-transformers",
  "ciborium",
  "clap",
  "console_error_panic_hook",
@@ -5134,7 +5057,7 @@ dependencies = [
  "symphonia",
  "tempfile",
  "thiserror 2.0.12",
- "tokenizers 0.21.2",
+ "tokenizers",
  "tokio",
  "tracing",
  "tracing-chrome",
@@ -6051,12 +5974,6 @@ name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
-
-[[package]]
-name = "nextest"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4916d44d6c0a42693f966f0987acb4fa43ec3ca85d957c02f30c7ad160bfe7e6"
 
 [[package]]
 name = "nix"
@@ -7913,17 +7830,6 @@ checksum = "b418a60154510ca1a002a752ca9714984e21e4241e804d32555251faf8b78ffa"
 dependencies = [
  "either",
  "rayon-core",
-]
-
-[[package]]
-name = "rayon-cond"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "059f538b55efd2309c9794130bc149c6a553db90e9d99c2030785c82f0bd7df9"
-dependencies = [
- "either",
- "itertools 0.11.0",
- "rayon",
 ]
 
 [[package]]
@@ -9874,38 +9780,6 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokenizers"
-version = "0.20.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b08cc37428a476fc9e20ac850132a513a2e1ce32b6a31addf2b74fa7033b905"
-dependencies = [
- "aho-corasick",
- "derive_builder",
- "esaxx-rs",
- "getrandom 0.2.16",
- "indicatif 0.17.11",
- "itertools 0.12.1",
- "lazy_static",
- "log",
- "macro_rules_attribute",
- "monostate",
- "onig",
- "paste",
- "rand 0.8.5",
- "rayon",
- "rayon-cond 0.3.0",
- "regex",
- "regex-syntax 0.8.5",
- "serde",
- "serde_json",
- "spm_precompiled",
- "thiserror 1.0.69",
- "unicode-normalization-alignments",
- "unicode-segmentation",
- "unicode_categories",
-]
-
-[[package]]
-name = "tokenizers"
 version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c3846d8588abed0daba25a0e47edd58ea15e450a6088b2575f5116fdb0b27ca"
@@ -9926,7 +9800,7 @@ dependencies = [
  "paste",
  "rand 0.9.1",
  "rayon",
- "rayon-cond 0.4.0",
+ "rayon-cond",
  "regex",
  "regex-syntax 0.8.5",
  "serde",
@@ -10022,6 +9896,18 @@ dependencies = [
  "tokio",
  "tokio-native-tls",
  "tungstenite 0.20.1",
+]
+
+[[package]]
+name = "tokio-tungstenite"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edc5f74e248dc973e0dbb7b74c7e0d6fcc301c694ff50049504004ef4d0cdcd9"
+dependencies = [
+ "futures-util",
+ "log",
+ "tokio",
+ "tungstenite 0.24.0",
 ]
 
 [[package]]
@@ -10325,6 +10211,24 @@ dependencies = [
  "sha1",
  "thiserror 1.0.69",
  "url",
+ "utf-8",
+]
+
+[[package]]
+name = "tungstenite"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18e5b8366ee7a95b16d32197d0b2604b43a0be89dc5fac9f8e96ccafbaedda8a"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "data-encoding",
+ "http 1.3.1",
+ "httparse",
+ "log",
+ "rand 0.8.5",
+ "sha1",
+ "thiserror 1.0.69",
  "utf-8",
 ]
 
@@ -11319,7 +11223,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

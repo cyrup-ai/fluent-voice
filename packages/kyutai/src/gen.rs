@@ -2,7 +2,7 @@ use crate::error::Result;
 use crate::generator::Generator;
 use crate::lm::LmModel;
 use crate::mimi::Mimi;
-use candle::Tensor;
+use candle_core::Tensor;
 use candle_transformers::generation::LogitsProcessor;
 
 /// General generation functions for Moshi models.

@@ -2,7 +2,7 @@
 //!
 //! Provides streaming functionality for real-time audio processing and generation.
 
-use candle::{DType, Device, Result, Tensor};
+use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::VarBuilder;
 use std::collections::VecDeque;
 
@@ -42,8 +42,8 @@ pub struct StreamingTransformer {
     pub transformer: crate::transformer::Transformer,
     cache: VecDeque<Tensor>,
     config: StreamingConfig,
-    device: Device,
-    dtype: DType,
+    _device: Device,
+    _dtype: DType,
 }
 
 impl StreamingTransformer {
@@ -57,8 +57,8 @@ impl StreamingTransformer {
             transformer,
             cache: VecDeque::new(),
             config: streaming_config,
-            device,
-            dtype,
+            _device: device,
+            _dtype: dtype,
         })
     }
 
@@ -151,7 +151,7 @@ impl CaSrc {
 #[derive(Debug)]
 pub struct StreamTensor {
     data: VecDeque<Tensor>,
-    chunk_size: usize,
+    _chunk_size: usize,
     current_pos: usize,
 }
 
@@ -159,7 +159,7 @@ impl StreamTensor {
     pub fn new(chunk_size: usize) -> Self {
         Self {
             data: VecDeque::new(),
-            chunk_size,
+            _chunk_size: chunk_size,
             current_pos: 0,
         }
     }

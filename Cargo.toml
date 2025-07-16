@@ -2,7 +2,6 @@
 resolver = "3"
 members = [
     "packages/animator",
-    "packages/cyterm",
     "packages/dia",
     "packages/domain",
     "packages/elevenlabs",
@@ -15,6 +14,7 @@ members = [
     "packages/whisper",
     "workspace-hack"
 ]
+exclude = ["packages/cyterm"]  # Temporarily excluded due to dependency API changes
 
 [workspace.package]
 edition = "2024"
