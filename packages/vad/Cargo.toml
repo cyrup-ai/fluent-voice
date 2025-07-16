@@ -9,7 +9,7 @@ keywords = ["speech", "stt","recognition", "voice", "activity", "detection"]
 categories = ["multimedia::audio"]
 
 [dependencies]
-fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+#fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 
 futures = "0.3.31"

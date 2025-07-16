@@ -45,11 +45,6 @@ impl VoiceDiscoveryResult {
         }
     }
 
-    /// Get an iterator over the voices.
-    pub fn into_iter(self) -> impl Iterator<Item = VoiceDetails> {
-        self.voices.into_iter()
-    }
-
     /// Get the number of voices in this result.
     pub fn len(&self) -> usize {
         self.voices.len()
@@ -58,6 +53,15 @@ impl VoiceDiscoveryResult {
     /// Check if the result is empty.
     pub fn is_empty(&self) -> bool {
         self.voices.is_empty()
+    }
+}
+
+impl IntoIterator for VoiceDiscoveryResult {
+    type Item = VoiceDetails;
+    type IntoIter = std::vec::IntoIter<VoiceDetails>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.voices.into_iter()
     }
 }
 

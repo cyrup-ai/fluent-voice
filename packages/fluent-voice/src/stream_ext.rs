@@ -3,12 +3,12 @@
 //! Provides the `.on_chunk()` functionality for processing synthesis chunks
 //! using cyrup_sugars streaming patterns.
 
-use crate::audio_chunk::{AudioChunk, SynthesisChunk, BadAudioStreamSegment};
+use crate::audio_chunk::{AudioChunk, BadAudioStreamSegment, SynthesisChunk};
 use cyrup_sugars::{AsyncStream, StreamExt as CyrupStreamExt};
 use fluent_voice_domain::VoiceError;
 
 /// Default error handler for audio streams
-/// 
+///
 /// This function provides the default error handling behavior that logs errors
 /// with env_logger and returns BadAudioStreamSegment::new(e) for audio stream errors.
 pub fn default_audio_chunk_error_handler(result: Result<AudioChunk, VoiceError>) -> AudioChunk {
@@ -19,7 +19,7 @@ pub fn default_audio_chunk_error_handler(result: Result<AudioChunk, VoiceError>)
 }
 
 /// Default error handler for transcript streams
-/// 
+///
 /// This function provides the default error handling behavior that logs errors
 /// with env_logger and returns empty string for transcript errors.
 pub fn default_transcript_error_handler(result: Result<String, VoiceError>) -> String {
@@ -127,7 +127,9 @@ impl TtsStreamExt<SynthesisChunk> for AsyncStream<SynthesisChunk> {
                 SynthesisChunk::from(transformed)
             }
             Err(_) => {
-                let transformed = f(Err(VoiceError::ProcessingError("Stream processing error".to_string())));
+                let transformed = f(Err(VoiceError::ProcessingError(
+                    "Stream processing error".to_string(),
+                )));
                 SynthesisChunk::from(transformed)
             }
         })
@@ -177,7 +179,9 @@ impl TtsStreamExt<AudioChunk> for AsyncStream<AudioChunk> {
     {
         CyrupStreamExt::on_chunk(self, move |result| match result {
             Ok(audio_chunk) => f(Ok(audio_chunk)),
-            Err(_) => f(Err(VoiceError::ProcessingError("Stream processing error".to_string()))),
+            Err(_) => f(Err(VoiceError::ProcessingError(
+                "Stream processing error".to_string(),
+            ))),
         })
     }
 
@@ -191,7 +195,9 @@ impl TtsStreamExt<AudioChunk> for AsyncStream<AudioChunk> {
                 SynthesisChunk::from(transformed)
             }
             Err(_) => {
-                let transformed = f(Err(VoiceError::ProcessingError("Stream processing error".to_string())));
+                let transformed = f(Err(VoiceError::ProcessingError(
+                    "Stream processing error".to_string(),
+                )));
                 SynthesisChunk::from(transformed)
             }
         })
@@ -312,7 +318,9 @@ impl SttStreamExt<String> for AsyncStream<String> {
     {
         CyrupStreamExt::on_chunk(self, move |result| match result {
             Ok(text) => f(Ok(text)),
-            Err(_) => f(Err(VoiceError::ProcessingError("Stream processing error".to_string()))),
+            Err(_) => f(Err(VoiceError::ProcessingError(
+                "Stream processing error".to_string(),
+            ))),
         })
     }
 
@@ -332,7 +340,9 @@ impl SttStreamExt<String> for AsyncStream<String> {
                 }
             }
             Err(_) => {
-                let transformed = f(Err(VoiceError::ProcessingError("Stream processing error".to_string())));
+                let transformed = f(Err(VoiceError::ProcessingError(
+                    "Stream processing error".to_string(),
+                )));
                 match transformed {
                     Ok(t) => t,
                     Err(e) => {

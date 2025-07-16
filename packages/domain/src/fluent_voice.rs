@@ -4,7 +4,6 @@ use crate::{
     audio_isolation::AudioIsolationBuilder,
     sound_effects::SoundEffectsBuilder,
     speech_to_speech::SpeechToSpeechBuilder,
-    stt_conversation::SttConversationBuilder,
     tts_conversation::TtsConversationBuilder,
     voice_clone::VoiceCloneBuilder,
     voice_discovery::VoiceDiscoveryBuilder,
@@ -66,16 +65,7 @@ pub trait FluentVoice {
     /// A new TTS conversation builder instance.
     fn tts() -> impl TtsConversationBuilder;
 
-    /// Begin a new STT conversation builder.
-    ///
-    /// This method returns a conversation builder that can be used to configure
-    /// audio sources, language hints, VAD settings, and other recognition
-    /// parameters before starting transcription.
-    ///
-    /// # Returns
-    ///
-    /// A new STT conversation builder instance.
-    fn stt() -> impl SttConversationBuilder;
+    // STT functionality moved to fluent-voice implementation
 
     /// Begin a new wake word detection builder.
     ///
@@ -144,6 +134,12 @@ pub trait FluentVoice {
 #[derive(Debug, Clone)]
 pub struct DefaultWakeWordDetector {
     config: WakeWordConfig,
+}
+
+impl Default for DefaultWakeWordDetector {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DefaultWakeWordDetector {
@@ -232,6 +228,12 @@ impl WakeWordStream for DefaultWakeWordDetector {
 #[derive(Debug, Clone)]
 pub struct DefaultWakeWordBuilder {
     config: WakeWordConfig,
+}
+
+impl Default for DefaultWakeWordBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DefaultWakeWordBuilder {

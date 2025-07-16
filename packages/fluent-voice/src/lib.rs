@@ -92,6 +92,9 @@ mod macros;
 /* ───── concrete builder implementations ───── */
 pub mod builders;
 
+/* ───── STT conversation trait definitions ───── */
+pub mod stt_conversation;
+
 /* ───── unified entry point ───── */
 pub mod fluent_voice;
 

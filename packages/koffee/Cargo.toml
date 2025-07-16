@@ -19,7 +19,7 @@ authors      = ["David Maple <david@cyrup.ai>"]
 #  Dependencies
 # ------------------------------------------------
 [dependencies]
-fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+#fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 
 # — DSP / NN (base dependencies - no acceleration features) —
@@ -63,7 +63,7 @@ rustfft = "6.4.0"
 strum = { version = "0.27.1", features = ["derive"] }
 rubato = { version = "0.16.2", optional = true }
 serde = { version = "1.0.219", features = ["derive"] }
-smallvec = "1.15.1"
+smallvec.workspace = true
 log = "0.4.27"
 clap = { version = "4.5.41", features = ["derive"] }
 # tokio is in workspace-hack

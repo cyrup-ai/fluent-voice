@@ -83,25 +83,25 @@ fn device_helper(cpu: bool) -> Result<Device> {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub(crate) struct DecodingResult {
-    pub(crate) tokens: Vec<u32>,
-    pub(crate) text: String,
-    pub(crate) avg_logprob: f64,
-    pub(crate) no_speech_prob: f64,
-    pub(crate) temperature: f64,
-    pub(crate) compression_ratio: f64,
+pub struct DecodingResult {
+    pub tokens: Vec<u32>,
+    pub text: String,
+    pub avg_logprob: f64,
+    pub no_speech_prob: f64,
+    pub temperature: f64,
+    pub compression_ratio: f64,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub(crate) struct Segment {
-    pub(crate) start: f64,
-    pub(crate) duration: f64,
-    pub(crate) dr: DecodingResult,
+pub struct Segment {
+    pub start: f64,
+    pub duration: f64,
+    pub dr: DecodingResult,
 }
 
 #[allow(dead_code)] // Library code - used by whisper inference
-struct Decoder {
+pub struct Decoder {
     model: Model,
     rng: rand::rngs::StdRng,
     task: Option<Task>,
@@ -121,7 +121,7 @@ struct Decoder {
 impl Decoder {
     #[allow(dead_code)] // Library code - decoder constructor
     #[allow(clippy::too_many_arguments)]
-    fn new(
+    pub fn new(
         model: Model,
         tokenizer: Tokenizer,
         seed: u64,
@@ -371,13 +371,13 @@ pub fn token_id(tokenizer: &Tokenizer, token: &str) -> candle_core::Result<u32> 
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
-enum Task {
+pub enum Task {
     Transcribe,
     Translate,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
-enum WhichModel {
+pub enum WhichModel {
     Tiny,
     #[value(name = "tiny.en")]
     TinyEn,

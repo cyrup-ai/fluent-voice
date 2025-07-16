@@ -3,20 +3,19 @@
 //! This module provides a non-macro implementation of the STT conversation builders
 //! that can be used as a base for engine-specific implementations.
 
-use crate::stt_conversation::TranscriptionBuilder;
 use crate::audio_chunk::transcript_stream_to_string_stream;
+use crate::stt_conversation::{SttConversation, TranscriptionBuilder};
 use core::future::Future;
-use futures_core::Stream;
 use fluent_voice_domain::VoiceError;
 use fluent_voice_domain::{
     language::Language,
     noise_reduction::NoiseReduction,
     speech_source::SpeechSource,
-    stt_conversation::SttConversation,
     timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps},
     transcript::{TranscriptSegment, TranscriptStream},
     vad_mode::VadMode,
 };
+use futures_core::Stream;
 use std::pin::Pin;
 // We use futures::stream instead of futures_util::stream since futures is in the dependencies
 use futures::StreamExt;
@@ -57,7 +56,7 @@ pub struct SttConversationImpl<S> {
     >,
 }
 
-impl<S> fluent_voice_domain::stt_conversation::SttConversation for SttConversationImpl<S>
+impl<S> crate::stt_conversation::SttConversation for SttConversationImpl<S>
 where
     S: TranscriptStream,
 {
@@ -251,7 +250,6 @@ where
         // For now, we'll just return self until we implement storage
         self
     }
-
 }
 
 /// Post-chunk builder implementation for STT
@@ -294,7 +292,10 @@ where
 {
     type Conversation = SttConversationImpl<S>;
 
-    fn with_microphone(self, device: impl Into<String>) -> impl crate::stt_conversation::MicrophoneBuilder {
+    fn with_microphone(
+        self,
+        device: impl Into<String>,
+    ) -> impl crate::stt_conversation::MicrophoneBuilder {
         let SttConversationBuilderImpl {
             vad_mode,
             noise_reduction,
@@ -306,7 +307,7 @@ where
             stream_fn,
             ..
         } = self.base_builder;
-        
+
         MicrophoneBuilderImpl::new(
             device.into(),
             vad_mode,
@@ -320,7 +321,10 @@ where
         )
     }
 
-    fn transcribe(self, path: impl Into<String>) -> impl crate::stt_conversation::TranscriptionBuilder {
+    fn transcribe(
+        self,
+        path: impl Into<String>,
+    ) -> impl crate::stt_conversation::TranscriptionBuilder {
         let SttConversationBuilderImpl {
             vad_mode,
             noise_reduction,
@@ -332,7 +336,7 @@ where
             stream_fn,
             ..
         } = self.base_builder;
-        
+
         TranscriptionBuilderImpl::new(
             path.into(),
             vad_mode,
@@ -358,7 +362,7 @@ where
             punctuation: self.base_builder.punctuation,
             stream_fn: self.base_builder.stream_fn,
         };
-        
+
         // Convert to string stream using transcript_stream_to_string_stream
         let transcript_stream = conversation.into_stream();
         transcript_stream_to_string_stream(transcript_stream)
@@ -370,7 +374,10 @@ where
     S: TranscriptStream + 'static,
 {
     /// Configure engine parameters using JSON object syntax
-    pub fn engine_config(mut self, config: impl Into<hashbrown::HashMap<&'static str, &'static str>>) -> Self {
+    pub fn engine_config(
+        mut self,
+        config: impl Into<hashbrown::HashMap<&'static str, &'static str>>,
+    ) -> Self {
         let config_map = config.into();
         for (k, v) in config_map {
             self.engine_config.insert(k.to_string(), v.to_string());
@@ -696,11 +703,12 @@ where
                 Err(e) => {
                     // Log error and return empty stream
                     log::error!("Transcription error: {}", e);
-                    Box::pin(stream::empty::<String>()) as Pin<Box<dyn Stream<Item = String> + Send>>
+                    Box::pin(stream::empty::<String>())
+                        as Pin<Box<dyn Stream<Item = String> + Send>>
                 }
             }
         };
-        
+
         Box::pin(stream::once(stream_fut).flatten()) as Pin<Box<dyn Stream<Item = String> + Send>>
     }
 
@@ -718,7 +726,7 @@ where
         }
     }
 
-    fn as_text(self) -> impl Stream<Item = String> + Send {
+    fn into_text_stream(self) -> impl Stream<Item = String> + Send {
         // Use Box<dyn Stream> to erase the complex return type
         let stream_fut = async move {
             match self.create_transcript().await {

@@ -20,7 +20,7 @@ use fluent_voice_domain::{
     AudioFormat, Diarization, Language, MicBackend, Punctuation, SpeechSource,
     TimestampsGranularity, VadMode, WordTimestamps,
 };
-3 decsxw tokio_stream::StreamExt;
+use tokio_stream::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Default engines: VAD, koffee wake word, whisper STT with JSON configuration
     let mut transcript_stream = FluentVoice::stt()
         .conversation()
-        .engine_config({"provider" => "whisper", "model" => "large-v3"})
+        .engine_config(serde_json::json!({"provider": "whisper", "model": "large-v3"}))
         .with_source(SpeechSource::Microphone {
             backend: MicBackend::Default,
             format: AudioFormat::Pcm16Khz,
@@ -43,8 +43,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
         .on_chunk(|transcription_chunk| {
-            Ok => transcription_chunk.into(), // Unwrap each chunk
-            Err(e) => Err(e),
+            match transcription_chunk {
+                Ok(chunk) => chunk.into(), // Unwrap each chunk
+                Err(e) => panic!("Error processing chunk: {:?}", e),
+            }
         })
         .listen(|conversation| conversation.into_stream()) // Returns transcript stream
         .await?; // Single await point

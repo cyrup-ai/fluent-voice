@@ -42,12 +42,12 @@ impl Default for VoiceCloneBuilderImpl {
 impl VoiceCloneBuilder for VoiceCloneBuilderImpl {
     type Result = VoiceCloneResult;
 
-    fn from_samples(mut self, samples: Vec<impl Into<String>>) -> Self {
+    fn with_samples(mut self, samples: Vec<impl Into<String>>) -> Self {
         self.samples = samples.into_iter().map(|s| s.into()).collect();
         self
     }
 
-    fn from_sample(mut self, sample: impl Into<String>) -> Self {
+    fn with_sample(mut self, sample: impl Into<String>) -> Self {
         self.samples.push(sample.into());
         self
     }

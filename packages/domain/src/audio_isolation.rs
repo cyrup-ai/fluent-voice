@@ -35,14 +35,14 @@ pub trait AudioIsolationBuilder: Sized + Send {
     /// # Arguments
     ///
     /// * `source` - Path to input audio file
-    fn from_file(self, source: impl Into<String>) -> Self;
+    fn with_file(self, source: impl Into<String>) -> Self;
 
     /// Set the input audio data directly.
     ///
     /// # Arguments
     ///
     /// * `data` - Raw audio data bytes
-    fn from_audio_data(self, data: Vec<u8>) -> Self;
+    fn with_audio_data(self, data: Vec<u8>) -> Self;
 
     /// Enable voice isolation.
     ///

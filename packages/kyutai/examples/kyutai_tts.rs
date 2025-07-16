@@ -22,15 +22,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("=================================\n");
 
     // Create TTS conversation with voice-cloned Southpark characters
-    // Following exact README.md syntax pattern with enhanced JSON configuration
+    // Following exact README.md syntax pattern
     let mut audio_stream = FluentVoice::tts()
         .conversation()
-        .engine_config({"provider": "dia", "quality": "high"})
         .with_speaker(
             Speaker::speaker("Kenny")
                 .voice_id(VoiceId::new("kenny-voice-clone-2024"))
-                .metadata({"character": "kenny", "accent": "muffled"})
-                .vocal_settings({"speed": "0.9", "pitch": "high"})
                 .with_speed_modifier(VocalSpeedMod(0.9))
                 .speak("Mmmph mmmph mmmph! (Oh my God, they killed Kenny!)")
                 .build(),
@@ -38,8 +35,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_speaker(
             Speaker::speaker("Cartman")
                 .voice_id(VoiceId::new("cartman-voice-clone-2024"))
-                .metadata({"character" => "cartman", "accent" => "authoritative"})
-                .vocal_settings({"speed" => "1.1", "pitch" => "medium"})
                 .with_speed_modifier(VocalSpeedMod(1.1))
                 .speak("Respect my authoritah! I'm not fat, I'm big-boned!")
                 .build(),
@@ -47,8 +42,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_speaker(
             Speaker::speaker("Stan")
                 .voice_id(VoiceId::new("stan-voice-clone-2024"))
-                .metadata({"character" => "stan", "accent" => "normal"})
-                .vocal_settings({"speed" => "1.0", "pitch" => "medium"})
                 .with_speed_modifier(VocalSpeedMod(1.0))
                 .speak("Oh my God, this is so messed up. Seriously, you guys.")
                 .build(),
@@ -56,8 +49,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_speaker(
             Speaker::speaker("Kyle")
                 .voice_id(VoiceId::new("kyle-voice-clone-2024"))
-                .metadata({"character" => "kyle", "accent" => "slightly_nasal"})
-                .vocal_settings({"speed" => "1.05", "pitch" => "medium_high"})
                 .with_speed_modifier(VocalSpeedMod(1.05))
                 .speak("That's not cool, Cartman! You can't just do that!")
                 .build(),
@@ -65,24 +56,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_speaker(
             Speaker::speaker("Kenny")
                 .voice_id(VoiceId::new("kenny-voice-clone-2024"))
-                .metadata({"character" => "kenny", "accent" => "muffled"})
-                .vocal_settings({"speed" => "0.9", "pitch" => "high"})
                 .speak("Mmmph mmmph mmmph mmmph! (Yeah, that's really messed up!)")
                 .build(),
         )
-        .on_chunk(|synthesis_chunk| {
-            Ok => synthesis_chunk.into(), // Unwrap each audio chunk
-            Err(e) => Err(e),
+        .on_chunk(|result| match result {
+            Ok(chunk) => chunk,
+            Err(e) => {
+                eprintln!("TTS error: {}", e);
+                Vec::new()
+            }
         })
-        .synthesize(|conversation| conversation.into_stream()) // Returns audio stream
-        .await?; // Single await point
+        .synthesize();
 
-    // Process the audio stream
+    // Process audio samples exactly like README.md
     println!("🎵 Processing Southpark character voices...");
     let mut total_samples = 0;
     let mut audio_data = Vec::new();
 
     while let Some(sample) = audio_stream.next().await {
+        // Play sample or save to file (README.md pattern)
         audio_data.push(sample);
         total_samples += 1;
 

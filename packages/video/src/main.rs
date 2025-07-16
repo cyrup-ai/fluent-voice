@@ -176,18 +176,16 @@ impl VideoChat {
     }
 
     #[allow(dead_code)]
-    fn init_window(
-        &mut self,
-        window_target: &ActiveEventLoop,
-        args: &Args,
-    ) -> Result<Window> {
-        let window = window_target.create_window(
-            WindowAttributes::default()
-                .with_inner_size(LogicalSize::new(args.width, args.height))
-                .with_title(format!("Video Chat - {}", args.name))
-                .with_visible(true)
-                .with_resizable(true)
-        ).context("Failed to create window")?;
+    fn init_window(&mut self, window_target: &ActiveEventLoop, args: &Args) -> Result<Window> {
+        let window = window_target
+            .create_window(
+                WindowAttributes::default()
+                    .with_inner_size(LogicalSize::new(args.width, args.height))
+                    .with_title(format!("Video Chat - {}", args.name))
+                    .with_visible(true)
+                    .with_resizable(true),
+            )
+            .context("Failed to create window")?;
 
         // Initialize local video track view
         if let Some(track_view) = &mut self.local_track_view {
@@ -306,7 +304,9 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     // Create event loop with user events (simplified for compatibility)
-    let event_loop = winit::event_loop::EventLoop::<CustomEvent>::with_user_event().build().unwrap();
+    let event_loop = winit::event_loop::EventLoop::<CustomEvent>::with_user_event()
+        .build()
+        .unwrap();
 
     // Create video chat
     let mut video_chat = VideoChat::new()?;
@@ -333,11 +333,14 @@ fn main() -> Result<()> {
         let args_clone = args.clone();
         // We'll connect in the main event loop instead of spawning a separate task
         // to avoid borrow checker issues with video_chat
-        println!("LiveKit connection will be established with {:?}", args_clone.url);
+        println!(
+            "LiveKit connection will be established with {:?}",
+            args_clone.url
+        );
     }
 
     // Run event loop using new run_app API
     event_loop.run_app(&mut app)?;
-    
+
     Ok(())
 }

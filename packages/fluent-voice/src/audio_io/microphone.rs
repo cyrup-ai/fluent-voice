@@ -393,7 +393,7 @@ impl Decoder {
                         ((time_offset + segment_duration) * 1000.0) as u32,
                         None, // No speaker ID in this context
                     ));
-                    
+
                     if self.decoder.verbose {
                         println!(
                             "Processed segment at seek {}: text='{}', avg_logprob={}",
@@ -427,37 +427,111 @@ impl Decoder {
     /// Detect language using the same algorithm as whisper crate but adapted for our Model enum
     #[allow(dead_code)]
     fn detect_language_internal(&mut self, mel: &Tensor) -> candle_core::Result<u32> {
-        use candle_nn::ops::softmax;
         use candle_core::{D, IndexOp};
+        use candle_nn::ops::softmax;
         use candle_transformers::models::whisper as m;
 
         // Language codes from whisper crate
         const LANGUAGES: [(&str, &str); 99] = [
-            ("en", "english"), ("zh", "chinese"), ("de", "german"), ("es", "spanish"),
-            ("ru", "russian"), ("ko", "korean"), ("fr", "french"), ("ja", "japanese"),
-            ("pt", "portuguese"), ("tr", "turkish"), ("pl", "polish"), ("ca", "catalan"),
-            ("nl", "dutch"), ("ar", "arabic"), ("sv", "swedish"), ("it", "italian"),
-            ("id", "indonesian"), ("hi", "hindi"), ("fi", "finnish"), ("vi", "vietnamese"),
-            ("he", "hebrew"), ("uk", "ukrainian"), ("el", "greek"), ("ms", "malay"),
-            ("cs", "czech"), ("ro", "romanian"), ("da", "danish"), ("hu", "hungarian"),
-            ("ta", "tamil"), ("no", "norwegian"), ("th", "thai"), ("ur", "urdu"),
-            ("hr", "croatian"), ("bg", "bulgarian"), ("lt", "lithuanian"), ("la", "latin"),
-            ("mi", "maori"), ("ml", "malayalam"), ("cy", "welsh"), ("sk", "slovak"),
-            ("te", "telugu"), ("fa", "persian"), ("lv", "latvian"), ("bn", "bengali"),
-            ("sr", "serbian"), ("az", "azerbaijani"), ("sl", "slovenian"), ("kn", "kannada"),
-            ("et", "estonian"), ("mk", "macedonian"), ("br", "breton"), ("eu", "basque"),
-            ("is", "icelandic"), ("hy", "armenian"), ("ne", "nepali"), ("mn", "mongolian"),
-            ("bs", "bosnian"), ("kk", "kazakh"), ("sq", "albanian"), ("sw", "swahili"),
-            ("gl", "galician"), ("mr", "marathi"), ("pa", "punjabi"), ("si", "sinhala"),
-            ("km", "khmer"), ("sn", "shona"), ("yo", "yoruba"), ("so", "somali"),
-            ("af", "afrikaans"), ("oc", "occitan"), ("ka", "georgian"), ("be", "belarusian"),
-            ("tg", "tajik"), ("sd", "sindhi"), ("gu", "gujarati"), ("am", "amharic"),
-            ("yi", "yiddish"), ("lo", "lao"), ("uz", "uzbek"), ("fo", "faroese"),
-            ("ht", "haitian creole"), ("ps", "pashto"), ("tk", "turkmen"), ("nn", "nynorsk"),
-            ("mt", "maltese"), ("sa", "sanskrit"), ("lb", "luxembourgish"), ("my", "myanmar"),
-            ("bo", "tibetan"), ("tl", "tagalog"), ("mg", "malagasy"), ("as", "assamese"),
-            ("tt", "tatar"), ("haw", "hawaiian"), ("ln", "lingala"), ("ha", "hausa"),
-            ("ba", "bashkir"), ("jw", "javanese"), ("su", "sundanese"),
+            ("en", "english"),
+            ("zh", "chinese"),
+            ("de", "german"),
+            ("es", "spanish"),
+            ("ru", "russian"),
+            ("ko", "korean"),
+            ("fr", "french"),
+            ("ja", "japanese"),
+            ("pt", "portuguese"),
+            ("tr", "turkish"),
+            ("pl", "polish"),
+            ("ca", "catalan"),
+            ("nl", "dutch"),
+            ("ar", "arabic"),
+            ("sv", "swedish"),
+            ("it", "italian"),
+            ("id", "indonesian"),
+            ("hi", "hindi"),
+            ("fi", "finnish"),
+            ("vi", "vietnamese"),
+            ("he", "hebrew"),
+            ("uk", "ukrainian"),
+            ("el", "greek"),
+            ("ms", "malay"),
+            ("cs", "czech"),
+            ("ro", "romanian"),
+            ("da", "danish"),
+            ("hu", "hungarian"),
+            ("ta", "tamil"),
+            ("no", "norwegian"),
+            ("th", "thai"),
+            ("ur", "urdu"),
+            ("hr", "croatian"),
+            ("bg", "bulgarian"),
+            ("lt", "lithuanian"),
+            ("la", "latin"),
+            ("mi", "maori"),
+            ("ml", "malayalam"),
+            ("cy", "welsh"),
+            ("sk", "slovak"),
+            ("te", "telugu"),
+            ("fa", "persian"),
+            ("lv", "latvian"),
+            ("bn", "bengali"),
+            ("sr", "serbian"),
+            ("az", "azerbaijani"),
+            ("sl", "slovenian"),
+            ("kn", "kannada"),
+            ("et", "estonian"),
+            ("mk", "macedonian"),
+            ("br", "breton"),
+            ("eu", "basque"),
+            ("is", "icelandic"),
+            ("hy", "armenian"),
+            ("ne", "nepali"),
+            ("mn", "mongolian"),
+            ("bs", "bosnian"),
+            ("kk", "kazakh"),
+            ("sq", "albanian"),
+            ("sw", "swahili"),
+            ("gl", "galician"),
+            ("mr", "marathi"),
+            ("pa", "punjabi"),
+            ("si", "sinhala"),
+            ("km", "khmer"),
+            ("sn", "shona"),
+            ("yo", "yoruba"),
+            ("so", "somali"),
+            ("af", "afrikaans"),
+            ("oc", "occitan"),
+            ("ka", "georgian"),
+            ("be", "belarusian"),
+            ("tg", "tajik"),
+            ("sd", "sindhi"),
+            ("gu", "gujarati"),
+            ("am", "amharic"),
+            ("yi", "yiddish"),
+            ("lo", "lao"),
+            ("uz", "uzbek"),
+            ("fo", "faroese"),
+            ("ht", "haitian creole"),
+            ("ps", "pashto"),
+            ("tk", "turkmen"),
+            ("nn", "nynorsk"),
+            ("mt", "maltese"),
+            ("sa", "sanskrit"),
+            ("lb", "luxembourgish"),
+            ("my", "myanmar"),
+            ("bo", "tibetan"),
+            ("tl", "tagalog"),
+            ("mg", "malagasy"),
+            ("as", "assamese"),
+            ("tt", "tatar"),
+            ("haw", "hawaiian"),
+            ("ln", "lingala"),
+            ("ha", "hausa"),
+            ("ba", "bashkir"),
+            ("jw", "javanese"),
+            ("su", "sundanese"),
         ];
 
         let (_bsize, _, seq_len) = mel.dims3()?;
@@ -467,13 +541,13 @@ impl Decoder {
             usize::min(seq_len, self.model.config().max_source_positions),
         )?;
         let device = mel.device();
-        
+
         // Get language token IDs
         let language_token_ids = LANGUAGES
             .iter()
             .map(|(t, _)| token_id(&self.tokenizer, &format!("<|{t}|>")))
             .collect::<candle_core::Result<Vec<_>>>()?;
-        
+
         let sot_token = token_id(&self.tokenizer, m::SOT_TOKEN)?;
         let audio_features = self.model.encoder_forward(&mel, true)?;
         let tokens = Tensor::new(&[[sot_token]], device)?;
@@ -485,13 +559,13 @@ impl Decoder {
         let probs = probs.to_vec1::<f32>()?;
         let mut probs = LANGUAGES.iter().zip(probs.iter()).collect::<Vec<_>>();
         probs.sort_by(|(_, p1), (_, p2)| p2.total_cmp(p1));
-        
+
         if self.verbose {
             for ((_, language), p) in probs.iter().take(5) {
                 println!("{language}: {p}")
             }
         }
-        
+
         let language = token_id(&self.tokenizer, &format!("<|{}|>", probs[0].0.0))?;
         Ok(language)
     }
@@ -712,7 +786,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
                 }
             }
         };
-        
+
         let config: Config = match std::fs::read_to_string(&config_filename) {
             Ok(content) => match serde_json::from_str(&content) {
                 Ok(config) => config,
@@ -726,7 +800,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
                 return;
             }
         };
-        
+
         let tokenizer = match Tokenizer::from_file(&tokenizer_filename) {
             Ok(tokenizer) => tokenizer,
             Err(e) => {
@@ -734,7 +808,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
                 return;
             }
         };
-        
+
         let model = if args.quantized {
             match candle_transformers::quantized_var_builder::VarBuilder::from_gguf(
                 &weights_filename,
@@ -772,7 +846,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
                 }
             }
         };
-        
+
         let decoder = match Decoder::new(
             model,
             tokenizer.clone(),
@@ -828,7 +902,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
                 }
             }
         };
-        
+
         let audio_config = match audio_device.default_input_config() {
             Ok(config) => config,
             Err(e) => {
@@ -885,7 +959,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
                 return;
             }
         };
-        
+
         if let Err(e) = stream.play() {
             yield Err(anyhow::anyhow!("Failed to start audio stream: {}", e).into());
             return;
@@ -929,7 +1003,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
             // Extract immutable data before mutable borrow to avoid borrow checker conflicts
             let in_sample_rate = self.in_sample_rate;
             let buffered_pcm_len = self.buffered_pcm.len();
-            
+
             let pcm = if self.resampler.is_some() {
                 let resample_ratio = m::SAMPLE_RATE as f64 / in_sample_rate as f64;
                 let chunk_size = 1024;
@@ -944,7 +1018,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
                     let start_idx = chunk_idx * chunk_size;
                     let end_idx = (chunk_idx + 1) * chunk_size;
                     let chunk_data = self.buffered_pcm[start_idx..end_idx].to_vec();
-                    
+
                     if let Some(ref mut resampler) = self.resampler {
                         match resampler.process(&[&chunk_data], None) {
                             Ok(pcm) => {
@@ -954,7 +1028,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
                         }
                     }
                 }
-                
+
                 // Handle remaining PCM data
                 if remainder > 0 {
                     self.buffered_pcm.copy_within(full_chunks * chunk_size.., 0);
@@ -1017,7 +1091,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
             let poll_result = Pin::new(&mut segment_stream).poll_next(cx);
             // Drop segment_stream before accessing self.decoder.model to avoid borrow conflicts
             drop(segment_stream);
-            
+
             match poll_result {
                 Poll::Ready(Some(Ok(chunk))) => {
                     self.decoder.model.reset_kv_cache();

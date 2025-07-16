@@ -37,14 +37,14 @@ pub trait SpeechToSpeechBuilder: Sized + Send {
     /// # Arguments
     ///
     /// * `source` - Path to input audio file
-    fn from_audio(self, source: impl Into<String>) -> Self;
+    fn with_audio_source(self, source: impl Into<String>) -> Self;
 
     /// Set the input audio data directly.
     ///
     /// # Arguments
     ///
     /// * `data` - Raw audio data bytes
-    fn from_audio_data(self, data: Vec<u8>) -> Self;
+    fn with_audio_data(self, data: Vec<u8>) -> Self;
 
     /// Set the target voice for conversion.
     ///

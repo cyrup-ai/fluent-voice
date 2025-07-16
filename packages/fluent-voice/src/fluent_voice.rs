@@ -1,15 +1,16 @@
 //! Unified entry point trait for TTS and STT operations.
 
+// Use local STT conversation builders, not domain ones
 use fluent_voice_domain::{
-    AudioIsolationBuilder, SoundEffectsBuilder,
-    SpeechToSpeechBuilder, TtsConversationBuilder, TtsConversation,
-    VoiceCloneBuilder, VoiceDiscoveryBuilder,
-    WakeWordBuilder, TtsConversationExt, SttConversationExt,
-    WakeWordConversationExt,
+    AudioIsolationBuilder, SoundEffectsBuilder, SpeechToSpeechBuilder, TtsConversation,
+    TtsConversationBuilder, TtsConversationExt, VoiceCloneBuilder, VoiceDiscoveryBuilder,
+    WakeWordBuilder, WakeWordConversationExt,
 };
-use fluent_voice_domain::SttConversationBuilder;
+// Use local STT builders instead of domain ones
+use crate::stt_conversation::{SttConversationBuilder, SttConversationExt, SttPostChunkBuilder};
 // Import beautiful dia-voice high-level builder API
 use dia::voice::voice_builder::DiaVoiceBuilder;
+// Import default STT engine
 
 /// Unified entry point for Text-to-Speech and Speech-to-Text operations.
 ///
@@ -142,17 +143,84 @@ impl TtsEntry {
     }
 }
 
-/// Entry point for STT operations providing .conversation() method
-pub struct SttEntry;
+/// Entry point for STT operations with direct fluent API methods
+pub struct SttEntry {
+    builder: crate::engines::DefaultSTTConversationBuilder,
+}
 
 impl SttEntry {
     pub fn new() -> Self {
-        Self
+        Self {
+            builder: crate::engines::DefaultSTTConversationBuilder::new(),
+        }
     }
 
-    /// Create a new STT conversation builder
+    /// Configure the speech source for transcription
+    pub fn with_source(mut self, source: fluent_voice_domain::SpeechSource) -> Self {
+        self.builder = self.builder.with_source(source);
+        self
+    }
+
+    /// Configure voice activity detection mode
+    pub fn vad_mode(mut self, mode: fluent_voice_domain::VadMode) -> Self {
+        self.builder = self.builder.vad_mode(mode);
+        self
+    }
+
+    /// Configure language hint for better recognition
+    pub fn language_hint(mut self, lang: fluent_voice_domain::Language) -> Self {
+        self.builder = self.builder.language_hint(lang);
+        self
+    }
+
+    /// Configure speaker diarization
+    pub fn diarization(mut self, d: fluent_voice_domain::Diarization) -> Self {
+        self.builder = self.builder.diarization(d);
+        self
+    }
+
+    /// Configure word-level timestamps
+    pub fn word_timestamps(mut self, w: fluent_voice_domain::WordTimestamps) -> Self {
+        self.builder = self.builder.word_timestamps(w);
+        self
+    }
+
+    /// Configure punctuation
+    pub fn punctuation(mut self, p: fluent_voice_domain::Punctuation) -> Self {
+        self.builder = self.builder.punctuation(p);
+        self
+    }
+
+    /// Configure chunk processing with matcher function
+    pub fn on_chunk<F, T>(self, f: F) -> SttPostChunkEntry<impl SttPostChunkBuilder>
+    where
+        F: FnMut(Result<T, fluent_voice_domain::VoiceError>) -> T + Send + 'static,
+        T: fluent_voice_domain::TranscriptSegment + Send + 'static,
+    {
+        let post_chunk_builder = self.builder.on_chunk(f);
+        SttPostChunkEntry {
+            builder: post_chunk_builder,
+        }
+    }
+
+    /// Create a new STT conversation builder (for compatibility)
     pub fn conversation(self) -> impl SttConversationBuilder {
-        crate::engines::DefaultSTTConversationBuilder::new()
+        self.builder
+    }
+}
+
+/// Post-chunk entry point that provides listen() method
+pub struct SttPostChunkEntry<B> {
+    builder: B,
+}
+
+impl<B> SttPostChunkEntry<B>
+where
+    B: SttPostChunkBuilder,
+{
+    /// Start listening for transcription
+    pub fn listen(self) -> impl futures_core::Stream<Item = String> + Send + Unpin {
+        self.builder.listen()
     }
 }
 
@@ -285,8 +353,7 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
         self
     }
 
-    fn synthesize(self) -> impl futures_core::Stream<Item = Vec<u8>> + Send + Unpin
-    {
+    fn synthesize(self) -> impl futures_core::Stream<Item = Vec<u8>> + Send + Unpin {
         use futures::stream;
         // For now, return an empty stream as placeholder
         // TODO: Implement actual TTS synthesis

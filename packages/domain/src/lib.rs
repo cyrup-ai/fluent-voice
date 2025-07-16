@@ -25,7 +25,6 @@ pub mod speech_source;
 pub mod speech_to_speech;
 pub mod stability;
 pub mod stt_conversation;
-pub mod stt_engine;
 pub mod style_exaggeration;
 pub mod timestamps;
 pub mod transcript;
@@ -51,11 +50,7 @@ pub use noise_reduction::NoiseReduction;
 pub use speaker::Speaker;
 pub use speaker_builder::{SpeakerBuilder, SpeakerExt};
 pub use speech_source::SpeechSource;
-pub use stt_conversation::{
-    MicrophoneBuilder, SttConversation, SttConversationBuilder, SttConversationExt,
-    SttPostChunkBuilder, TranscriptionBuilder,
-};
-pub use stt_engine::SttEngine;
+pub use stt_conversation::{SttConfig, SttConversation, SttConversationImpl};
 pub use timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps};
 pub use transcript::{TranscriptSegment, TranscriptSegmentImpl, TranscriptStream};
 pub use tts_conversation::{

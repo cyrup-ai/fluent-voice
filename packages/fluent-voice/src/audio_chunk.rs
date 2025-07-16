@@ -63,7 +63,7 @@ impl BadAudioStreamSegment {
     pub fn new(error: VoiceError) -> AudioChunk {
         // Log the error using env_logger
         log::error!("Audio stream error: {}", error);
-        
+
         // Return a placeholder AudioChunk
         AudioChunk::new(Vec::new(), AudioFormat::Mp3Khz44_192)
             .with_metadata("error", serde_json::json!(error.to_string()))
@@ -184,7 +184,7 @@ impl AudioChunk {
             .iter()
             .flat_map(|&sample| sample.to_le_bytes())
             .collect();
-        
+
         Self::new(audio_data, format)
     }
 }
@@ -263,7 +263,7 @@ impl cyrup_sugars::NotResult for AudioChunk {}
 impl cyrup_sugars::NotResult for SynthesisChunk {}
 
 /// Helper function to convert Stream<i16> to Stream<Vec<u8>>
-/// 
+///
 /// This function batches i16 samples into Vec<u8> segments for streaming synthesis.
 /// It chunks the samples into reasonable-sized audio segments.
 pub fn i16_stream_to_bytes_stream<S>(
@@ -274,19 +274,17 @@ where
     S: futures_core::Stream<Item = i16> + Send + Unpin + 'static,
 {
     use futures_util::StreamExt;
-    
-    stream
-        .chunks(chunk_size)
-        .map(|samples| {
-            samples
-                .into_iter()
-                .flat_map(|sample| sample.to_le_bytes())
-                .collect()
-        })
+
+    stream.chunks(chunk_size).map(|samples| {
+        samples
+            .into_iter()
+            .flat_map(|sample| sample.to_le_bytes())
+            .collect()
+    })
 }
 
 /// Helper function to convert Stream<i16> to Stream<AudioChunk>
-/// 
+///
 /// This function batches i16 samples into AudioChunk segments for streaming synthesis.
 /// It chunks the samples into reasonable-sized audio segments.
 pub fn i16_stream_to_audio_chunk_stream<S>(
@@ -298,14 +296,14 @@ where
     S: futures_core::Stream<Item = i16> + Send + Unpin + 'static,
 {
     use futures_util::StreamExt;
-    
+
     stream
         .chunks(chunk_size)
         .map(move |samples| AudioChunk::from_pcm_samples(&samples, format))
 }
 
 /// Helper function to convert TranscriptStream to Stream<String>
-/// 
+///
 /// This function converts a transcript stream (which yields Result<TranscriptSegment, VoiceError>)
 /// to a stream of strings for direct consumption.
 pub fn transcript_stream_to_string_stream<S, T>(
@@ -316,7 +314,7 @@ where
     T: fluent_voice_domain::transcript::TranscriptSegment,
 {
     use futures_util::StreamExt;
-    
+
     stream.map(|result| match result {
         Ok(segment) => segment.text().to_string(),
         Err(e) => {

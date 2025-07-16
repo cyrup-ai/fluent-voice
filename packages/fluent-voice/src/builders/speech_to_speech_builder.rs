@@ -62,12 +62,12 @@ impl Default for SpeechToSpeechBuilderImpl {
 impl SpeechToSpeechBuilder for SpeechToSpeechBuilderImpl {
     type Session = SpeechToSpeechSessionImpl;
 
-    fn from_audio(mut self, source: impl Into<String>) -> Self {
+    fn with_audio_source(mut self, source: impl Into<String>) -> Self {
         self.source = Some(source.into());
         self
     }
 
-    fn from_audio_data(mut self, data: Vec<u8>) -> Self {
+    fn with_audio_data(mut self, data: Vec<u8>) -> Self {
         self.audio_data = Some(data);
         self
     }

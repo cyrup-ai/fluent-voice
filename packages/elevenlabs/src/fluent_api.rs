@@ -5,9 +5,7 @@
 
 #![allow(dead_code)]
 
-pub use crate::engine::{
-    AudioOutput, AudioStream, Result, TranscriptOutput, TranscriptStream,
-};
+pub use crate::engine::{AudioOutput, AudioStream, Result, TranscriptOutput, TranscriptStream};
 use crate::engine::{TtsEngine as InternalEngine, TtsEngineBuilder as InternalEngineBuilder};
 
 /// Main entry point for fluent-voice API with ElevenLabs

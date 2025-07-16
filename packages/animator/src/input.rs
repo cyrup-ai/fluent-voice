@@ -1,5 +1,4 @@
 /// Input module for matrix data structures and data sources
-
 /// Matrix data structure for storing multi-dimensional audio data
 pub type Matrix<T> = Vec<Vec<T>>;
 

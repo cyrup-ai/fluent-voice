@@ -60,7 +60,7 @@ impl Transcript {
     /// Create an empty transcript.
     #[allow(dead_code)] // Library code - used by fluent-voice builders
     #[inline]
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self { chunks: Vec::new() }
     }
 

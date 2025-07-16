@@ -67,14 +67,14 @@ pub trait VoiceCloneBuilder: Sized + Send {
     /// # Arguments
     ///
     /// * `samples` - Paths to audio sample files
-    fn from_samples(self, samples: Vec<impl Into<String>>) -> Self;
+    fn with_samples(self, samples: Vec<impl Into<String>>) -> Self;
 
     /// Add a single audio sample.
     ///
     /// # Arguments
     ///
     /// * `sample` - Path to audio sample file
-    fn from_sample(self, sample: impl Into<String>) -> Self;
+    fn with_sample(self, sample: impl Into<String>) -> Self;
 
     /// Set the name for the cloned voice.
     ///

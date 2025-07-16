@@ -19,7 +19,7 @@ authors      = ["David Maple <david@cyrup.ai>"]
 #  Dependencies
 # ------------------------------------------------
 [dependencies]
-fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+#fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars"}
 
@@ -39,7 +39,7 @@ js-sys = { version = "0.3.77", optional = true }
 web-sys = { version = "0.3.77", optional = true }
 # — containers / utils —
 arrayvec       = "0.7.6"
-# smallvec       = "2.0.0-alpha.10" # in workspace-hack
+smallvec.workspace = true
 indexmap       = "2.10.0"
 thiserror      = "2.0.12"
 # log            = "0.4.27" # in workspace-hack

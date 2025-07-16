@@ -16,7 +16,7 @@ impl Similarity {
     ///
     /// Values outside this range will be clamped.
     pub fn new(value: f32) -> Self {
-        let clamped = value.max(0.0).min(1.0);
+        let clamped = value.clamp(0.0, 1.0);
         Self(clamped)
     }
 

@@ -3,8 +3,8 @@
 //! This module provides a non-macro implementation of the TTS conversation builder
 //! that can be used as a base for engine-specific implementations.
 
-use crate::tts_conversation::{TtsConversation, TtsConversationBuilder};
 use crate::audio_chunk::i16_stream_to_bytes_stream;
+use crate::tts_conversation::{TtsConversation, TtsConversationBuilder};
 use fluent_voice_domain::{
     VoiceError,
     audio_format::AudioFormat,
@@ -12,7 +12,6 @@ use fluent_voice_domain::{
     pronunciation_dict::{PronunciationDictId, RequestId},
 };
 use futures_core::Stream;
-
 
 /// Concrete speaker implementation for TTS operations.
 #[derive(Clone, Debug)]
@@ -132,7 +131,10 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
 
 impl SpeakerLineBuilder {
     /// Configure speaker metadata using JSON object syntax
-    pub fn metadata(mut self, config: impl Into<hashbrown::HashMap<&'static str, &'static str>>) -> Self {
+    pub fn metadata(
+        mut self,
+        config: impl Into<hashbrown::HashMap<&'static str, &'static str>>,
+    ) -> Self {
         let meta_map = config.into();
         for (k, v) in meta_map {
             self.metadata.insert(k.to_string(), v.to_string());
@@ -141,7 +143,10 @@ impl SpeakerLineBuilder {
     }
 
     /// Configure vocal settings using JSON object syntax
-    pub fn vocal_settings(mut self, config: impl Into<hashbrown::HashMap<&'static str, &'static str>>) -> Self {
+    pub fn vocal_settings(
+        mut self,
+        config: impl Into<hashbrown::HashMap<&'static str, &'static str>>,
+    ) -> Self {
         let settings_map = config.into();
         for (k, v) in settings_map {
             self.vocal_settings.insert(k.to_string(), v.to_string());
@@ -151,7 +156,6 @@ impl SpeakerLineBuilder {
 }
 
 /// Implementation of SpeakerExt for all Speaker types using fluent-voice concrete builders
-
 
 /// Concrete TTS conversation implementation.
 pub struct TtsConversationImpl<AudioStream> {
@@ -337,7 +341,10 @@ where
     }
 
     /// Configure engine parameters using JSON object syntax
-    pub fn engine_config(mut self, config: impl Into<hashbrown::HashMap<&'static str, &'static str>>) -> Self {
+    pub fn engine_config(
+        mut self,
+        config: impl Into<hashbrown::HashMap<&'static str, &'static str>>,
+    ) -> Self {
         let config_map = config.into();
         for (k, v) in config_map {
             self.engine_config.insert(k.to_string(), v.to_string());
@@ -521,19 +528,21 @@ where
         T: Send + 'static,
     {
         // Store the processor function for audio chunk error handling
-        self.chunk_processor = Some(Box::new(move |result: Result<Vec<u8>, VoiceError>| -> Vec<u8> {
-            // Convert the Vec<u8> result to the generic T type and back
-            // This is a simplified implementation - a full implementation would handle proper type conversion
-            match result {
-                Ok(chunk) => chunk,
-                Err(e) => {
-                    // Call the user's processor with the error and get the default value
-                    let _default_val = processor(Err(e));
-                    // Convert back to Vec<u8> - this is simplified
-                    Vec::new()
+        self.chunk_processor = Some(Box::new(
+            move |result: Result<Vec<u8>, VoiceError>| -> Vec<u8> {
+                // Convert the Vec<u8> result to the generic T type and back
+                // This is a simplified implementation - a full implementation would handle proper type conversion
+                match result {
+                    Ok(chunk) => chunk,
+                    Err(e) => {
+                        // Call the user's processor with the error and get the default value
+                        let _default_val = processor(Err(e));
+                        // Convert back to Vec<u8> - this is simplified
+                        Vec::new()
+                    }
                 }
-            }
-        }));
+            },
+        ));
         self
     }
 
@@ -564,16 +573,17 @@ where
             next_request_ids: self.next_request_ids,
             synth_fn: self.synth_fn,
         };
-        
+
         // Convert the i16 stream to bytes stream
         let i16_stream = conversation.into_stream();
         let chunk_size = 1024; // Reasonable chunk size for audio
-        
+
         i16_stream_to_bytes_stream(i16_stream, chunk_size)
     }
 }
 
-impl<AudioStream> crate::tts_conversation::TtsConversationChunkBuilder for TtsConversationBuilderImpl<AudioStream>
+impl<AudioStream> crate::tts_conversation::TtsConversationChunkBuilder
+    for TtsConversationBuilderImpl<AudioStream>
 where
     AudioStream: Stream<Item = i16> + Send + Unpin + 'static,
 {
@@ -598,11 +608,11 @@ where
             next_request_ids: self.next_request_ids,
             synth_fn: self.synth_fn,
         };
-        
+
         // Convert the i16 stream to bytes stream
         let i16_stream = conversation.into_stream();
         let chunk_size = 1024; // Reasonable chunk size for audio
-        
+
         i16_stream_to_bytes_stream(i16_stream, chunk_size)
     }
 }

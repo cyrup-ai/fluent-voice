@@ -7,19 +7,21 @@ use crate::error::MoshiError;
 use crate::tts::Model;
 use candle_core::{DType, Device, Tensor};
 use crossbeam_channel::{Receiver, Sender, bounded};
+use fluent_voice::stt_conversation::{
+    MicrophoneBuilder, SttConversation, SttConversationBuilder, SttPostChunkBuilder, TranscriptionBuilder,
+};
 use fluent_voice_domain::pronunciation_dict::PronunciationDictId;
 use fluent_voice_domain::voice_labels::{VoiceCategory, VoiceDetails, VoiceLabels, VoiceType};
 use fluent_voice_domain::wake_word::{
     WakeWordConfig, WakeWordDetector, WakeWordEvent, WakeWordResult,
 };
 use fluent_voice_domain::{
-    AudioFormat, AudioIsolationBuilder, Diarization, FluentVoice, Language, MicBackend,
-    MicrophoneBuilder, ModelId, NoiseReduction, PitchRange, Punctuation, RequestId, Similarity,
-    SoundEffectsBuilder, Speaker, SpeakerBoost, SpeechSource, SpeechToSpeechBuilder, Stability,
-    SttConversation, SttConversationBuilder, SttPostChunkBuilder, StyleExaggeration, TimestampsGranularity,
-    TranscriptSegment, TranscriptionBuilder, TtsConversation, TtsConversationBuilder,
-    TtsConversationChunkBuilder, VadMode, VocalSpeedMod, VoiceCloneBuilder, VoiceDiscoveryBuilder,
-    VoiceError, VoiceId, WakeWordBuilder, WordTimestamps,
+    AudioFormat, AudioIsolationBuilder, Diarization, FluentVoice, Language, MicBackend, ModelId,
+    NoiseReduction, PitchRange, Punctuation, RequestId, Similarity, SoundEffectsBuilder, Speaker,
+    SpeakerBoost, SpeechSource, SpeechToSpeechBuilder, Stability,
+    StyleExaggeration, TimestampsGranularity, TranscriptSegment, TtsConversation,
+    TtsConversationBuilder, TtsConversationChunkBuilder, VadMode, VocalSpeedMod, VoiceCloneBuilder,
+    VoiceDiscoveryBuilder, VoiceError, VoiceId, WakeWordBuilder, WordTimestamps,
 };
 use futures_core::Stream;
 use futures_util::stream;
@@ -166,10 +168,7 @@ impl FluentVoice for KyutaiEngine {
         KyutaiTtsConversationBuilder::new()
     }
 
-    #[inline]
-    fn stt() -> impl SttConversationBuilder {
-        KyutaiSttConversationBuilder::new()
-    }
+    // STT functionality moved to fluent-voice implementation
 
     #[inline]
     fn wake_word() -> impl WakeWordBuilder {
@@ -390,11 +389,11 @@ impl TtsConversationBuilder for KyutaiTtsConversationBuilder {
     }
 
     fn synthesize(self) -> impl Stream<Item = Vec<u8>> + Send + Unpin {
-        // Convert conversation to audio stream 
+        // Convert conversation to audio stream
         use futures_util::StreamExt;
         let conversation = KyutaiTtsConversation::new(self);
         let audio_stream = conversation.into_stream();
-        
+
         // Convert i16 samples to Vec<u8> chunks
         Box::pin(audio_stream.map(|sample| {
             // Convert i16 to bytes (little endian)
@@ -424,7 +423,7 @@ impl TtsConversationChunkBuilder for KyutaiTtsConversationChunkBuilder {
         use futures_util::StreamExt;
         let conversation = KyutaiTtsConversation::new(self.base);
         let audio_stream = conversation.into_stream();
-        
+
         // Convert i16 samples to Vec<u8> chunks
         Box::pin(audio_stream.map(|sample| {
             // Convert i16 to bytes (little endian)
@@ -875,7 +874,7 @@ impl TranscriptionBuilder for KyutaiTranscriptionBuilder {
         handler(result)
     }
 
-    fn as_text(self) -> impl Stream<Item = String> + Send {
+    fn into_text_stream(self) -> impl Stream<Item = String> + Send {
         stream::empty()
     }
 }
@@ -894,7 +893,7 @@ impl KyutaiSttConversation {
     }
 }
 
-impl SttConversation for KyutaiSttConversation {
+impl fluent_voice::stt_conversation::SttConversation for KyutaiSttConversation {
     type Stream = Pin<Box<dyn Stream<Item = Result<KyutaiTranscriptSegment, VoiceError>> + Send>>;
 
     fn into_stream(self) -> Self::Stream {
@@ -1160,12 +1159,12 @@ impl VoiceCloneBuilder for KyutaiVoiceCloneBuilder {
     type Result = VoiceDetails;
 
     #[inline]
-    fn from_samples(self, _samples: Vec<impl Into<String>>) -> Self {
+    fn with_samples(self, _samples: Vec<impl Into<String>>) -> Self {
         self
     }
 
     #[inline]
-    fn from_sample(self, _sample: impl Into<String>) -> Self {
+    fn with_sample(self, _sample: impl Into<String>) -> Self {
         self
     }
 
@@ -1223,12 +1222,12 @@ impl SpeechToSpeechBuilder for KyutaiSpeechToSpeechBuilder {
     type Session = KyutaiSpeechToSpeechSession;
 
     #[inline]
-    fn from_audio(self, _path: impl Into<String>) -> Self {
+    fn with_audio_source(self, _path: impl Into<String>) -> Self {
         self
     }
 
     #[inline]
-    fn from_audio_data(self, _data: Vec<u8>) -> Self {
+    fn with_audio_data(self, _data: Vec<u8>) -> Self {
         self
     }
 
@@ -1307,12 +1306,12 @@ impl AudioIsolationBuilder for KyutaiAudioIsolationBuilder {
     type Session = KyutaiAudioIsolationSession;
 
     #[inline]
-    fn from_file(self, _path: impl Into<String>) -> Self {
+    fn with_file(self, _path: impl Into<String>) -> Self {
         self
     }
 
     #[inline]
-    fn from_audio_data(self, _data: Vec<u8>) -> Self {
+    fn with_audio_data(self, _data: Vec<u8>) -> Self {
         self
     }
 
