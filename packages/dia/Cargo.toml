@@ -5,7 +5,7 @@ edition = "2024"
 
 
 [dependencies]
-fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars.git", branch = "main" }
 fluent_voice_domain = { path = "../domain" }
 
@@ -106,7 +106,7 @@ imageproc = "0.25.0"
 memmap2 = "0.9.7"
 ab_glyph = "0.2.30"
 
-# OS-specific acceleration dependencies 
+# OS-specific acceleration dependencies
 [target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
 cudarc = { version = "0.16.6", optional = true, default-features = false, features = ["cublas", "cublaslt", "cudnn", "curand", "dynamic-linking", "f16", "std"] }
 intel-mkl-src = { version = "0.8", optional = true }

@@ -22,10 +22,10 @@ default = []
 test-support = []
 
 [dependencies]
-fluent-voice-workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 
-async-trait = "0.1.87"
+async-trait = "0.1.88"
 anyhow = "1.0.98"
 async-stream = "0.3.6"
 clap = { version = "4.5.40", features = ["derive"] }

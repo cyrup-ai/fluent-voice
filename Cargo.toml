@@ -13,6 +13,7 @@ members = [
     "packages/video",
     "packages/whisper",
     "workspace-hack",
+    # "workspace-hack",
 ]
 exclude = ["packages/cyterm", "forks/ort"]  # Temporarily excluded due to dependency API changes
 
@@ -27,5 +28,3 @@ repository = "https://github.com/cyrup-ai/fluent-voice"
 authors = ["David Maple<david@cyrup.ai>"]
 
 [workspace.dependencies]
-
-

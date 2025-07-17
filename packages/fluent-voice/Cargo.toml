@@ -33,7 +33,7 @@ hashbrown-json = ["cyrup_sugars/hashbrown-json"]
 crossbeam-async = ["dep:crossbeam"]
 
 [dependencies]
-fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 fluent_voice_whisper = {  path = "../whisper", features = ["async-stream", "audio", "display", "record"] }
 fluent_voice_vad = { path = "../vad", features = ["async", "ort"] }

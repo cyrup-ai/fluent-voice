@@ -12,7 +12,7 @@ serde = { version = "1.0", features = ["derive"] }
 futures-core = "0.3"
 futures-util = "0.3"
 futures = "0.3.31"
-fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 
 [lib]
 path = "src/lib.rs"

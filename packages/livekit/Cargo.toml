@@ -25,13 +25,13 @@ mimi = []
 snac = []
 
 [dependencies]
-fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 
 tracing = "0.1.41"
 anyhow = "1.0.98"
 cpal = "0.16.0"
-crossbeam-queue = "0.3.11"
+crossbeam-queue = "0.3.12"
 futures = "0.3.31"
 rustls-platform-verifier = "0.6"
 rustls = "0.23"
