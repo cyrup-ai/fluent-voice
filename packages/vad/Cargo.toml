@@ -20,6 +20,17 @@ thiserror = "2.0.12"
 typed-builder = "0.21"
 ndarray = "0.16.1"
 
+# Candle ML dependencies
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-flash-attn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-onnx = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-datasets = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+
+# — Optional acceleration dependencies —
+half = { version = "2.6", optional = true }
+
 [dev-dependencies]
 hound = "3.5.1"
 # itertools = "0.14" # in workspace-hack
@@ -27,7 +38,19 @@ hound = "3.5.1"
 tokio-stream = "0.1"
 
 [features]
-default = ["ort"]
+default = ["ort", "metal"]
+
+# --- Candle backend features (required for all candle crates) -----
+cuda = ["candle-core/cuda", "candle-nn/cuda", "dep:cudarc", "dep:half", "dep:bindgen_cuda", "candle-transformers?/cuda"]
+cudnn = ["candle-core/cudnn", "candle-nn/cudnn", "candle-transformers?/cudnn"]
+metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers?/metal"]
+accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers?/accelerate"]
+mkl = ["dep:intel-mkl-src", "candle-core/mkl", "candle-nn/mkl", "candle-transformers?/mkl"]
+flash-attn = ["cuda", "dep:candle-flash-attn", "candle-transformers?/flash-attn"]
+nccl = ["cuda", "cudarc/nccl", "dep:half"]
+onnx = ["dep:candle-onnx"]
+
+# --- Other features ---
 async = []
 load-dynamic = ["ort/load-dynamic"]
 ort = ["dep:ort"]
@@ -35,3 +58,21 @@ ort = ["dep:ort"]
 [lib]
 path = "src/lib.rs"
 name = "fluent_voice_vad"
+
+# OS-specific acceleration dependencies
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
+cudarc = { version = "0.16", optional = true, default-features = false, features = ["cublas", "cublaslt", "cudnn", "curand", "dynamic-linking", "f16", "std"] }
+intel-mkl-src = { version = "0.8", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+cudarc = { version = "0.16", optional = true, default-features = false, features = ["cublas", "cublaslt", "cudnn", "curand", "dynamic-linking", "f16", "std"] }
+intel-mkl-src = { version = "0.8", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+accelerate-src = { version = "0.3", optional = true }
+
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.build-dependencies]
+bindgen_cuda = { version = "0.1.5", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.build-dependencies]
+bindgen_cuda = { version = "0.1.5", optional = true }

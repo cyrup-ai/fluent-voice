@@ -9,12 +9,15 @@ fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars.git", branch = "main" }
 fluent_voice_domain = { path = "../domain" }
 
-candle-core = { git = "https://github.com/huggingface/candle", branch = "main" }
-candle-nn = { git = "https://github.com/huggingface/candle", branch = "main" }
-candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main"}
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
 candle-flash-attn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
 candle-onnx = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
 candle-datasets = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+
+# — Optional acceleration dependencies —
+half = { version = "2.6", optional = true }
 rubato     = { version = "0.16.2", optional = true }                                                 # FFT resampler
 symphonia = { version = "0.5", optional = true }
 # External loudness crate no longer required – local DSP implementation
@@ -52,8 +55,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 clap = { version = "4.5.41", features = ["derive"] }
 thiserror = "2.0.12"
 
-# Optional acceleration dependencies
-half = { version = "2.6.0", optional = true }
+# Optional acceleration dependencies removed (already defined above)
 
 # Optional ML/data dependencies
 image = { version = "0.25.6", optional = true }
@@ -68,13 +70,13 @@ cpal = { version = "0.16.0", optional = true }
 
 [features]
 default = ["metal"]
-# GPU acceleration features
-cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda", "dep:cudarc", "dep:half", "dep:bindgen_cuda"]
-cudnn = ["candle-core/cudnn", "candle-nn/cudnn", "candle-transformers/cudnn"]
-metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
-accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]
-mkl = ["dep:intel-mkl-src", "candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
-flash-attn = ["cuda", "dep:candle-flash-attn", "candle-transformers/flash-attn"]
+# --- Candle backend features (required for all candle crates) -----
+cuda = ["candle-core/cuda", "candle-nn/cuda", "dep:cudarc", "dep:half", "dep:bindgen_cuda", "candle-transformers?/cuda"]
+cudnn = ["candle-core/cudnn", "candle-nn/cudnn", "candle-transformers?/cudnn"]
+metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers?/metal"]
+accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers?/accelerate"]
+mkl = ["dep:intel-mkl-src", "candle-core/mkl", "candle-nn/mkl", "candle-transformers?/mkl"]
+flash-attn = ["cuda", "dep:candle-flash-attn", "candle-transformers?/flash-attn"]
 nccl = ["cuda", "cudarc/nccl", "dep:half"]
 onnx = ["dep:candle-onnx"]
 # UI features
@@ -119,6 +121,12 @@ bindgen_cuda = { version = "0.1.5", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 accelerate-src = { version = "0.3", optional = true }
+
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.build-dependencies]
+bindgen_cuda = { version = "0.1.5", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.build-dependencies]
+bindgen_cuda = { version = "0.1.5", optional = true }
 
 [build-dependencies]
 anyhow = "1.0"

@@ -8,7 +8,8 @@ use crate::tts::Model;
 use candle_core::{DType, Device, Tensor};
 use crossbeam_channel::{Receiver, Sender, bounded};
 use fluent_voice::stt_conversation::{
-    MicrophoneBuilder, SttConversation, SttConversationBuilder, SttPostChunkBuilder, TranscriptionBuilder,
+    MicrophoneBuilder, SttConversation, SttConversationBuilder, SttPostChunkBuilder,
+    TranscriptionBuilder,
 };
 use fluent_voice_domain::pronunciation_dict::PronunciationDictId;
 use fluent_voice_domain::voice_labels::{VoiceCategory, VoiceDetails, VoiceLabels, VoiceType};
@@ -18,10 +19,10 @@ use fluent_voice_domain::wake_word::{
 use fluent_voice_domain::{
     AudioFormat, AudioIsolationBuilder, Diarization, FluentVoice, Language, MicBackend, ModelId,
     NoiseReduction, PitchRange, Punctuation, RequestId, Similarity, SoundEffectsBuilder, Speaker,
-    SpeakerBoost, SpeechSource, SpeechToSpeechBuilder, Stability,
-    StyleExaggeration, TimestampsGranularity, TranscriptSegment, TtsConversation,
-    TtsConversationBuilder, TtsConversationChunkBuilder, VadMode, VocalSpeedMod, VoiceCloneBuilder,
-    VoiceDiscoveryBuilder, VoiceError, VoiceId, WakeWordBuilder, WordTimestamps,
+    SpeakerBoost, SpeechSource, SpeechToSpeechBuilder, Stability, StyleExaggeration,
+    TimestampsGranularity, TranscriptSegment, TtsConversation, TtsConversationBuilder,
+    TtsConversationChunkBuilder, VadMode, VocalSpeedMod, VoiceCloneBuilder, VoiceDiscoveryBuilder,
+    VoiceError, VoiceId, WakeWordBuilder, WordTimestamps,
 };
 use futures_core::Stream;
 use futures_util::stream;
@@ -563,8 +564,7 @@ pub struct KyutaiSttConversationBuilder {
     punctuation: Option<Punctuation>,
 }
 
-impl KyutaiSttConversationBuilder {
-}
+impl KyutaiSttConversationBuilder {}
 
 impl SttConversationBuilder for KyutaiSttConversationBuilder {
     type Conversation = KyutaiSttConversation;

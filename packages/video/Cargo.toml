@@ -18,8 +18,18 @@ name = "video-chat"
 path = "src/bin/video_chat.rs"
 
 [features]
-default = []
+default = ["metal"]
 test-support = []
+
+# --- Candle backend features (required for all candle crates) -----
+cuda = ["candle-core/cuda", "candle-nn/cuda", "dep:cudarc", "dep:half", "dep:bindgen_cuda", "candle-transformers?/cuda"]
+cudnn = ["candle-core/cudnn", "candle-nn/cudnn", "candle-transformers?/cudnn"]
+metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers?/metal"]
+accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers?/accelerate"]
+mkl = ["dep:intel-mkl-src", "candle-core/mkl", "candle-nn/mkl", "candle-transformers?/mkl"]
+flash-attn = ["cuda", "dep:candle-flash-attn", "candle-transformers?/flash-attn"]
+nccl = ["cuda", "cudarc/nccl", "dep:half"]
+onnx = ["dep:candle-onnx"]
 
 [dependencies]
 fluent-voice-workspace-hack = { path = "../../workspace-hack" }
@@ -50,6 +60,17 @@ url = "2.5.4"
 pollster = "0.4"
 winit = "0.30"
 tokio = "1.46.1"
+
+# Candle ML dependencies
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-flash-attn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-onnx = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-datasets = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+
+# — Optional acceleration dependencies —
+half = { version = "2.6", optional = true }
 # naga = "26.0.0" # in workspace-hack
 
 
@@ -65,10 +86,28 @@ core-foundation = "0.10.1"
 core-video = "0.4.3"
 coreaudio-rs = "0.13.0"
 objc2 = "0.6.1"
+accelerate-src = { version = "0.3", optional = true }
 
 [dev-dependencies]
 sha2 = "0.10.9"
 simplelog = "0.12.2"
+
+# OS-specific acceleration dependencies
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
+cudarc = { version = "0.16", optional = true, default-features = false, features = ["cublas", "cublaslt", "cudnn", "curand", "dynamic-linking", "f16", "std"] }
+intel-mkl-src = { version = "0.8", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+cudarc = { version = "0.16", optional = true, default-features = false, features = ["cublas", "cublaslt", "cudnn", "curand", "dynamic-linking", "f16", "std"] }
+intel-mkl-src = { version = "0.8", optional = true }
+
+# accelerate-src already included in macos dependencies above
+
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.build-dependencies]
+bindgen_cuda = { version = "0.1.5", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.build-dependencies]
+bindgen_cuda = { version = "0.1.5", optional = true }
 
 [build-dependencies]
 # serde = { version = "1.0.219", features = ["derive"] } # in workspace-hack

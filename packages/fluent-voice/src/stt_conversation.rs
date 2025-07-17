@@ -1,14 +1,9 @@
 //! Live/batch transcription builder.
-use fluent_voice_domain::{
-    Language,
-    NoiseReduction,
-    SpeechSource,
-    Diarization, Punctuation, TimestampsGranularity, WordTimestamps,
-    TranscriptSegment, TranscriptStream,
-    VadMode,
-    VoiceError,
-};
 use core::future::Future;
+use fluent_voice_domain::{
+    Diarization, Language, NoiseReduction, Punctuation, SpeechSource, TimestampsGranularity,
+    TranscriptSegment, TranscriptStream, VadMode, VoiceError, WordTimestamps,
+};
 use futures_core::Stream;
 
 /// Engine-specific STT session object.
