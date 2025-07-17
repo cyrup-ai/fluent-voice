@@ -971,7 +971,7 @@ dependencies = [
 [[package]]
 name = "candle-core"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "accelerate-src",
  "byteorder",
@@ -1001,7 +1001,7 @@ dependencies = [
 [[package]]
 name = "candle-datasets"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "byteorder",
  "candle-core",
@@ -1018,7 +1018,7 @@ dependencies = [
 [[package]]
 name = "candle-flash-attn"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "anyhow",
  "bindgen_cuda",
@@ -1029,7 +1029,7 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "bindgen_cuda",
 ]
@@ -1037,7 +1037,7 @@ dependencies = [
 [[package]]
 name = "candle-metal-kernels"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "half",
  "metal 0.27.0",
@@ -1049,7 +1049,7 @@ dependencies = [
 [[package]]
 name = "candle-nn"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "accelerate-src",
  "candle-core",
@@ -1067,7 +1067,7 @@ dependencies = [
 [[package]]
 name = "candle-onnx"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "candle-core",
  "candle-nn",
@@ -1078,7 +1078,7 @@ dependencies = [
 [[package]]
 name = "candle-transformers"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "accelerate-src",
  "byteorder",
@@ -3051,6 +3051,127 @@ dependencies = [
 [[package]]
 name = "fluent-voice-workspace-hack"
 version = "0.1.0"
+dependencies = [
+ "ahash",
+ "aho-corasick",
+ "anstream",
+ "anyhow",
+ "approx",
+ "arrayvec",
+ "bitflags 2.9.1",
+ "bytemuck",
+ "bytes",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "cc",
+ "chrono",
+ "compact_str",
+ "core-foundation 0.9.4",
+ "core-foundation-sys",
+ "core-graphics-types 0.1.3",
+ "coreaudio-rs",
+ "crossbeam-deque",
+ "crossbeam-queue",
+ "crossbeam-utils",
+ "crossterm",
+ "crypto-common",
+ "cyrup_sugars 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "derive_more",
+ "derive_more-impl",
+ "digest",
+ "either",
+ "flate2",
+ "foldhash",
+ "form_urlencoded",
+ "futures-channel",
+ "futures-core",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+ "getrandom 0.2.16",
+ "getrandom 0.3.3",
+ "hashbrown 0.15.4",
+ "itertools 0.12.1",
+ "itertools 0.14.0",
+ "js-sys",
+ "libc 0.2.174",
+ "linux-raw-sys 0.9.4",
+ "livekit",
+ "livekit-api 0.4.2",
+ "log",
+ "manganis-core",
+ "matrixmultiply",
+ "memchr",
+ "memmap2",
+ "miniz_oxide",
+ "mio",
+ "ndarray",
+ "nom",
+ "num-complex",
+ "num-integer",
+ "num-rational",
+ "num-traits",
+ "objc",
+ "objc2 0.6.1",
+ "once_cell",
+ "ort",
+ "ort-sys",
+ "percent-encoding",
+ "proc-macro2",
+ "prost",
+ "prost-types",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
+ "regex",
+ "regex-automata 0.4.9",
+ "regex-syntax 0.8.5",
+ "reqwest 0.11.27",
+ "reqwest 0.12.22",
+ "ring",
+ "rustc-hash 1.1.0",
+ "rustix 1.0.8",
+ "rustls 0.23.29",
+ "rustls-webpki 0.103.4",
+ "scopeguard",
+ "security-framework-sys",
+ "serde",
+ "sha1",
+ "sha2",
+ "simd-adler32",
+ "slotmap",
+ "smallvec 1.15.1",
+ "stable_deref_trait",
+ "strum 0.27.1",
+ "sugars_collections 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "symphonia",
+ "symphonia-bundle-mp3",
+ "symphonia-format-riff",
+ "syn 2.0.104",
+ "time",
+ "tokio",
+ "tokio-rustls 0.26.2",
+ "tokio-tungstenite 0.26.2",
+ "toml",
+ "toml_datetime",
+ "toml_edit",
+ "tracing",
+ "tracing-core",
+ "tracing-subscriber",
+ "tungstenite 0.26.2",
+ "tungstenite 0.27.0",
+ "ureq 2.12.1",
+ "wasm-bindgen",
+ "web-sys",
+ "winapi",
+ "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
+ "zeroize",
+ "zstd-sys",
+]
 
 [[package]]
 name = "fluent_video"
@@ -3079,6 +3200,7 @@ dependencies = [
  "scap",
  "sha2",
  "simplelog",
+ "smallvec 2.0.0-alpha.11",
  "thiserror 2.0.12",
  "tokio",
  "tokio-tungstenite 0.24.0",
@@ -3317,7 +3439,7 @@ dependencies = [
  "rubato",
  "safetensors 0.6.0",
  "serde_json",
- "smallvec 2.0.0-alpha.10",
+ "smallvec 2.0.0-alpha.11",
  "symphonia",
  "thiserror 2.0.12",
  "tokenizers",
@@ -5002,7 +5124,7 @@ dependencies = [
  "safetensors 0.6.0",
  "serde",
  "serde_json",
- "smallvec 2.0.0-alpha.10",
+ "smallvec 2.0.0-alpha.11",
  "strum 0.27.1",
  "symphonia",
  "tempfile",
@@ -6582,21 +6704,17 @@ dependencies = [
 [[package]]
 name = "ort"
 version = "2.0.0-rc.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fa7e49bd669d32d7bc2a15ec540a527e7764aec722a45467814005725bcd721"
 dependencies = [
  "libloading",
  "ndarray",
  "ort-sys",
- "smallvec 2.0.0-alpha.10",
+ "smallvec 2.0.0-alpha.11",
  "tracing",
 ]
 
 [[package]]
 name = "ort-sys"
 version = "2.0.0-rc.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2aba9f5c7c479925205799216e7e5d07cc1d4fa76ea8058c60a9a30f6a4e890"
 dependencies = [
  "flate2",
  "pkg-config",
@@ -8756,9 +8874,9 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "smallvec"
-version = "2.0.0-alpha.10"
+version = "2.0.0-alpha.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51d44cfb396c3caf6fbfd0ab422af02631b69ddd96d2eff0b0f0724f9024051b"
+checksum = "87b96efa4bd6bdd2ff0c6615cc36fc4970cbae63cfd46ddff5cee35a1b4df570"
 
 [[package]]
 name = "smithay-client-toolkit"
@@ -11040,7 +11158,7 @@ dependencies = [
  "portable-atomic",
  "profiling",
  "raw-window-handle",
- "smallvec 2.0.0-alpha.10",
+ "smallvec 2.0.0-alpha.11",
  "static_assertions",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -11070,7 +11188,7 @@ dependencies = [
  "profiling",
  "raw-window-handle",
  "rustc-hash 2.1.1",
- "smallvec 2.0.0-alpha.10",
+ "smallvec 2.0.0-alpha.11",
  "thiserror 2.0.12",
  "wgpu-core-deps-apple",
  "wgpu-core-deps-emscripten",
@@ -11137,7 +11255,7 @@ dependencies = [
  "range-alloc",
  "raw-window-handle",
  "renderdoc-sys",
- "smallvec 2.0.0-alpha.10",
+ "smallvec 2.0.0-alpha.11",
  "thiserror 2.0.12",
  "wasm-bindgen",
  "web-sys",

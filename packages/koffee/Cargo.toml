@@ -63,7 +63,7 @@ rustfft = "6.4.0"
 strum = { version = "0.27.1", features = ["derive"] }
 rubato = { version = "0.16.2", optional = true }
 serde = { version = "1.0.219", features = ["derive"] }
-smallvec.workspace = true
+smallvec = "2.0.0-alpha.11"
 log = "0.4.27"
 clap = { version = "4.5.41", features = ["derive"] }
 # tokio is in workspace-hack
