@@ -27,7 +27,7 @@ cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars"}
 # — DSP / NN (base dependencies - no acceleration features) —
 candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
-candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 candle-flash-attn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
 candle-onnx = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
 candle-datasets = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
@@ -116,12 +116,12 @@ dev = ["debug", "desktop"]   # ← enable with `--features dev`
 debug = []                   # extra logging / assertions
 
 # --- Candle backend features (required for all candle crates) -----
-cuda = ["candle-core/cuda", "candle-nn/cuda", "dep:cudarc", "dep:half", "dep:bindgen_cuda", "candle-transformers?/cuda"]
-cudnn = ["candle-core/cudnn", "candle-nn/cudnn", "candle-transformers?/cudnn"]
-metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers?/metal"]
-accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers?/accelerate"]
-mkl = ["dep:intel-mkl-src", "candle-core/mkl", "candle-nn/mkl", "candle-transformers?/mkl"]
-flash-attn = ["cuda", "dep:candle-flash-attn", "candle-transformers?/flash-attn"]
+cuda = ["candle-core/cuda", "candle-nn/cuda", "dep:cudarc", "dep:half", "dep:bindgen_cuda", "candle-transformers/cuda"]
+cudnn = ["candle-core/cudnn", "candle-nn/cudnn", "candle-transformers/cudnn"]
+metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
+accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]
+mkl = ["dep:intel-mkl-src", "candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
+flash-attn = ["cuda", "dep:candle-flash-attn", "candle-transformers/flash-attn"]
 nccl = ["cuda", "cudarc/nccl", "dep:half"]
 onnx = ["dep:candle-onnx"]
 

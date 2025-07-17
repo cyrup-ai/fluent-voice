@@ -8,17 +8,13 @@
 //!   * Tiny real-time loudness meter  → `Bs1770Meter`
 //!   * WAV export with built-in BS.1770 normalisation  → `write_pcm_as_wav()`
 //!
-//! **There is exactly one implementation of every helper**; if you add a new
-//! resampler or meter place it in this directory and re-export it here.
+
+use crate::{DType, Tensor};
+
+// **There is exactly one implementation of every helper**; if you add a new
+// resampler or meter place it in this directory and re-export it here.
 
 use anyhow::Result;
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_core::{DType, Tensor};
 
 // sub-modules --------------------------------------------------------------
 

@@ -7,29 +7,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use anyhow::{Context, Result};
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_core::{DType, Device, IndexOp, Tensor};
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_nn::VarBuilder;
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
+use candle_core::IndexOp;
 use candle_transformers::generation::LogitsProcessor;
 use clap::Parser;
 use crossterm::{event, execute, terminal};
+use dia::{DType, Device, Tensor, VarBuilder};
 use indicatif::{ProgressBar, ProgressStyle};
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{

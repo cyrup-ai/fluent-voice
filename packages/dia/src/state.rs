@@ -1,20 +1,8 @@
 //! Runtime data-structures used **during inference**
 //! (KV-cache, encoder / decoder state, etc.)
 
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_core::Result;
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_core::{DType, Device, IndexOp, Tensor};
+use crate::{CandleResult, DType, Device, Tensor};
+use candle_core::IndexOp;
 
 use crate::config::DiaConfig;
 
@@ -26,7 +14,7 @@ use crate::config::DiaConfig;
 ///
 /// * `q_pad`, `k_pad` – padding masks *(true = real token)*.
 /// * if `causal` is **true**, a causal triangle is AND-ed in.
-pub fn make_mask(q_pad: &Tensor, k_pad: &Tensor, causal: bool) -> Result<Tensor> {
+pub fn make_mask(q_pad: &Tensor, k_pad: &Tensor, causal: bool) -> CandleResult<Tensor> {
     let (_b, tq) = (q_pad.dim(0)?, q_pad.dim(1)?);
     let tk = k_pad.dim(1)?;
 
@@ -85,7 +73,7 @@ pub struct EncoderInferenceState {
 
 impl EncoderInferenceState {
     /// Build once per request (after text pre-processing).
-    pub fn new(cfg: &DiaConfig, src_cond: &Tensor) -> Result<Self> {
+    pub fn new(cfg: &DiaConfig, src_cond: &Tensor) -> CandleResult<Self> {
         let dev = src_cond.device();
         let s = cfg.data.text_length;
 
@@ -127,7 +115,7 @@ impl KVCache {
         head_dim: usize,
         dtype: DType,
         dev: &Device,
-    ) -> Result<Self> {
+    ) -> CandleResult<Self> {
         let zeros = Tensor::zeros(&[b, heads, s_max, head_dim], dtype, dev)?;
         Ok(Self {
             k: zeros.clone(),
@@ -276,7 +264,7 @@ impl DecoderInferenceState {
         enc_out: Tensor,
         cross_cache: Vec<KVCache>,
         dtype: DType,
-    ) -> Result<Self> {
+    ) -> CandleResult<Self> {
         let dev = enc_out.device().clone();
 
         // start at position 0
@@ -332,7 +320,7 @@ pub struct DecoderOutput {
 }
 
 impl DecoderOutput {
-    pub fn new(cfg: &DiaConfig, dev: &Device) -> Result<Self> {
+    pub fn new(cfg: &DiaConfig, dev: &Device) -> CandleResult<Self> {
         // Use i64 instead of i32 as it implements WithDType
         Ok(Self {
             generated_tokens: Tensor::full(-1i64, (cfg.data.audio_length, cfg.data.channels), dev)?,

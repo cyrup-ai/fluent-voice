@@ -66,12 +66,12 @@ tracing-chrome      = "0.7.2"
 tracing-subscriber  = "0.3.19"
 
 [features]
-default = ["metal", "microphone"]
+default = ["microphone", "metal"]  # macOS-optimized defaults with Metal acceleration
 
 # --- Candle backend features (required for all candle crates) -----
 cuda = ["candle-core/cuda", "candle-nn/cuda", "dep:cudarc", "dep:half", "dep:bindgen_cuda", "candle-transformers?/cuda"]
 cudnn = ["candle-core/cudnn", "candle-nn/cudnn", "candle-transformers?/cudnn"]
-metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers?/metal"]
+metal = ["candle-core/metal", "candle-nn/metal", "dep:candle-transformers", "candle-transformers/metal"]
 accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers?/accelerate"]
 mkl = ["dep:intel-mkl-src", "candle-core/mkl", "candle-nn/mkl", "candle-transformers?/mkl"]
 flash-attn = ["cuda", "dep:candle-flash-attn", "candle-transformers?/flash-attn"]

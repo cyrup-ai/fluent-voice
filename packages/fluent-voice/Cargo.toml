@@ -7,7 +7,15 @@ repository = "https://github.com/cyrup-ai/fluent-voice"
 description = "Pure-trait fluent builder API for TTS & STT engines."
 
 [features]
-default       = ["metal", "microphone", "tokio-runtime"]
+# Platform-conditional defaults - automatically enable optimal acceleration
+default = ["microphone", "tokio-runtime", "metal"]
+# Platform-optimized feature sets (explicitly enabled by user)
+macos-metal = ["microphone", "tokio-runtime", "metal"]
+linux-cuda = ["microphone", "tokio-runtime", "cuda"]
+# Common feature combinations
+cpu-only = ["microphone", "tokio-runtime"]
+gpu-metal = ["microphone", "tokio-runtime", "metal"]
+gpu-cuda = ["microphone", "tokio-runtime", "cuda"]
 tokio-runtime = []
 wasm-runtime  = []
 std_async     = []
@@ -114,6 +122,7 @@ bindgen_cuda = { version = "0.1.5", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 accelerate-src = { version = "0.3", optional = true }
+
 
 [build-dependencies]
 anyhow = "1.0"

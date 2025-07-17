@@ -3,13 +3,7 @@
 //! This module provides optimized implementations for Metal and CUDA backends,
 //! improving performance through hardware-specific optimizations.
 
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_core::{DType, Device, Result, Tensor};
+use crate::{CandleResult, DType, Device, Tensor};
 
 #[cfg(feature = "cuda")]
 use candle_core::cuda;
@@ -80,7 +74,7 @@ pub fn get_compute_dtype(device: &Device, mixed_precision: bool) -> DType {
 }
 
 /// Optimized matrix multiplication with device-specific kernels
-pub fn matmul_optimized(a: &Tensor, b: &Tensor) -> Result<Tensor> {
+pub fn matmul_optimized(a: &Tensor, b: &Tensor) -> CandleResult<Tensor> {
     match a.device() {
         #[cfg(feature = "cuda")]
         Device::Cuda(_) if a.dtype() == DType::BF16 || a.dtype() == DType::F16 => {
@@ -122,7 +116,7 @@ pub fn attention_optimized(
     v: &Tensor,
     mask: Option<&Tensor>,
     is_causal: bool,
-) -> Result<Tensor> {
+) -> CandleResult<Tensor> {
     use candle_core::D;
 
     // Standard scaled dot-product attention
@@ -145,7 +139,7 @@ pub fn attention_optimized(
 }
 
 /// Apply causal mask efficiently
-fn apply_causal_mask(scores: &Tensor) -> Result<Tensor> {
+fn apply_causal_mask(scores: &Tensor) -> CandleResult<Tensor> {
     let (_, _, seq_len_q, seq_len_k) = scores.dims4()?;
     let device = scores.device();
 
@@ -174,7 +168,12 @@ impl MemoryPool {
     }
 
     /// Get or allocate a tensor with the specified shape
-    pub fn get_tensor(&mut self, shape: &[usize], dtype: DType, device: &Device) -> Result<Tensor> {
+    pub fn get_tensor(
+        &mut self,
+        shape: &[usize],
+        dtype: DType,
+        device: &Device,
+    ) -> CandleResult<Tensor> {
         // Check cache first
         if let Some(pos) = self
             .cached_tensors
@@ -206,7 +205,7 @@ pub fn layer_norm_optimized(
     weight: &Tensor,
     bias: &Tensor,
     eps: f64,
-) -> Result<Tensor> {
+) -> CandleResult<Tensor> {
     // Standard implementation for now
     let mean = x.mean_keepdim(candle_core::D::Minus1)?;
     let x_centered = x.broadcast_sub(&mean)?;

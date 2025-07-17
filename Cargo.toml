@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "packages/animator",
+    "packages/cargo-hakari-regenerate",
     "packages/dia",
     "packages/domain",
     "packages/elevenlabs",
@@ -12,9 +13,6 @@ members = [
     "packages/vad",
     "packages/video",
     "packages/whisper",
-    "workspace-hack",
-    "workspace-hack",
-    "workspace-hack",
     "workspace-hack",
 ]
 exclude = ["packages/cyterm", "forks/ort"]  # Temporarily excluded due to dependency API changes

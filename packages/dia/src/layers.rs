@@ -4,20 +4,9 @@
 use crate::config::DiaConfig;
 use crate::state::{DecoderInferenceState, EncoderInferenceState, KVCache};
 
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_core::{DType, IndexOp, Module as _, Tensor};
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_nn::{VarBuilder, ops};
+use crate::{DType, Module, Tensor, VarBuilder};
+use candle_core::IndexOp;
+use candle_nn::ops;
 
 // Import optimizations when GPU features are enabled
 #[cfg(any(feature = "cuda", feature = "metal"))]

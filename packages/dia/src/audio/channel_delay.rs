@@ -5,13 +5,8 @@
 //! channel observes the same sequence starting at different time offsets.
 //! This implements true temporal delays as described in the Dia paper.
 
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_core::{Result, Tensor};
+use crate::{CandleResult, Tensor};
+
 
 /// Delay pattern for 9-channel, 24 kHz EnCodec tokenizer
 /// Channel 0 has no delay, channels 1-8 have increasing delays
@@ -28,7 +23,7 @@ pub const DELAY_PATTERN: [usize; 9] = [0, 8, 9, 10, 11, 12, 13, 14, 15];
 ///
 /// # Returns
 /// A view tensor [T,C] with delays applied (zero-copy operation)
-pub fn delayed_view(codes_tc: &Tensor, pad_token: u32) -> Result<Tensor> {
+pub fn delayed_view(codes_tc: &Tensor, pad_token: u32) -> CandleResult<Tensor> {
     let dev = codes_tc.device();
     let (t, c) = (codes_tc.dim(0)?, codes_tc.dim(1)?);
 
@@ -88,7 +83,7 @@ pub fn delayed_view(codes_tc: &Tensor, pad_token: u32) -> Result<Tensor> {
 ///
 /// # Returns
 /// An undelayed view tensor [T,C] (zero-copy operation)
-pub fn undelayed_view(delayed_tc: &Tensor, pad_token: u32) -> Result<Tensor> {
+pub fn undelayed_view(delayed_tc: &Tensor, pad_token: u32) -> CandleResult<Tensor> {
     let dev = delayed_tc.device();
     let (t, c) = (delayed_tc.dim(0)?, delayed_tc.dim(1)?);
 

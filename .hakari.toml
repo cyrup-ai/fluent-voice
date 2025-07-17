@@ -1,0 +1,50 @@
+hakari-package = "fluent-voice-workspace-hack"
+dep-format-version = 4
+resolver = "2"
+platforms = []
+exact-versions = false
+workspace_members = []
+
+[[omitted-deps]]
+name = "candle-core"
+features = []
+
+[[omitted-deps]]
+name = "candle-nn"
+features = []
+
+[[omitted-deps]]
+name = "candle-transformers"
+features = []
+
+[[omitted-deps]]
+name = "candle-flash-attn"
+features = []
+
+[[omitted-deps]]
+name = "candle-onnx"
+features = []
+
+[[omitted-deps]]
+name = "candle-datasets"
+features = []
+
+[[omitted-deps]]
+name = "cudarc"
+features = []
+
+[[omitted-deps]]
+name = "half"
+features = []
+
+[[omitted-deps]]
+name = "bindgen_cuda"
+features = []
+
+[[omitted-deps]]
+name = "intel-mkl-src"
+features = []
+
+[[omitted-deps]]
+name = "accelerate-src"
+features = []

@@ -25,3 +25,38 @@ platforms = [
 
 # Write out exact versions rather than a semver range. (Defaults to false.)
 # exact-versions = true
+
+# Omit problematic packages that cause CUDA builds on non-CUDA systems
+# Let each project define their own candle dependencies instead of through workspace-hack
+[[omitted-deps]]
+name = "candle-core"
+
+[[omitted-deps]]
+name = "candle-nn"
+
+[[omitted-deps]]
+name = "candle-transformers"
+
+[[omitted-deps]]
+name = "candle-flash-attn"
+
+[[omitted-deps]]
+name = "candle-onnx"
+
+[[omitted-deps]]
+name = "candle-datasets"
+
+[[omitted-deps]]
+name = "cudarc"
+
+[[omitted-deps]]
+name = "bindgen_cuda"
+
+[[omitted-deps]]
+name = "half"
+
+[[omitted-deps]]
+name = "accelerate-src"
+
+[[omitted-deps]]
+name = "intel-mkl-src"

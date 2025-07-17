@@ -5,26 +5,8 @@ extern crate accelerate_src;
 extern crate intel_mkl_src;
 
 use anyhow::{Error as E, Result};
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
 use candle_core::{Device, IndexOp, Tensor};
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
 use candle_nn::ops::softmax;
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
 use candle_transformers::models::whisper::{self as m, Config, audio};
 use clap::{Parser, ValueEnum};
 #[cfg(feature = "microphone")]

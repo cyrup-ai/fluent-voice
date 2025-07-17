@@ -50,15 +50,8 @@
 
 #![cfg_attr(feature = "simd", feature(portable_simd))]
 
-#[cfg(not(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-)))]
-compile_error!(
-    "At least one candle acceleration feature must be enabled: cuda, metal, accelerate, or mkl"
-);
+// Removed custom acceleration constraint - following candle's CPU-first philosophy
+// CPU-only builds are fully supported and recommended for cross-platform compatibility
 
 // Note: Default features include "microphone" so this should not trigger
 #[cfg(all(

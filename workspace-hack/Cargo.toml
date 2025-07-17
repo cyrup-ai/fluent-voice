@@ -22,9 +22,9 @@ approx = { version = "0.5" }
 bitflags = { version = "2", default-features = false, features = ["serde", "std"] }
 bytemuck = { version = "1", default-features = false, features = ["aarch64_simd", "derive", "extern_crate_alloc", "min_const_generics"] }
 bytes = { version = "1" }
-candle-core = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cudnn", "metal", "mkl"] }
-candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cuda", "cudnn", "metal", "mkl"] }
-candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["accelerate", "cudnn", "flash-attn", "metal", "mkl"] }
+# candle-core = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cudnn", "metal", "mkl"] }
+# candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cuda", "cudnn", "metal", "mkl"] }
+# candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["accelerate", "cudnn", "flash-attn", "metal", "mkl"] }
 chrono = { version = "0.4", features = ["serde"] }
 compact_str = { version = "0.9", features = ["serde"] }
 crossbeam-queue = { version = "0.3" }

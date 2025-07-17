@@ -1,13 +1,7 @@
 //! Voice clone implementation - the core voice representation
 
+use crate::Tensor;
 use anyhow::Result;
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_core::Tensor;
 use std::sync::Arc;
 
 use super::codec::VoiceData;

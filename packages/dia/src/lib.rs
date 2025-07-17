@@ -1,12 +1,9 @@
-#[cfg(not(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-)))]
-compile_error!(
-    "At least one candle acceleration feature must be enabled: cuda, metal, accelerate, or mkl"
-);
+// Removed custom acceleration constraint - following candle's CPU-first philosophy
+// CPU-only builds are fully supported and recommended for cross-platform compatibility
+
+// Re-export candle types for internal use
+pub use candle_core::{DType, Device, Result as CandleResult, Tensor};
+pub use candle_nn::{Module, VarBuilder, VarMap, ops};
 
 pub mod app;
 pub mod audio;

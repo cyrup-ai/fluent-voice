@@ -27,6 +27,22 @@ check:
     cargo check --workspace --all-targets --all-features --message-format short --quiet
     cargo clippy --workspace --all-targets --all-features --message-format short --quiet
 
+# Platform-optimized builds
+check-macos:
+    cargo fmt --all
+    cargo check --workspace --all-targets --features macos-optimized --message-format short --quiet
+    cargo clippy --workspace --all-targets --features macos-optimized --message-format short --quiet
+
+check-linux-cuda:
+    cargo fmt --all
+    cargo check --workspace --all-targets --features linux-cuda --message-format short --quiet
+    cargo clippy --workspace --all-targets --features linux-cuda --message-format short --quiet
+
+check-linux-cpu:
+    cargo fmt --all
+    cargo check --workspace --all-targets --features linux-cpu --message-format short --quiet
+    cargo clippy --workspace --all-targets --features linux-cpu --message-format short --quiet
+
 # Test across entire workspace  
 test:
     cargo fmt --all
@@ -42,61 +58,30 @@ hakari:
     cargo hakari generate
     cargo hakari verify
 
-# Complete workspace-hack regeneration from scratch
+# Complete workspace-hack regeneration from scratch using high-performance Rust tool
 hakari-regenerate:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    
-    echo "🔧 Commenting out workspace-hack dependencies in all packages..."
-    # Comment out workspace-hack dependencies in all package Cargo.toml files
-    find ./packages -name "Cargo.toml" -exec sed -i.bak 's/^fluent-voice-workspace-hack = /# fluent-voice-workspace-hack = /' {} \;
-    
-    echo "🔧 Commenting out workspace-hack member in root Cargo.toml..."
-    # Comment out workspace-hack member in root Cargo.toml
-    sed -i.bak 's/^    "workspace-hack",/    # "workspace-hack",/' ./Cargo.toml
-    
-    echo "🔧 Backing up hakari configuration..."
-    # Backup current hakari config
-    if [ -f .config/hakari.toml ]; then
-        mv .config/hakari.toml .config/hakari.toml.bk
-    fi
-    
-    echo "🔧 Removing existing workspace-hack..."
-    # Remove existing workspace-hack
-    rm -rf ./workspace-hack
-    
-    echo "🔧 Initializing fresh workspace-hack..."
-    # Initialize new workspace-hack (provide automatic yes input)
-    echo "y" | cargo hakari init ./workspace-hack
-    
-    echo "🔧 Renaming package to fluent-voice-workspace-hack..."
-    # Update package name in workspace-hack/Cargo.toml (using perl for cross-platform compatibility)
-    perl -i.bak -pe 's/name = "workspace-hack"/name = "fluent-voice-workspace-hack"/' ./workspace-hack/Cargo.toml
-    
-    echo "🔧 Updating hakari config for new package name..."
-    # Update hakari config to match the new package name
-    perl -i.bak -pe 's/hakari-package = "workspace-hack"/hakari-package = "fluent-voice-workspace-hack"/' .config/hakari.toml
-    
-    echo "🔧 Uncommenting workspace-hack member in root Cargo.toml..."
-    # Uncomment workspace-hack member in root Cargo.toml
-    sed -i.bak 's/^    # "workspace-hack",/    "workspace-hack",/' ./Cargo.toml
-    
-    echo "🔧 Uncommenting workspace-hack dependencies..."
-    # Uncomment workspace-hack dependencies in all package Cargo.toml files
-    find ./packages -name "Cargo.toml" -exec sed -i.bak 's/^# fluent-voice-workspace-hack = /fluent-voice-workspace-hack = /' {} \;
-    
-    echo "🔧 Generating hakari configuration..."
-    # Generate hakari
-    cargo hakari generate
-    
-    echo "🔧 Verifying hakari configuration..."
-    # Verify hakari
-    cargo hakari verify
-    
-    echo "🔧 Cleaning up backup files..."
-    # Clean up backup files
-    find ./packages -name "Cargo.toml.bak" -delete
-    rm -f ./workspace-hack/Cargo.toml.bak
-    rm -f ./Cargo.toml.bak
-    
-    echo "✅ Workspace-hack regeneration complete!"
+    cargo run --bin cargo-hakari-regenerate regenerate --progress --force
+
+# Verify existing workspace-hack
+hakari-verify:
+    cargo run --bin cargo-hakari-regenerate verify --detailed
+
+# Show workspace and configuration information
+hakari-info:
+    cargo run --bin cargo-hakari-regenerate info --packages --config
+
+# Clean up temporary files and backups
+hakari-cleanup:
+    cargo run --bin cargo-hakari-regenerate cleanup --all
+
+# Validate hakari configuration
+hakari-validate:
+    cargo run --bin cargo-hakari-regenerate config validate --detailed
+
+# Reset hakari configuration to defaults
+hakari-reset:
+    cargo run --bin cargo-hakari-regenerate config reset --yes
+
+# Dry-run hakari regeneration (show what would be done)
+hakari-dry-run:
+    cargo run --bin cargo-hakari-regenerate regenerate --dry-run --progress

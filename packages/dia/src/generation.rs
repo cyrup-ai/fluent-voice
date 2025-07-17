@@ -6,21 +6,9 @@
 //! building blocks live in `layers.rs`; the “wiring” between encoder
 //! and decoder lives in `model.rs`.
 
+use crate::{DType, Device, Tensor, ops};
 use anyhow::{Result, bail};
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_core::{DType, Device, IndexOp, Tensor};
-#[cfg(any(
-    feature = "cuda",
-    feature = "metal",
-    feature = "accelerate",
-    feature = "mkl"
-))]
-use candle_nn::ops;
+use candle_core::IndexOp;
 
 use rand::distr::weighted::WeightedIndex;
 use rand::{Rng, SeedableRng, rngs::StdRng};
