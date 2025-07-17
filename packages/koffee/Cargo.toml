@@ -19,7 +19,7 @@ authors      = ["David Maple <david@cyrup.ai>"]
 #  Dependencies
 # ------------------------------------------------
 [dependencies]
-#fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 
 # — DSP / NN (base dependencies - no acceleration features) —

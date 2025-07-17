@@ -564,19 +564,6 @@ pub struct KyutaiSttConversationBuilder {
 }
 
 impl KyutaiSttConversationBuilder {
-    #[inline]
-    fn new() -> Self {
-        Self {
-            source: None,
-            vad_mode: None,
-            noise_reduction: None,
-            language: None,
-            diarization: None,
-            word_timestamps: None,
-            timestamps_granularity: None,
-            punctuation: None,
-        }
-    }
 }
 
 impl SttConversationBuilder for KyutaiSttConversationBuilder {

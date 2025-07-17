@@ -22,7 +22,7 @@ default = []
 test-support = []
 
 [dependencies]
-#fluent-voice-workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
+fluent-voice-workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 
 async-trait = "0.1.87"

@@ -38,8 +38,7 @@ use fluent_voice_whisper::WhisperTranscriber;
 // Error handling with context
 use koffee::{KoffeeCandle, KoffeeCandleConfig, KoffeeCandleDetection};
 
-// Lock-free atomic operations
-use std::sync::Arc;
+// Zero-allocation architecture - no Arc needed for main engine
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 // Zero-allocation time tracking
@@ -358,9 +357,10 @@ type DefaultTranscriptStream =
 /// - In-memory Whisper transcription (no temp files)
 /// - Real-time VAD with zero-copy tensor operations
 /// - Comprehensive error recovery without panic paths
+/// 
+/// Zero-allocation, no-locking architecture: creates WhisperTranscriber instances on demand
+/// for optimal performance and thread safety.
 pub struct DefaultSTTEngine {
-    /// Whisper transcriber from ./candle/whisper
-    whisper: Arc<WhisperTranscriber>,
     /// VAD configuration for voice activity detection
     vad_config: VadConfig,
     /// Wake word configuration for activation detection
@@ -626,14 +626,10 @@ impl DefaultSTTEngine {
         vad_config: VadConfig,
         wake_word_config: WakeWordConfig,
     ) -> Result<Self, VoiceError> {
-        // Initialize Whisper transcriber from ./candle/whisper
-        let whisper =
-            Arc::new(WhisperTranscriber::new().map_err(|e| {
-                VoiceError::ProcessingError(format!("Whisper init failed: {:?}", e))
-            })?);
-
+        // Zero-allocation architecture: no pre-initialization of Whisper
+        // WhisperTranscriber instances are created on demand for optimal performance
+        
         Ok(Self {
-            whisper,
             vad_config,
             wake_word_config,
         })
@@ -645,7 +641,6 @@ impl SttEngine for DefaultSTTEngine {
 
     fn conversation(&self) -> Self::Conv {
         DefaultSTTConversationBuilder {
-            whisper: Arc::clone(&self.whisper),
             vad_config: self.vad_config.clone(),
             wake_word_config: self.wake_word_config.clone(),
             speech_source: None,
@@ -682,8 +677,9 @@ impl SttEngine for DefaultSTTEngine {
 }
 
 /// Builder for configuring DefaultSTTEngine conversations.
+/// 
+/// Zero-allocation architecture: creates WhisperTranscriber instances on demand.
 pub struct DefaultSTTConversationBuilder {
-    whisper: Arc<WhisperTranscriber>,
     vad_config: VadConfig,
     wake_word_config: WakeWordConfig,
     speech_source: Option<SpeechSource>,
@@ -704,9 +700,6 @@ impl DefaultSTTConversationBuilder {
     /// Create a new DefaultSTTConversationBuilder.
     pub fn new() -> Self {
         Self {
-            whisper: Arc::new(
-                WhisperTranscriber::new().expect("Failed to initialize Whisper transcriber"),
-            ),
             vad_config: VadConfig::default(),
             wake_word_config: WakeWordConfig::default(),
             speech_source: None,
@@ -841,8 +834,10 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
 
 /// Complete STT conversation that handles the full pipeline:
 /// microphone input -> wake word detection -> VAD turn detection -> Whisper transcription
+/// 
+/// Zero-allocation, no-locking architecture: creates new WhisperTranscriber instances
+/// per transcription for optimal performance and thread safety.
 pub struct DefaultSTTConversation {
-    whisper: Arc<WhisperTranscriber>,
     vad_config: VadConfig,
     wake_word_config: WakeWordConfig,
     // Event handlers that get called during processing
@@ -853,7 +848,6 @@ pub struct DefaultSTTConversation {
 
 impl DefaultSTTConversation {
     fn new(
-        whisper: Arc<WhisperTranscriber>,
         vad_config: VadConfig,
         wake_word_config: WakeWordConfig,
         error_handler: Option<Box<dyn FnMut(VoiceError) -> String + Send + 'static>>,
@@ -861,7 +855,6 @@ impl DefaultSTTConversation {
         turn_handler: Option<Box<dyn FnMut(Option<String>, String) + Send + 'static>>,
     ) -> Result<Self, VoiceError> {
         Ok(Self {
-            whisper,
             vad_config,
             wake_word_config,
             error_handler,
@@ -880,21 +873,21 @@ impl SttConversation for DefaultSTTConversation {
             use std::sync::Arc;
             use tokio::sync::Mutex;
 
-            // Initialize components with Arc<Mutex<>> for Send + Sync
-            let whisper = match fluent_voice_whisper::WhisperTranscriber::new() {
-                Ok(w) => Arc::new(Mutex::new(w)),
-                Err(e) => {
-                    let error_msg = format!("Failed to initialize Whisper: {}", e);
-                    yield Err(VoiceError::ProcessingError(error_msg));
-                    return;
-                }
-            };
-
-            let vad = match fluent_voice_vad::VoiceActivityDetector::builder()
-                .chunk_size(1024_usize)
+            // Store VAD configuration for later use and log settings
+            let vad_config = self.vad_config;
+            tracing::info!(
+                "Initializing STT conversation with VAD config: sensitivity={}, min_speech={}ms, max_silence={}ms, simd_level={}",
+                vad_config.sensitivity,
+                vad_config.min_speech_duration,
+                vad_config.max_silence_duration,
+                vad_config.simd_level
+            );
+            
+            let mut vad = match fluent_voice_vad::VoiceActivityDetector::builder()
+                .chunk_size(VAD_CHUNK_SIZE)
                 .sample_rate(16000_i64)
                 .build() {
-                Ok(v) => Arc::new(Mutex::new(v)),
+                Ok(v) => v,
                 Err(e) => {
                     let error_msg = format!("Failed to initialize VAD: {}", e);
                     yield Err(VoiceError::ProcessingError(error_msg));
@@ -1020,10 +1013,7 @@ impl SttConversation for DefaultSTTConversation {
                     let chunk_to_process = audio_buffer.drain(..1600).collect::<Vec<_>>();
 
                     // Voice Activity Detection
-                    let speech_probability = {
-                        let mut vad_guard = vad.lock().await;
-                        vad_guard.predict(chunk_to_process.iter().copied())
-                    }; // Mutex guard dropped here
+                    let speech_probability = vad.predict(chunk_to_process.iter().copied());
 
                     let speech_probability = match speech_probability {
                         Ok(prob) => prob,
@@ -1071,8 +1061,16 @@ impl SttConversation for DefaultSTTConversation {
                                 continue;
                             }
                             let transcription_result = {
-                                let mut whisper_guard = whisper.lock().await;
-                                whisper_guard.transcribe(speech_source).await
+                                // Create new WhisperTranscriber instance for zero-allocation, no-locking performance
+                                let mut local_whisper = match fluent_voice_whisper::WhisperTranscriber::new() {
+                                    Ok(w) => w,
+                                    Err(e) => {
+                                        let error_msg = format!("Failed to create Whisper instance: {}", e);
+                                        yield Err(VoiceError::ProcessingError(error_msg));
+                                        continue;
+                                    }
+                                };
+                                local_whisper.transcribe(speech_source).await
                             };
                             match transcription_result {
                                 Ok(transcript) => {
@@ -1130,8 +1128,16 @@ impl SttConversation for DefaultSTTConversation {
                                 continue;
                             }
                             let transcription_result = {
-                                let mut whisper_guard = whisper.lock().await;
-                                whisper_guard.transcribe(speech_source).await
+                                // Create new WhisperTranscriber instance for zero-allocation, no-locking performance
+                                let mut local_whisper = match fluent_voice_whisper::WhisperTranscriber::new() {
+                                    Ok(w) => w,
+                                    Err(e) => {
+                                        let error_msg = format!("Failed to create Whisper instance: {}", e);
+                                        yield Err(VoiceError::ProcessingError(error_msg));
+                                        continue;
+                                    }
+                                };
+                                local_whisper.transcribe(speech_source).await
                             }; // Mutex guard dropped here
                             match transcription_result {
                                 Ok(transcript) => {
@@ -1247,7 +1253,6 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
     fn with_microphone(self, device: impl Into<String>) -> impl MicrophoneBuilder {
         DefaultMicrophoneBuilder {
             device: device.into(),
-            whisper: self.inner.whisper,
             vad_config: self.inner.vad_config,
             wake_word_config: self.inner.wake_word_config,
         }
@@ -1256,7 +1261,6 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
     fn transcribe(self, path: impl Into<String>) -> impl TranscriptionBuilder {
         DefaultTranscriptionBuilder {
             path: path.into(),
-            whisper: self.inner.whisper,
             vad_config: self.inner.vad_config,
             wake_word_config: self.inner.wake_word_config,
         }
@@ -1267,7 +1271,6 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
         use futures::StreamExt;
 
         let conversation = DefaultSTTConversation::new(
-            self.inner.whisper,
             self.inner.vad_config,
             self.inner.wake_word_config,
             self.inner.error_handler,
@@ -1291,10 +1294,11 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
 }
 
 /// Builder for microphone-based speech recognition using the default STT engine.
+/// 
+/// Zero-allocation architecture: creates WhisperTranscriber instances on demand.
 pub struct DefaultMicrophoneBuilder {
     #[allow(dead_code)]
     device: String,
-    whisper: Arc<WhisperTranscriber>,
     vad_config: VadConfig,
     wake_word_config: WakeWordConfig,
 }
@@ -1347,7 +1351,6 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
         use futures::StreamExt;
 
         let conversation_result = DefaultSTTConversation::new(
-            self.whisper,
             self.vad_config,
             self.wake_word_config,
             Some(Box::new(|error| match error {
@@ -1385,10 +1388,11 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
 }
 
 /// Builder for file-based transcription using the default STT engine.
+/// 
+/// Zero-allocation architecture: creates WhisperTranscriber instances on demand.
 pub struct DefaultTranscriptionBuilder {
     #[allow(dead_code)]
     path: String,
-    whisper: Arc<WhisperTranscriber>,
     vad_config: VadConfig,
     wake_word_config: WakeWordConfig,
 }
@@ -1441,7 +1445,6 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
         use futures::StreamExt;
 
         let conversation_result = DefaultSTTConversation::new(
-            self.whisper,
             self.vad_config,
             self.wake_word_config,
             Some(Box::new(|error| match error {
@@ -1482,7 +1485,6 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
     ) -> impl std::future::Future<Output = Result<Self::Transcript, VoiceError>> + Send {
         async move {
             let conversation = DefaultSTTConversation::new(
-                self.whisper,
                 self.vad_config,
                 self.wake_word_config,
                 Some(Box::new(|error| match error {

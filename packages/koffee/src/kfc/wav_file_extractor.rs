@@ -79,7 +79,7 @@ impl KfcWavFileExtractor {
             40,                            // mel bins
         )?;
 
-        let mut rms_levels = smallvec::SmallVec::<[f32; 128]>::new();
+        let mut rms_levels = smallvec::SmallVec::<f32, 128>::new();
         let mut frames: Vec<Vec<f32>> = Vec::new();
 
         /* ---------- 3. Stream-decode & process -------------------------- */
@@ -128,7 +128,7 @@ impl KfcWavFileExtractor {
         wav: &mut WavReader<R>,
         encoder: &mut AudioEncoder,
         kfc: &mut KfcExtractor,
-        rms_levels: &mut smallvec::SmallVec<[f32; 128]>,
+        rms_levels: &mut smallvec::SmallVec<f32, 128>,
         out_frames: &mut Vec<Vec<f32>>,
     ) -> Result<(), ExtractorError>
     where

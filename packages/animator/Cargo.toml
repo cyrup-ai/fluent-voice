@@ -7,7 +7,7 @@ repository = "https://github.com/davidmaple/fluent-voice"
 authors = ["David Maple <davidcmaple@gmail.com>"]
 
 [dependencies]
-#fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 parking_lot = "0.12.4"
 livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", features = ["native-tls"] }

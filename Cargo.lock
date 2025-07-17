@@ -971,7 +971,7 @@ dependencies = [
 [[package]]
 name = "candle-core"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "accelerate-src",
  "byteorder",
@@ -1001,7 +1001,7 @@ dependencies = [
 [[package]]
 name = "candle-datasets"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "byteorder",
  "candle-core",
@@ -1018,7 +1018,7 @@ dependencies = [
 [[package]]
 name = "candle-flash-attn"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "anyhow",
  "bindgen_cuda",
@@ -1029,7 +1029,7 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "bindgen_cuda",
 ]
@@ -1037,7 +1037,7 @@ dependencies = [
 [[package]]
 name = "candle-metal-kernels"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "half",
  "metal 0.27.0",
@@ -1049,7 +1049,7 @@ dependencies = [
 [[package]]
 name = "candle-nn"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "accelerate-src",
  "candle-core",
@@ -1067,7 +1067,7 @@ dependencies = [
 [[package]]
 name = "candle-onnx"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "candle-core",
  "candle-nn",
@@ -1078,7 +1078,7 @@ dependencies = [
 [[package]]
 name = "candle-transformers"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle.git?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
 dependencies = [
  "accelerate-src",
  "byteorder",
@@ -2173,6 +2173,7 @@ dependencies = [
  "dioxus",
  "dirs 6.0.0",
  "enterpolation",
+ "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "gloo-timers",
  "half",
@@ -3034,6 +3035,7 @@ dependencies = [
  "candle-transformers",
  "crossbeam-channel",
  "crossbeam-utils",
+ "fluent-voice-workspace-hack",
  "fluent_voice",
  "fluent_voice_domain",
  "futures-core",
@@ -3047,6 +3049,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "fluent-voice-workspace-hack"
+version = "0.1.0"
+
+[[package]]
 name = "fluent_video"
 version = "0.1.0"
 dependencies = [
@@ -3057,6 +3063,7 @@ dependencies = [
  "core-foundation 0.10.1",
  "core-video",
  "coreaudio-rs",
+ "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "futures",
  "libwebrtc",
@@ -3109,6 +3116,7 @@ dependencies = [
  "dia",
  "enterpolation",
  "flate2",
+ "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "fluent_voice_vad",
  "fluent_voice_whisper",
@@ -3155,6 +3163,7 @@ dependencies = [
  "clap",
  "cpal",
  "crossterm",
+ "fluent-voice-workspace-hack",
  "image",
  "livekit",
  "livekit-api 0.4.4",
@@ -3168,6 +3177,7 @@ dependencies = [
 name = "fluent_voice_domain"
 version = "0.1.0"
 dependencies = [
+ "fluent-voice-workspace-hack",
  "futures",
  "futures-core",
  "futures-util",
@@ -3184,6 +3194,7 @@ dependencies = [
  "bytes",
  "chrono",
  "cpal",
+ "fluent-voice-workspace-hack",
  "fluent_voice",
  "fluent_voice_domain",
  "futures",
@@ -3218,6 +3229,7 @@ dependencies = [
  "coreaudio-rs",
  "cpal",
  "crossbeam-queue",
+ "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "futures",
  "gpui",
@@ -3246,6 +3258,7 @@ dependencies = [
 name = "fluent_voice_vad"
 version = "0.1.0"
 dependencies = [
+ "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "futures",
  "hound",
@@ -3282,6 +3295,7 @@ dependencies = [
  "cudarc",
  "cyrup_sugars 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
  "enterpolation",
+ "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "futures-core",
  "half",
@@ -4965,6 +4979,7 @@ dependencies = [
  "csv",
  "cudarc",
  "enterpolation",
+ "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "half",
  "hf-hub 0.4.3",

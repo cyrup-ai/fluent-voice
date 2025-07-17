@@ -12,6 +12,7 @@ members = [
     "packages/vad",
     "packages/video",
     "packages/whisper",
+    "workspace-hack",
 ]
 exclude = ["packages/cyterm"]  # Temporarily excluded due to dependency API changes
 

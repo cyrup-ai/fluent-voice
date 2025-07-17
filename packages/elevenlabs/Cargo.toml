@@ -6,7 +6,7 @@ license = "Apache-2.0"
 repository = "https://github.com/davidmaple/fluent-voice"
 
 [dependencies]
-#fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
 fluent_voice = { path = "../fluent-voice" }
 koffee = { path = "../koffee" }
