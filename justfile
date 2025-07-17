@@ -73,6 +73,10 @@ hakari-regenerate:
     # Update package name in workspace-hack/Cargo.toml (using perl for cross-platform compatibility)
     perl -i.bak -pe 's/name = "workspace-hack"/name = "fluent-voice-workspace-hack"/' ./workspace-hack/Cargo.toml
     
+    echo "🔧 Updating hakari config for new package name..."
+    # Update hakari config to match the new package name
+    perl -i.bak -pe 's/hakari-package = "workspace-hack"/hakari-package = "fluent-voice-workspace-hack"/' .config/hakari.toml
+    
     echo "🔧 Uncommenting workspace-hack member in root Cargo.toml..."
     # Uncomment workspace-hack member in root Cargo.toml
     sed -i.bak 's/^    # "workspace-hack",/    "workspace-hack",/' ./Cargo.toml
