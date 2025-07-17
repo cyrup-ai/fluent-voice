@@ -41,3 +41,58 @@ build:
 hakari:
     cargo hakari generate
     cargo hakari verify
+
+# Complete workspace-hack regeneration from scratch
+hakari-regenerate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "🔧 Commenting out workspace-hack dependencies in all packages..."
+    # Comment out workspace-hack dependencies in all package Cargo.toml files
+    find ./packages -name "Cargo.toml" -exec sed -i.bak 's/^fluent-voice-workspace-hack = /# fluent-voice-workspace-hack = /' {} \;
+    
+    echo "🔧 Commenting out workspace-hack member in root Cargo.toml..."
+    # Comment out workspace-hack member in root Cargo.toml
+    sed -i.bak 's/^    "workspace-hack",/    # "workspace-hack",/' ./Cargo.toml
+    
+    echo "🔧 Backing up hakari configuration..."
+    # Backup current hakari config
+    if [ -f .config/hakari.toml ]; then
+        mv .config/hakari.toml .config/hakari.toml.bk
+    fi
+    
+    echo "🔧 Removing existing workspace-hack..."
+    # Remove existing workspace-hack
+    rm -rf ./workspace-hack
+    
+    echo "🔧 Initializing fresh workspace-hack..."
+    # Initialize new workspace-hack (provide automatic yes input)
+    echo "y" | cargo hakari init ./workspace-hack
+    
+    echo "🔧 Renaming package to fluent-voice-workspace-hack..."
+    # Update package name in workspace-hack/Cargo.toml (using perl for cross-platform compatibility)
+    perl -i.bak -pe 's/name = "workspace-hack"/name = "fluent-voice-workspace-hack"/' ./workspace-hack/Cargo.toml
+    
+    echo "🔧 Uncommenting workspace-hack member in root Cargo.toml..."
+    # Uncomment workspace-hack member in root Cargo.toml
+    sed -i.bak 's/^    # "workspace-hack",/    "workspace-hack",/' ./Cargo.toml
+    
+    echo "🔧 Uncommenting workspace-hack dependencies..."
+    # Uncomment workspace-hack dependencies in all package Cargo.toml files
+    find ./packages -name "Cargo.toml" -exec sed -i.bak 's/^# fluent-voice-workspace-hack = /fluent-voice-workspace-hack = /' {} \;
+    
+    echo "🔧 Generating hakari configuration..."
+    # Generate hakari
+    cargo hakari generate
+    
+    echo "🔧 Verifying hakari configuration..."
+    # Verify hakari
+    cargo hakari verify
+    
+    echo "🔧 Cleaning up backup files..."
+    # Clean up backup files
+    find ./packages -name "Cargo.toml.bak" -delete
+    rm -f ./workspace-hack/Cargo.toml.bak
+    rm -f ./Cargo.toml.bak
+    
+    echo "✅ Workspace-hack regeneration complete!"
