@@ -1,9 +1,4 @@
-//! Text-to-Speech Example
-//!
-//! This example demonstrates the exact README.md syntax for TTS operations.
-//! Uses the fluent API with conversation() method and exact syntax patterns.
-//!
-//! Run with: `cargo run --example tts`
+//! Demonstrates the fluent builder API for Text-to-Speech (TTS)
 
 use fluent_voice::prelude::*;
 use fluent_voice_domain::{VocalSpeedMod, VoiceId};
@@ -11,35 +6,33 @@ use futures_util::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {
-    // Note: Requires an engine implementation (see Engine Integration below)
-    let mut audio_stream = FluentVoice::tts().conversation()
-        .with_speaker(
-            Speaker::speaker("Narrator")
-                .voice_id(VoiceId::new("voice-uuid"))
-                .with_speed_modifier(VocalSpeedMod(0.9))
-                .speak("Hello, world!")
-                .build()
-        )
-        .with_speaker(
-            Speaker::speaker("Bob")
-                .with_speed_modifier(VocalSpeedMod(1.1))
-                .speak("Hi Alice! How are you today?")
-                .build()
-        )
-        .on_chunk(|synthesis_chunk| {
-            Ok => synthesis_chunk.into(), // Unwrap each audio chunk
-            Err(e) => Err(e),
-        })
-        .synthesize(|conversation| {
-            Ok => conversation.into_stream(),  // Returns audio stream
-            Err(e) => Err(e),
-        })
-        .await?;  // Single await point
+    // Note: This example requires a registered TTS engine to function.
+    // The builder constructs a conversation plan, which is then executed by the engine.
 
-    // Process audio samples
+    // The `synthesize` method returns a future that resolves to the audio stream.
+    // This demonstrates the high-performance, zero-allocation builder pattern.
+    let mut audio_stream = FluentVoice::tts()
+        .conversation()
+        // The `add_line` method now directly accepts a Speaker builder, no `.build()` needed.
+        .add_line(
+            Speaker::new("Host")
+                .speak("Welcome to the show!")
+                .voice_id(VoiceId::new("en-US-JennyNeural")),
+        )
+        .add_line(
+            Speaker::new("Guest")
+                .speak("It's great to be here.")
+                .with_speed(VocalSpeedMod::new(1.2)),
+        )
+        // The `synthesize` call is elegantly handled with arrow syntax support.
+        .synthesize(|conv| Ok(conv.into_stream()))
+        .await?;
+
+    // Process the resulting audio stream.
     while let Some(sample) = audio_stream.next().await {
-        // Play sample or save to file
-        println!("Audio sample: {}", sample);
+        // In a real application, you would play the audio here.
+        // e.g., play_audio(sample)?;
+        println!("Received audio chunk of size: {}", sample.len());
     }
 
     Ok(())

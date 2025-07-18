@@ -4,7 +4,7 @@
 //! that can be used as a base for engine-specific implementations.
 
 use crate::audio_chunk::transcript_stream_to_string_stream;
-use crate::stt_conversation::{TranscriptionBuilder};
+use crate::stt_conversation::TranscriptionBuilder;
 use core::future::Future;
 use fluent_voice_domain::VoiceError;
 use fluent_voice_domain::{

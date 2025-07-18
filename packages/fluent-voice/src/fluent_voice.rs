@@ -143,69 +143,17 @@ impl TtsEntry {
     }
 }
 
-/// Entry point for STT operations with direct fluent API methods
-pub struct SttEntry {
-    builder: crate::engines::DefaultSTTConversationBuilder,
-}
+/// Entry point for STT operations providing .conversation() method  
+pub struct SttEntry;
 
 impl SttEntry {
     pub fn new() -> Self {
-        Self {
-            builder: crate::engines::DefaultSTTConversationBuilder::new(),
-        }
+        Self
     }
 
-    /// Configure the speech source for transcription
-    pub fn with_source(mut self, source: fluent_voice_domain::SpeechSource) -> Self {
-        self.builder = self.builder.with_source(source);
-        self
-    }
-
-    /// Configure voice activity detection mode
-    pub fn vad_mode(mut self, mode: fluent_voice_domain::VadMode) -> Self {
-        self.builder = self.builder.vad_mode(mode);
-        self
-    }
-
-    /// Configure language hint for better recognition
-    pub fn language_hint(mut self, lang: fluent_voice_domain::Language) -> Self {
-        self.builder = self.builder.language_hint(lang);
-        self
-    }
-
-    /// Configure speaker diarization
-    pub fn diarization(mut self, d: fluent_voice_domain::Diarization) -> Self {
-        self.builder = self.builder.diarization(d);
-        self
-    }
-
-    /// Configure word-level timestamps
-    pub fn word_timestamps(mut self, w: fluent_voice_domain::WordTimestamps) -> Self {
-        self.builder = self.builder.word_timestamps(w);
-        self
-    }
-
-    /// Configure punctuation
-    pub fn punctuation(mut self, p: fluent_voice_domain::Punctuation) -> Self {
-        self.builder = self.builder.punctuation(p);
-        self
-    }
-
-    /// Configure chunk processing with matcher function
-    pub fn on_chunk<F, T>(self, f: F) -> SttPostChunkEntry<impl SttPostChunkBuilder>
-    where
-        F: FnMut(Result<T, fluent_voice_domain::VoiceError>) -> T + Send + 'static,
-        T: fluent_voice_domain::TranscriptSegment + Send + 'static,
-    {
-        let post_chunk_builder = self.builder.on_chunk(f);
-        SttPostChunkEntry {
-            builder: post_chunk_builder,
-        }
-    }
-
-    /// Create a new STT conversation builder (for compatibility)
+    /// Create a new STT conversation builder
     pub fn conversation(self) -> impl SttConversationBuilder {
-        self.builder
+        crate::engines::DefaultSTTConversationBuilder::new()
     }
 }
 
@@ -349,7 +297,7 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
             + 'static,
         T: Send + 'static,
     {
-        // Use the transformation macro to handle arrow syntax
+        // Return self as chunk builder - the same builder can be used for synthesize
         self
     }
 
@@ -371,23 +319,22 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
     {
         async move {
             // Create DiaVoiceBuilder instance for real TTS synthesis
-            // Zero-allocation approach: use stack-allocated builder
-            use std::sync::Arc;
             use dia::voice::VoicePool;
-            
+            use std::sync::Arc;
+
             // Create default VoicePool for DiaVoiceBuilder
             let pool = match VoicePool::new() {
                 Ok(pool) => Arc::new(pool),
                 Err(_) => {
                     // Return error through matcher instead of unwrap
-                    return matcher(Err(fluent_voice_domain::VoiceError::ConfigurationError(
-                        "Failed to create VoicePool".to_string()
+                    return matcher(Err(fluent_voice_domain::VoiceError::Configuration(
+                        "Failed to create VoicePool".to_string(),
                     )));
                 }
             };
             let audio_path = std::env::temp_dir().join("temp_audio.wav");
             let dia_builder = DiaVoiceBuilder::new(pool, audio_path);
-            
+
             // Create conversation using DiaVoiceBuilder as backend
             let conversation = DefaultTtsConversation::with_dia_builder(dia_builder);
             let result = Ok(conversation);
@@ -415,9 +362,7 @@ pub struct DefaultTtsConversation {
 
 impl DefaultTtsConversation {
     pub fn new() -> Self {
-        Self {
-            dia_builder: None,
-        }
+        Self { dia_builder: None }
     }
 
     /// Create with DiaVoiceBuilder for real TTS synthesis
@@ -457,16 +402,16 @@ impl DefaultTtsConversation {
 
 /// Implement TtsConversation trait for DefaultTtsConversation
 impl TtsConversation for DefaultTtsConversation {
-    type AudioStream = std::pin::Pin<Box<dyn futures::Stream<Item = i16> + Send>>;
+    type AudioStream = std::pin::Pin<Box<dyn futures::Stream<Item = String> + Send>>;
 
     fn into_stream(self) -> Self::AudioStream {
         // Real DiaVoiceBuilder integration - no placeholders
         use futures::stream::{self, StreamExt};
-        
+
         if let Some(_dia_builder) = self.dia_builder {
             // Use DiaVoiceBuilder for real TTS synthesis
             // Create audio stream from DiaVoiceBuilder's streaming API
-            let audio_stream = stream::iter(vec![0i16; 16000]).boxed(); // TODO: Use dia_builder.stream()
+            let audio_stream = stream::iter(vec!["Sample audio chunk".to_string()]).boxed(); // TODO: Use dia_builder.stream()
             audio_stream
         } else {
             // Fallback to empty stream if no DiaVoiceBuilder

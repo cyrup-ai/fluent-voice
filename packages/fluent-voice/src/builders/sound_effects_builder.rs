@@ -102,7 +102,7 @@ impl SoundEffectsBuilder for SoundEffectsBuilderImpl {
                 };
                 matcher(Ok(session))
             } else {
-                matcher(Err(VoiceError::ConfigurationError(
+                matcher(Err(VoiceError::Configuration(
                     "Missing sound description".to_string(),
                 )))
             }

@@ -1,51 +1,44 @@
-//! Speech-to-Text Example
-//!
-//! This example demonstrates the exact README.md syntax for STT operations.
-//! Uses the fluent API with conversation() method and exact syntax patterns.
-//!
-//! Run with: `cargo run --example stt`
+//! Demonstrates the fluent builder API for Speech-to-Text (STT)
 
 use fluent_voice::prelude::*;
-use cyrup_sugars::on_result;
 use fluent_voice_domain::{
-    AudioFormat, Diarization, Language, MicBackend, Punctuation, SpeechSource,
-    TimestampsGranularity, VadMode, WordTimestamps,
+    AudioFormat, Diarization, Language, MicBackend, Punctuation, SpeechSource, VadMode,
+    WordTimestamps,
 };
 use futures_util::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {
-    let mut transcript_stream = FluentVoice::stt().conversation()
-        .with_source(SpeechSource::Microphone {
-            backend: MicBackend::Default,
+    // Note: This example requires a registered STT engine and a valid audio file.
+    // The builder constructs a recognition plan, which is then executed by the engine.
+    let mut transcript_stream = FluentVoice::stt()
+        .conversation()
+        .with_source(SpeechSource::File {
+            path: "path/to/audio.wav".into(),
             format: AudioFormat::Pcm16Khz,
-            sample_rate: 16_000,
         })
-        .vad_mode(VadMode::Accurate)
-        .language_hint(Language("en-US"))
-        .diarization(Diarization::On)  // Speaker identification
+        // Use type-safe constants for better readability and compile-time checks.
+        .language_hint(Language::ENGLISH_US)
+        .diarization(Diarization::On)
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
-        .on_chunk(on_result!(
-            Ok => transcription_chunk.into(), // Unwrap each chunk
-            Err(e) => Err(e)
-        ))
-        .listen(on_result!(
-            Ok => segment.text(),  // streaming chunks
-            Err(e) => Err(e)
-        ))
-        .await?;  // Single await point
+        // The `listen` method returns a future that resolves to the transcript stream.
+        // This showcases the elegant, non-blocking API design.
+        .listen(|conv| Ok(conv.into_stream()))
+        .await?;
 
-    // Process transcript segments
+    // Process the resulting transcript stream.
     while let Some(result) = transcript_stream.next().await {
         match result {
             Ok(segment) => {
-                println!("[{:.2}s] {}: {}",
+                println!(
+                    "[{:.2}s] {}: {}",
                     segment.start_ms() as f32 / 1000.0,
+                    // Use a default value for speaker ID if not present.
                     segment.speaker_id().unwrap_or("Unknown"),
                     segment.text()
                 );
-            },
+            }
             Err(e) => eprintln!("Recognition error: {}", e),
         }
     }

@@ -125,7 +125,7 @@ impl SpeechToSpeechBuilder for SpeechToSpeechBuilderImpl {
                 };
                 matcher(Ok(session))
             } else {
-                matcher(Err(VoiceError::ConfigurationError(
+                matcher(Err(VoiceError::Configuration(
                     "Missing source audio or target voice".to_string(),
                 )))
             }

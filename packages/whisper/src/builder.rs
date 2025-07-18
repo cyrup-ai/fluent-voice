@@ -96,10 +96,10 @@ impl WhisperTranscriber {
         let language_token = if self.config.which_model.is_multilingual() {
             match &self.config.language {
                 Some(lang) => Some(token_id(&tokenizer, &format!("<|{lang}|>")).map_err(|_| {
-                    VoiceError::ConfigurationError(format!("Language {} not supported", lang))
+                    VoiceError::Configuration(format!("Language {} not supported", lang))
                 })?),
                 None => Some(token_id(&tokenizer, "<|en|>").map_err(|_| {
-                    VoiceError::ConfigurationError("English language token not found".to_string())
+                    VoiceError::Configuration("English language token not found".to_string())
                 })?),
             }
         } else {
@@ -148,7 +148,7 @@ impl WhisperTranscriber {
 
     #[cfg(not(feature = "microphone"))]
     async fn transcribe_microphone(&mut self) -> Result<Transcript, VoiceError> {
-        Err(VoiceError::ConfigurationError(
+        Err(VoiceError::Configuration(
             "Microphone transcription requires 'microphone' feature".to_string(),
         ))
     }
@@ -244,7 +244,7 @@ impl WhisperTranscriber {
                 WhichModel::TinyEn => "tiny-en",
                 WhichModel::Tiny => "tiny",
                 _ => {
-                    return Err(VoiceError::ConfigurationError(format!(
+                    return Err(VoiceError::Configuration(format!(
                         "No quantized support for {:?}",
                         self.config.which_model
                     )));
@@ -303,7 +303,7 @@ impl WhisperTranscriber {
             80 => include_bytes!("melfilters.bytes").as_slice(),
             128 => include_bytes!("melfilters128.bytes").as_slice(),
             nmel => {
-                return Err(VoiceError::ConfigurationError(format!(
+                return Err(VoiceError::Configuration(format!(
                     "Unexpected num_mel_bins {}",
                     nmel
                 )));

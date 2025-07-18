@@ -70,6 +70,11 @@ pub mod audio_device_manager;
 pub mod json_syntax_transform;
 pub mod stream_ext;
 
+/* ───── arrow syntax support for examples ───── */
+pub mod arrow_syntax_impl;
+pub mod example_macros;
+pub mod syntax_transform;
+
 /* ───── wake word engine implementations ───── */
 pub mod wake_word_engine;
 pub mod wake_word_koffee;
@@ -131,12 +136,12 @@ pub mod prelude {
     /* cyrup-sugars macros for Ok => Err => syntax and JSON object syntax */
     pub use cyrup_sugars::macros::*;
     pub use cyrup_sugars::prelude::*;
-    
+
     /* Arrow syntax transformation macros */
-    pub use crate::{fv_match, on_chunk_transform, synthesize_transform, listen_transform};
+    pub use crate::{fv_match, listen_transform, on_chunk_transform, synthesize_transform};
     // Real production transcript segment type from Whisper crate
     pub use fluent_voice_whisper::TtsChunk;
-    
+
     /* TTS method macros that enable arrow syntax */
     pub use crate::{tts_on_chunk, tts_synthesize};
 

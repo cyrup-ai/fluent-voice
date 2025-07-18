@@ -48,12 +48,12 @@ impl AudioDeviceManager {
         let mut devices = Vec::new();
 
         let device_iter = self.host.devices().map_err(|e| {
-            VoiceError::ConfigurationError(format!("Failed to enumerate audio devices: {}", e))
+            VoiceError::Configuration(format!("Failed to enumerate audio devices: {}", e))
         })?;
 
         for device in device_iter {
             let name = device.name().map_err(|e| {
-                VoiceError::ConfigurationError(format!("Failed to get device name: {}", e))
+                VoiceError::Configuration(format!("Failed to get device name: {}", e))
             })?;
 
             // Check input capabilities
@@ -82,12 +82,12 @@ impl AudioDeviceManager {
         &self,
     ) -> Result<Option<(Device, AudioDeviceInfo)>, VoiceError> {
         let device_iter = self.host.devices().map_err(|e| {
-            VoiceError::ConfigurationError(format!("Failed to enumerate audio devices: {}", e))
+            VoiceError::Configuration(format!("Failed to enumerate audio devices: {}", e))
         })?;
 
         for device in device_iter {
             let name = device.name().map_err(|e| {
-                VoiceError::ConfigurationError(format!("Failed to get device name: {}", e))
+                VoiceError::Configuration(format!("Failed to get device name: {}", e))
             })?;
 
             // Check for exact match with Studio Display Microphone
@@ -119,7 +119,7 @@ impl AudioDeviceManager {
         // First try the system default input device
         if let Some(device) = self.host.default_input_device() {
             let name = device.name().map_err(|e| {
-                VoiceError::ConfigurationError(format!("Failed to get device name: {}", e))
+                VoiceError::Configuration(format!("Failed to get device name: {}", e))
             })?;
 
             let default_input_config = device.default_input_config().ok();
@@ -136,13 +136,13 @@ impl AudioDeviceManager {
 
         // If no default device, find any input device
         let device_iter = self.host.devices().map_err(|e| {
-            VoiceError::ConfigurationError(format!("Failed to enumerate audio devices: {}", e))
+            VoiceError::Configuration(format!("Failed to enumerate audio devices: {}", e))
         })?;
 
         for device in device_iter {
             if device.default_input_config().is_ok() {
                 let name = device.name().map_err(|e| {
-                    VoiceError::ConfigurationError(format!("Failed to get device name: {}", e))
+                    VoiceError::Configuration(format!("Failed to get device name: {}", e))
                 })?;
 
                 let default_input_config = device.default_input_config().ok();
@@ -173,7 +173,7 @@ impl AudioDeviceManager {
             return Ok((device, info));
         }
 
-        Err(VoiceError::ConfigurationError(
+        Err(VoiceError::Configuration(
             "No microphone devices found on this system".to_string(),
         ))
     }
@@ -181,13 +181,13 @@ impl AudioDeviceManager {
     /// Validate audio device connection and configuration.
     pub fn validate_device(&self, device: &Device) -> Result<(), VoiceError> {
         // Check if device is still available
-        let name = device.name().map_err(|e| {
-            VoiceError::ConfigurationError(format!("Device no longer available: {}", e))
-        })?;
+        let name = device
+            .name()
+            .map_err(|e| VoiceError::Configuration(format!("Device no longer available: {}", e)))?;
 
         // Check if input is still supported
         device.default_input_config().map_err(|e| {
-            VoiceError::ConfigurationError(format!(
+            VoiceError::Configuration(format!(
                 "Device '{}' no longer supports audio input: {}",
                 name, e
             ))

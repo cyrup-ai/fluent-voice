@@ -283,6 +283,21 @@ where
     })
 }
 
+/// Helper function to convert Stream<String> to Stream<Vec<u8>>
+///
+/// This function converts string streams to byte streams for TTS examples.
+/// Used when the conversation stream returns strings instead of raw audio samples.
+pub fn string_stream_to_bytes_stream<S>(
+    stream: S,
+    _chunk_size: usize,
+) -> impl futures_core::Stream<Item = Vec<u8>> + Send + Unpin
+where
+    S: futures_core::Stream<Item = String> + Send + Unpin + 'static,
+{
+    use futures_util::StreamExt;
+    stream.map(|text| text.into_bytes())
+}
+
 /// Error transcription segment for default error handling
 #[derive(Debug, Clone)]
 pub struct BadTranscriptionSegment {

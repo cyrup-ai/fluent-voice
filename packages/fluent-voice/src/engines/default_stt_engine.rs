@@ -10,7 +10,6 @@
 //! - Comprehensive error recovery with semantic error handling
 //! - Ergonomic async streams with backpressure management
 
-
 use crate::stt_conversation::{
     MicrophoneBuilder, SttConversation, SttConversationBuilder, SttEngine, SttPostChunkBuilder,
     TranscriptionBuilder,
@@ -693,9 +692,15 @@ impl SttEngine for DefaultSTTEngine {
                 // Default error recovery - log and continue
                 match error {
                     VoiceError::ProcessingError(_) => format!("[PROCESSING_ERROR]"),
-                    VoiceError::ConfigurationError(_) => format!("[CONFIG_ERROR]"),
+                    VoiceError::Configuration(_) => format!("[CONFIG_ERROR]"),
                     VoiceError::Tts(_) => format!("[TTS_ERROR]"),
                     VoiceError::Stt(_) => format!("[STT_ERROR]"),
+                    VoiceError::Synthesis(_) => format!("[SYNTHESIS_ERROR]"),
+                    VoiceError::NotSynthesizable(_) => format!("[NOT_SYNTHESIZABLE]"),
+                    VoiceError::Transcription(_) => format!("[TRANSCRIPTION_ERROR]"),
+                    VoiceError::Synthesis(_) => format!("[SYNTHESIS_ERROR]"),
+                    VoiceError::NotSynthesizable(_) => format!("[NOT_SYNTHESIZABLE]"),
+                    VoiceError::Transcription(_) => format!("[TRANSCRIPTION_ERROR]"),
                 }
             })),
             wake_handler: Some(Box::new(|wake_word| {
@@ -1309,6 +1314,8 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
         R: Send + 'static,
     {
         async move {
+            // Apply arrow syntax directly to the matcher closure
+
             // Create the conversation result
             let conversation_result = DefaultSTTConversation::new(
                 self.inner.vad_config,
@@ -1390,9 +1397,12 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
                 self.wake_word_config,
                 Some(Box::new(|error| match error {
                     VoiceError::ProcessingError(_) => format!("[PROCESSING_ERROR]"),
-                    VoiceError::ConfigurationError(_) => format!("[CONFIG_ERROR]"),
+                    VoiceError::Configuration(_) => format!("[CONFIG_ERROR]"),
                     VoiceError::Tts(_) => format!("[TTS_ERROR]"),
                     VoiceError::Stt(_) => format!("[STT_ERROR]"),
+                    VoiceError::Synthesis(_) => format!("[SYNTHESIS_ERROR]"),
+                    VoiceError::NotSynthesizable(_) => format!("[NOT_SYNTHESIZABLE]"),
+                    VoiceError::Transcription(_) => format!("[TRANSCRIPTION_ERROR]"),
                 })),
                 Some(Box::new(|wake_word| {
                     println!("🔊 Wake word detected: {}", wake_word);
@@ -1471,9 +1481,12 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
             self.wake_word_config,
             Some(Box::new(|error| match error {
                 VoiceError::ProcessingError(_) => format!("[PROCESSING_ERROR]"),
-                VoiceError::ConfigurationError(_) => format!("[CONFIG_ERROR]"),
+                VoiceError::Configuration(_) => format!("[CONFIG_ERROR]"),
                 VoiceError::Tts(_) => format!("[TTS_ERROR]"),
                 VoiceError::Stt(_) => format!("[STT_ERROR]"),
+                VoiceError::Synthesis(_) => format!("[SYNTHESIS_ERROR]"),
+                VoiceError::NotSynthesizable(_) => format!("[NOT_SYNTHESIZABLE]"),
+                VoiceError::Transcription(_) => format!("[TRANSCRIPTION_ERROR]"),
             })),
             Some(Box::new(|wake_word| {
                 println!("🔊 Wake word detected: {}", wake_word);
@@ -1511,9 +1524,12 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
                 self.wake_word_config,
                 Some(Box::new(|error| match error {
                     VoiceError::ProcessingError(_) => format!("[PROCESSING_ERROR]"),
-                    VoiceError::ConfigurationError(_) => format!("[CONFIG_ERROR]"),
+                    VoiceError::Configuration(_) => format!("[CONFIG_ERROR]"),
                     VoiceError::Tts(_) => format!("[TTS_ERROR]"),
                     VoiceError::Stt(_) => format!("[STT_ERROR]"),
+                    VoiceError::Synthesis(_) => format!("[SYNTHESIS_ERROR]"),
+                    VoiceError::NotSynthesizable(_) => format!("[NOT_SYNTHESIZABLE]"),
+                    VoiceError::Transcription(_) => format!("[TRANSCRIPTION_ERROR]"),
                 })),
                 Some(Box::new(|wake_word| {
                     println!("🔊 Wake word detected: {}", wake_word);

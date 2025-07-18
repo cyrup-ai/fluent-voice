@@ -12,8 +12,17 @@ pub enum VoiceError {
     Stt(&'static str),
     /// Configuration-related failure reason.
     #[error("configuration: {0}")]
-    ConfigurationError(String),
+    Configuration(String),
     /// Processing-related failure reason.
     #[error("processing: {0}")]
     ProcessingError(String),
+    /// Error during synthesis operation
+    #[error("synthesis: {0}")]
+    Synthesis(String),
+    /// Error when synthesis is not possible
+    #[error("not synthesizable: {0}")]
+    NotSynthesizable(String),
+    /// Error during transcription operation
+    #[error("transcription: {0}")]
+    Transcription(String),
 }

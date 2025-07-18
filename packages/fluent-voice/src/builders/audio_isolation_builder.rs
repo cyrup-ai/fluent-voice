@@ -100,7 +100,7 @@ impl AudioIsolationBuilder for AudioIsolationBuilderImpl {
                 let session = AudioIsolationSessionImpl { _source: source };
                 matcher(Ok(session))
             } else {
-                matcher(Err(VoiceError::ConfigurationError(
+                matcher(Err(VoiceError::Configuration(
                     "Missing audio source".to_string(),
                 )))
             }

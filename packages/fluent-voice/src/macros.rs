@@ -157,8 +157,6 @@ macro_rules! stt_conversation_builder {
     }};
 }
 
-
-
 /// Macro for the listen method on STT microphone builders.
 ///
 /// This macro allows for the simplified `Ok => ..., Err(e) => ...` syntax

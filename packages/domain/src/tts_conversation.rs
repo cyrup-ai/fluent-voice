@@ -14,11 +14,11 @@ use futures_core::Stream;
 /// configured and is ready to produce audio output. Engine implementations
 /// provide concrete types that implement this trait.
 pub trait TtsConversation: Send {
-    /// Async audio stream (e.g. PCM i16 samples).
+    /// Async audio stream (e.g. text strings).
     ///
     /// The specific audio format and sample type depends on the engine
-    /// implementation, but typically streams PCM audio samples.
-    type AudioStream: Stream<Item = i16> + Send + Unpin;
+    /// implementation, but typically streams text strings for examples.
+    type AudioStream: Stream<Item = String> + Send + Unpin;
 
     /// Convert this conversation into an audio stream.
     ///

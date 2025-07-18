@@ -5,7 +5,38 @@
 
 ### 🎯 CORE ARCHITECTURAL SOLUTION: Arrow Syntax Support for TTS API
 
-#### 0. Implement Arrow Syntax Macro System for TTS Methods
+#### 0. COMPILATION BLOCKER: Fixed VoiceError Variant Names (COMPLETED ✅)
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/whisper/src/builder.rs` 
+**Lines**: 99, 102, 151, 247, 306 (all VoiceError::ConfigurationError → VoiceError::Configuration)
+**Architecture**: Fixed compilation errors preventing any further work
+**Implementation**: Changed incorrect variant names to match domain definitions
+**Status**: COMPLETED - All 5 compilation errors fixed
+**Constraints**: Zero runtime impact, surgical changes only
+
+#### 0a. Reconstruct TTS Builder with Zero-Allocation Architecture
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/builders/tts_builder.rs` (cleared for rebuild)
+**Lines**: 1-600 (complete reconstruction)
+**Architecture**: Rebuild entire TTS builder with zero-allocation, blazing-fast, no-locking design
+**Implementation**: 
+- Complete trait implementations for `TtsConversationBuilder` and `TtsConversationChunkBuilder`
+- Zero-allocation `SpeakerLine` and `SpeakerLineBuilder` with stack-based operations
+- Lock-free `TtsConversationBuilderImpl` using ownership patterns instead of Arc<Mutex<T>>
+- Blazing-fast `on_chunk` and `synthesize` methods with inline optimizations
+- Arrow syntax support through cyrup_sugars integration
+**Performance**: 
+- Zero heap allocations in hot paths, stack-based operations only
+- Const generics for compile-time audio format optimization
+- Inline all method calls for blazing-fast execution
+- No locking mechanisms, use ownership for thread safety
+**Technical Details**: 
+- Implement complete `TtsConversationBuilder` trait with all required methods
+- Support `on_chunk(|synthesis_chunk| { Ok => synthesis_chunk.into(), Err(e) => Err(e) })` syntax
+- Integrate with cyrup_sugars for arrow syntax transformation
+- Maintain compatibility with domain trait requirements
+**Constraints**: No unsafe, no unchecked, no locking, elegant ergonomic code, production-quality implementation
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 0b. Implement Arrow Syntax Macro System for TTS Methods
 **File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/macros.rs` (new file)
 **Lines**: 1-200 (complete implementation)
 **Architecture**: Create function-like macros that transform TTS arrow syntax (`Ok => synthesis_chunk.into()`) into valid Rust code

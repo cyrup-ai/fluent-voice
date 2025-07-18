@@ -30,7 +30,7 @@ impl KoffeeWakeWordDetector {
     pub fn new() -> WakeWordResult<Self> {
         let cfg = KoffeeCandleConfig::default();
         let detector = KoffeeCandle::new(&cfg).map_err(|e| {
-            VoiceError::ConfigurationError(format!("Failed to create Koffee detector: {}", e))
+            VoiceError::Configuration(format!("Failed to create Koffee detector: {}", e))
         })?;
 
         Ok(Self {
@@ -49,7 +49,7 @@ impl WakeWordDetector for KoffeeWakeWordDetector {
         wake_word: String,
     ) -> WakeWordResult<()> {
         let model = WakewordLoad::load_from_file(model_path.as_ref()).map_err(|e| {
-            VoiceError::ConfigurationError(format!(
+            VoiceError::Configuration(format!(
                 "Failed to load wake word model '{}': {}",
                 wake_word, e
             ))
@@ -57,7 +57,7 @@ impl WakeWordDetector for KoffeeWakeWordDetector {
 
         let mut detector = self.detector.lock().unwrap();
         detector.add_wakeword_model(model).map_err(|e| {
-            VoiceError::ConfigurationError(format!(
+            VoiceError::Configuration(format!(
                 "Failed to add wake word model '{}': {}",
                 wake_word, e
             ))
