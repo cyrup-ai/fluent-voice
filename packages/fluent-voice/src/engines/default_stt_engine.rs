@@ -1303,27 +1303,23 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
         }
     }
 
-    fn listen(self) -> impl Stream<Item = String> + Send + Unpin {
-        use futures::stream::Either;
-        
-        // Create STT conversation and return string stream
-        let conversation_result = DefaultSTTConversation::new(
-            self.inner.vad_config,
-            self.inner.wake_word_config,
-            self.inner.error_handler,
-            self.inner.wake_handler,
-            self.inner.turn_handler,
-        );
-        
-        match conversation_result {
-            Ok(conversation) => {
-                let transcript_stream = conversation.into_stream();
-                Either::Left(transcript_stream_to_string_stream(transcript_stream))
-            },
-            Err(e) => {
-                let error_message = format!("[ERROR: {}]", e);
-                Either::Right(futures::stream::once(async move { error_message }))
-            }
+    fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    where
+        F: FnOnce(Result<DefaultSTTConversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        async move {
+            // Create the conversation result
+            let conversation_result = DefaultSTTConversation::new(
+                self.inner.vad_config,
+                self.inner.wake_word_config,
+                self.inner.error_handler,
+                self.inner.wake_handler,
+                self.inner.turn_handler,
+            );
+            
+            // Call the matcher with the result
+            matcher(conversation_result)
         }
     }
 }
