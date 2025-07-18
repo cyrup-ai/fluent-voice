@@ -65,10 +65,10 @@ symphonia = { version = "0.5.4", optional = true }
 clap = { version = "4.5.41", features = ["derive"] }
 rand = "0.9.1"
 rand_distr = "0.5.1"
-hf-hub = "0.3"
+hf-hub = "0.4.3"
 hound = "3.5"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tokenizers = "0.21.2"
+tokenizers = "0.21.4-dev.0"
 flate2 = "1.1.2"
 crossbeam-channel = "0.5.15"
 crossbeam-utils = "0.8.21"
