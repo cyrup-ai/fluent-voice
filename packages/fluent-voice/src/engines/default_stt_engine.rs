@@ -1304,6 +1304,8 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
     }
 
     fn listen(self) -> impl Stream<Item = String> + Send + Unpin {
+        use futures::stream::Either;
+        
         // Create STT conversation and return string stream
         let conversation_result = DefaultSTTConversation::new(
             self.inner.vad_config,
@@ -1316,13 +1318,11 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
         match conversation_result {
             Ok(conversation) => {
                 let transcript_stream = conversation.into_stream();
-                transcript_stream_to_string_stream(transcript_stream)
+                Either::Left(transcript_stream_to_string_stream(transcript_stream))
             },
             Err(e) => {
-                // Return stream with error segment
-                let error_segment = crate::audio_chunk::BadTranscriptionSegment::from_err(e);
-                let error_stream = futures::stream::once(async move { error_segment });
-                transcript_stream_to_string_stream(error_stream)
+                let error_message = format!("[ERROR: {}]", e);
+                Either::Right(futures::stream::once(async move { error_message }))
             }
         }
     }
