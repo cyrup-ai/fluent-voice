@@ -26,7 +26,7 @@ macro_rules! enable_json_syntax {
     () => {
         // Re-export the transformation macros
         use $crate::json_syntax_transform::*;
-        
+
         // Enable cyrup_sugars syntax
         use cyrup_sugars::macros::*;
         use cyrup_sugars::prelude::*;
@@ -34,7 +34,7 @@ macro_rules! enable_json_syntax {
 }
 
 /// Re-export working transformation macros from the macros module
-pub use crate::{on_chunk_transform, synthesize_transform, listen_transform, fv_match};
+pub use crate::{fv_match, listen_transform, on_chunk_transform, synthesize_transform};
 
 /// Attribute macro (when procedural macros are available) to enable JSON syntax in a function
 #[macro_export]

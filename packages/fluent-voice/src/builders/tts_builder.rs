@@ -579,7 +579,7 @@ where
                 next_request_ids: self.next_request_ids,
                 synth_fn: self.synth_fn,
             });
-            
+
             // Call the matcher with the result
             matcher(conversation_result)
         }

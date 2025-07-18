@@ -120,7 +120,9 @@ pub mod prelude {
     };
 
     /* STT and TTS builder traits */
-    pub use crate::stt_conversation::{SttConversationBuilder, SttPostChunkBuilder, MicrophoneBuilder, TranscriptionBuilder};
+    pub use crate::stt_conversation::{
+        MicrophoneBuilder, SttConversationBuilder, SttPostChunkBuilder, TranscriptionBuilder,
+    };
     pub use crate::tts_conversation::TtsConversationChunkBuilder;
 
     // For convenience, allow calling FluentVoice::stt() and FluentVoice::tts() directly
@@ -129,8 +131,14 @@ pub mod prelude {
     /* cyrup-sugars macros for Ok => Err => syntax and JSON object syntax */
     pub use cyrup_sugars::macros::*;
     pub use cyrup_sugars::prelude::*;
+    
+    /* Arrow syntax transformation macros */
+    pub use crate::{fv_match, on_chunk_transform, synthesize_transform, listen_transform};
     // Real production transcript segment type from Whisper crate
     pub use fluent_voice_whisper::TtsChunk;
+    
+    /* TTS method macros that enable arrow syntax */
+    pub use crate::{tts_on_chunk, tts_synthesize};
 
     /* Builder implementations */
     pub use crate::builders::{
@@ -139,14 +147,16 @@ pub mod prelude {
         TtsConversationBuilderImpl, TtsConversationImpl, stt_conversation_builder,
         tts_conversation_builder,
     };
-    
+
     /* Domain traits needed for examples */
-    pub use fluent_voice_domain::{TtsConversationBuilder, SpeakerBuilder};
+    pub use fluent_voice_domain::{SpeakerBuilder, TtsConversationBuilder};
 
     /* Implement SpeakerExt for the Speaker alias to enable Speaker::speaker() syntax */
     impl fluent_voice_domain::SpeakerExt for crate::builders::SpeakerLine {
         fn speaker(name: impl Into<String>) -> impl fluent_voice_domain::SpeakerBuilder {
-            <crate::builders::SpeakerLineBuilder as crate::speaker_builder::SpeakerBuilder>::speaker(name)
+            <crate::builders::SpeakerLineBuilder as crate::speaker_builder::SpeakerBuilder>::speaker(
+                name,
+            )
         }
     }
 

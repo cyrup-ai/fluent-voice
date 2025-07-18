@@ -383,24 +383,26 @@ impl TtsConversationBuilder for KyutaiTtsConversationBuilder {
     #[inline]
     fn on_chunk<F, T>(self, _processor: F) -> Self::ChunkBuilder
     where
-        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
+        F: FnMut(Result<T, VoiceError>) -> Result<T, VoiceError> + Send + 'static,
         T: Send + 'static,
     {
         KyutaiTtsConversationChunkBuilder::new(self)
     }
 
-    fn synthesize(self) -> impl Stream<Item = Vec<u8>> + Send + Unpin {
-        // Convert conversation to audio stream
-        use futures_util::StreamExt;
-        let conversation = KyutaiTtsConversation::new(self);
-        let audio_stream = conversation.into_stream();
-
-        // Convert i16 samples to Vec<u8> chunks
-        Box::pin(audio_stream.map(|sample| {
-            // Convert i16 to bytes (little endian)
-            sample.to_le_bytes().to_vec()
-        }))
+    fn synthesize<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        async move {
+            // Create Kyutai TTS conversation for processing
+            let conversation = KyutaiTtsConversation::new(self);
+            let result = Ok(conversation);
+            matcher(result)
+        }
     }
+
+
 }
 
 /// Chunk-based TTS conversation builder
@@ -691,14 +693,17 @@ impl SttPostChunkBuilder for KyutaiSttPostChunkBuilder {
         KyutaiTranscriptionBuilder::new(self.builder)
     }
 
-    fn listen(self) -> impl Stream<Item = String> + Send + Unpin {
-        // Create a streaming STT conversation and convert to string stream
-        use futures_util::StreamExt;
-        let conversation = KyutaiSttConversation::new();
-        Box::pin(conversation.into_stream().map(|result| match result {
-            Ok(segment) => segment.text().to_string(),
-            Err(_) => String::new(), // Default error handling
-        }))
+    fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        async move {
+            // Create Kyutai STT conversation for processing
+            let conversation = KyutaiSttConversation::new();
+            let result = Ok(conversation);
+            matcher(result)
+        }
     }
 }
 

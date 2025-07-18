@@ -7,7 +7,6 @@
 
 use crate::{CandleResult, Tensor};
 
-
 /// Delay pattern for 9-channel, 24 kHz EnCodec tokenizer
 /// Channel 0 has no delay, channels 1-8 have increasing delays
 pub const DELAY_PATTERN: [usize; 9] = [0, 8, 9, 10, 11, 12, 13, 14, 15];

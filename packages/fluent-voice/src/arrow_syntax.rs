@@ -36,7 +36,7 @@ macro_rules! arrow_syntax {
             Err($err) => $err_expr,
         })
     };
-    
+
     // Transform synthesize calls with arrow syntax
     (
         $builder:expr => synthesize(|$param:ident| {
@@ -49,7 +49,7 @@ macro_rules! arrow_syntax {
             Err($err) => $err_expr,
         })
     };
-    
+
     // Transform listen calls with arrow syntax
     (
         $builder:expr => listen(|$param:ident| {
@@ -74,7 +74,7 @@ pub trait ArrowSyntaxBuilder<T> {
 
 /// Helper function to create closures with arrow syntax support
 pub fn arrow_closure<T, R>(
-    f: impl FnOnce(T) -> R + Send + 'static
+    f: impl FnOnce(T) -> R + Send + 'static,
 ) -> impl FnOnce(Result<T, VoiceError>) -> Result<R, VoiceError> + Send + 'static {
     move |result| match result {
         Ok(value) => Ok(f(value)),

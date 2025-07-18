@@ -10,11 +10,11 @@
 //! - Comprehensive error recovery with semantic error handling
 //! - Ergonomic async streams with backpressure management
 
+
 use crate::stt_conversation::{
     MicrophoneBuilder, SttConversation, SttConversationBuilder, SttEngine, SttPostChunkBuilder,
     TranscriptionBuilder,
 };
-use crate::audio_chunk::transcript_stream_to_string_stream;
 use fluent_voice_domain::{
     AudioFormat, Diarization, Language, NoiseReduction, Punctuation, SpeechSource,
     TimestampsGranularity, TranscriptSegment, VadMode, VoiceError, WordTimestamps,
@@ -1317,7 +1317,7 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
                 self.inner.wake_handler,
                 self.inner.turn_handler,
             );
-            
+
             // Call the matcher with the result
             matcher(conversation_result)
         }
@@ -1379,7 +1379,9 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
 
     fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
     where
-        F: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> R + Send + 'static,
+        F: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> R
+            + Send
+            + 'static,
         R: Send + 'static,
     {
         async move {
@@ -1401,7 +1403,7 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
                 })),
             );
 
-            // Call the matcher with the result 
+            // Call the matcher with the result
             matcher(conversation_result)
         }
     }

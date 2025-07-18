@@ -248,7 +248,6 @@ impl From<VoiceError> for SynthesisChunk {
     }
 }
 
-
 impl From<Result<AudioChunk, VoiceError>> for SynthesisChunk {
     fn from(result: Result<AudioChunk, VoiceError>) -> Self {
         match result {
@@ -291,17 +290,25 @@ pub struct BadTranscriptionSegment {
 }
 
 impl fluent_voice_domain::transcript::TranscriptSegment for BadTranscriptionSegment {
-    fn start_ms(&self) -> u32 { 0 }
-    fn end_ms(&self) -> u32 { 0 }
-    fn text(&self) -> &str { &self.error_message }
-    fn speaker_id(&self) -> Option<&str> { None }
+    fn start_ms(&self) -> u32 {
+        0
+    }
+    fn end_ms(&self) -> u32 {
+        0
+    }
+    fn text(&self) -> &str {
+        &self.error_message
+    }
+    fn speaker_id(&self) -> Option<&str> {
+        None
+    }
 }
 
 impl BadTranscriptionSegment {
     /// Create a bad transcription segment from an error
     pub fn from_err(error: fluent_voice_domain::VoiceError) -> Self {
         BadTranscriptionSegment {
-            error_message: format!("[ERROR: {}]", error)
+            error_message: format!("[ERROR: {}]", error),
         }
     }
 }

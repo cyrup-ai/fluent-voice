@@ -1,5 +1,207 @@
 # Warning Fixes TODO - 443 Total Warnings 🚨
 
+## ⚡ ULTRA HIGH PRIORITY: TTS INTEGRATION AND SYNTAX ALIGNMENT ⚡
+### Zero-Allocation, Blazing-Fast, No-Locking DiaVoiceBuilder Integration
+
+### 🎯 CORE ARCHITECTURAL SOLUTION: Arrow Syntax Support for TTS API
+
+#### 0. Implement Arrow Syntax Macro System for TTS Methods
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/macros.rs` (new file)
+**Lines**: 1-200 (complete implementation)
+**Architecture**: Create function-like macros that transform TTS arrow syntax (`Ok => synthesis_chunk.into()`) into valid Rust code
+**Implementation**: 
+- Procedural macros `tts_on_chunk!` and `tts_synthesize!` that parse closure bodies
+- Transform arrow syntax into `cyrup_sugars::on_result!` macro calls automatically
+- Zero-allocation token stream parsing with compile-time optimization
+- Support for both `Ok =>` and `Err =>` patterns exactly as shown in examples
+**Performance**: 
+- Compile-time macro expansion with zero runtime overhead
+- Inline all macro-generated code for blazing-fast execution
+- Use const generics for type-level optimization
+- No dynamic dispatch or heap allocation in macro expansion
+**Technical Details**: 
+- Parse `|closure_param| { Ok => expr, Err(e) => expr }` syntax
+- Generate `cyrup_sugars::on_result!(Ok => expr, Err(e) => expr)` calls
+- Maintain exact API surface from README.md and examples
+- Support nested arrow syntax and complex expressions
+**Constraints**: No unsafe, no unchecked, elegant ergonomic code, blazing-fast compilation
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 0a. Act as an Objective QA Rust developer: Rate the work performed previously on implementing arrow syntax macro system and confirm compliance with all requirements for the arrow syntax macro implementation step above.
+
+#### 0b. Update TTS Builder Methods to Use Arrow Syntax Macros
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/builders/tts_builder.rs`
+**Lines**: 547-580 (on_chunk method), 590-620 (synthesize method)
+**Architecture**: Replace current method implementations with macro-enabled versions
+**Implementation**:
+- Modify `on_chunk` to use `tts_on_chunk!` macro internally
+- Modify `synthesize` to use `tts_synthesize!` macro internally
+- Maintain exact trait signatures while enabling arrow syntax
+- Zero-allocation method dispatch with inline optimization
+**Performance**: 
+- Inline all hot paths for blazing-fast method calls
+- Use const generics where possible for compile-time optimization
+- No runtime overhead from macro transformation
+- Lock-free implementation using ownership patterns
+**Technical Details**: 
+- Methods accept closures with arrow syntax and transform them
+- Delegate to actual trait implementations after macro expansion
+- Preserve error handling and Result propagation
+- Maintain compatibility with domain trait requirements
+**Constraints**: No unsafe, no unchecked, no locking, elegant ergonomic code
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 0c. Act as an Objective QA Rust developer: Rate the work performed previously on updating TTS builder methods to use arrow syntax macros and confirm compliance with all requirements for the TTS builder method update step above.
+
+#### 0d. Export Arrow Syntax Macros in Library Interface
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/lib.rs`
+**Lines**: 1-50 (module declarations and exports)
+**Architecture**: Export arrow syntax macros for use throughout the crate
+**Implementation**:
+- Add `mod macros;` declaration
+- Export macros in prelude for seamless usage
+- Ensure macro visibility for TTS builder methods
+- Add necessary dependencies for proc-macro support
+**Performance**: Zero-allocation exports with compile-time resolution
+**Technical Details**: 
+- Make macros available to all internal modules
+- Maintain clean public API surface
+- Support for both internal and external macro usage
+**Constraints**: No unsafe, no unchecked, elegant ergonomic code, blazing-fast compilation
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 0e. Act as an Objective QA Rust developer: Rate the work performed previously on exporting arrow syntax macros in library interface and confirm compliance with all requirements for the macro export step above.
+
+#### 1. Complete DiaVoiceBuilder Real Audio Streaming Integration
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/fluent_voice.rs`
+**Lines**: 462-471 (into_stream method), 372-396 (synthesize method), 12 (unused import)
+**Architecture**: Replace placeholder audio streams with real DiaVoiceBuilder streaming synthesis
+**Implementation**: 
+- Complete `into_stream()` method with actual DiaVoiceBuilder audio generation
+- Use dia_builder's streaming API for real i16 audio sample production
+- Implement zero-allocation audio buffer management with lock-free channels
+- Replace placeholder `vec![0i16; 16000]` with actual audio synthesis
+- Fix VoicePool::new() Result handling without unwrap/expect
+**Performance**: 
+- Zero-allocation streaming using efficient buffer pools
+- Blazing-fast audio sample processing with inline hot paths
+- Lock-free async channels for audio data flow
+- Const generics for compile-time audio format optimization
+- No dynamic dispatch in audio processing pipeline
+**Technical Details**: 
+- Use `dia_builder.stream()` or equivalent for real audio generation
+- Implement proper error propagation through VoiceError
+- Stream i16 audio samples as expected by domain trait
+- Handle Arc<VoicePool> construction efficiently
+- Remove TODO comments and implement actual streaming
+**Constraints**: No unsafe, no unchecked, no locking, elegant ergonomic code, blazing-fast audio generation
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 1a. Act as an Objective QA Rust developer: Rate the work performed previously on completing DiaVoiceBuilder real audio streaming integration and confirm compliance with all requirements for the DiaVoiceBuilder integration step above.
+
+#### 1b. Optimize DefaultTtsConversation Performance Architecture
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/fluent_voice.rs`
+**Lines**: 410-456 (DefaultTtsConversation implementation)
+**Architecture**: Optimize conversation implementation for zero-allocation, blazing-fast performance
+**Implementation**:
+- Replace placeholder TtsChunk creation with real DiaVoiceBuilder delegation
+- Implement zero-allocation chunk processing with efficient buffer management
+- Use const generics for compile-time optimization of audio parameters
+- Eliminate all heap allocations in hot audio processing paths
+**Performance**: 
+- Zero-allocation chunk builder with stack-based operations
+- Blazing-fast audio chunk processing using inline optimizations
+- Lock-free implementation using ownership patterns
+- Const generics for audio format optimization
+**Technical Details**: 
+- Remove placeholder chunk creation (lines 443-452)
+- Implement real audio chunk streaming from DiaVoiceBuilder
+- Use efficient buffer management for audio data
+- Optimize for continuous audio streaming without gaps
+**Constraints**: No unsafe, no unchecked, no locking, elegant ergonomic code, production-quality audio
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 1c. Act as an Objective QA Rust developer: Rate the work performed previously on optimizing DefaultTtsConversation performance architecture and confirm compliance with all requirements for the conversation optimization step above.
+
+#### 1d. Complete Production-Quality Error Handling and Cleanup
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/fluent_voice.rs`
+**Lines**: 342 (unused variable), 413 (unused field), All unwrap/expect occurrences
+**Architecture**: Eliminate all unwrap/expect usage and fix unused code warnings
+**Implementation**:
+- Fix unused variable `processor` in line 342 with proper implementation or _ prefix
+- Implement proper usage of `dia_builder` field in DefaultTtsConversation
+- Replace all unwrap/expect with proper Result handling and error propagation
+- Clean up all unused imports and dead code warnings
+**Performance**: 
+- Zero-allocation error handling with efficient Result propagation
+- Blazing-fast error paths using inline optimization
+- No runtime overhead from error handling in happy paths
+**Technical Details**: 
+- Use ? operator for Result propagation throughout
+- Implement proper error handling for VoicePool::new() and other Result types
+- Remove unused imports that cause warnings
+- Ensure all fields are properly utilized in implementations
+**Constraints**: No unsafe, no unchecked, no locking, elegant ergonomic code, production-quality error handling
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 1e. Act as an Objective QA Rust developer: Rate the work performed previously on completing production-quality error handling and cleanup and confirm compliance with all requirements for the error handling cleanup step above.
+
+#### 1f. Verify Examples Run Successfully with Arrow Syntax
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/examples/tts.rs` (validation)
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/examples/stt.rs` (validation)
+**Architecture**: Ensure both examples run successfully with the implemented arrow syntax support
+**Implementation**:
+- Test `cargo run --example tts` runs without errors and produces real audio
+- Test `cargo run --example stt` runs without errors and processes speech input
+- Verify arrow syntax (`Ok => synthesis_chunk.into()`) works in TTS closures
+- Verify explicit `on_result!` macro works in STT closures
+- Confirm single await pattern works correctly in both examples
+**Performance**: 
+- Validate zero-allocation performance in example execution
+- Confirm blazing-fast audio processing with no blocking
+- Ensure lock-free operation throughout example execution
+**Technical Details**: 
+- Examples must run exactly as written in README.md without modification
+- TTS example must produce real audio output, not placeholder text
+- STT example must process real microphone input with proper transcription
+- Both examples must demonstrate the exact API patterns from README.md
+**Constraints**: No unsafe, no unchecked, no locking, elegant ergonomic code, production-quality examples
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 1g. Act as an Objective QA Rust developer: Rate the work performed previously on verifying examples run successfully with arrow syntax and confirm compliance with all requirements for the example validation step above.
+
+#### 2. Fix Kyutai Engine Compilation Errors - engine.rs
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/kyutai/src/engine.rs`
+**Lines**: 386 (on_chunk signature), 392 (synthesize type params), 694, 763 (listen type params)
+**Architecture**: Fix trait method signatures to match example syntax patterns with zero-allocation
+**Implementation**: Add missing generic type parameters, fix closure signatures for Result handling
+**Performance**: Inline all hot paths, use const generics, avoid dynamic dispatch in audio processing
+**Details**: Current methods have 0 type parameters but traits require 2, closure expects different types
+**Constraints**: Match exact syntax from examples, no unsafe, no unchecked, blazing-fast compilation
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 3. Update TTS Builder Syntax - tts_builder.rs
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/builders/tts_builder.rs`
+**Lines**: 557-580 (synthesize method), 547-555 (on_chunk method)
+**Architecture**: Update syntax to match examples exactly while integrating DiaVoiceBuilder backend
+**Implementation**: Support `Ok => conversation.into_stream(), Err(e) => Err(e)` pattern with zero allocation
+**Performance**: Use `&[u8]` for audio data, inline synthesis hot paths, lock-free stream processing
+**Details**: Current implementation creates TtsConversationImpl, must delegate to DiaVoiceBuilder
+**Constraints**: Exact syntax match with examples, no allocation in audio processing loops
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 4. Implement Zero-Allocation Audio Stream Processing
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/builders/tts_builder.rs`
+**Lines**: 596-620 (synthesize stream method)
+**Architecture**: Zero-allocation audio stream processing with lock-free buffering
+**Implementation**: Use channels for async communication, `&[u8]` slices, const generic buffer sizes
+**Performance**: Inline audio processing loops, avoid Vec allocations, use stack buffers
+**Details**: Current i16_stream_to_bytes_stream may allocate, must use zero-allocation patterns
+**Constraints**: Blazing-fast audio processing, no locking, no unsafe, elegant ergonomic API
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+---
+
 ## ⚡ ULTRA HIGH PRIORITY: CYRUP_SUGARS JSON SYNTAX IMPLEMENTATION ⚡
 ### Zero-Allocation, Blazing-Fast, No-Locking Architecture
 

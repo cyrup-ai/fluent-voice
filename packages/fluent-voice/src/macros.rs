@@ -99,6 +99,50 @@ macro_rules! tts_conversation_builder {
     }};
 }
 
+/// TTS on_chunk method macro that enables arrow syntax.
+///
+/// This macro allows TTS builders to use arrow syntax in closures:
+/// ```ignore
+/// .on_chunk(|synthesis_chunk| {
+///     Ok => synthesis_chunk.into(),
+///     Err(e) => Err(e),
+/// })
+/// ```
+#[macro_export]
+macro_rules! tts_on_chunk {
+    ($builder:expr, |$chunk:ident| {
+        Ok => $ok:expr,
+        Err($err:ident) => $errexpr:expr $(,)?
+    }) => {
+        $builder.on_chunk(on_chunk_transform!(|$chunk| {
+            Ok => $ok,
+            Err($err) => $errexpr,
+        }))
+    };
+}
+
+/// TTS synthesize method macro that enables arrow syntax.
+///
+/// This macro allows TTS builders to use arrow syntax in closures:
+/// ```ignore
+/// .synthesize(|conversation| {
+///     Ok => conversation.into_stream(),
+///     Err(e) => Err(e),
+/// })
+/// ```
+#[macro_export]
+macro_rules! tts_synthesize {
+    ($builder:expr, |$conv:ident| {
+        Ok => $ok:expr,
+        Err($err:ident) => $errexpr:expr $(,)?
+    }) => {
+        $builder.synthesize(synthesize_transform!(|$conv| {
+            Ok => $ok,
+            Err($err) => $errexpr,
+        }))
+    };
+}
+
 /// Macro for STT conversation builder pattern.
 ///
 /// This macro supports the fluent builder pattern for STT operations,
@@ -113,22 +157,7 @@ macro_rules! stt_conversation_builder {
     }};
 }
 
-/// Macro for the synthesize method on TTS conversation builders.
-///
-/// This macro allows for the simplified `Ok => ..., Err(e) => ...` syntax
-/// in the synthesize method of TTS conversation builders.
-#[macro_export]
-macro_rules! tts_synthesize {
-    ($self:expr, |$conv:ident| {
-        Ok  => $ok:expr,
-        Err($err:ident) => $errexpr:expr $(,)?
-    }) => {
-        $self.synthesize(|result| match result {
-            Ok($conv) => $ok,
-            Err($err) => $errexpr,
-        })
-    };
-}
+
 
 /// Macro for the listen method on STT microphone builders.
 ///
