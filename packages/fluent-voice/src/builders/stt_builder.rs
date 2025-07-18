@@ -350,22 +350,27 @@ where
         )
     }
 
-    fn listen(self) -> impl Stream<Item = String> + Send + Unpin {
-        let conversation = SttConversationImpl {
-            source: self.base_builder.source,
-            vad_mode: self.base_builder.vad_mode,
-            noise_reduction: self.base_builder.noise_reduction,
-            language_hint: self.base_builder.language_hint,
-            diarization: self.base_builder.diarization,
-            word_timestamps: self.base_builder.word_timestamps,
-            timestamps_granularity: self.base_builder.timestamps_granularity,
-            punctuation: self.base_builder.punctuation,
-            stream_fn: self.base_builder.stream_fn,
-        };
+    fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
+    where
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        async move {
+            let conversation_result = Ok(SttConversationImpl {
+                source: self.base_builder.source,
+                vad_mode: self.base_builder.vad_mode,
+                noise_reduction: self.base_builder.noise_reduction,
+                language_hint: self.base_builder.language_hint,
+                diarization: self.base_builder.diarization,
+                word_timestamps: self.base_builder.word_timestamps,
+                timestamps_granularity: self.base_builder.timestamps_granularity,
+                punctuation: self.base_builder.punctuation,
+                stream_fn: self.base_builder.stream_fn,
+            });
 
-        // Convert to string stream using transcript_stream_to_string_stream
-        let transcript_stream = conversation.into_stream();
-        transcript_stream_to_string_stream(transcript_stream)
+            // Call the matcher with the result
+            matcher(conversation_result)
+        }
     }
 }
 
@@ -505,9 +510,9 @@ where
         self
     }
 
-    fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
         R: Send + 'static,
     {
         async move {

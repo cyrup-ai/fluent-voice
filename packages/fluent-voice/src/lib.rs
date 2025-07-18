@@ -119,6 +119,10 @@ pub mod prelude {
         FluentVoice as FluentVoiceTrait, FluentVoiceImpl as FluentVoice, SttEntry, TtsEntry,
     };
 
+    /* STT and TTS builder traits */
+    pub use crate::stt_conversation::{SttConversationBuilder, SttPostChunkBuilder, MicrophoneBuilder, TranscriptionBuilder};
+    pub use crate::tts_conversation::TtsConversationChunkBuilder;
+
     // For convenience, allow calling FluentVoice::stt() and FluentVoice::tts() directly
     pub use crate::fluent_voice::FluentVoiceImpl as FluentVoiceStaticMethods;
 

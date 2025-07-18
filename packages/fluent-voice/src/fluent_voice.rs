@@ -4,7 +4,7 @@
 use fluent_voice_domain::{
     AudioIsolationBuilder, SoundEffectsBuilder, SpeechToSpeechBuilder, TtsConversation,
     TtsConversationBuilder, TtsConversationExt, VoiceCloneBuilder, VoiceDiscoveryBuilder,
-    WakeWordBuilder, WakeWordConversationExt,
+    VoiceError, WakeWordBuilder, WakeWordConversationExt,
 };
 // Use local STT builders instead of domain ones
 use crate::stt_conversation::{SttConversationBuilder, SttConversationExt, SttPostChunkBuilder};
@@ -219,8 +219,12 @@ where
     B: SttPostChunkBuilder,
 {
     /// Start listening for transcription
-    pub fn listen(self) -> impl futures_core::Stream<Item = String> + Send + Unpin {
-        self.builder.listen()
+    pub fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
+    where
+        M: FnOnce(Result<B::Conversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        self.builder.listen(matcher)
     }
 }
 

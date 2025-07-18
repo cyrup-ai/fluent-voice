@@ -182,7 +182,10 @@ pub trait SttPostChunkBuilder: Sized + Send {
     ///     .on_chunk(|chunk| chunk.into())
     ///     .listen();
     /// ```
-    fn listen(self) -> impl Stream<Item = String> + Send + Unpin;
+    fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
+    where
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static;
 }
 
 /// Specialized builder for microphone-based speech recognition.
@@ -224,9 +227,9 @@ pub trait MicrophoneBuilder: Sized + Send {
     /// })
     /// .await?;
     /// ```
-    fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
         R: Send + 'static;
 }
 

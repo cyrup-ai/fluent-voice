@@ -1303,9 +1303,9 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
         }
     }
 
-    fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
     where
-        F: FnOnce(Result<DefaultSTTConversation, VoiceError>) -> R + Send + 'static,
+        M: FnOnce(Result<DefaultSTTConversation, VoiceError>) -> R + Send + 'static,
         R: Send + 'static,
     {
         async move {

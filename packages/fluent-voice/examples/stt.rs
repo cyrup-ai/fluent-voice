@@ -6,6 +6,7 @@
 //! Run with: `cargo run --example stt`
 
 use fluent_voice::prelude::*;
+use cyrup_sugars::on_result;
 use fluent_voice_domain::{
     AudioFormat, Diarization, Language, MicBackend, Punctuation, SpeechSource,
     TimestampsGranularity, VadMode, WordTimestamps,
@@ -25,14 +26,14 @@ async fn main() -> Result<(), VoiceError> {
         .diarization(Diarization::On)  // Speaker identification
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
-        .on_chunk(|transcription_chunk| {
+        .on_chunk(on_result!(
             Ok => transcription_chunk.into(), // Unwrap each chunk
-            Err(e) => Err(e),
-        })
-        .listen(|segment| {
+            Err(e) => Err(e)
+        ))
+        .listen(on_result!(
             Ok => segment.text(),  // streaming chunks
             Err(e) => Err(e)
-        })
+        ))
         .await?;  // Single await point
 
     // Process transcript segments

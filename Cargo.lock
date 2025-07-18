@@ -2122,6 +2122,8 @@ name = "cyrup_sugars"
 version = "0.1.0"
 source = "git+https://github.com/cyrup-ai/cyrup-sugars#abb4fdba226ca7147a77c34ee131147e1dc0810e"
 dependencies = [
+ "async-channel 2.5.0",
+ "crossbeam",
  "futures",
  "parking_lot",
  "sugars_async_stream 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
@@ -9601,6 +9603,8 @@ name = "sugars_async_stream"
 version = "0.1.0"
 source = "git+https://github.com/cyrup-ai/cyrup-sugars#abb4fdba226ca7147a77c34ee131147e1dc0810e"
 dependencies = [
+ "async-channel 2.5.0",
+ "crossbeam",
  "futures",
  "parking_lot",
  "sugars_async_task 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
