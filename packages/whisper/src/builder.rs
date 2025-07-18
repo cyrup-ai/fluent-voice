@@ -5,8 +5,10 @@ use crate::types::TtsChunk;
 use fluent_voice_domain::prelude::*;
 
 #[cfg(feature = "microphone")]
-use crate::microphone;
-use crate::whisper::{Decoder, Model, Task, WhichModel, token_id};
+use crate::microphone::{self, Model};
+#[cfg(not(feature = "microphone"))]
+use crate::whisper::Model;
+use crate::whisper::{Decoder, Task, WhichModel, token_id};
 
 use anyhow::Result;
 use byteorder::{ByteOrder, LittleEndian};

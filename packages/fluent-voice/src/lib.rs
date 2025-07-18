@@ -63,9 +63,11 @@
 compile_error!("At least one audio feature must be enabled: microphone, encodec, mimi, or snac");
 
 /* ───── shared fundamentals ───── */
+pub mod arrow_syntax;
 pub mod async_stream_helpers;
 pub mod audio_chunk;
 pub mod audio_device_manager;
+pub mod json_syntax_transform;
 pub mod stream_ext;
 
 /* ───── wake word engine implementations ───── */
@@ -133,6 +135,16 @@ pub mod prelude {
         TtsConversationBuilderImpl, TtsConversationImpl, stt_conversation_builder,
         tts_conversation_builder,
     };
+    
+    /* Domain traits needed for examples */
+    pub use fluent_voice_domain::{TtsConversationBuilder, SpeakerBuilder};
+
+    /* Implement SpeakerExt for the Speaker alias to enable Speaker::speaker() syntax */
+    impl fluent_voice_domain::SpeakerExt for crate::builders::SpeakerLine {
+        fn speaker(name: impl Into<String>) -> impl fluent_voice_domain::SpeakerBuilder {
+            <crate::builders::SpeakerLineBuilder as crate::speaker_builder::SpeakerBuilder>::speaker(name)
+        }
+    }
 
     /* Wake Word Detection */
     pub use crate::{

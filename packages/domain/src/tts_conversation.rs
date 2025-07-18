@@ -195,7 +195,7 @@ pub trait TtsConversationBuilder: Sized + Send {
     /// A chunk builder that can continue the fluent chain
     fn on_chunk<F, T>(self, processor: F) -> Self::ChunkBuilder
     where
-        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
+        F: Fn(Result<T, VoiceError>) -> Result<T, VoiceError> + Send + Sync + 'static,
         T: Send + 'static;
 
     /// Capture result processing closure (optional).
@@ -206,28 +206,20 @@ pub trait TtsConversationBuilder: Sized + Send {
     where
         F: FnMut(VoiceError) -> Vec<u8> + Send + 'static;
 
-    /// Terminal method that executes synthesis and returns an audio chunk stream.
+    /// Terminal method that executes synthesis with matcher closure (README.md syntax).
     ///
-    /// This method terminates the fluent chain and executes the TTS synthesis,
-    /// returning a stream of audio chunks directly without Result wrapping.
-    /// Error handling is done through the stream processing with on_chunk() callbacks.
-    ///
-    /// # Returns
-    ///
-    /// A stream of audio chunks that can be processed with on_chunk() callbacks.
-    ///
-    /// # Examples
-    ///
+    /// This method supports the exact README.md syntax:
     /// ```ignore
-    /// let audio_stream = conversation.synthesize();
-    /// audio_stream.on_chunk(|chunk_result| {
-    ///     match chunk_result {
-    ///         Ok(chunk) => chunk,
-    ///         Err(e) => AudioChunk::error(e),
-    ///     }
-    /// });
+    /// .synthesize(|conversation| {
+    ///     Ok  => conversation.into_stream(),
+    ///     Err(e) => Err(e),
+    /// })
+    /// .await?;
     /// ```
-    fn synthesize(self) -> impl Stream<Item = Vec<u8>> + Send + Unpin;
+    fn synthesize<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static;
 
     /// The concrete conversation type produced by this builder.
     type Conversation: TtsConversation;

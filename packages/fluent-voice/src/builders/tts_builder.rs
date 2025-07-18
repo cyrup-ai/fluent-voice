@@ -522,9 +522,9 @@ where
 
     type ChunkBuilder = Self; // For now, same type handles chunk processing
 
-    fn on_chunk<F, T>(mut self, mut processor: F) -> Self::ChunkBuilder
+    fn on_chunk<F, T>(mut self, processor: F) -> Self::ChunkBuilder
     where
-        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
+        F: Fn(Result<T, VoiceError>) -> Result<T, VoiceError> + Send + Sync + 'static,
         T: Send + 'static,
     {
         // Store the processor function for audio chunk error handling
@@ -554,31 +554,35 @@ where
         self
     }
 
-    fn synthesize(self) -> impl Stream<Item = Vec<u8>> + Send + Unpin {
-        let conversation = TtsConversationImpl {
-            lines: self.lines,
-            global_language: self.global_language,
-            global_speed: self.global_speed,
-            model: self.model,
-            stability: self.stability,
-            similarity: self.similarity,
-            speaker_boost: self.speaker_boost,
-            style_exaggeration: self.style_exaggeration,
-            output_format: self.output_format,
-            pronunciation_dictionaries: self.pronunciation_dictionaries,
-            seed: self.seed,
-            previous_text: self.previous_text,
-            next_text: self.next_text,
-            previous_request_ids: self.previous_request_ids,
-            next_request_ids: self.next_request_ids,
-            synth_fn: self.synth_fn,
-        };
-
-        // Convert the i16 stream to bytes stream
-        let i16_stream = conversation.into_stream();
-        let chunk_size = 1024; // Reasonable chunk size for audio
-
-        i16_stream_to_bytes_stream(i16_stream, chunk_size)
+    fn synthesize<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        async move {
+            // Create the conversation result
+            let conversation_result = Ok(TtsConversationImpl {
+                lines: self.lines,
+                global_language: self.global_language,
+                global_speed: self.global_speed,
+                model: self.model,
+                stability: self.stability,
+                similarity: self.similarity,
+                speaker_boost: self.speaker_boost,
+                style_exaggeration: self.style_exaggeration,
+                output_format: self.output_format,
+                pronunciation_dictionaries: self.pronunciation_dictionaries,
+                seed: self.seed,
+                previous_text: self.previous_text,
+                next_text: self.next_text,
+                previous_request_ids: self.previous_request_ids,
+                next_request_ids: self.next_request_ids,
+                synth_fn: self.synth_fn,
+            });
+            
+            // Call the matcher with the result
+            matcher(conversation_result)
+        }
     }
 }
 

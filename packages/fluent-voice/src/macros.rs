@@ -19,6 +19,72 @@ macro_rules! fv_match {
     };
 }
 
+/// Macro for on_chunk method with cyrup_sugars JSON syntax support.
+///
+/// This macro enables the exact syntax shown in examples:
+/// ```ignore
+/// .on_chunk(|synthesis_chunk| {
+///     Ok => synthesis_chunk.into(),
+///     Err(e) => Err(e),
+/// })
+/// ```
+#[macro_export]
+macro_rules! on_chunk_transform {
+    (|$chunk:ident| {
+        Ok => $ok:expr,
+        Err($err:ident) => $errexpr:expr $(,)?
+    }) => {
+        |result: Result<_, _>| match result {
+            Ok($chunk) => $ok,
+            Err($err) => $errexpr,
+        }
+    };
+}
+
+/// Macro for synthesize method with cyrup_sugars JSON syntax support.
+///
+/// This macro enables the exact syntax shown in examples:
+/// ```ignore
+/// .synthesize(|conversation| {
+///     Ok => conversation.into_stream(),
+///     Err(e) => Err(e),
+/// })
+/// ```
+#[macro_export]
+macro_rules! synthesize_transform {
+    (|$conv:ident| {
+        Ok => $ok:expr,
+        Err($err:ident) => $errexpr:expr $(,)?
+    }) => {
+        |result: Result<_, _>| match result {
+            Ok($conv) => $ok,
+            Err($err) => $errexpr,
+        }
+    };
+}
+
+/// Macro for listen method with cyrup_sugars JSON syntax support.
+///
+/// This macro enables the exact syntax shown in examples:
+/// ```ignore
+/// .listen(|segment| {
+///     Ok => segment.text(),
+///     Err(e) => Err(e),
+/// })
+/// ```
+#[macro_export]
+macro_rules! listen_transform {
+    (|$segment:ident| {
+        Ok => $ok:expr,
+        Err($err:ident) => $errexpr:expr $(,)?
+    }) => {
+        |result: Result<_, _>| match result {
+            Ok($segment) => $ok,
+            Err($err) => $errexpr,
+        }
+    };
+}
+
 /// Macro for TTS conversation builder pattern.
 ///
 /// This macro supports the fluent builder pattern for TTS operations,

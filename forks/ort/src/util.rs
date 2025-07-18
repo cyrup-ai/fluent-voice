@@ -58,6 +58,7 @@ pub(crate) fn path_to_os_char(path: impl AsRef<std::path::Path>) -> OsCharArray 
 	path
 }
 
+#[cfg(target_family = "windows")]
 pub(crate) fn str_to_os_char(string: &str) -> OsCharArray {
 	#[cfg(target_family = "windows")]
 	let os_char = string.encode_utf16().chain(core::iter::once(0)).collect();
@@ -117,7 +118,7 @@ impl<K: Eq, V> MiniMap<K, V> {
 		}
 	}
 
-	pub fn drain(&mut self) -> alloc::vec::Drain<(K, V)> {
+	pub fn drain(&mut self) -> alloc::vec::Drain<'_, (K, V)> {
 		self.values.drain(..)
 	}
 

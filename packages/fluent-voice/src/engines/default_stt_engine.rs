@@ -14,6 +14,7 @@ use crate::stt_conversation::{
     MicrophoneBuilder, SttConversation, SttConversationBuilder, SttEngine, SttPostChunkBuilder,
     TranscriptionBuilder,
 };
+use crate::audio_chunk::transcript_stream_to_string_stream;
 use fluent_voice_domain::{
     AudioFormat, Diarization, Language, NoiseReduction, Punctuation, SpeechSource,
     TimestampsGranularity, TranscriptSegment, VadMode, VoiceError, WordTimestamps,
@@ -1302,30 +1303,28 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
         }
     }
 
-    fn listen(self) -> impl futures_core::Stream<Item = String> + Send + Unpin {
-        use async_stream::stream;
-        use futures::StreamExt;
-
-        let conversation = DefaultSTTConversation::new(
+    fn listen(self) -> impl Stream<Item = String> + Send + Unpin {
+        // Create STT conversation and return string stream
+        let conversation_result = DefaultSTTConversation::new(
             self.inner.vad_config,
             self.inner.wake_word_config,
             self.inner.error_handler,
             self.inner.wake_handler,
             self.inner.turn_handler,
-        )
-        .expect("Failed to create STT conversation");
-
-        let stream = stream! {
-            let mut transcript_stream = conversation.into_stream();
-            while let Some(result) = transcript_stream.next().await {
-                match result {
-                    Ok(segment) => yield segment.text().to_string(),
-                    Err(_) => yield String::new(),
-                }
+        );
+        
+        match conversation_result {
+            Ok(conversation) => {
+                let transcript_stream = conversation.into_stream();
+                transcript_stream_to_string_stream(transcript_stream)
+            },
+            Err(e) => {
+                // Return stream with error segment
+                let error_segment = crate::audio_chunk::BadTranscriptionSegment::from_err(e);
+                let error_stream = futures::stream::once(async move { error_segment });
+                transcript_stream_to_string_stream(error_stream)
             }
-        };
-
-        Box::pin(stream)
+        }
     }
 }
 
@@ -1382,44 +1381,33 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
         self
     }
 
-    fn listen(self) -> impl futures_core::Stream<Item = String> + Send + Unpin {
-        use async_stream::stream;
-        use futures::StreamExt;
+    fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        async move {
+            let conversation_result = DefaultSTTConversation::new(
+                self.vad_config,
+                self.wake_word_config,
+                Some(Box::new(|error| match error {
+                    VoiceError::ProcessingError(_) => format!("[PROCESSING_ERROR]"),
+                    VoiceError::ConfigurationError(_) => format!("[CONFIG_ERROR]"),
+                    VoiceError::Tts(_) => format!("[TTS_ERROR]"),
+                    VoiceError::Stt(_) => format!("[STT_ERROR]"),
+                })),
+                Some(Box::new(|wake_word| {
+                    println!("🔊 Wake word detected: {}", wake_word);
+                })),
+                Some(Box::new(|speaker, text| match speaker {
+                    Some(speaker_id) => println!("👤 Speaker {}: {}", speaker_id, text),
+                    None => println!("🗣️  Turn detected: {}", text),
+                })),
+            );
 
-        let conversation_result = DefaultSTTConversation::new(
-            self.vad_config,
-            self.wake_word_config,
-            Some(Box::new(|error| match error {
-                VoiceError::ProcessingError(_) => format!("[PROCESSING_ERROR]"),
-                VoiceError::ConfigurationError(_) => format!("[CONFIG_ERROR]"),
-                VoiceError::Tts(_) => format!("[TTS_ERROR]"),
-                VoiceError::Stt(_) => format!("[STT_ERROR]"),
-            })),
-            Some(Box::new(|wake_word| {
-                println!("🔊 Wake word detected: {}", wake_word);
-            })),
-            Some(Box::new(|speaker, text| match speaker {
-                Some(speaker_id) => println!("👤 Speaker {}: {}", speaker_id, text),
-                None => println!("🗣️  Turn detected: {}", text),
-            })),
-        );
-
-        let stream = stream! {
-            match conversation_result {
-                Ok(conversation) => {
-                    let mut transcript_stream = conversation.into_stream();
-                    while let Some(result) = transcript_stream.next().await {
-                        match result {
-                            Ok(segment) => yield segment.text().to_string(),
-                            Err(_) => yield String::new(),
-                        }
-                    }
-                },
-                Err(_) => yield String::new(),
-            }
-        };
-
-        Box::pin(stream)
+            // Call the matcher with the result 
+            matcher(conversation_result)
+        }
     }
 }
 

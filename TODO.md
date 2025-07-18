@@ -1,5 +1,82 @@
 # Warning Fixes TODO - 443 Total Warnings 🚨
 
+## ⚡ ULTRA HIGH PRIORITY: CYRUP_SUGARS JSON SYNTAX IMPLEMENTATION ⚡
+### Zero-Allocation, Blazing-Fast, No-Locking Architecture
+
+#### 1. Fix Macro Syntax Errors - json_syntax_transform.rs
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/json_syntax_transform.rs`
+**Lines**: 41, 54, 67 (expr followed by . syntax errors)
+**Architecture**: Replace broken declarative macros with procedural macro approach
+**Implementation**: Create proc macro crate for compile-time syntax transformation
+**Performance**: Zero runtime overhead through compile-time transformation
+**Details**: Current `$builder:expr` followed by `.` is invalid declarative macro syntax
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 2. Implement Procedural Macro for Arrow Syntax Transformation
+**File**: Create `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice-macros/src/lib.rs`
+**Architecture**: AST transformation using syn/quote crates
+**Implementation**: Transform `Ok => value, Err(e) => Err(e)` to `match result { Ok(param) => Ok(value), Err(e) => Err(e) }`
+**Performance**: Compile-time transformation, zero runtime cost
+**Details**: Must handle `.into()` calls, variable bindings, nested expressions
+**Constraints**: Never use unwrap/expect, handle all edge cases
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 3. Fix Builder Signatures - fluent_voice.rs
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/fluent_voice.rs`
+**Line**: 340 (on_chunk signature mismatch)
+**Architecture**: Correct generic bounds for transformed closure types
+**Implementation**: Ensure signature accepts `FnMut(Result<T, VoiceError>) -> Result<T, VoiceError>`
+**Performance**: Zero-allocation function dispatch through monomorphization
+**Details**: Current signature expects Result->Result but examples show arrow syntax
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 4. Implement dia Voice Real Integration - Zero-Allocation TTS
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/fluent_voice.rs`
+**Lines**: 363-368 (synthesize method), 375-380 (stream method), 394-416 (into_stream_sync)
+**Architecture**: Direct dia crate integration, lock-free streaming
+**Implementation**: Replace placeholder empty streams with actual DiaVoiceBuilder API
+**Performance**: Stack-allocated stream processing, no heap allocations in hot path
+**Details**: Must generate real audio output, handle speaker configuration without locking
+**Constraints**: No Arc<Mutex<T>>, use ownership for thread safety
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 5. Implement koffee Wake Word Detection - Lock-Free Real-Time
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/wake_word_koffee.rs`
+**Architecture**: Lock-free detection using atomic operations and channels
+**Implementation**: Real-time wake word detection for "syrup" and "syrup stop"
+**Performance**: SIMD-optimized audio processing, zero-allocation ring buffers
+**Details**: Must detect real microphone input, configurable sensitivity
+**Constraints**: No blocking operations, channel-based coordination
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 6. Implement VAD with Turn Detection - Zero-Allocation Logging
+**File**: Create `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/vad_integration.rs`
+**Architecture**: Stack-based VAD processing with const generic optimizations
+**Implementation**: Real voice activity detection with conversation turn logging
+**Performance**: Inline hot paths, SIMD preprocessing, no dynamic allocation
+**Details**: Must detect real voice activity, log actual conversation boundaries
+**Constraints**: No String allocation for logging, use static or stack buffers
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 7. Implement whisper STT Integration - High-Performance Streaming
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/engines/default_stt_engine.rs`
+**Lines**: 200-205 (on_chunk), 222-224 (listen)
+**Architecture**: Zero-copy streaming transcription with const generics
+**Implementation**: Real speech-to-text using whisper crate streaming API
+**Performance**: SIMD audio preprocessing, lock-free chunk processing
+**Details**: Must transcribe real speech input, handle multiple languages
+**Constraints**: No blocking I/O, async stream processing only
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
+#### 8. Audio Stream Processing Optimization - Zero-Copy Performance
+**File**: `/Volumes/samsung_t9/fluent-voice/packages/fluent-voice/src/audio_chunk.rs`
+**Architecture**: Zero-copy stream processing with inline optimizations
+**Implementation**: Replace placeholder streams with high-performance audio processing
+**Performance**: Const generic chunk sizes, SIMD operations, stack allocation
+**Details**: Handle real audio data, maintain streaming performance under load
+**Constraints**: No heap allocation in hot paths, use const generics for sizing
+DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+
 ## HIGH PRIORITY CRITICAL WARNINGS
 
 ### 1. Fix Deprecated Winit API (1 warning)

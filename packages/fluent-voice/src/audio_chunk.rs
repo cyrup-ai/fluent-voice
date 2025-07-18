@@ -248,6 +248,7 @@ impl From<VoiceError> for SynthesisChunk {
     }
 }
 
+
 impl From<Result<AudioChunk, VoiceError>> for SynthesisChunk {
     fn from(result: Result<AudioChunk, VoiceError>) -> Self {
         match result {
@@ -281,6 +282,28 @@ where
             .flat_map(|sample| sample.to_le_bytes())
             .collect()
     })
+}
+
+/// Error transcription segment for default error handling
+#[derive(Debug, Clone)]
+pub struct BadTranscriptionSegment {
+    error_message: String,
+}
+
+impl fluent_voice_domain::transcript::TranscriptSegment for BadTranscriptionSegment {
+    fn start_ms(&self) -> u32 { 0 }
+    fn end_ms(&self) -> u32 { 0 }
+    fn text(&self) -> &str { &self.error_message }
+    fn speaker_id(&self) -> Option<&str> { None }
+}
+
+impl BadTranscriptionSegment {
+    /// Create a bad transcription segment from an error
+    pub fn from_err(error: fluent_voice_domain::VoiceError) -> Self {
+        BadTranscriptionSegment {
+            error_message: format!("[ERROR: {}]", error)
+        }
+    }
 }
 
 /// Helper function to convert Stream<i16> to Stream<AudioChunk>

@@ -62,7 +62,7 @@ futures-util = "0.3"
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
         .listen(|segment| {
-            Ok  => segment.text(),  // streaming chunks 
+            Ok => segment.text(),  // streaming chunks
             Err(e) => Err(e),
         })
         .collect();  // transcript is now the end-state string
@@ -94,7 +94,7 @@ async fn main() -> Result<(), VoiceError> {
             Err(e) => Err(e),
         })
         .synthesize(|conversation| {
-            Ok  => conversation.into_stream(),  // Returns audio stream
+            Ok => conversation.into_stream(),  // Returns audio stream
             Err(e) => Err(e),
         })
         .await?;  // Single await point
@@ -252,7 +252,7 @@ pub struct MyEngine {
 // 2. Implement the engine trait
 impl TtsEngine for MyEngine {
     type Conv = MyConversationBuilder;
-    
+
     fn conversation(&self) -> Self::Conv {
         MyConversationBuilder::new(self.api_key.clone())
     }
@@ -263,10 +263,10 @@ pub struct MyConversationBuilder { /* ... */ }
 
 impl TtsConversationBuilder for MyConversationBuilder {
     type Conversation = MyConversation;
-    
+
     fn with_speaker<S: Speaker>(self, speaker: S) -> Self { /* ... */ }
     fn language(self, lang: Language) -> Self { /* ... */ }
-    
+
     fn synthesize<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
     where F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static
     {
@@ -281,7 +281,7 @@ impl TtsConversationBuilder for MyConversationBuilder {
 // 4. Implement the conversation object
 impl TtsConversation for MyConversation {
     type AudioStream = impl Stream<Item = i16> + Send + Unpin;
-    
+
     fn into_stream(self) -> Self::AudioStream {
         // Convert to audio stream
     }

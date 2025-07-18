@@ -214,20 +214,20 @@ pub trait MicrophoneBuilder: Sized + Send {
     /// Enable or disable automatic punctuation insertion.
     fn punctuation(self, p: Punctuation) -> Self;
 
-    /// Execute live recognition and return a transcript stream.
+    /// Execute live recognition with matcher closure (README.md syntax).
     ///
-    /// This method starts real-time speech recognition from the microphone,
-    /// returning a stream of transcript segments directly without Result wrapping.
-    /// Error handling is done through the stream processing with on_chunk() callbacks.
-    ///
-    /// # Examples
-    ///
+    /// This method supports the exact README.md syntax:
     /// ```ignore
-    /// let stream = engine.stt()
-    ///     .with_microphone("default")
-    ///     .listen();
+    /// .listen(|conversation| {
+    ///     Ok  => conversation.into_stream(),
+    ///     Err(e) => Err(e),
+    /// })
+    /// .await?;
     /// ```
-    fn listen(self) -> impl Stream<Item = String> + Send + Unpin;
+    fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static;
 }
 
 /// Specialized builder for file-based transcription.

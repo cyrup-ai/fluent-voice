@@ -505,35 +505,40 @@ where
         self
     }
 
-    fn listen(self) -> impl Stream<Item = String> + Send + Unpin {
-        // Use the device string to determine the backend
-        let backend = if self.device == "default" || self.device.is_empty() {
-            fluent_voice_domain::MicBackend::Default
-        } else {
-            fluent_voice_domain::MicBackend::Device(self.device)
-        };
+    fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    where
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        async move {
+            // Use the device string to determine the backend
+            let backend = if self.device == "default" || self.device.is_empty() {
+                fluent_voice_domain::MicBackend::Default
+            } else {
+                fluent_voice_domain::MicBackend::Device(self.device)
+            };
 
-        let source = Some(SpeechSource::Microphone {
-            backend,
-            format: fluent_voice_domain::AudioFormat::Pcm16Khz,
-            sample_rate: 16_000,
-        });
+            let source = Some(SpeechSource::Microphone {
+                backend,
+                format: fluent_voice_domain::AudioFormat::Pcm16Khz,
+                sample_rate: 16_000,
+            });
 
-        let conversation = SttConversationImpl {
-            source,
-            vad_mode: self.vad_mode,
-            noise_reduction: self.noise_reduction,
-            language_hint: self.language_hint,
-            diarization: self.diarization,
-            word_timestamps: self.word_timestamps,
-            timestamps_granularity: self.timestamps_granularity,
-            punctuation: self.punctuation,
-            stream_fn: self.stream_fn,
-        };
+            let conversation_result = Ok(SttConversationImpl {
+                source,
+                vad_mode: self.vad_mode,
+                noise_reduction: self.noise_reduction,
+                language_hint: self.language_hint,
+                diarization: self.diarization,
+                word_timestamps: self.word_timestamps,
+                timestamps_granularity: self.timestamps_granularity,
+                punctuation: self.punctuation,
+                stream_fn: self.stream_fn,
+            });
 
-        // Convert the transcript stream to a string stream
-        let transcript_stream = conversation.into_stream();
-        transcript_stream_to_string_stream(transcript_stream)
+            // Call the matcher with the result
+            matcher(conversation_result)
+        }
     }
 }
 
