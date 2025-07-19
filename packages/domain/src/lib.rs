@@ -46,41 +46,35 @@ pub mod wake_word_conversation;
 pub use audio_chunk::{AudioChunk, AudioChunkResult};
 pub use audio_format::AudioFormat;
 pub use audio_stream::AudioStream;
-pub use fluent_voice::FluentVoice;
+// FluentVoice moved to fluent-voice package
 pub use language::Language;
 pub use mic_backend::MicBackend;
 pub use model_id::ModelId;
 pub use noise_reduction::NoiseReduction;
 pub use speaker::Speaker;
-pub use speaker_builder::{SpeakerBuilder, SpeakerExt};
+// SpeakerBuilder moved to fluent-voice package
 pub use speech_source::SpeechSource;
 pub use stt_conversation::{SttConfig, SttConversation, SttConversationImpl};
 pub use timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps};
 pub use transcription::{TranscriptionSegment, TranscriptionSegmentImpl, TranscriptionStream};
-pub use tts_conversation::{
-    TtsConversation, TtsConversationBuilder, TtsConversationChunkBuilder, TtsConversationExt,
-};
-pub use tts_engine::TtsEngine;
+pub use tts_conversation::TtsConversation;
+// All builder traits moved to fluent-voice package
+// TtsEngine moved to fluent-voice package
 pub use vad_mode::VadMode;
 pub use vocal_speed::VocalSpeedMod;
 pub use voice_error::VoiceError;
 pub use voice_id::VoiceId;
 
-// Re-export additional types from copied modules
-pub use audio_isolation::*;
+// Re-export value types only (builder traits moved to fluent-voice package)
 pub use pitch_range::*;
 pub use pronunciation_dict::*;
 pub use similarity::*;
-pub use sound_effects::*;
 pub use speaker_boost::*;
-pub use speech_to_speech::*;
 pub use stability::*;
 pub use style_exaggeration::*;
-pub use voice_clone::*;
-pub use voice_discovery::*;
 pub use voice_labels::*;
-pub use wake_word::*;
-pub use wake_word_conversation::*;
+// audio_isolation, sound_effects, speech_to_speech, voice_clone, voice_discovery, wake_word now contain only comments
+// wake_word_conversation moved to fluent-voice package
 
 /// Prelude module containing commonly used types.
 pub mod prelude {

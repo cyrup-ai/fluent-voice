@@ -184,10 +184,10 @@ pub trait SttPostChunkBuilder: Sized + Send {
     ///     .on_chunk(|chunk| chunk.into())
     ///     .listen();
     /// ```
-    fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
+    fn listen<M, S>(self, matcher: M) -> S
     where
-        M: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
-        R: Send + 'static;
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
+        S: futures_core::Stream<Item = crate::TranscriptionSegment> + Send + Unpin + 'static;
 }
 
 /// Specialized builder for microphone-based speech recognition.
@@ -229,10 +229,10 @@ pub trait MicrophoneBuilder: Sized + Send {
     /// })
     /// .await?;
     /// ```
-    fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
+    fn listen<M, S>(self, matcher: M) -> S
     where
-        M: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
-        R: Send + 'static;
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
+        S: futures_core::Stream<Item = crate::TranscriptionSegment> + Send + Unpin + 'static;
 }
 
 /// Specialized builder for file-based transcription.
@@ -292,6 +292,26 @@ pub trait TranscriptionBuilder: Sized + Send {
 
     /// Convenience: obtain a stream of plain text segments.
     fn into_text_stream(self) -> impl Stream<Item = String> + Send;
+
+    /// Execute transcription and return a transcript stream with JSON syntax support.
+    ///
+    /// This method is IDENTICAL to listen() but for audio files instead of microphone.
+    /// It accepts a matcher closure with JSON syntax for handling transcription results.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let stream = FluentVoice::stt()
+    ///     .transcribe("audio.wav")
+    ///     .transcribe(|conversation| {
+    ///         Ok => conversation.into_stream(),
+    ///         Err(e) => Err(e),
+    ///     });
+    /// ```
+    fn transcribe<M, S>(self, matcher: M) -> S
+    where
+        M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
+        S: futures_core::Stream<Item = crate::TranscriptionSegment> + Send + Unpin + 'static;
 }
 
 /// Static entry point for STT conversations.

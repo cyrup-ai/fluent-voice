@@ -10,8 +10,8 @@ use fluent_voice_domain::{
     audio_format::AudioFormat,
     language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},
-    tts_conversation::{TtsConversation, TtsConversationBuilder, TtsConversationChunkBuilder},
 };
+use crate::tts_conversation::{TtsConversationBuilder, TtsConversationChunkBuilder};
 use futures::{Stream, StreamExt, stream};
 use std::collections::HashMap;
 use std::future::Future;

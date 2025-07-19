@@ -513,40 +513,39 @@ where
         self
     }
 
-    fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
+    fn listen<M, S>(self, matcher: M) -> S
     where
-        M: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
-        R: Send + 'static,
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
+        S: futures_core::Stream<Item = fluent_voice_domain::TranscriptionSegment> + Send + Unpin + 'static,
     {
-        async move {
-            // Use the device string to determine the backend
-            let backend = if self.device == "default" || self.device.is_empty() {
-                fluent_voice_domain::MicBackend::Default
-            } else {
-                fluent_voice_domain::MicBackend::Device(self.device)
-            };
+        // Use the device string to determine the backend
+        let backend = if self.device == "default" || self.device.is_empty() {
+            fluent_voice_domain::MicBackend::Default
+        } else {
+            fluent_voice_domain::MicBackend::Device(self.device)
+        };
 
-            let source = Some(SpeechSource::Microphone {
-                backend,
-                format: fluent_voice_domain::AudioFormat::Pcm16Khz,
-                sample_rate: 16_000,
-            });
+        let source = Some(SpeechSource::Microphone {
+            backend,
+            format: fluent_voice_domain::AudioFormat::Pcm16Khz,
+            sample_rate: 16_000,
+        });
 
-            let conversation_result = Ok(SttConversationImpl {
-                source,
-                vad_mode: self.vad_mode,
-                noise_reduction: self.noise_reduction,
-                language_hint: self.language_hint,
-                diarization: self.diarization,
-                word_timestamps: self.word_timestamps,
-                timestamps_granularity: self.timestamps_granularity,
-                punctuation: self.punctuation,
-                stream_fn: self.stream_fn,
-            });
+        let conversation_result = Ok(SttConversationImpl {
+            source,
+            vad_mode: self.vad_mode,
+            noise_reduction: self.noise_reduction,
+            language_hint: self.language_hint,
+            diarization: self.diarization,
+            word_timestamps: self.word_timestamps,
+            timestamps_granularity: self.timestamps_granularity,
+            punctuation: self.punctuation,
+            stream_fn: self.stream_fn,
+        });
 
-            // Call the matcher with the result
-            matcher(conversation_result)
-        }
+        // Apply the matcher closure to the conversation result
+        // The matcher contains the JSON syntax transformed by listen! macro
+        matcher(conversation_result)
     }
 }
 
@@ -761,6 +760,23 @@ where
 
         // Create a stream that delegates to the async result when polled
         Box::pin(stream::once(stream_fut).flatten()) as Pin<Box<dyn Stream<Item = String> + Send>>
+    }
+
+    fn transcribe<M, S>(self, matcher: M) -> S
+    where
+        M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
+        S: futures_core::Stream<Item = fluent_voice_domain::TranscriptionSegment> + Send + Unpin + 'static,
+    {
+        // Build the transcript result synchronously, just like listen() does
+        let transcript_result = Ok(TranscriptImpl {
+            stream: Box::pin(self.stream_fn.unwrap_or_else(|| {
+                Box::pin(futures::stream::empty())
+            })),
+        });
+
+        // Apply the matcher closure to the transcript result
+        // The matcher contains the JSON syntax transformed by listen! macro
+        matcher(transcript_result)
     }
 }
 

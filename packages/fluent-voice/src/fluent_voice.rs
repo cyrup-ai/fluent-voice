@@ -167,7 +167,7 @@ where
     B: SttPostChunkBuilder,
 {
     /// Start listening for transcription
-    pub fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
+    pub fn listen<M, S>(self, matcher: M) -> S
     where
         M: FnOnce(Result<B::Conversation, VoiceError>) -> R + Send + 'static,
         R: Send + 'static,
