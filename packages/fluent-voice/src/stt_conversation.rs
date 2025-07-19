@@ -2,7 +2,8 @@
 use core::future::Future;
 use fluent_voice_domain::{
     Diarization, Language, NoiseReduction, Punctuation, SpeechSource, TimestampsGranularity,
-    TranscriptSegment, TranscriptStream, VadMode, VoiceError, WordTimestamps,
+    TranscriptionSegment, TranscriptionSegmentImpl, TranscriptionStream, VadMode, VoiceError,
+    WordTimestamps,
 };
 use futures_core::Stream;
 
@@ -13,7 +14,7 @@ use futures_core::Stream;
 /// concrete types that implement this trait.
 pub trait SttConversation: Send {
     /// The transcript stream type that will be produced.
-    type Stream: TranscriptStream;
+    type Stream: TranscriptionStream;
 
     /// Convert this session into a transcript stream.
     ///
@@ -30,7 +31,7 @@ pub trait SttConversation: Send {
         Self: Sized,
     {
         async move {
-            use fluent_voice_domain::TranscriptSegment;
+            use fluent_voice_domain::TranscriptionSegment;
             use futures::StreamExt;
 
             let mut stream = self.into_stream();
@@ -116,14 +117,15 @@ pub trait SttConversationBuilder: Sized + Send {
     /// Capture chunk processing closure.
     ///
     /// This method captures a closure that will be called for each transcript chunk.
-    /// The closure receives Result<TranscriptSegment, VoiceError> and should return
+    /// The closure receives Result<TranscriptionSegmentImpl, VoiceError> and should return
     /// the processed chunk.
     ///
     /// After calling this method, action methods (listen, transcribe) become available.
-    fn on_chunk<F, T>(self, f: F) -> impl SttPostChunkBuilder
+    fn on_chunk<F>(self, f: F) -> impl SttPostChunkBuilder
     where
-        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
-        T: TranscriptSegment + Send + 'static;
+        F: FnMut(Result<TranscriptionSegmentImpl, VoiceError>) -> TranscriptionSegmentImpl
+            + Send
+            + 'static;
 
     /// Capture result processing closure (optional).
     ///

@@ -1,6 +1,6 @@
 //! STT conversation domain objects.
 
-use crate::{transcript::TranscriptStream, voice_error::VoiceError};
+use crate::{transcription::TranscriptionStream, voice_error::VoiceError};
 use core::future::Future;
 
 /// Engine-specific STT session object.
@@ -10,7 +10,7 @@ use core::future::Future;
 /// concrete types that implement this trait.
 pub trait SttConversation: Send {
     /// The transcript stream type that will be produced.
-    type Stream: TranscriptStream;
+    type Stream: TranscriptionStream;
 
     /// Convert this session into a transcript stream.
     ///
@@ -27,7 +27,7 @@ pub trait SttConversation: Send {
         Self: Sized,
     {
         async move {
-            use crate::transcript::TranscriptSegment;
+            use crate::transcription::TranscriptionSegment;
             use futures::StreamExt;
 
             let mut stream = self.into_stream();

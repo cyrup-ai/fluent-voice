@@ -100,6 +100,7 @@ candle-onnx = { git = "https://github.com/huggingface/candle", branch = "main", 
 candle-datasets = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
 tracing = "0.1"
 hashbrown = "0.15.4"
+rodio = { version = "0.21.1", features = ["wav"] }
 
 [dev-dependencies]
 # tokio is in workspace-hack

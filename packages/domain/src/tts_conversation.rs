@@ -14,11 +14,12 @@ use futures_core::Stream;
 /// configured and is ready to produce audio output. Engine implementations
 /// provide concrete types that implement this trait.
 pub trait TtsConversation: Send {
-    /// Async audio stream (e.g. text strings).
+    /// Async audio stream of structured AudioChunk objects.
     ///
-    /// The specific audio format and sample type depends on the engine
-    /// implementation, but typically streams text strings for examples.
-    type AudioStream: Stream<Item = String> + Send + Unpin;
+    /// The audio stream contains AudioChunk objects with metadata including
+    /// timing, speaker information, text, and raw audio data that can be
+    /// played through audio output devices like rodio.
+    type AudioStream: Stream<Item = crate::AudioChunk> + Send + Unpin;
 
     /// Convert this conversation into an audio stream.
     ///
@@ -193,10 +194,14 @@ pub trait TtsConversationBuilder: Sized + Send {
     /// # Returns
     ///
     /// A chunk builder that can continue the fluent chain
-    fn on_chunk<F, T>(self, processor: F) -> Self::ChunkBuilder
+    fn on_chunk<F>(self, processor: F) -> Self::ChunkBuilder
     where
-        F: Fn(Result<T, VoiceError>) -> Result<T, VoiceError> + Send + Sync + 'static,
-        T: Send + 'static;
+        F: Fn(
+                Result<crate::audio_chunk::AudioChunk, VoiceError>,
+            ) -> Result<crate::audio_chunk::AudioChunk, VoiceError>
+            + Send
+            + Sync
+            + 'static;
 
     /// Capture result processing closure (optional).
     ///

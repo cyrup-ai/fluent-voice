@@ -97,7 +97,7 @@ async fn main() -> Result<(), VoiceError> {
             Ok => conversation.into_stream(),  // Returns audio stream
             Err(e) => Err(e),
         })
-        .await?;  // Single await point
+        .await;  // Fully unwrapped stream
 
     // Process audio samples
     while let Some(sample) = audio_stream.next().await {
@@ -136,7 +136,7 @@ async fn main() -> Result<(), VoiceError> {
             Ok  => conversation.into_stream(),  // Returns transcript stream
             Err(e) => Err(e),
         })
-        .await?;  // Single await point
+        .await;  // fully unwrapped Stream<TranscriptSegment>
 
     // Process transcript segments
     while let Some(result) = transcript_stream.next().await {

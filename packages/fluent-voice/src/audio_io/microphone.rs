@@ -24,7 +24,7 @@ use std::task::{Context, Poll};
 use tokenizers::Tokenizer;
 
 // Use ONLY canonical domain types - no local duplicates
-use fluent_voice_domain::transcript::TranscriptSegmentImpl;
+use fluent_voice_domain::transcription::TranscriptionSegmentImpl;
 
 pub enum Model {
     Normal(m::model::Whisper),
@@ -271,17 +271,17 @@ impl Decoder {
     fn stream_segments<'a>(
         &'a mut self,
         mel: &'a Tensor,
-    ) -> impl Stream<Item = Result<TranscriptSegmentImpl>> + 'a {
+    ) -> impl Stream<Item = Result<TranscriptionSegmentImpl>> + 'a {
         struct SegmentStream<'a> {
             decoder: &'a mut Decoder,
             mel: &'a Tensor,
             seek: usize,
             content_frames: usize,
-            pending_chunks: Vec<TranscriptSegmentImpl>,
+            pending_chunks: Vec<TranscriptionSegmentImpl>,
         }
 
         impl<'a> Stream for SegmentStream<'a> {
-            type Item = Result<TranscriptSegmentImpl>;
+            type Item = Result<TranscriptionSegmentImpl>;
 
             fn poll_next(
                 mut self: Pin<&mut Self>,
@@ -338,7 +338,7 @@ impl Decoder {
                             if !tokens_to_decode.is_empty() {
                                 match self.decoder.tokenizer.decode(&tokens_to_decode, true) {
                                     Ok(text) => {
-                                        self.pending_chunks.push(TranscriptSegmentImpl::new(
+                                        self.pending_chunks.push(TranscriptionSegmentImpl::new(
                                             text,
                                             ((time_offset + prev_timestamp_s) * 1000.0) as u32,
                                             ((time_offset + timestamp_s) * 1000.0) as u32,
@@ -357,7 +357,7 @@ impl Decoder {
                     if !tokens_to_decode.is_empty() {
                         if let Ok(text) = self.decoder.tokenizer.decode(&tokens_to_decode, true) {
                             if !text.is_empty() {
-                                self.pending_chunks.push(TranscriptSegmentImpl::new(
+                                self.pending_chunks.push(TranscriptionSegmentImpl::new(
                                     text,
                                     ((time_offset + prev_timestamp_s) * 1000.0) as u32,
                                     ((time_offset + segment_duration) * 1000.0) as u32,
@@ -367,9 +367,9 @@ impl Decoder {
                         }
                     }
                 } else {
-                    // Create real TranscriptSegmentImpl with production-quality data from Whisper transcription
+                    // Create real TranscriptionSegmentImpl with production-quality data from Whisper transcription
                     let text_clone = dr.text.clone(); // Clone before move to avoid borrow after move
-                    self.pending_chunks.push(TranscriptSegmentImpl::new(
+                    self.pending_chunks.push(TranscriptionSegmentImpl::new(
                         dr.text,
                         (time_offset * 1000.0) as u32,
                         ((time_offset + segment_duration) * 1000.0) as u32,
@@ -676,7 +676,7 @@ struct Args {
     list_devices: bool,
 }
 
-pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
+pub fn record() -> impl Stream<Item = Result<TranscriptionSegmentImpl>> {
     async_stream::stream! {
         let args = Args::parse();
 
@@ -964,7 +964,7 @@ pub fn record() -> impl Stream<Item = Result<TranscriptSegmentImpl>> {
     }
 
     impl Stream for AudioStream {
-        type Item = Result<TranscriptSegmentImpl>;
+        type Item = Result<TranscriptionSegmentImpl>;
 
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             let chunk = match self.rx.try_recv() {

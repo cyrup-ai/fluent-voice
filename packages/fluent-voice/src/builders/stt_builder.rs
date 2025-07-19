@@ -12,7 +12,7 @@ use fluent_voice_domain::{
     noise_reduction::NoiseReduction,
     speech_source::SpeechSource,
     timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps},
-    transcript::{TranscriptSegment, TranscriptStream},
+    transcription::{TranscriptionSegment, TranscriptionStream},
     vad_mode::VadMode,
 };
 use futures_core::Stream;
@@ -58,7 +58,7 @@ pub struct SttConversationImpl<S> {
 
 impl<S> crate::stt_conversation::SttConversation for SttConversationImpl<S>
 where
-    S: TranscriptStream,
+    S: TranscriptionStream,
 {
     type Stream = S;
 
@@ -114,7 +114,7 @@ pub struct SttConversationBuilderImpl<S> {
 
 impl<S> SttConversationBuilderImpl<S>
 where
-    S: TranscriptStream + 'static,
+    S: TranscriptionStream + 'static,
 {
     /// Create a new STT conversation builder with a custom processing function.
     pub fn new<F>(stream_fn: F) -> Self
@@ -172,7 +172,7 @@ where
 
 impl<S> crate::stt_conversation::SttConversationBuilder for SttConversationBuilderImpl<S>
 where
-    S: TranscriptStream + 'static,
+    S: TranscriptionStream + 'static,
 {
     type Conversation = SttConversationImpl<S>;
 
@@ -216,10 +216,13 @@ where
         self
     }
 
-    fn on_chunk<F, T>(self, f: F) -> impl crate::stt_conversation::SttPostChunkBuilder
+    fn on_chunk<F>(self, f: F) -> impl crate::stt_conversation::SttPostChunkBuilder
     where
-        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
-        T: fluent_voice_domain::transcript::TranscriptSegment + Send + 'static,
+        F: FnMut(
+                Result<fluent_voice_domain::transcription::TranscriptionSegmentImpl, VoiceError>,
+            ) -> fluent_voice_domain::transcription::TranscriptionSegmentImpl
+            + Send
+            + 'static,
     {
         SttPostChunkBuilderImpl::new(self, f)
     }
@@ -255,9 +258,9 @@ where
 /// Post-chunk builder implementation for STT
 pub struct SttPostChunkBuilderImpl<S, F, T>
 where
-    S: TranscriptStream + 'static,
+    S: TranscriptionStream + 'static,
     F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
-    T: fluent_voice_domain::transcript::TranscriptSegment + Send + 'static,
+    T: fluent_voice_domain::transcription::TranscriptionSegment + Send + 'static,
 {
     /// Base builder
     base_builder: SttConversationBuilderImpl<S>,
@@ -270,9 +273,9 @@ where
 
 impl<S, F, T> SttPostChunkBuilderImpl<S, F, T>
 where
-    S: TranscriptStream + 'static,
+    S: TranscriptionStream + 'static,
     F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
-    T: fluent_voice_domain::transcript::TranscriptSegment + Send + 'static,
+    T: fluent_voice_domain::transcription::TranscriptionSegment + Send + 'static,
 {
     /// Create a new post-chunk builder
     pub fn new(base_builder: SttConversationBuilderImpl<S>, chunk_processor: F) -> Self {
@@ -286,9 +289,9 @@ where
 
 impl<S, F, T> crate::stt_conversation::SttPostChunkBuilder for SttPostChunkBuilderImpl<S, F, T>
 where
-    S: TranscriptStream + 'static,
+    S: TranscriptionStream + 'static,
     F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
-    T: fluent_voice_domain::transcript::TranscriptSegment + Send + 'static,
+    T: fluent_voice_domain::transcription::TranscriptionSegment + Send + 'static,
 {
     type Conversation = SttConversationImpl<S>;
 
@@ -376,7 +379,7 @@ where
 
 impl<S> SttConversationBuilderImpl<S>
 where
-    S: TranscriptStream + 'static,
+    S: TranscriptionStream + 'static,
 {
     /// Configure engine parameters using JSON object syntax
     pub fn engine_config(
@@ -427,7 +430,7 @@ pub struct MicrophoneBuilderImpl<S> {
 
 impl<S> MicrophoneBuilderImpl<S>
 where
-    S: TranscriptStream,
+    S: TranscriptionStream,
 {
     /// Create a new microphone builder.
     pub fn new<F>(
@@ -471,7 +474,7 @@ where
 
 impl<S> crate::stt_conversation::MicrophoneBuilder for MicrophoneBuilderImpl<S>
 where
-    S: TranscriptStream + 'static,
+    S: TranscriptionStream + 'static,
 {
     type Conversation = SttConversationImpl<S>;
 
@@ -548,7 +551,7 @@ where
 }
 
 /// Transcript collection type for file transcription.
-pub struct TranscriptImpl<S: TranscriptStream> {
+pub struct TranscriptImpl<S: TranscriptionStream> {
     /// The transcript stream
     pub stream: S,
 }
@@ -591,7 +594,7 @@ pub struct TranscriptionBuilderImpl<S> {
 
 impl<S> TranscriptionBuilderImpl<S>
 where
-    S: TranscriptStream,
+    S: TranscriptionStream,
 {
     /// Create a new transcription builder.
     pub fn new<F>(
@@ -657,7 +660,7 @@ where
 
 impl<S> crate::stt_conversation::TranscriptionBuilder for TranscriptionBuilderImpl<S>
 where
-    S: TranscriptStream + 'static,
+    S: TranscriptionStream + 'static,
 {
     type Transcript = TranscriptImpl<S>;
 
@@ -768,7 +771,7 @@ pub mod builder {
     /// Create a new STT conversation builder
     pub fn stt_conversation_builder<S, F>(stream_fn: F) -> SttConversationBuilderImpl<S>
     where
-        S: TranscriptStream + 'static,
+        S: TranscriptionStream + 'static,
         F: FnOnce(
                 Option<SpeechSource>,
                 Option<VadMode>,

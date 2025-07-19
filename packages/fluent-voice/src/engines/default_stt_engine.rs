@@ -16,7 +16,7 @@ use crate::stt_conversation::{
 };
 use fluent_voice_domain::{
     AudioFormat, Diarization, Language, NoiseReduction, Punctuation, SpeechSource,
-    TimestampsGranularity, TranscriptSegment, VadMode, VoiceError, WordTimestamps,
+    TimestampsGranularity, TranscriptionSegment, VadMode, VoiceError, WordTimestamps,
 };
 
 // Zero-allocation, lock-free concurrent processing
@@ -94,9 +94,9 @@ fn write_wav_file(
     Ok(())
 }
 
-/// Zero-Allocation TranscriptSegment: Pre-allocated string pools and stack-based storage
+/// Zero-Allocation TranscriptionSegment: Pre-allocated string pools and stack-based storage
 #[derive(Debug, Clone)]
-pub struct DefaultTranscriptSegment {
+pub struct DefaultTranscriptionSegment {
     text: String,
     start_ms: u32,
     end_ms: u32,
@@ -322,7 +322,7 @@ enum StreamControl {
     SpeechSegmentEnd { duration_ms: u32 },
 }
 
-impl TranscriptSegment for DefaultTranscriptSegment {
+impl TranscriptionSegment for DefaultTranscriptionSegment {
     fn start_ms(&self) -> u32 {
         self.start_ms
     }
@@ -342,7 +342,7 @@ impl TranscriptSegment for DefaultTranscriptSegment {
 
 /// Zero-Allocation Stream: Pre-allocated, lock-free transcript stream
 type DefaultTranscriptStream =
-    Pin<Box<dyn Stream<Item = Result<DefaultTranscriptSegment, VoiceError>> + Send>>;
+    Pin<Box<dyn Stream<Item = Result<DefaultTranscriptionSegment, VoiceError>> + Send>>;
 
 /// Production-Quality STT Engine using canonical default providers:
 /// - STT: ./candle/whisper (fluent_voice_whisper)
@@ -430,7 +430,7 @@ impl Default for WakeWordConfig {
     }
 }
 
-/// Default implementation of TranscriptSegment for our STT pipeline.
+/// Default implementation of TranscriptionSegment for our STT pipeline.
 // Use canonical domain objects from fluent_voice_domain - no local duplicates
 
 // Use canonical TranscriptStream from fluent_voice_domain - no local duplicates
@@ -835,10 +835,13 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
         self
     }
 
-    fn on_chunk<F, T>(self, _f: F) -> impl SttPostChunkBuilder
+    fn on_chunk<F>(self, _f: F) -> impl SttPostChunkBuilder
     where
-        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
-        T: TranscriptSegment + Send + 'static,
+        F: FnMut(
+                Result<fluent_voice_domain::transcription::TranscriptionSegmentImpl, VoiceError>,
+            ) -> fluent_voice_domain::transcription::TranscriptionSegmentImpl
+            + Send
+            + 'static,
     {
         DefaultSTTPostChunkBuilder {
             inner: self,
@@ -1034,7 +1037,7 @@ impl SttConversation for DefaultSTTConversation {
                                 handler(detection.name.clone());
                             }
 
-                            let segment = DefaultTranscriptSegment {
+                            let segment = DefaultTranscriptionSegment {
                                 text: format!("[WAKE WORD: {}]", detection.name),
                                 start_ms: 0,
                                 end_ms: 500,
@@ -1121,7 +1124,7 @@ impl SttConversation for DefaultSTTConversation {
                                         let end_ms = speech_start_time.elapsed().as_millis() as u32;
                                         let start_ms = end_ms.saturating_sub(500);
 
-                                        let segment = DefaultTranscriptSegment {
+                                        let segment = DefaultTranscriptionSegment {
                                             text: transcription,
                                             start_ms,
                                             end_ms,
@@ -1188,7 +1191,7 @@ impl SttConversation for DefaultSTTConversation {
                                         let end_ms = speech_start_time.elapsed().as_millis() as u32;
                                         let start_ms = end_ms.saturating_sub((speech_data.len() as u32 * 1000) / 16000);
 
-                                        let segment = DefaultTranscriptSegment {
+                                        let segment = DefaultTranscriptionSegment {
                                             text: transcription,
                                             start_ms,
                                             end_ms,

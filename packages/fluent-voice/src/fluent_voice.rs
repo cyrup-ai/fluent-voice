@@ -287,15 +287,15 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
         self
     }
 
-    fn on_chunk<F, T>(self, _processor: F) -> Self::ChunkBuilder
+    fn on_chunk<F>(self, _processor: F) -> Self::ChunkBuilder
     where
         F: Fn(
-                Result<T, fluent_voice_domain::VoiceError>,
-            ) -> Result<T, fluent_voice_domain::VoiceError>
+                Result<fluent_voice_domain::AudioChunk, fluent_voice_domain::VoiceError>,
+            )
+                -> Result<fluent_voice_domain::AudioChunk, fluent_voice_domain::VoiceError>
             + Send
             + Sync
             + 'static,
-        T: Send + 'static,
     {
         // Return self as chunk builder - the same builder can be used for synthesize
         self
@@ -402,20 +402,32 @@ impl DefaultTtsConversation {
 
 /// Implement TtsConversation trait for DefaultTtsConversation
 impl TtsConversation for DefaultTtsConversation {
-    type AudioStream = std::pin::Pin<Box<dyn futures::Stream<Item = String> + Send>>;
+    type AudioStream = std::pin::Pin<Box<dyn futures::Stream<Item = Vec<u8>> + Send>>;
 
     fn into_stream(self) -> Self::AudioStream {
         // Real DiaVoiceBuilder integration - no placeholders
         use futures::stream::{self, StreamExt};
 
         if let Some(_dia_builder) = self.dia_builder {
-            // Use DiaVoiceBuilder for real TTS synthesis
-            // Create audio stream from DiaVoiceBuilder's streaming API
-            let audio_stream = stream::iter(vec!["Sample audio chunk".to_string()]).boxed(); // TODO: Use dia_builder.stream()
+            // TODO: Implement actual dia-voice TTS synthesis here
+            // For now, generate a simple sine wave tone so you can actually hear something
+            let sample_rate = 24000;
+            let duration_secs = 2.0;
+            let frequency = 440.0; // A4 note
+            let samples: Vec<u8> = (0..(sample_rate as f32 * duration_secs) as usize)
+                .map(|i| {
+                    let t = i as f32 / sample_rate as f32;
+                    let sample = (frequency * 2.0 * std::f32::consts::PI * t).sin();
+                    let sample_i16 = (sample * 32767.0) as i16;
+                    sample_i16.to_le_bytes()
+                })
+                .flatten()
+                .collect();
+            let audio_stream = stream::iter(vec![samples]).boxed();
             audio_stream
         } else {
             // Fallback to empty stream if no DiaVoiceBuilder
-            stream::iter(vec![]).boxed()
+            stream::iter(vec![Vec::<u8>::new()]).boxed()
         }
     }
 }

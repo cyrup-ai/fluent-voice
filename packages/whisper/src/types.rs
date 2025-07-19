@@ -8,7 +8,7 @@
 //  │  map to pure `String` via `.as_text()` or any other helper.  │
 //  └──────────────────────────────────────────────────────────────┘
 
-use fluent_voice_domain::TranscriptSegment;
+use fluent_voice_domain::TranscriptionSegment;
 
 /// One chunk of transcribed speech produced by the Whisper decoder.
 ///
@@ -80,7 +80,7 @@ impl TtsChunk {
     }
 }
 
-impl TranscriptSegment for TtsChunk {
+impl TranscriptionSegment for TtsChunk {
     /// Start time of this segment in milliseconds from audio start.
     fn start_ms(&self) -> u32 {
         (self.start * 1000.0) as u32

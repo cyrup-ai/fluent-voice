@@ -20,7 +20,7 @@ use fluent_voice_domain::{
     AudioFormat, AudioIsolationBuilder, Diarization, FluentVoice, Language, MicBackend, ModelId,
     NoiseReduction, PitchRange, Punctuation, RequestId, Similarity, SoundEffectsBuilder, Speaker,
     SpeakerBoost, SpeechSource, SpeechToSpeechBuilder, Stability, StyleExaggeration,
-    TimestampsGranularity, TranscriptSegment, TtsConversation, TtsConversationBuilder,
+    TimestampsGranularity, TranscriptionSegment, TtsConversation, TtsConversationBuilder,
     TtsConversationChunkBuilder, VadMode, VocalSpeedMod, VoiceCloneBuilder, VoiceDiscoveryBuilder,
     VoiceError, VoiceId, WakeWordBuilder, WordTimestamps,
 };
@@ -381,10 +381,13 @@ impl TtsConversationBuilder for KyutaiTtsConversationBuilder {
     }
 
     #[inline]
-    fn on_chunk<F, T>(self, _processor: F) -> Self::ChunkBuilder
+    fn on_chunk<F>(self, _processor: F) -> Self::ChunkBuilder
     where
-        F: FnMut(Result<T, VoiceError>) -> Result<T, VoiceError> + Send + 'static,
-        T: Send + 'static,
+        F: Fn(
+                Result<fluent_voice_domain::audio_chunk::AudioChunk, VoiceError>,
+            ) -> Result<fluent_voice_domain::audio_chunk::AudioChunk, VoiceError>
+            + Send
+            + 'static,
     {
         KyutaiTtsConversationChunkBuilder::new(self)
     }
@@ -401,8 +404,6 @@ impl TtsConversationBuilder for KyutaiTtsConversationBuilder {
             matcher(result)
         }
     }
-
-
 }
 
 /// Chunk-based TTS conversation builder
@@ -427,10 +428,10 @@ impl TtsConversationChunkBuilder for KyutaiTtsConversationChunkBuilder {
         let conversation = KyutaiTtsConversation::new(self.base);
         let audio_stream = conversation.into_stream();
 
-        // Convert i16 samples to Vec<u8> chunks
+        // Convert String samples to Vec<u8> chunks
         Box::pin(audio_stream.map(|sample| {
-            // Convert i16 to bytes (little endian)
-            sample.to_le_bytes().to_vec()
+            // Convert String to bytes (UTF-8)
+            sample.into_bytes()
         }))
     }
 }
@@ -471,25 +472,14 @@ impl KyutaiTtsConversation {
 }
 
 impl TtsConversation for KyutaiTtsConversation {
-    type AudioStream = Pin<Box<dyn Stream<Item = i16> + Send>>;
+    type AudioStream = Pin<Box<dyn Stream<Item = String> + Send + Unpin>>;
 
     fn into_stream(self) -> Self::AudioStream {
+        use futures_util::stream;
         // Create a streaming audio generator
-        let stream = stream::unfold(
-            (self.speakers.into_iter(), 0usize),
-            |(mut speakers, sample_idx)| async move {
-                if let Some(_speaker) = speakers.next() {
-                    // In a real implementation, this would:
-                    // 1. Send synthesis request to model worker
-                    // 2. Receive audio samples
-                    // 3. Stream them as i16 samples
-                    // For now, return empty stream to satisfy compilation
-                    Some((0i16, (speakers, sample_idx + 1)))
-                } else {
-                    None
-                }
-            },
-        );
+        // For now, return empty stream to satisfy compilation
+        let items: Vec<String> = self.speakers.into_iter().map(|_| String::new()).collect();
+        let stream = stream::iter(items);
 
         Box::pin(stream)
     }
@@ -619,10 +609,13 @@ impl SttConversationBuilder for KyutaiSttConversationBuilder {
         self
     }
 
-    fn on_chunk<F, T>(self, _f: F) -> impl SttPostChunkBuilder
+    fn on_chunk<F>(self, _f: F) -> impl SttPostChunkBuilder
     where
-        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
-        T: TranscriptSegment + Send + 'static,
+        F: FnMut(
+                Result<fluent_voice_domain::transcription::TranscriptionSegmentImpl, VoiceError>,
+            ) -> fluent_voice_domain::transcription::TranscriptionSegmentImpl
+            + Send
+            + 'static,
     {
         // Return a post-chunk builder that provides access to terminal action methods
         KyutaiSttPostChunkBuilder::new(self)
@@ -765,14 +758,16 @@ impl MicrophoneBuilder for KyutaiMicrophoneBuilder {
         self
     }
 
-    fn listen(self) -> impl Stream<Item = String> + Send + Unpin {
-        // Create a live microphone STT conversation and convert to string stream
-        use futures_util::StreamExt;
-        let conversation = KyutaiSttConversation::new();
-        Box::pin(conversation.into_stream().map(|result| match result {
-            Ok(segment) => segment.text().to_string(),
-            Err(_) => String::new(), // Default error handling
-        }))
+    fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
+    where
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        async move {
+            // Create a live microphone STT conversation
+            let conversation = KyutaiSttConversation::new();
+            matcher(Ok(conversation))
+        }
     }
 }
 
@@ -917,7 +912,7 @@ impl KyutaiTranscriptSegment {
     }
 }
 
-impl TranscriptSegment for KyutaiTranscriptSegment {
+impl TranscriptionSegment for KyutaiTranscriptSegment {
     #[inline]
     fn start_ms(&self) -> u32 {
         self.start_ms
@@ -963,7 +958,7 @@ impl WakeWordBuilder for KyutaiWakeWordBuilder {
         _model_path: P,
         _wake_word: String,
     ) -> WakeWordResult<Self> {
-        Err(VoiceError::ConfigurationError(
+        Err(VoiceError::Configuration(
             "Wake word detection requires external model support".to_string(),
         ))
     }
@@ -1008,7 +1003,7 @@ impl WakeWordDetector for KyutaiWakeWordDetector {
         _model_path: P,
         _wake_word: String,
     ) -> WakeWordResult<()> {
-        Err(VoiceError::ConfigurationError(
+        Err(VoiceError::Configuration(
             "Wake word detection requires external model support".to_string(),
         ))
     }

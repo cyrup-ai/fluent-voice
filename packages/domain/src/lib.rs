@@ -6,6 +6,7 @@
 //! different components of the fluent-voice system, enabling clean
 //! separation of concerns and breaking cyclic dependencies.
 
+pub mod audio_chunk;
 pub mod audio_format;
 pub mod audio_isolation;
 
@@ -27,7 +28,7 @@ pub mod stability;
 pub mod stt_conversation;
 pub mod style_exaggeration;
 pub mod timestamps;
-pub mod transcript;
+pub mod transcription;
 pub mod tts_conversation;
 pub mod tts_engine;
 pub mod vad_mode;
@@ -40,7 +41,8 @@ pub mod voice_labels;
 pub mod wake_word;
 pub mod wake_word_conversation;
 
-// Re-export all public types
+// Re-export core types
+pub use audio_chunk::{AudioChunk, AudioChunkResult};
 pub use audio_format::AudioFormat;
 pub use fluent_voice::FluentVoice;
 pub use language::Language;
@@ -52,7 +54,7 @@ pub use speaker_builder::{SpeakerBuilder, SpeakerExt};
 pub use speech_source::SpeechSource;
 pub use stt_conversation::{SttConfig, SttConversation, SttConversationImpl};
 pub use timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps};
-pub use transcript::{TranscriptSegment, TranscriptSegmentImpl, TranscriptStream};
+pub use transcription::{TranscriptionSegment, TranscriptionSegmentImpl, TranscriptionStream};
 pub use tts_conversation::{
     TtsConversation, TtsConversationBuilder, TtsConversationChunkBuilder, TtsConversationExt,
 };
@@ -81,8 +83,8 @@ pub use wake_word_conversation::*;
 /// Prelude module containing commonly used types.
 pub mod prelude {
     pub use crate::{
-        AudioFormat, Diarization, Language, MicBackend, ModelId, Punctuation, SpeechSource,
-        TimestampsGranularity, TranscriptSegment, VadMode, VocalSpeedMod, VoiceError, VoiceId,
-        WordTimestamps,
+        AudioChunk, AudioChunkResult, AudioFormat, Diarization, Language, MicBackend, ModelId,
+        Punctuation, SpeechSource, TimestampsGranularity, TranscriptionSegment, VadMode,
+        VocalSpeedMod, VoiceError, VoiceId, WordTimestamps,
     };
 }

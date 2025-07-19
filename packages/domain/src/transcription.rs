@@ -7,7 +7,7 @@ use futures_core::Stream;
 /// This trait defines the interface for transcript segments returned by
 /// STT engines. Each segment represents a piece of recognized speech
 /// with timing and optional speaker information.
-pub trait TranscriptSegment {
+pub trait TranscriptionSegment {
     /// Start time of this segment in milliseconds from audio start.
     fn start_ms(&self) -> u32;
 
@@ -29,18 +29,18 @@ pub trait TranscriptSegment {
 /// This trait represents an async stream that yields transcript segments
 /// as they become available from the speech recognition engine. Each
 /// item in the stream is a `Result` containing either a segment or an error.
-pub trait TranscriptStream:
+pub trait TranscriptionStream:
     Stream<Item = Result<Self::Segment, VoiceError>> + Send + Unpin
 {
     /// The type of transcript segment yielded by this stream.
-    type Segment: TranscriptSegment;
+    type Segment: TranscriptionSegment;
 }
 
 /// Blanket implementation for any stream that yields transcript segments.
-impl<T, S> TranscriptStream for T
+impl<T, S> TranscriptionStream for T
 where
     T: Stream<Item = Result<S, VoiceError>> + Send + Unpin,
-    S: TranscriptSegment,
+    S: TranscriptionSegment,
 {
     type Segment = S;
 }
@@ -50,7 +50,7 @@ where
 /// Uses `Cow<str>` for zero-copy string operations when possible,
 /// optimized for high-performance real-time transcription.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TranscriptSegmentImpl {
+pub struct TranscriptionSegmentImpl {
     /// Recognized text content (zero-copy when possible)
     text: std::borrow::Cow<'static, str>,
     /// Start time in milliseconds (u32 for efficiency)
@@ -61,7 +61,7 @@ pub struct TranscriptSegmentImpl {
     speaker_id: Option<std::borrow::Cow<'static, str>>,
 }
 
-impl TranscriptSegmentImpl {
+impl TranscriptionSegmentImpl {
     /// Create a new transcript segment with owned strings.
     #[inline]
     pub fn new(text: String, start_ms: u32, end_ms: u32, speaker_id: Option<String>) -> Self {
@@ -116,7 +116,7 @@ impl TranscriptSegmentImpl {
     }
 }
 
-impl TranscriptSegment for TranscriptSegmentImpl {
+impl TranscriptionSegment for TranscriptionSegmentImpl {
     #[inline]
     fn start_ms(&self) -> u32 {
         self.start_ms

@@ -3494,6 +3494,7 @@ dependencies = [
  "rand 0.9.1",
  "rand_distr 0.5.1",
  "ringbuf",
+ "rodio",
  "rubato",
  "safetensors 0.6.0",
  "serde",

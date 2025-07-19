@@ -304,7 +304,7 @@ pub struct BadTranscriptionSegment {
     error_message: String,
 }
 
-impl fluent_voice_domain::transcript::TranscriptSegment for BadTranscriptionSegment {
+impl fluent_voice_domain::transcription::TranscriptionSegment for BadTranscriptionSegment {
     fn start_ms(&self) -> u32 {
         0
     }
@@ -349,14 +349,14 @@ where
 
 /// Helper function to convert TranscriptStream to Stream<String>
 ///
-/// This function converts a transcript stream (which yields Result<TranscriptSegment, VoiceError>)
+/// This function converts a transcript stream (which yields Result<TranscriptionSegment, VoiceError>)
 /// to a stream of strings for direct consumption.
 pub fn transcript_stream_to_string_stream<S, T>(
     stream: S,
 ) -> impl futures_core::Stream<Item = String> + Send + Unpin
 where
     S: futures_core::Stream<Item = Result<T, VoiceError>> + Send + Unpin + 'static,
-    T: fluent_voice_domain::transcript::TranscriptSegment,
+    T: fluent_voice_domain::transcription::TranscriptionSegment,
 {
     use futures_util::StreamExt;
 

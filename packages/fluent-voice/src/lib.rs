@@ -90,6 +90,7 @@ pub use audio_io::AudioInput;
 mod macros;
 
 /* ───── concrete builder implementations ───── */
+pub mod audio_stream;
 pub mod builders;
 
 /* ───── STT conversation trait definitions ───── */
@@ -154,14 +155,14 @@ pub mod prelude {
     };
 
     /* Domain traits needed for examples */
-    pub use fluent_voice_domain::{SpeakerBuilder, TtsConversationBuilder};
+    pub use fluent_voice_domain::{
+        SpeakerBuilder, SpeakerExt, TtsConversation, TtsConversationBuilder,
+    };
 
     /* Implement SpeakerExt for the Speaker alias to enable Speaker::speaker() syntax */
     impl fluent_voice_domain::SpeakerExt for crate::builders::SpeakerLine {
         fn speaker(name: impl Into<String>) -> impl fluent_voice_domain::SpeakerBuilder {
-            <crate::builders::SpeakerLineBuilder as crate::speaker_builder::SpeakerBuilder>::speaker(
-                name,
-            )
+            crate::builders::SpeakerLineBuilder::speaker(name)
         }
     }
 
@@ -182,5 +183,5 @@ pub mod prelude {
 
 // Re-export at crate root for internal use
 pub use cyrup_sugars::{AsyncStream, AsyncTask};
-pub use fluent_voice_domain::{TranscriptSegment, TranscriptStream};
+pub use fluent_voice_domain::{TranscriptionSegment, TranscriptionStream};
 pub use fluent_voice_whisper::TtsChunk;
