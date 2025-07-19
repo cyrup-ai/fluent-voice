@@ -221,10 +221,10 @@ pub trait TtsConversationBuilder: Sized + Send {
     /// })
     /// .await?;
     /// ```
-    fn synthesize<F>(self, matcher: F) -> impl futures_core::Stream<Item = crate::AudioChunk> + Send + Unpin
+    fn synthesize<M, S>(self, matcher: M) -> S
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> impl futures_core::Stream<Item = crate::AudioChunk> + Send + Unpin + 'static,
-        F: Send + 'static;
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
+        S: futures_core::Stream<Item = crate::AudioChunk> + Send + Unpin + 'static;
 
 
 

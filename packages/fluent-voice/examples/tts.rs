@@ -18,12 +18,12 @@ async fn main() -> Result<(), VoiceError> {
                 .with_speed(1.0)
                 .build(),
         )
-        .synthesize(synthesize_transform!(|conversation| {
+        .synthesize(|conversation| {
             Ok => conversation.into_stream(),  // Returns audio stream
             Err(e) => Err(e),
-        })) // <- Returns AudioStream directly
+        })// <- Returns AudioStream directly
         .play() // <- This handles all rodio playback internally
-        .await?; // Single await point
+        .await; // Single await point
 
     Ok(())
 }

@@ -13,11 +13,13 @@ impl<S> AudioStreamExt for S
 where
     S: Stream<Item = AudioChunk> + Send + Unpin + 'static,
 {
-    fn play(self) -> Pin<Box<dyn Future<Output = Result<(), VoiceError>> + Send>> {
-        let stream = self;
+    fn play(self) -> Pin<Box<dyn Future<Output = Result<(), VoiceError>> + Send>> 
+    where
+        Self: Send + Unpin + 'static,
+    {
         Box::pin(async move {
             use crate::audio_stream::AudioStream;
-            let audio_stream = AudioStream::new(Box::pin(stream));
+            let audio_stream = AudioStream::new(Box::pin(self));
             audio_stream.play().await
         })
     }

@@ -310,36 +310,34 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
         self
     }
 
-    fn synthesize<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    fn synthesize<M, R>(self, matcher: M) -> R
     where
-        F: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> R
-            + Send
-            + 'static,
+        M: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> R + Send + 'static,
         R: Send + 'static,
     {
-        async move {
-            // Create DiaVoiceBuilder instance for real TTS synthesis
-            use dia::voice::VoicePool;
-            use std::sync::Arc;
+        // Create DiaVoiceBuilder instance for real TTS synthesis
+        use dia::voice::VoicePool;
+        use std::sync::Arc;
 
-            // Create default VoicePool for DiaVoiceBuilder
-            let pool = match VoicePool::new() {
-                Ok(pool) => Arc::new(pool),
-                Err(_) => {
-                    // Return error through matcher instead of unwrap
-                    return matcher(Err(fluent_voice_domain::VoiceError::Configuration(
-                        "Failed to create VoicePool".to_string(),
-                    )));
-                }
-            };
-            let audio_path = std::env::temp_dir().join("temp_audio.wav");
-            let dia_builder = DiaVoiceBuilder::new(pool, audio_path);
+        // Create default VoicePool for DiaVoiceBuilder
+        let pool = match VoicePool::new() {
+            Ok(pool) => Arc::new(pool),
+            Err(_) => {
+                // Return error through matcher
+                return matcher(Err(fluent_voice_domain::VoiceError::Configuration(
+                    "Failed to create VoicePool".to_string(),
+                )));
+            }
+        };
+        let audio_path = std::env::temp_dir().join("temp_audio.wav");
+        let dia_builder = DiaVoiceBuilder::new(pool, audio_path);
 
-            // Create conversation using DiaVoiceBuilder as backend
-            let conversation = DefaultTtsConversation::with_dia_builder(dia_builder);
-            let result = Ok(conversation);
-            matcher(result)
-        }
+        // Create conversation using DiaVoiceBuilder as backend
+        let conversation = DefaultTtsConversation::with_dia_builder(dia_builder);
+        let conversation_result = Ok(conversation);
+        
+        // Call the matcher with the result, just like listen() does
+        matcher(conversation_result)
     }
 
 

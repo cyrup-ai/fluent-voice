@@ -353,27 +353,27 @@ where
         )
     }
 
-    fn listen<M, R>(self, matcher: M) -> impl std::future::Future<Output = R> + Send
+    fn listen<M, S>(self, matcher: M) -> S
     where
-        M: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
-        R: Send + 'static,
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
+        S: futures_core::Stream<Item = fluent_voice_domain::TranscriptionSegment> + Send + Unpin + 'static,
     {
-        async move {
-            let conversation_result = Ok(SttConversationImpl {
-                source: self.base_builder.source,
-                vad_mode: self.base_builder.vad_mode,
-                noise_reduction: self.base_builder.noise_reduction,
-                language_hint: self.base_builder.language_hint,
-                diarization: self.base_builder.diarization,
-                word_timestamps: self.base_builder.word_timestamps,
-                timestamps_granularity: self.base_builder.timestamps_granularity,
-                punctuation: self.base_builder.punctuation,
-                stream_fn: self.base_builder.stream_fn,
-            });
+        // Build the conversation result as a closure that gets executed later
+        let conversation_result = Ok(SttConversationImpl {
+            source: self.base_builder.source,
+            vad_mode: self.base_builder.vad_mode,
+            noise_reduction: self.base_builder.noise_reduction,
+            language_hint: self.base_builder.language_hint,
+            diarization: self.base_builder.diarization,
+            word_timestamps: self.base_builder.word_timestamps,
+            timestamps_granularity: self.base_builder.timestamps_granularity,
+            punctuation: self.base_builder.punctuation,
+            stream_fn: self.base_builder.stream_fn,
+        });
 
-            // Call the matcher with the result
-            matcher(conversation_result)
-        }
+        // Apply the matcher closure to the conversation result
+        // The matcher contains the JSON syntax transformed by listen! macro
+        matcher(conversation_result)
     }
 }
 

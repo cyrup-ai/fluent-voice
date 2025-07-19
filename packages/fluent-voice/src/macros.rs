@@ -247,6 +247,38 @@ macro_rules! stt {
     }};
 }
 
+/// Macro for synthesize method JSON/arrow syntax support
+///
+/// This macro transforms the JSON syntax used in TTS examples into proper closures:
+/// ```ignore
+/// synthesize!(Ok => conversation.into_stream(), Err => e)
+/// ```
+#[macro_export]
+macro_rules! synthesize {
+    (Ok => $ok:expr, Err => $err:expr) => {
+        move |__res| match __res {
+            Ok(chunk) => Ok($ok),
+            Err(err) => Err($err),
+        }
+    };
+}
+
+/// Macro for listen method JSON/arrow syntax support
+///
+/// This macro transforms the JSON syntax used in STT examples into proper closures:
+/// ```ignore
+/// listen!(Ok => conversation.into_stream(), Err => e)
+/// ```
+#[macro_export]
+macro_rules! listen {
+    (Ok => $ok:expr, Err => $err:expr) => {
+        move |__res| match __res {
+            Ok(chunk) => Ok($ok),
+            Err(err) => Err($err),
+        }
+    };
+}
+
 /// Macro to enable JSON object syntax {"key" => "value"} in builder methods
 ///
 /// This macro transforms the JSON-like syntax used in examples into proper HashMap

@@ -23,11 +23,11 @@ async fn main() -> Result<(), VoiceError> {
             Ok => transcription_chunk.into(),
             Err(e) => Err(e)
         }))
-        .listen(listen_transform!(|conv| {
+        .listen(|conv| {
             Ok => conv.into_stream(),
             Err(e) => Err(e)
-        }))
-        .await?;
+        })
+        .await;
 
     // Process transcript segments
     while let Some(result) = transcript_stream.next().await {

@@ -473,12 +473,13 @@ where
         self
     }
 
-    fn synthesize<F>(self, matcher: F) -> impl futures_core::Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin
+    fn synthesize<M, S>(self, matcher: M) -> S
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> impl futures_core::Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
-        F: Send + 'static,
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
+        S: futures_core::Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
     {
-        let conversation = match self.synth_fn {
+        // Build the conversation result as a closure that gets executed later
+        let conversation_result = match self.synth_fn {
             Some(synth_fn) => Ok(TtsConversationImpl {
                 lines: self.lines,
                 global_language: self.global_language,
@@ -502,8 +503,9 @@ where
             )),
         };
 
-        // Execute the matcher function and return the stream directly
-        matcher(conversation)
+        // Apply the matcher closure to the conversation result
+        // The matcher contains the JSON syntax transformed by synthesize! macro
+        matcher(conversation_result)
     }
 
 
@@ -520,7 +522,17 @@ async fn synthesize_speech_internal(
     use dia::voice::{VoiceClone, Conversation, DiaSpeaker};
 
     // Create basic voice data for the speaker
-    let voice_data = vec![0u8; 1024]; // Basic voice profile
+    use dia::voice::codec::VoiceData;
+    use candle_core::{Tensor, Device};
+    use std::path::PathBuf;
+    
+    let device = Device::Cpu;
+    let codes = Tensor::zeros((1, 1), candle_core::DType::F32, &device).unwrap();
+    let voice_data = Arc::new(VoiceData {
+        codes,
+        sample_rate: 24000,
+        source_path: PathBuf::from("temp_voice.wav"),
+    });
 
     // Create voice clone and speaker
     let voice_clone = VoiceClone::new(speaker_id.to_string(), voice_data);
