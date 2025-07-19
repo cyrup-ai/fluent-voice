@@ -39,8 +39,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📢 Say 'cyrup' to wake, 'cyrup stop' to sleep");
     println!();
 
-    // Load the pre-trained syrup model
-    let model_path = "syrup.rpw";
+    // Load the pre-trained syrup wake word model
+    let model_path = concat!(env!("CARGO_MANIFEST_DIR"), "/syrup.rpw");
     let model = match WakewordModel::load_from_file(model_path) {
         Ok(m) => {
             println!("✅ Loaded wake word model: {}", model_path);
@@ -48,8 +48,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             eprintln!("❌ Failed to load model {}: {}", model_path, e);
-            eprintln!("   Make sure you're running from the koffee directory");
-            return Err(format!("Model load error: {}", e).into());
+            eprintln!("Make sure you're running from the koffee directory");
+            return Err(Box::new(e));
         }
     };
 

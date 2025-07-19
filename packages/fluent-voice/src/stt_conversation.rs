@@ -110,6 +110,14 @@ pub trait SttConversationBuilder: Sized + Send {
     /// based on speech patterns and pauses.
     fn punctuation(self, p: Punctuation) -> Self;
 
+    /// Set a callback to be invoked when a prediction is available.
+    ///
+    /// The callback receives the final transcript segment and the
+    /// predicted text that follows it.
+    fn on_prediction<F>(self, f: F) -> Self
+    where
+        F: FnMut(String, String) + Send + 'static;
+
     /* polymorphic branching */
 
     /* closure capture methods */

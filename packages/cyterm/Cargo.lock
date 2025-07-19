@@ -302,6 +302,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-channel"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "924ed96dd52d1b75e9c1a3e6275715fd320f5f9439fb5a4a11fa51f4221158d2"
+dependencies = [
+ "concurrent-queue",
+ "event-listener-strategy",
+ "futures-core",
+ "pin-project-lite",
+]
+
+[[package]]
+name = "async-stream"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b5a71a6f37880a80d1d7f19efd781e4b5de42c88f0722cc13bcb6cc2cfe8476"
+dependencies = [
+ "async-stream-impl",
+ "futures-core",
+ "pin-project-lite",
+]
+
+[[package]]
+name = "async-stream-impl"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7c24de15d275a1ecfd47a380fb4d5ec9bfe0933f309ed5e705b775596a3574d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
 name = "atoi"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -415,6 +449,26 @@ name = "base64ct"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
+
+[[package]]
+name = "bincode"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
+dependencies = [
+ "bincode_derive",
+ "serde",
+ "unty",
+]
+
+[[package]]
+name = "bincode_derive"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf95709a440f45e986983918d0e8a1f30a9b1df04918fc828670606804ac3c09"
+dependencies = [
+ "virtue",
+]
 
 [[package]]
 name = "bindgen"
@@ -903,6 +957,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "concurrent-queue"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "console"
 version = "0.15.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -913,6 +976,19 @@ dependencies = [
  "once_cell",
  "unicode-width",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "console"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e09ced7ebbccb63b4c65413d821f2e00ce54c5ca4514ddc6b3c892fdbcbc69d"
+dependencies = [
+ "encode_unicode",
+ "libc",
+ "once_cell",
+ "unicode-width",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1072,6 +1148,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1137cd7e7fc0fb5d3c5a8678be38ec56e819125d8d7907411fe24ccb943faca8"
+dependencies = [
+ "crossbeam-channel",
+ "crossbeam-deque",
+ "crossbeam-epoch",
+ "crossbeam-queue",
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1184,14 +1273,51 @@ source = "git+https://github.com/cyrup-ai/cyrup-sugars#e76686427f867d1f1d2e5b48c
 dependencies = [
  "futures",
  "parking_lot",
- "sugars_async_stream",
- "sugars_async_task",
- "sugars_builders",
- "sugars_collections",
- "sugars_gix",
- "sugars_macros",
+ "sugars_async_stream 0.1.0",
+ "sugars_async_task 0.1.0",
+ "sugars_builders 0.1.0",
+ "sugars_collections 0.1.0",
+ "sugars_gix 0.1.0",
+ "sugars_macros 0.1.0",
  "tokio",
- "workspace-hack",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+]
+
+[[package]]
+name = "cyrup_sugars"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d343edcc9a8bfca261ae0586553a3c2e08166e9f621d7c2f088e6012e76f455d"
+dependencies = [
+ "async-channel",
+ "crossbeam",
+ "futures",
+ "parking_lot",
+ "sugars_async_stream 0.1.2",
+ "sugars_async_task 0.1.2",
+ "sugars_builders 0.1.2",
+ "sugars_collections 0.1.2",
+ "sugars_gix 0.1.2",
+ "sugars_macros 0.1.2",
+ "tokio",
+ "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "cyrup_sugars"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "futures",
+ "parking_lot",
+ "sugars_async_stream 0.1.3",
+ "sugars_async_task 0.1.3",
+ "sugars_builders 0.1.3",
+ "sugars_collections 0.1.3",
+ "sugars_gix 0.1.3",
+ "sugars_macros 0.1.3",
+ "tokio",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
@@ -1213,6 +1339,7 @@ dependencies = [
  "crossbeam-utils",
  "cudarc",
  "fluent-voice-workspace-hack",
+ "fluent_voice",
  "fluent_voice_whisper",
  "half",
  "hf-hub 0.3.2",
@@ -1379,6 +1506,46 @@ dependencies = [
  "quote",
  "syn 2.0.104",
  "unicode-xid",
+]
+
+[[package]]
+name = "dia"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "bytemuck",
+ "byteorder",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "clap",
+ "cpal",
+ "crossterm",
+ "cyrup_sugars 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "derive_more",
+ "dirs 6.0.0",
+ "fluent-voice-workspace-hack",
+ "fluent_voice_domain",
+ "hf-hub 0.4.3",
+ "hound",
+ "indicatif 0.18.0",
+ "once_cell",
+ "rand 0.9.1",
+ "rand_distr",
+ "ratatui",
+ "reqwest",
+ "rodio",
+ "rubato",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.12",
+ "tokenizers 0.21.2",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-chrome",
 ]
 
 [[package]]
@@ -1596,6 +1763,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "event-listener"
+version = "5.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3492acde4c3fc54c845eaab3eed8bd00c7a7d881f78bfc801e43a93dec1331ae"
+dependencies = [
+ "concurrent-queue",
+ "parking",
+ "pin-project-lite",
+]
+
+[[package]]
+name = "event-listener-strategy"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
+dependencies = [
+ "event-listener",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "exr"
 version = "1.73.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1729,15 +1917,12 @@ dependencies = [
  "bitflags 2.9.1",
  "bytemuck",
  "bytes",
- "candle-core",
- "candle-nn",
- "candle-transformers",
  "cc",
  "chrono",
  "compact_str",
  "crossbeam-queue",
  "crypto-common",
- "cyrup_sugars",
+ "cyrup_sugars 0.1.0",
  "derive_more",
  "derive_more-impl",
  "digest",
@@ -1788,7 +1973,7 @@ dependencies = [
  "smallvec 1.15.1",
  "stable_deref_trait",
  "strum 0.27.1",
- "sugars_collections",
+ "sugars_collections 0.1.0",
  "symphonia",
  "symphonia-bundle-mp3",
  "symphonia-format-riff",
@@ -1809,9 +1994,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "fluent_voice"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "byteorder",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "clap",
+ "cpal",
+ "crossbeam-channel",
+ "crossbeam-utils",
+ "cyrup_sugars 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "derive_more",
+ "dia",
+ "flate2",
+ "fluent-voice-workspace-hack",
+ "fluent_voice_domain",
+ "fluent_voice_vad",
+ "fluent_voice_whisper",
+ "futures",
+ "futures-core",
+ "futures-util",
+ "hashbrown 0.15.4",
+ "hf-hub 0.4.3",
+ "hound",
+ "koffee",
+ "log",
+ "memmap2",
+ "ndarray",
+ "parking_lot",
+ "rand 0.9.1",
+ "rand_distr",
+ "ringbuf",
+ "rodio",
+ "rubato",
+ "serde",
+ "serde_json",
+ "tokenizers 0.21.2",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "fluent_voice_domain"
 version = "0.1.0"
 dependencies = [
+ "fluent-voice-workspace-hack",
  "futures",
  "futures-core",
  "futures-util",
@@ -1820,18 +2053,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "fluent_voice_vad"
+version = "0.1.0"
+dependencies = [
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "fluent-voice-workspace-hack",
+ "fluent_voice_domain",
+ "futures",
+ "ndarray",
+ "ort",
+ "pin-project",
+ "thiserror 2.0.12",
+ "typed-builder",
+]
+
+[[package]]
 name = "fluent_voice_whisper"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "arrayvec",
+ "async-stream",
  "byteorder",
  "candle-core",
  "candle-nn",
  "candle-transformers",
  "ciborium",
  "clap",
- "cyrup_sugars",
+ "cyrup_sugars 0.1.0",
+ "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "futures-core",
  "hf-hub 0.4.3",
@@ -2500,7 +2752,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b780635574b3d92f036890d8373433d6f9fc7abb320ee42a5c25897fc8ed732"
 dependencies = [
  "dirs 5.0.1",
- "indicatif",
+ "indicatif 0.17.11",
  "log",
  "native-tls",
  "rand 0.8.5",
@@ -2519,7 +2771,7 @@ dependencies = [
  "dirs 6.0.0",
  "futures",
  "http",
- "indicatif",
+ "indicatif 0.17.11",
  "libc",
  "log",
  "native-tls",
@@ -2859,10 +3111,23 @@ version = "0.17.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "183b3088984b400f4cfac3620d5e076c84da5364016b4f49473de574b2586235"
 dependencies = [
- "console",
+ "console 0.15.11",
  "number_prefix",
  "portable-atomic",
  "unicode-width",
+ "web-time",
+]
+
+[[package]]
+name = "indicatif"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70a646d946d06bedbbc4cac4c218acf4bbf2d87757a784857025f4d447e4e1cd"
+dependencies = [
+ "console 0.16.0",
+ "portable-atomic",
+ "unicode-width",
+ "unit-prefix",
  "web-time",
 ]
 
@@ -3068,6 +3333,7 @@ dependencies = [
  "candle-transformers",
  "ciborium",
  "clap",
+ "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "hound",
  "indexmap",
@@ -4037,6 +4303,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
+name = "parking"
+version = "2.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f38d5652c16fde515bb1ecef450ab0f6a219d619a7274976324d5e377f7dceba"
+
+[[package]]
 name = "parking_lot"
 version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4639,7 +4911,7 @@ checksum = "f60fcc7d6849342eff22c4350c8b9a989ee8ceabc4b481253e8946b9fe83d684"
 [[package]]
 name = "ratatui"
 version = "0.30.0-alpha.5"
-source = "git+https://github.com/ratatui/ratatui.git?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
+source = "git+https://github.com/ratatui/ratatui?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
 dependencies = [
  "instability",
  "ratatui-core",
@@ -4652,7 +4924,7 @@ dependencies = [
 [[package]]
 name = "ratatui-core"
 version = "0.1.0-alpha.6"
-source = "git+https://github.com/ratatui/ratatui.git?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
+source = "git+https://github.com/ratatui/ratatui?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
 dependencies = [
  "bitflags 2.9.1",
  "compact_str",
@@ -4671,7 +4943,7 @@ dependencies = [
 [[package]]
 name = "ratatui-crossterm"
 version = "0.1.0-alpha.5"
-source = "git+https://github.com/ratatui/ratatui.git?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
+source = "git+https://github.com/ratatui/ratatui?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
 dependencies = [
  "crossterm",
  "instability",
@@ -4681,7 +4953,7 @@ dependencies = [
 [[package]]
 name = "ratatui-macros"
 version = "0.7.0-alpha.4"
-source = "git+https://github.com/ratatui/ratatui.git?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
+source = "git+https://github.com/ratatui/ratatui?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
 dependencies = [
  "ratatui-core",
  "ratatui-widgets",
@@ -4690,7 +4962,7 @@ dependencies = [
 [[package]]
 name = "ratatui-termwiz"
 version = "0.1.0-alpha.5"
-source = "git+https://github.com/ratatui/ratatui.git?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
+source = "git+https://github.com/ratatui/ratatui?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
 dependencies = [
  "ratatui-core",
  "termwiz",
@@ -4699,7 +4971,7 @@ dependencies = [
 [[package]]
 name = "ratatui-widgets"
 version = "0.3.0-alpha.5"
-source = "git+https://github.com/ratatui/ratatui.git?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
+source = "git+https://github.com/ratatui/ratatui?branch=main#0148b62f0c7e3929804ba16160bd28411e1cad87"
 dependencies = [
  "bitflags 2.9.1",
  "hashbrown 0.15.4",
@@ -4838,6 +5110,15 @@ checksum = "04ca636dac446b5664bd16c069c00a9621806895b8bb02c2dc68542b23b8f25d"
 dependencies = [
  "bytemuck",
  "font-types",
+]
+
+[[package]]
+name = "realfft"
+version = "3.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f821338fddb99d089116342c46e9f1fbf3828dba077674613e734e01d6ea8677"
+dependencies = [
+ "rustfft",
 ]
 
 [[package]]
@@ -4991,10 +5272,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "ringbuf"
+version = "0.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe47b720588c8702e34b5979cb3271a8b1842c7cb6f57408efa70c779363488c"
+dependencies = [
+ "crossbeam-utils",
+ "portable-atomic",
+ "portable-atomic-util",
+]
+
+[[package]]
+name = "rodio"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e40ecf59e742e03336be6a3d53755e789fd05a059fa22dfa0ed624722319e183"
+dependencies = [
+ "cpal",
+ "dasp_sample",
+ "num-rational",
+ "symphonia",
+]
+
+[[package]]
 name = "roxmltree"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97"
+
+[[package]]
+name = "rubato"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5258099699851cfd0082aeb645feb9c084d9a5e1f1b8d5372086b989fc5e56a1"
+dependencies = [
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "realfft",
+]
 
 [[package]]
 name = "rustc-demangle"
@@ -5535,10 +5851,39 @@ source = "git+https://github.com/cyrup-ai/cyrup-sugars#e76686427f867d1f1d2e5b48c
 dependencies = [
  "futures",
  "parking_lot",
- "sugars_async_task",
- "sugars_collections",
+ "sugars_async_task 0.1.0",
+ "sugars_collections 0.1.0",
  "tokio",
- "workspace-hack",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+]
+
+[[package]]
+name = "sugars_async_stream"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e030e09f93641e0b6678d8bc68b8d9f33c2056f2e7acdc987c3cc945f80f503a"
+dependencies = [
+ "async-channel",
+ "crossbeam",
+ "futures",
+ "parking_lot",
+ "sugars_async_task 0.1.2",
+ "sugars_collections 0.1.2",
+ "tokio",
+ "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sugars_async_stream"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "futures",
+ "parking_lot",
+ "sugars_async_task 0.1.3",
+ "sugars_collections 0.1.3",
+ "tokio",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
@@ -5548,9 +5893,34 @@ source = "git+https://github.com/cyrup-ai/cyrup-sugars#e76686427f867d1f1d2e5b48c
 dependencies = [
  "futures",
  "parking_lot",
- "sugars_collections",
+ "sugars_collections 0.1.0",
  "tokio",
- "workspace-hack",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+]
+
+[[package]]
+name = "sugars_async_task"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e153307e7400ee16052338ef58f8a406ef85a7bcf6979a7ac40b4a49873f480"
+dependencies = [
+ "futures",
+ "parking_lot",
+ "sugars_collections 0.1.2",
+ "tokio",
+ "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sugars_async_task"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "futures",
+ "parking_lot",
+ "sugars_collections 0.1.3",
+ "tokio",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
@@ -5561,10 +5931,39 @@ dependencies = [
  "hashbrown 0.15.4",
  "serde",
  "serde_json",
- "sugars_async_task",
- "sugars_collections",
- "sugars_macros",
- "workspace-hack",
+ "sugars_async_task 0.1.0",
+ "sugars_collections 0.1.0",
+ "sugars_macros 0.1.0",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+]
+
+[[package]]
+name = "sugars_builders"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04b9ad4c2e8749da8bc523e6121acc4c53a3610d8c2d855eba922f9fa9425905"
+dependencies = [
+ "hashbrown 0.15.4",
+ "serde",
+ "serde_json",
+ "sugars_async_task 0.1.2",
+ "sugars_collections 0.1.2",
+ "sugars_macros 0.1.2",
+ "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sugars_builders"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "hashbrown 0.15.4",
+ "serde",
+ "serde_json",
+ "sugars_async_task 0.1.3",
+ "sugars_collections 0.1.3",
+ "sugars_macros 0.1.3",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
@@ -5575,7 +5974,30 @@ dependencies = [
  "hashbrown 0.15.4",
  "serde",
  "serde_json",
- "workspace-hack",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+]
+
+[[package]]
+name = "sugars_collections"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4eca5cdd40de8c7be72320e0bd631750a72d50f6730f5d9db529d3c5351cc2ba"
+dependencies = [
+ "hashbrown 0.15.4",
+ "serde",
+ "serde_json",
+ "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sugars_collections"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "hashbrown 0.15.4",
+ "serde",
+ "serde_json",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
@@ -5586,7 +6008,30 @@ dependencies = [
  "gix-hash",
  "hashbrown 0.15.4",
  "parking_lot",
- "workspace-hack",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+]
+
+[[package]]
+name = "sugars_gix"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54e98ed0cedb695e801621573044b341292d74760603a92ad0beb898f143d6fd"
+dependencies = [
+ "gix-hash",
+ "hashbrown 0.15.4",
+ "parking_lot",
+ "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sugars_gix"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "gix-hash",
+ "hashbrown 0.15.4",
+ "parking_lot",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
@@ -5598,7 +6043,33 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.104",
- "workspace-hack",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+]
+
+[[package]]
+name = "sugars_macros"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04776fd254ff5abd6e00caca570a93918887a77d2c624c63086a1779e6c73378"
+dependencies = [
+ "hashbrown 0.15.4",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+ "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sugars_macros"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "hashbrown 0.15.4",
+ "proc-macro2",
+ "quote",
+ "sugars_collections 0.1.3",
+ "syn 2.0.104",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
@@ -6161,7 +6632,7 @@ dependencies = [
  "derive_builder",
  "esaxx-rs",
  "getrandom 0.2.16",
- "indicatif",
+ "indicatif 0.17.11",
  "itertools 0.12.1",
  "lazy_static",
  "log",
@@ -6196,7 +6667,7 @@ dependencies = [
  "derive_builder",
  "esaxx-rs",
  "getrandom 0.3.3",
- "indicatif",
+ "indicatif 0.17.11",
  "itertools 0.14.0",
  "log",
  "macro_rules_attribute",
@@ -6699,10 +7170,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39ec24b3121d976906ece63c9daad25b85969647682eee313cb5779fdd69e14e"
 
 [[package]]
+name = "unit-prefix"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "323402cff2dd658f39ca17c789b502021b3f18707c91cdf22e3838e1b4023817"
+
+[[package]]
 name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
+
+[[package]]
+name = "unty"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
 
 [[package]]
 name = "ureq"
@@ -6830,6 +7313,12 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "virtue"
+version = "0.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "vtparse"
@@ -7537,6 +8026,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f42320e61fe2cfd34354ecb597f86f413484a798ba44a8ca1165c58d42da6c1"
 dependencies = [
  "bitflags 2.9.1",
+]
+
+[[package]]
+name = "workspace-hack"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "beffa227304dbaea3ad6a06ac674f9bc83a3dec3b7f63eeb442de37e7cb6bb01"
+
+[[package]]
+name = "workspace-hack"
+version = "0.1.0"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "futures-core",
+ "hashbrown 0.15.4",
+ "memchr",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn 2.0.104",
+ "tokio",
 ]
 
 [[package]]

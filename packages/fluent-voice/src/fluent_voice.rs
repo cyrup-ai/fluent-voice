@@ -312,7 +312,9 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
 
     fn synthesize<M, R>(self, matcher: M) -> R
     where
-        M: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> R + Send + 'static,
+        M: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> R
+            + Send
+            + 'static,
         R: Send + 'static,
     {
         // Create DiaVoiceBuilder instance for real TTS synthesis
@@ -335,12 +337,10 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
         // Create conversation using DiaVoiceBuilder as backend
         let conversation = DefaultTtsConversation::with_dia_builder(dia_builder);
         let conversation_result = Ok(conversation);
-        
+
         // Call the matcher with the result, just like listen() does
         matcher(conversation_result)
     }
-
-
 }
 
 /// Implementation of TtsConversationChunkBuilder for DefaultTtsBuilder

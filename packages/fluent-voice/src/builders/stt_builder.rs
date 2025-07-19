@@ -94,6 +94,8 @@ pub struct SttConversationBuilderImpl<S> {
     pub timestamps_granularity: Option<TimestampsGranularity>,
     /// Punctuation setting
     pub punctuation: Option<Punctuation>,
+    /// Prediction callback
+    pub prediction_processor: Option<Box<dyn FnMut(String, String) + Send + 'static>>,
     /// Engine configuration parameters
     pub engine_config: std::collections::HashMap<String, String>,
     /// Function to convert configuration to transcript stream
@@ -141,6 +143,7 @@ where
             word_timestamps: None,
             timestamps_granularity: None,
             punctuation: None,
+            prediction_processor: None,
             engine_config: std::collections::HashMap::new(),
             stream_fn: Box::new(stream_fn),
         }
@@ -253,6 +256,14 @@ where
         // For now, we'll just return self until we implement storage
         self
     }
+
+    fn on_prediction<F>(mut self, f: F) -> Self
+    where
+        F: FnMut(String, String) + Send + 'static,
+    {
+        self.prediction_processor = Some(Box::new(f));
+        self
+    }
 }
 
 /// Post-chunk builder implementation for STT
@@ -356,7 +367,10 @@ where
     fn listen<M, S>(self, matcher: M) -> S
     where
         M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = fluent_voice_domain::TranscriptionSegment> + Send + Unpin + 'static,
+        S: futures_core::Stream<Item = fluent_voice_domain::TranscriptionSegment>
+            + Send
+            + Unpin
+            + 'static,
     {
         // Build the conversation result as a closure that gets executed later
         let conversation_result = Ok(SttConversationImpl {
@@ -516,7 +530,10 @@ where
     fn listen<M, S>(self, matcher: M) -> S
     where
         M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = fluent_voice_domain::TranscriptionSegment> + Send + Unpin + 'static,
+        S: futures_core::Stream<Item = fluent_voice_domain::TranscriptionSegment>
+            + Send
+            + Unpin
+            + 'static,
     {
         // Use the device string to determine the backend
         let backend = if self.device == "default" || self.device.is_empty() {
@@ -765,13 +782,17 @@ where
     fn transcribe<M, S>(self, matcher: M) -> S
     where
         M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = fluent_voice_domain::TranscriptionSegment> + Send + Unpin + 'static,
+        S: futures_core::Stream<Item = fluent_voice_domain::TranscriptionSegment>
+            + Send
+            + Unpin
+            + 'static,
     {
         // Build the transcript result synchronously, just like listen() does
         let transcript_result = Ok(TranscriptImpl {
-            stream: Box::pin(self.stream_fn.unwrap_or_else(|| {
-                Box::pin(futures::stream::empty())
-            })),
+            stream: Box::pin(
+                self.stream_fn
+                    .unwrap_or_else(|| Box::pin(futures::stream::empty())),
+            ),
         });
 
         // Apply the matcher closure to the transcript result

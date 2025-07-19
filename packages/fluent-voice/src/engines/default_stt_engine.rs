@@ -687,6 +687,7 @@ impl SttEngine for DefaultSTTEngine {
             word_timestamps: None,
             timestamps_granularity: None,
             punctuation: None,
+            prediction_processor: None,
             // Default handlers that use the ACTUAL implementations
             error_handler: Some(Box::new(|error| {
                 // Default error recovery - log and continue
@@ -698,20 +699,17 @@ impl SttEngine for DefaultSTTEngine {
                     VoiceError::Synthesis(_) => format!("[SYNTHESIS_ERROR]"),
                     VoiceError::NotSynthesizable(_) => format!("[NOT_SYNTHESIZABLE]"),
                     VoiceError::Transcription(_) => format!("[TRANSCRIPTION_ERROR]"),
-                    VoiceError::Synthesis(_) => format!("[SYNTHESIS_ERROR]"),
-                    VoiceError::NotSynthesizable(_) => format!("[NOT_SYNTHESIZABLE]"),
-                    VoiceError::Transcription(_) => format!("[TRANSCRIPTION_ERROR]"),
                 }
             })),
             wake_handler: Some(Box::new(|wake_word| {
-                // Default wake word handler - just log the detection
-                println!("🔊 Wake word detected: {}", wake_word);
+                // Default wake word action
+                println!("Wake word detected: {}", wake_word);
             })),
             turn_handler: Some(Box::new(|speaker, text| {
-                // Default turn handler - log the speaker turn
+                // Default turn detection action
                 match speaker {
-                    Some(speaker_id) => println!("👤 Speaker {}: {}", speaker_id, text),
-                    None => println!("🗣️  Turn detected: {}", text),
+                    Some(speaker_id) => println!("Speaker {}: {}", speaker_id, text),
+                    None => println!("Turn detected: {}", text),
                 }
             })),
         }
@@ -736,6 +734,7 @@ pub struct DefaultSTTConversationBuilder {
     error_handler: Option<Box<dyn FnMut(VoiceError) -> String + Send + 'static>>,
     wake_handler: Option<Box<dyn FnMut(String) + Send + 'static>>,
     turn_handler: Option<Box<dyn FnMut(Option<String>, String) + Send + 'static>>,
+    prediction_processor: Option<Box<dyn FnMut(String, String) + Send + 'static>>,
 }
 
 impl DefaultSTTConversationBuilder {
@@ -755,12 +754,22 @@ impl DefaultSTTConversationBuilder {
             error_handler: None,
             wake_handler: None,
             turn_handler: None,
+            prediction_processor: None,
+            prediction_processor: None,
         }
     }
 }
 
 impl SttConversationBuilder for DefaultSTTConversationBuilder {
     type Conversation = DefaultSTTConversation;
+
+    fn on_prediction<F>(mut self, handler: F) -> Self
+    where
+        F: FnMut(&str, &str) + Send + Sync + 'static,
+    {
+        self.prediction_processor = Some(Box::new(handler));
+        self
+    }
 
     fn with_source(mut self, src: SpeechSource) -> Self {
         self.speech_source = Some(src);
@@ -889,6 +898,7 @@ pub struct DefaultSTTConversation {
     error_handler: Option<Box<dyn FnMut(VoiceError) -> String + Send + 'static>>,
     wake_handler: Option<Box<dyn FnMut(String) + Send + 'static>>,
     turn_handler: Option<Box<dyn FnMut(Option<String>, String) + Send + 'static>>,
+    prediction_processor: Option<Box<dyn FnMut(String, String) + Send + 'static>>,
 }
 
 impl DefaultSTTConversation {
@@ -898,6 +908,7 @@ impl DefaultSTTConversation {
         error_handler: Option<Box<dyn FnMut(VoiceError) -> String + Send + 'static>>,
         wake_handler: Option<Box<dyn FnMut(String) + Send + 'static>>,
         turn_handler: Option<Box<dyn FnMut(Option<String>, String) + Send + 'static>>,
+        prediction_processor: Option<Box<dyn FnMut(String, String) + Send + 'static>>,
     ) -> Result<Self, VoiceError> {
         Ok(Self {
             vad_config,
@@ -905,6 +916,7 @@ impl DefaultSTTConversation {
             error_handler,
             wake_handler,
             turn_handler,
+            prediction_processor,
         })
     }
 }
@@ -1300,6 +1312,7 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
             device: device.into(),
             vad_config: self.inner.vad_config,
             wake_word_config: self.inner.wake_word_config,
+            prediction_processor: self.inner.prediction_processor,
         }
     }
 
@@ -1308,6 +1321,7 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
             path: path.into(),
             vad_config: self.inner.vad_config,
             wake_word_config: self.inner.wake_word_config,
+            prediction_processor: self.inner.prediction_processor,
         }
     }
 
@@ -1326,6 +1340,7 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
                 self.inner.error_handler,
                 self.inner.wake_handler,
                 self.inner.turn_handler,
+                self.inner.prediction_processor,
             );
 
             // Call the matcher with the result
@@ -1342,10 +1357,12 @@ pub struct DefaultMicrophoneBuilder {
     device: String,
     vad_config: VadConfig,
     wake_word_config: WakeWordConfig,
+    prediction_processor: Option<Box<dyn FnMut(String, String) + Send + 'static>>,
 }
 
 impl MicrophoneBuilder for DefaultMicrophoneBuilder {
     type Conversation = DefaultSTTConversation;
+    type Segment = DefaultTranscriptionSegment;
 
     fn vad_mode(mut self, mode: VadMode) -> Self {
         // Configure VAD mode in vad_config
@@ -1387,38 +1404,35 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
         self
     }
 
-    fn listen<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    async fn listen<M, S>(self, matcher: M) -> S
     where
-        F: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> R
-            + Send
-            + 'static,
-        R: Send + 'static,
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
+        S: Stream<Item = Result<Self::Segment, VoiceError>> + Send + Unpin + 'static,
     {
-        async move {
-            let conversation_result = DefaultSTTConversation::new(
-                self.vad_config,
-                self.wake_word_config,
-                Some(Box::new(|error| match error {
-                    VoiceError::ProcessingError(_) => format!("[PROCESSING_ERROR]"),
-                    VoiceError::Configuration(_) => format!("[CONFIG_ERROR]"),
-                    VoiceError::Tts(_) => format!("[TTS_ERROR]"),
-                    VoiceError::Stt(_) => format!("[STT_ERROR]"),
-                    VoiceError::Synthesis(_) => format!("[SYNTHESIS_ERROR]"),
-                    VoiceError::NotSynthesizable(_) => format!("[NOT_SYNTHESIZABLE]"),
-                    VoiceError::Transcription(_) => format!("[TRANSCRIPTION_ERROR]"),
-                })),
-                Some(Box::new(|wake_word| {
-                    println!("🔊 Wake word detected: {}", wake_word);
-                })),
-                Some(Box::new(|speaker, text| match speaker {
-                    Some(speaker_id) => println!("👤 Speaker {}: {}", speaker_id, text),
-                    None => println!("🗣️  Turn detected: {}", text),
-                })),
-            );
+        let conversation_result = DefaultSTTConversation::new(
+            self.vad_config,
+            self.wake_word_config,
+            Some(Box::new(|error| match error {
+                VoiceError::ProcessingError(_) => format!("[PROCESSING_ERROR]"),
+                VoiceError::Configuration(_) => format!("[CONFIG_ERROR]"),
+                VoiceError::Tts(_) => format!("[TTS_ERROR]"),
+                VoiceError::Stt(_) => format!("[STT_ERROR]"),
+                VoiceError::Synthesis(_) => format!("[SYNTHESIS_ERROR]"),
+                VoiceError::NotSynthesizable(_) => format!("[NOT_SYNTHESIZABLE]"),
+                VoiceError::Transcription(_) => format!("[TRANSCRIPTION_ERROR]"),
+            })),
+            Some(Box::new(|wake_word| {
+                println!("🔊 Wake word detected: {}", wake_word);
+            })),
+            Some(Box::new(|speaker, text| match speaker {
+                Some(speaker_id) => println!("👤 Speaker {}: {}", speaker_id, text),
+                None => println!("🗣️  Turn detected: {}", text),
+            })),
+            self.prediction_processor,
+        );
 
-            // Call the matcher with the result
-            matcher(conversation_result)
-        }
+        // Call the matcher with the result, which in turn returns the stream
+        matcher(conversation_result)
     }
 }
 
@@ -1430,10 +1444,43 @@ pub struct DefaultTranscriptionBuilder {
     path: String,
     vad_config: VadConfig,
     wake_word_config: WakeWordConfig,
+    prediction_processor: Option<Box<dyn FnMut(String, String) + Send + 'static>>,
 }
 
 impl TranscriptionBuilder for DefaultTranscriptionBuilder {
     type Transcript = String;
+
+    fn transcribe(
+        self,
+    ) -> impl std::future::Future<Output = Result<Self::Transcript, VoiceError>> + Send {
+        async move {
+            let conversation = DefaultSTTConversation::new(
+                self.vad_config,
+                self.wake_word_config,
+                None, // No error handler for file transcription
+                None, // No wake word handler
+                None, // No turn detection handler
+                self.prediction_processor,
+            )?;
+
+            let source = SpeechSource::from_file(&self.path);
+            let mut stream = conversation.with_source(source).into_stream();
+
+            let mut text = String::new();
+            while let Some(result) = stream.next().await {
+                match result {
+                    Ok(segment) => {
+                        if !text.is_empty() {
+                            text.push(' ');
+                        }
+                        text.push_str(segment.text());
+                    }
+                    Err(e) => return Err(e.into()),
+                }
+            }
+            Ok(text)
+        }
+    }
 
     fn vad_mode(self, _mode: VadMode) -> Self {
         // TODO: Configure VAD mode in vad_config
@@ -1498,6 +1545,7 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
                 Some(speaker_id) => println!("👤 Speaker {}: {}", speaker_id, text),
                 None => println!("🗣️  Turn detected: {}", text),
             })),
+            self.prediction_processor,
         );
 
         let stream = stream! {
@@ -1541,6 +1589,7 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
                     Some(speaker_id) => println!("👤 Speaker {}: {}", speaker_id, text),
                     None => println!("🗣️  Turn detected: {}", text),
                 })),
+                self.prediction_processor,
             )?;
             conversation.collect().await
         }

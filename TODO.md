@@ -1,4 +1,60 @@
-# Warning Fixes TODO - 443 Total Warnings 🚨
+# Fluent-Voice Compilation Issues - Fixing All Warnings and Errors 🚨
+
+## 🚨 Compilation Errors (Must Fix First)
+
+### Koffee Crate
+
+#### Missing Dependencies
+- [ ] Add `cpal` dependency to koffee (required for audio device handling)
+  - **Files Affected**:
+    - `packages/koffee/examples/cyrup_wake.rs`
+    - `packages/koffee/examples/record_training_samples.rs`
+    - `packages/koffee/examples/test_cyrup_models.rs`
+  - **Error**: `use of unresolved module or unlinked crate 'cpal'`
+  - **Solution**: Add `cpal = "0.15.2"` to koffee's Cargo.toml
+
+- [ ] Add `rustpotter` dependency to koffee
+  - **Files Affected**:
+    - `packages/koffee/tests/detector.rs`
+  - **Error**: `use of unresolved module or unlinked crate 'rustpotter'`
+  - **Solution**: Add `rustpotter = { version = "0.6.0", features = ["tract-onnx"] }`
+
+#### Type and Trait Issues
+- [ ] Fix `AudioFmt` type resolution in detector.rs
+  - **File**: `packages/koffee/tests/detector.rs`
+  - **Error**: `cannot find type 'AudioFmt' in this scope`
+  - **Solution**: Add `use koffee::AudioFmt;` at the top of the file
+
+- [ ] Fix `ModelType` resolution in detector.rs
+  - **File**: `packages/koffee/tests/detector.rs`
+  - **Error**: `use of undeclared type 'ModelType'`
+  - **Solution**: Add `use koffee::ModelType;` at the top of the file
+
+- [ ] Fix `try_into` generic argument issue
+  - **File**: `packages/koffee/tests/detector.rs`
+  - **Error**: `method takes 0 generic arguments but 1 generic argument was supplied`
+  - **Solution**: Change `r.spec().try_into::<AudioFmt>()` to `TryInto::<AudioFmt>::try_into(r.spec())`
+
+#### Struct Field Issues
+- [ ] Fix `GainNormalizationConfig` field name
+  - **File**: `packages/koffee/examples/test_cyrup_models.rs`
+  - **Error**: `struct 'GainNormalizationConfig' has no field named 'gain_level'`
+  - **Solution**: Change `gain_level` to one of: `gain_ref`, `min_gain`, or `max_gain`
+
+#### Missing Trait Implementation
+- [ ] Implement `Clone` for `Args` struct
+  - **File**: `packages/koffee/examples/record_training_samples.rs`
+  - **Error**: `no method named 'clone' found for struct 'Args'`
+  - **Solution**: Add `#[derive(Clone)]` to the `Args` struct
+
+### Dia Crate
+
+#### Test Compilation Issues
+- [ ] Fix test compilation errors in dia crate
+  - **Error**: `could not compile 'dia' (lib test) due to 3 previous errors`
+  - **Solution**: Investigate and fix the underlying test failures
+
+## Warning Fixes TODO - 443 Total Warnings 🚨
 
 ## 🎯 ULTRA HIGH PRIORITY: FLUENT .PLAY() API COMPLETION 🎯
 ### Zero-Allocation, Blazing-Fast, No-Locking Audio Playback Encapsulation

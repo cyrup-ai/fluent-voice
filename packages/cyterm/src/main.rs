@@ -1,103 +1,57 @@
-//! cyterm – demo entry-point showing how the wake-word detector is wired in.
-//! For real production code you’ll probably split this into modules, but
-//! keeping it in one file makes the integration crystal-clear.
+//! Cyterm: A real-time, voice-enabled terminal emulator powered by fluent-voice.
 
-use anyhow::{Context, Result};
-#[cfg(feature = "microphone")]
-use cpal::{
-    SampleFormat,
-    traits::{DeviceTrait, HostTrait, StreamTrait},
-};
-use cyterm::{
-    asr::VoiceActivityDetector,
-    wake_word::{KwModel, WakeWordBuilder},
-};
+use anyhow::Result;
+use fluent_voice::prelude::*;
+use futures_util::StreamExt;
 
-/// 16-kHz mono, 16-bit signed PCM
-const SAMPLE_RATE: u32 = 16_000;
-const BLOCK_SIZE: usize = 160; // 10 ms @ 16 kHz
-
-fn main() -> Result<()> {
-    // -------------------------------------------------- bootstrap
+#[tokio::main]
+async fn main() -> Result<()> {
     init_logging();
 
-    // -------------------------------------------------- load / validate model
-    let kw_model = KwModel::load("assets/kw_model.bin").context("opening wake-word model")?;
+    println!("Starting real-time STT with fluent-voice...");
 
-    // -------------------------------------------------- build VAD
-    let vad = VoiceActivityDetector::builder()
-        .chunk_size(BLOCK_SIZE)
-        .sample_rate(SAMPLE_RATE as i64)
-        .build()
-        .context("init VAD")?;
-
-    // -------------------------------------------------- compose detector
-    let mut detector = WakeWordBuilder::new(kw_model)
-        .thresholds(0.55, 0.82) // tweak at runtime
-        .build(vad);
-
-    // -------------------------------------------------- open microphone
-    let host = cpal::default_host();
-    let device = host.default_input_device().context("no input device")?;
-    let config = device.default_input_config().context("no default config")?;
-    ensure_format(&config)?;
-
-    // ring-buffer for assembling 160-sample blocks
-    let mut scratch: Vec<i16> = Vec::with_capacity(BLOCK_SIZE);
-
-    let stream = device.build_input_stream(
-        &config.into(),
-        move |data: &[i16], _| {
-            for &sample in data {
-                scratch.push(sample);
-                if scratch.len() == BLOCK_SIZE {
-                    // ---- detector call --------------------------------------
-                    if let Ok(true) = detector.push_block(
-                        &scratch
-                            .iter()
-                            .map(|v| *v as f32 / 32_768.0)
-                            .collect::<Vec<_>>(),
-                    ) {
-                        println!("🔊  Wake word detected!");
-                    }
-                    scratch.clear();
-                }
+    let mut transcript_stream = FluentVoice::stt()
+        .conversation()
+        .on_prediction(|transcription, prediction| {
+            // In a real terminal, you would use termcolor here to draw the fading animation.
+            // For this integration, we just print the prediction.
+            print!("\r\x1B[K"); // Clear line and move cursor to start
+            print!("{} [prediction: {}]", transcription, prediction);
+            std::io::Write::flush(&mut std::io::stdout()).unwrap();
+        })
+        .with_microphone()
+        .listen(|conv_result| match conv_result {
+            Ok(conv) => conv.into_stream(),
+            Err(e) => {
+                eprintln!("Error creating conversation: {}", e);
+                // Return an empty stream on error
+                futures_util::stream::empty().boxed()
             }
-        },
-        |err| eprintln!("stream-error: {err}"),
-        None,
-    )?;
-    stream.play()?;
+        })
+        .await;
 
-    // Keep the stream alive.
-    println!("Listening…   (Ctrl-C to quit)");
-    loop {
-        std::thread::park();
+    println!("\nListening for your voice... (Ctrl-C to quit)");
+
+    // Process the final transcript segments as they are confirmed.
+    while let Some(result) = transcript_stream.next().await {
+        match result {
+            Ok(segment) => {
+                // Clear the prediction line and print the final segment.
+                print!("\r\x1B[K");
+                println!("Segment: {}", segment.text());
+            }
+            Err(e) => {
+                eprintln!("\nRecognition error: {}", e);
+                break;
+            }
+        }
     }
+
+    Ok(())
 }
 
-// ------------------------------------------------------------ helpers
-
 fn init_logging() {
-    // `RUST_LOG` Env      default level
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format_timestamp_millis()
         .init();
-}
-
-/// Bail out if the capture format isn’t 16-kHz/16-bit/mono.
-/// Keeps the example simple; in real life you could resample or reformat.
-fn ensure_format(cfg: &cpal::SupportedStreamConfig) -> Result<()> {
-    if cfg.channels() != 1
-        || cfg.sample_rate().0 != SAMPLE_RATE
-        || cfg.sample_format() != SampleFormat::I16
-    {
-        anyhow::bail!(
-            "expected 16-bit mono @16 kHz, got {:?} ({} ch, {} Hz)",
-            cfg.sample_format(),
-            cfg.channels(),
-            cfg.sample_rate().0
-        );
-    }
-    Ok(())
 }

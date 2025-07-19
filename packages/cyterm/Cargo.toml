@@ -54,6 +54,7 @@ serde               = { version = "1.0", features = ["derive"] }
 ort                 = { path = "../../forks/ort" }
 hf-hub              = "0.3"
 thiserror           = "2.0"
+fluent_voice = { version = "0.1.0", path = "../fluent-voice" }
 
 [dev-dependencies]
 hound               = "3.5.1"

@@ -13,7 +13,7 @@ impl<S> AudioStreamExt for S
 where
     S: Stream<Item = AudioChunk> + Send + Unpin + 'static,
 {
-    fn play(self) -> Pin<Box<dyn Future<Output = Result<(), VoiceError>> + Send>> 
+    fn play(self) -> Pin<Box<dyn Future<Output = Result<(), VoiceError>> + Send>>
     where
         Self: Send + Unpin + 'static,
     {

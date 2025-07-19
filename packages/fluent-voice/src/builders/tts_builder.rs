@@ -3,6 +3,7 @@
 //! This module provides a blazing-fast, zero-allocation TTS conversation builder
 //! with full arrow syntax support through cyrup_sugars integration.
 
+use crate::tts_conversation::{TtsConversationBuilder, TtsConversationChunkBuilder};
 use candle_core::Device;
 use dia::voice::{Conversation, DiaSpeaker, VoiceClone, VoicePool};
 use fluent_voice_domain::{
@@ -11,7 +12,6 @@ use fluent_voice_domain::{
     language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},
 };
-use crate::tts_conversation::{TtsConversationBuilder, TtsConversationChunkBuilder};
 use futures::{Stream, StreamExt, stream};
 use std::collections::HashMap;
 use std::future::Future;
@@ -173,7 +173,6 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
 }
 
 impl SpeakerLineBuilder {
-
     /// Zero-allocation metadata configuration
     #[inline]
     pub fn metadata(
@@ -507,8 +506,6 @@ where
         // The matcher contains the JSON syntax transformed by synthesize! macro
         matcher(conversation_result)
     }
-
-
 }
 
 /// Internal function for real TTS speech synthesis using dia-voice
@@ -519,13 +516,13 @@ async fn synthesize_speech_internal(
     text: &str,
 ) -> Result<Vec<u8>, VoiceError> {
     // Use dia-voice engine for real TTS synthesis
-    use dia::voice::{VoiceClone, Conversation, DiaSpeaker};
+    use dia::voice::{Conversation, DiaSpeaker, VoiceClone};
 
     // Create basic voice data for the speaker
+    use candle_core::{Device, Tensor};
     use dia::voice::codec::VoiceData;
-    use candle_core::{Tensor, Device};
     use std::path::PathBuf;
-    
+
     let device = Device::Cpu;
     let codes = Tensor::zeros((1, 1), candle_core::DType::F32, &device).unwrap();
     let voice_data = Arc::new(VoiceData {
