@@ -221,10 +221,12 @@ pub trait TtsConversationBuilder: Sized + Send {
     /// })
     /// .await?;
     /// ```
-    fn synthesize<F, R>(self, matcher: F) -> impl std::future::Future<Output = R> + Send
+    fn synthesize<F>(self, matcher: F) -> impl futures_core::Stream<Item = crate::AudioChunk> + Send + Unpin
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
-        R: Send + 'static;
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> impl futures_core::Stream<Item = crate::AudioChunk> + Send + Unpin + 'static,
+        F: Send + 'static;
+
+
 
     /// The concrete conversation type produced by this builder.
     type Conversation: TtsConversation;
@@ -245,7 +247,8 @@ pub trait TtsConversationChunkBuilder: Sized + Send {
     /// # Returns
     ///
     /// A stream of audio chunks that can be processed with on_chunk() callbacks.
-    fn synthesize(self) -> impl Stream<Item = Vec<u8>> + Send + Unpin;
+    /// Returns an AudioStream wrapper that provides the fluent .play() method.
+    fn synthesize(self) -> impl futures_core::Stream<Item = crate::AudioChunk> + Send + Unpin;
 
     /// The concrete conversation type produced by this chunk builder.
     type Conversation: TtsConversation;

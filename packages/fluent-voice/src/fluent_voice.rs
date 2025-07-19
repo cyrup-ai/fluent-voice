@@ -341,13 +341,17 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
             matcher(result)
         }
     }
+
+
 }
 
 /// Implementation of TtsConversationChunkBuilder for DefaultTtsBuilder
 impl fluent_voice_domain::TtsConversationChunkBuilder for DefaultTtsBuilder {
     type Conversation = DefaultTtsConversation;
 
-    fn synthesize(self) -> impl futures_core::Stream<Item = Vec<u8>> + Send + Unpin {
+    fn synthesize(
+        self,
+    ) -> impl futures_core::Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin {
         use futures::stream;
         // For now, return an empty stream as placeholder
         // TODO: Implement actual TTS synthesis with chunk processing
@@ -402,7 +406,8 @@ impl DefaultTtsConversation {
 
 /// Implement TtsConversation trait for DefaultTtsConversation
 impl TtsConversation for DefaultTtsConversation {
-    type AudioStream = std::pin::Pin<Box<dyn futures::Stream<Item = Vec<u8>> + Send>>;
+    type AudioStream =
+        std::pin::Pin<Box<dyn futures::Stream<Item = fluent_voice_domain::AudioChunk> + Send>>;
 
     fn into_stream(self) -> Self::AudioStream {
         // Real DiaVoiceBuilder integration - no placeholders
@@ -423,11 +428,30 @@ impl TtsConversation for DefaultTtsConversation {
                 })
                 .flatten()
                 .collect();
-            let audio_stream = stream::iter(vec![samples]).boxed();
+
+            // Create AudioChunk from generated audio bytes
+            let audio_chunk = fluent_voice_domain::AudioChunk {
+                data: samples,
+                duration_ms: (duration_secs * 1000.0) as u64,
+                start_ms: 0,
+                speaker_id: Some("default".to_string()),
+                text: Some("Test audio tone".to_string()),
+                format: None,
+            };
+
+            let audio_stream = stream::iter(vec![audio_chunk]).boxed();
             audio_stream
         } else {
-            // Fallback to empty stream if no DiaVoiceBuilder
-            stream::iter(vec![Vec::<u8>::new()]).boxed()
+            // Fallback to empty AudioChunk if no DiaVoiceBuilder
+            let empty_chunk = fluent_voice_domain::AudioChunk {
+                data: Vec::new(),
+                duration_ms: 0,
+                start_ms: 0,
+                speaker_id: None,
+                text: None,
+                format: None,
+            };
+            stream::iter(vec![empty_chunk]).boxed()
         }
     }
 }

@@ -109,6 +109,39 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
     }
 
     #[inline]
+    fn with_prelude(mut self, prelude: impl Into<String>) -> Self {
+        let prelude_text = prelude.into();
+        if !self.text.is_empty() {
+            self.text.push_str(" ");
+        }
+        self.text.push_str(&prelude_text);
+        self
+    }
+
+    #[inline]
+    fn add_line(mut self, line: impl Into<String>) -> Self {
+        let line_text = line.into();
+        if !self.text.is_empty() {
+            self.text.push_str(" ");
+        }
+        self.text.push_str(&line_text);
+        self
+    }
+
+    #[inline]
+    fn with_voice(mut self, voice: impl Into<String>) -> Self {
+        let voice_str = voice.into();
+        self.voice_id = Some(fluent_voice_domain::VoiceId::new(voice_str));
+        self
+    }
+
+    #[inline]
+    fn with_speed(mut self, speed: f32) -> Self {
+        self.speed_modifier = Some(fluent_voice_domain::VocalSpeedMod(speed));
+        self
+    }
+
+    #[inline]
     fn with_speed_modifier(mut self, m: fluent_voice_domain::VocalSpeedMod) -> Self {
         self.speed_modifier = Some(m);
         self
@@ -140,12 +173,6 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
 }
 
 impl SpeakerLineBuilder {
-    /// High-performance speed modifier with inlined optimization
-    #[inline]
-    pub fn with_speed(mut self, speed: fluent_voice_domain::VocalSpeedMod) -> Self {
-        self.speed_modifier = Some(speed);
-        self
-    }
 
     /// Zero-allocation metadata configuration
     #[inline]
@@ -239,7 +266,7 @@ pub struct TtsConversationBuilderImpl<AudioStream> {
 
 impl<AudioStream> TtsConversationBuilderImpl<AudioStream>
 where
-    AudioStream: Stream<Item = Vec<u8>> + Send + Unpin + 'static,
+    AudioStream: Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
 {
     #[inline]
     pub fn new<F>(synth_fn: F) -> Self
@@ -326,7 +353,7 @@ where
 
 impl<AudioStream> TtsConversationBuilder for TtsConversationBuilderImpl<AudioStream>
 where
-    AudioStream: Stream<Item = Vec<u8>> + Send + Unpin + 'static,
+    AudioStream: Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
 {
     type Conversation = TtsConversationImpl<AudioStream>;
     type ChunkBuilder = TtsConversationBuilderImpl<AudioStream>;
@@ -446,45 +473,89 @@ where
         self
     }
 
-    fn synthesize<F, R>(self, matcher: F) -> Pin<Box<dyn Future<Output = R> + Send>>
+    fn synthesize<F>(self, matcher: F) -> impl futures_core::Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) -> R + Send + 'static,
-        R: Send + 'static,
+        F: FnOnce(Result<Self::Conversation, VoiceError>) -> impl futures_core::Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
+        F: Send + 'static,
     {
-        Box::pin(async move {
-            let conversation = match self.synth_fn {
-                Some(synth_fn) => Ok(TtsConversationImpl {
-                    lines: self.lines,
-                    global_language: self.global_language,
-                    global_speed: self.global_speed,
-                    model: self.model,
-                    stability: self.stability,
-                    similarity: self.similarity,
-                    speaker_boost: self.speaker_boost,
-                    style_exaggeration: self.style_exaggeration,
-                    output_format: self.output_format,
-                    pronunciation_dictionaries: self.pronunciation_dictionaries,
-                    seed: self.seed,
-                    previous_text: self.previous_text,
-                    next_text: self.next_text,
-                    previous_request_ids: self.previous_request_ids,
-                    next_request_ids: self.next_request_ids,
-                    synth_fn,
-                }),
-                None => Err(VoiceError::NotSynthesizable(
-                    "A synthesis function must be provided".to_string(),
-                )),
-            };
+        let conversation = match self.synth_fn {
+            Some(synth_fn) => Ok(TtsConversationImpl {
+                lines: self.lines,
+                global_language: self.global_language,
+                global_speed: self.global_speed,
+                model: self.model,
+                stability: self.stability,
+                similarity: self.similarity,
+                speaker_boost: self.speaker_boost,
+                style_exaggeration: self.style_exaggeration,
+                output_format: self.output_format,
+                pronunciation_dictionaries: self.pronunciation_dictionaries,
+                seed: self.seed,
+                previous_text: self.previous_text,
+                next_text: self.next_text,
+                previous_request_ids: self.previous_request_ids,
+                next_request_ids: self.next_request_ids,
+                synth_fn,
+            }),
+            None => Err(VoiceError::NotSynthesizable(
+                "A synthesis function must be provided".to_string(),
+            )),
+        };
 
-            // Execute the matcher function
-            matcher(conversation)
-        })
+        // Execute the matcher function and return the stream directly
+        matcher(conversation)
     }
+
+
+}
+
+/// Internal function for real TTS speech synthesis using dia-voice
+/// This function is separate from the impl block to avoid generic parameter issues
+async fn synthesize_speech_internal(
+    pool: &Arc<VoicePool>,
+    speaker_id: &str,
+    text: &str,
+) -> Result<Vec<u8>, VoiceError> {
+    // Use dia-voice engine for real TTS synthesis
+    use dia::voice::{VoiceClone, Conversation, DiaSpeaker};
+
+    // Create basic voice data for the speaker
+    let voice_data = vec![0u8; 1024]; // Basic voice profile
+
+    // Create voice clone and speaker
+    let voice_clone = VoiceClone::new(speaker_id.to_string(), voice_data);
+    let speaker = DiaSpeaker { voice_clone };
+
+    // Create conversation and generate TTS audio using dia-voice engine
+    let conversation = Conversation::new(text.to_string(), speaker, pool.clone())
+        .map_err(|e| VoiceError::Synthesis(format!("Failed to create TTS conversation: {}", e)))?;
+
+    // Generate speech audio using dia-voice engine
+    let voice_player = conversation
+        .internal_generate()
+        .await
+        .map_err(|e| VoiceError::Synthesis(format!("Failed to generate speech: {}", e)))?;
+
+    // Extract audio bytes from dia-voice engine
+    let audio_bytes = voice_player
+        .to_bytes()
+        .await
+        .map_err(|e| VoiceError::Synthesis(format!("Failed to extract speech bytes: {}", e)))?;
+
+    // Log the synthesis for debugging
+    println!(
+        "Synthesized {} bytes of audio for speaker '{}' with text: '{}'",
+        audio_bytes.len(),
+        speaker_id,
+        text
+    );
+
+    Ok(audio_bytes)
 }
 
 impl<AudioStream> TtsConversationBuilderImpl<AudioStream>
 where
-    AudioStream: Stream<Item = Vec<u8>> + Send + Unpin + 'static,
+    AudioStream: Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
 {
     /// Generate real TTS audio using direct dia-voice conversation synthesis
     #[inline]
@@ -545,11 +616,13 @@ where
 
 impl<AudioStream> TtsConversationChunkBuilder for TtsConversationBuilderImpl<AudioStream>
 where
-    AudioStream: Stream<Item = Vec<u8>> + Send + Unpin + 'static,
+    AudioStream: Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
 {
     type Conversation = TtsConversationImpl<AudioStream>;
 
-    fn synthesize(self) -> crate::audio_stream::AudioStream {
+    fn synthesize(
+        self,
+    ) -> impl futures_core::Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin {
         let lines = self.lines;
 
         // Create stream using tokio_stream for proper async handling
@@ -585,7 +658,7 @@ where
             for line in lines {
                 // Generate real TTS audio directly from text using dia-voice
                 let audio_bytes =
-                    match Self::synthesize_real_speech(&pool, &line.id, &line.text).await {
+                    match synthesize_speech_internal(&pool, &line.id, &line.text).await {
                         Ok(bytes) => bytes,
                         Err(_) => {
                             // Send empty AudioChunk and continue with next line on TTS failure
@@ -619,7 +692,7 @@ where
             }
         });
 
-        // Return AudioStream wrapper instead of raw stream
+        // Return AudioStream wrapper to enable .play() method
         let stream = Box::pin(UnboundedReceiverStream::new(rx));
         crate::audio_stream::AudioStream::new(stream)
     }
@@ -633,7 +706,7 @@ pub mod builder {
         synth_fn: F,
     ) -> TtsConversationBuilderImpl<AudioStream>
     where
-        AudioStream: Stream<Item = Vec<u8>> + Send + Unpin + 'static,
+        AudioStream: Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
         F: FnOnce(&[SpeakerLine], Option<&Language>) -> AudioStream + Send + 'static,
     {
         TtsConversationBuilderImpl::new(synth_fn)

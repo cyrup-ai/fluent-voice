@@ -91,6 +91,7 @@ mod macros;
 
 /* ───── concrete builder implementations ───── */
 pub mod audio_stream;
+pub mod audio_stream_ext;
 pub mod builders;
 
 /* ───── STT conversation trait definitions ───── */

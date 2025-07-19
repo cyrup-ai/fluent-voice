@@ -27,6 +27,18 @@ pub trait SpeakerBuilder: Sized {
     /// Provide text for this speaker to speak.
     fn speak(self, text: impl Into<String>) -> Self;
 
+    /// Add prelude text to the speaker.
+    fn with_prelude(self, prelude: impl Into<String>) -> Self;
+
+    /// Add a line of text to the speaker.
+    fn add_line(self, line: impl Into<String>) -> Self;
+
+    /// Set the voice for the speaker.
+    fn with_voice(self, voice: impl Into<String>) -> Self;
+
+    /// Set the speed for the speaker (convenience method).
+    fn with_speed(self, speed: f32) -> Self;
+
     /// The concrete speaker type that will be produced.
     type Output: Speaker;
 

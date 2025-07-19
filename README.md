@@ -93,7 +93,7 @@ async fn main() -> Result<(), VoiceError> {
             Ok  => conversation.into_stream(),  // Returns audio stream
             Err(e) => Err(e),
         })
-        .await?;  // Single await point
+        .play();
 
     // Process audio samples
     while let Some(sample) = audio_stream.next().await {

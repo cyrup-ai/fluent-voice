@@ -9,6 +9,7 @@
 pub mod audio_chunk;
 pub mod audio_format;
 pub mod audio_isolation;
+pub mod audio_stream;
 
 pub mod fluent_voice;
 pub mod language;
@@ -44,6 +45,7 @@ pub mod wake_word_conversation;
 // Re-export core types
 pub use audio_chunk::{AudioChunk, AudioChunkResult};
 pub use audio_format::AudioFormat;
+pub use audio_stream::AudioStream;
 pub use fluent_voice::FluentVoice;
 pub use language::Language;
 pub use mic_backend::MicBackend;

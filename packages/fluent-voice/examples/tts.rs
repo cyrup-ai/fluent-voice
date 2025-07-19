@@ -5,26 +5,24 @@ use fluent_voice::prelude::*;
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {
     // Clean fluent API - all rodio complexity is hidden in .play()
+    // Use the concrete synthesize() method that returns AudioStream directly
     FluentVoice::tts()
         .conversation()
         .with_speaker(
             Speaker::speaker("Narrator")
-                .voice_id(VoiceId::new("voice-uuid"))
-                .with_speed_modifier(VocalSpeedMod(0.9))
-                .speak("Hello, world!")
-                .build(),
-        )
-        .with_speaker(
-            Speaker::speaker("Bob")
-                .with_speed_modifier(VocalSpeedMod(1.1))
-                .speak("Hi Alice! How are you today?")
+                .with_prelude("Welcome to FluentVoice TTS!")
+                .add_line("This is a demonstration of real-time text-to-speech synthesis.")
+                .add_line("The audio is generated using the dia-voice engine.")
+                .add_line("Thank you for listening!")
+                .with_voice("en-US-AriaNeural")
+                .with_speed(1.0)
                 .build(),
         )
         .synthesize(synthesize_transform!(|conversation| {
-            Ok  => conversation.into_stream(),  // Returns audio stream
-            Err(e) => panic!("Synthesis error: {:?}", e),
-        }))
-        .play() // <- This handles all rodio complexity internally
+            Ok => conversation.into_stream(),  // Returns audio stream
+            Err(e) => Err(e),
+        })) // <- Returns AudioStream directly
+        .play() // <- This handles all rodio playback internally
         .await?; // Single await point
 
     Ok(())
