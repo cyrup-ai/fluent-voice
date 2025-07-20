@@ -15,6 +15,7 @@ publish = false
 
 ### BEGIN HAKARI SECTION
 [dependencies]
+ahash = { version = "0.8", features = ["serde"] }
 aho-corasick = { version = "1" }
 anstream = { version = "0.6" }
 anyhow = { version = "1", features = ["backtrace"] }
@@ -22,14 +23,17 @@ approx = { version = "0.5" }
 bitflags = { version = "2", default-features = false, features = ["serde", "std"] }
 bytemuck = { version = "1", default-features = false, features = ["aarch64_simd", "derive", "extern_crate_alloc", "min_const_generics"] }
 bytes = { version = "1" }
-# candle-core = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cudnn", "metal", "mkl"] }
-# candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cuda", "cudnn", "metal", "mkl"] }
-# candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["accelerate", "cudnn", "flash-attn", "metal", "mkl"] }
+
 chrono = { version = "0.4", features = ["serde"] }
+color-eyre = { version = "0.6" }
 compact_str = { version = "0.9", features = ["serde"] }
-crossbeam-queue = { version = "0.3" }
+console = { version = "0.15" }
+cpal = { version = "0.16", default-features = false, features = ["asio", "jack"] }
+crossbeam-epoch = { version = "0.9" }
+crossbeam-utils = { version = "0.8" }
+crossterm = { version = "0.29", features = ["event-stream", "serde"] }
 crypto-common = { version = "0.1", default-features = false, features = ["std"] }
-cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", features = ["hashbrown-json"] }
+data-encoding = { version = "2" }
 derive_more = { version = "2", features = ["full"] }
 digest = { version = "0.10", features = ["mac", "std"] }
 either = { version = "1", features = ["use_std"] }
@@ -38,28 +42,35 @@ flate2 = { version = "1", features = ["zlib-rs"] }
 form_urlencoded = { version = "1" }
 futures-channel = { version = "0.3", features = ["sink"] }
 futures-core = { version = "0.3" }
-futures-sink = { version = "0.3", default-features = false, features = ["std"] }
+futures-sink = { version = "0.3" }
 futures-task = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
-getrandom = { version = "0.2", default-features = false, features = ["std"] }
-hashbrown = { version = "0.15", features = ["serde"] }
+getrandom-468e82937335b1c9 = { package = "getrandom", version = "0.3", default-features = false, features = ["std"] }
+getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["js", "rdrand", "std"] }
+hashbrown-3575ec1268b04181 = { package = "hashbrown", version = "0.15", features = ["serde"] }
+hashbrown-582f2526e08bb6a0 = { package = "hashbrown", version = "0.14", default-features = false, features = ["raw"] }
 image = { version = "0.25" }
 itertools-582f2526e08bb6a0 = { package = "itertools", version = "0.14" }
 itertools-5ef9efb8ec2df382 = { package = "itertools", version = "0.12" }
 js-sys = { version = "0.3" }
+jsonwebtoken = { version = "9" }
 log = { version = "0.4", default-features = false, features = ["std"] }
 manganis-core = { git = "https://github.com/DioxusLabs/dioxus", branch = "main", default-features = false, features = ["dioxus"] }
 matrixmultiply = { version = "0.3", features = ["cgemm"] }
 memchr = { version = "2" }
+memmap2 = { version = "0.9", default-features = false, features = ["stable_deref_trait"] }
 miniz_oxide = { version = "0.8", features = ["simd"] }
+mio = { version = "1", features = ["net", "os-ext"] }
 ndarray = { version = "0.16" }
 num-complex = { version = "0.4", features = ["bytemuck"] }
 num-integer = { version = "0.1", features = ["i128"] }
 num-rational = { version = "0.4", features = ["num-bigint-std"] }
 num-traits = { version = "0.2", features = ["i128", "libm"] }
-once_cell = { version = "1" }
+once_cell = { version = "1", features = ["critical-section"] }
 ort = { path = "../forks/ort", features = ["load-dynamic"] }
 ort-sys = { path = "../forks/ort/ort-sys", default-features = false, features = ["copy-dylibs", "download-binaries", "load-dynamic", "std"] }
+percent-encoding = { version = "2" }
+portable-atomic = { version = "1" }
 prost = { version = "0.12", features = ["prost-derive"] }
 prost-types = { version = "0.12" }
 rand = { version = "0.8", features = ["small_rng"] }
@@ -67,31 +78,40 @@ rand_core = { version = "0.6", default-features = false, features = ["std"] }
 regex = { version = "1" }
 regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", "meta", "nfa", "perf", "unicode"] }
 regex-syntax = { version = "0.8" }
-reqwest = { version = "0.12", features = ["http3", "json", "macos-system-configuration", "multipart", "stream"] }
+reqwest = { version = "0.12", features = ["http3", "json", "macos-system-configuration", "multipart", "rustls-tls", "stream"] }
 rustls = { version = "0.23", features = ["ring"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
 scopeguard = { version = "1" }
+semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["alloc", "derive"] }
+serde_json = { version = "1", features = ["unbounded_depth"] }
 sha1 = { version = "0.10", features = ["compress"] }
 simd-adler32 = { version = "0.3" }
 slotmap = { version = "1", features = ["serde"] }
-smallvec = { version = "1", default-features = false, features = ["const_generics"] }
+smallvec = { version = "1", default-features = false, features = ["const_new", "serde"] }
 stable_deref_trait = { version = "1" }
 strum = { version = "0.27", features = ["derive"] }
-sugars_collections = { git = "https://github.com/cyrup-ai/cyrup-sugars", features = ["hashbrown-json"] }
+subtle = { version = "2" }
 symphonia = { version = "0.5", features = ["all"] }
 symphonia-bundle-mp3 = { version = "0.5", default-features = false, features = ["mp1", "mp2", "mp3"] }
 symphonia-format-riff = { version = "0.5", default-features = false, features = ["aiff", "wav"] }
-time = { version = "0.3", features = ["formatting", "local-offset", "macros"] }
+target-lexicon = { version = "0.13", features = ["std"] }
+time = { version = "0.3", features = ["formatting", "local-offset", "macros", "parsing"] }
 tokenizers = { version = "0.21" }
 tokio = { version = "1", features = ["full", "test-util"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+toml_datetime = { version = "0.6", default-features = false, features = ["serde"] }
+toml_edit = { version = "0.22", features = ["serde"] }
+tracing = { version = "0.1", features = ["log"] }
 tracing-core = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tungstenite = { version = "0.26", default-features = false, features = ["handshake", "native-tls"] }
 ureq = { version = "2", features = ["json", "native-tls", "socks-proxy"] }
+url = { version = "2", features = ["serde"] }
 wasm-bindgen = { version = "0.2" }
 web-sys = { version = "0.3", features = ["AudioContext", "MediaDevices", "MediaStream", "Window", "console"] }
+winnow = { version = "0.7" }
 zeroize = { version = "1", features = ["zeroize_derive"] }
 
 [build-dependencies]
@@ -100,6 +120,8 @@ anyhow = { version = "1", features = ["backtrace"] }
 bytes = { version = "1" }
 cc = { version = "1", default-features = false, features = ["parallel"] }
 chrono = { version = "0.4", features = ["serde"] }
+crossbeam-epoch = { version = "0.9" }
+crossbeam-utils = { version = "0.8" }
 crypto-common = { version = "0.1", default-features = false, features = ["std"] }
 derive_more-impl = { version = "2", features = ["add", "add_assign", "as_ref", "constructor", "debug", "deref", "deref_mut", "display", "error", "from", "from_str", "index", "index_mut", "into", "into_iterator", "is_variant", "mul", "mul_assign", "not", "sum", "try_from", "try_into", "try_unwrap", "unwrap"] }
 digest = { version = "0.10", features = ["mac", "std"] }
@@ -108,18 +130,21 @@ flate2 = { version = "1", features = ["zlib-rs"] }
 form_urlencoded = { version = "1" }
 futures-channel = { version = "0.3", features = ["sink"] }
 futures-core = { version = "0.3" }
-futures-sink = { version = "0.3", default-features = false, features = ["std"] }
+futures-sink = { version = "0.3" }
 futures-task = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
-getrandom = { version = "0.2", default-features = false, features = ["std"] }
-hashbrown = { version = "0.15", features = ["serde"] }
+getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["js", "rdrand", "std"] }
+hashbrown-3575ec1268b04181 = { package = "hashbrown", version = "0.15", features = ["serde"] }
 itertools-5ef9efb8ec2df382 = { package = "itertools", version = "0.12" }
 log = { version = "0.4", default-features = false, features = ["std"] }
 manganis-core = { git = "https://github.com/DioxusLabs/dioxus", branch = "main", default-features = false, features = ["dioxus"] }
 memchr = { version = "2" }
 miniz_oxide = { version = "0.8", features = ["simd"] }
+mio = { version = "1", features = ["net", "os-ext"] }
 num-traits = { version = "0.2", features = ["i128", "libm"] }
-once_cell = { version = "1" }
+once_cell = { version = "1", features = ["critical-section"] }
+percent-encoding = { version = "2" }
+portable-atomic = { version = "1" }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 prost = { version = "0.12", features = ["prost-derive"] }
 prost-types = { version = "0.12" }
@@ -128,19 +153,26 @@ rand_core = { version = "0.6", default-features = false, features = ["std"] }
 regex = { version = "1" }
 regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", "meta", "nfa", "perf", "unicode"] }
 regex-syntax = { version = "0.8" }
-reqwest = { version = "0.12", features = ["http3", "json", "macos-system-configuration", "multipart", "stream"] }
+reqwest = { version = "0.12", features = ["http3", "json", "macos-system-configuration", "multipart", "rustls-tls", "stream"] }
 rustls = { version = "0.23", features = ["ring"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
 scopeguard = { version = "1" }
+semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["alloc", "derive"] }
+serde_json = { version = "1", features = ["unbounded_depth"] }
 simd-adler32 = { version = "0.3" }
-smallvec = { version = "1", default-features = false, features = ["const_generics"] }
+smallvec = { version = "1", default-features = false, features = ["const_new", "serde"] }
 stable_deref_trait = { version = "1" }
+subtle = { version = "2" }
 syn = { version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
+target-lexicon = { version = "0.13", features = ["std"] }
+time-macros = { version = "0.2", default-features = false, features = ["formatting", "parsing"] }
 tokio = { version = "1", features = ["full", "test-util"] }
 toml_datetime = { version = "0.6", default-features = false, features = ["serde"] }
-toml_edit = { version = "0.22", default-features = false, features = ["display", "parse", "serde"] }
+toml_edit = { version = "0.22", features = ["serde"] }
 ureq = { version = "2", features = ["json", "native-tls", "socks-proxy"] }
+url = { version = "2", features = ["serde"] }
+winnow = { version = "0.7" }
 zeroize = { version = "1", features = ["zeroize_derive"] }
 
 ### END HAKARI SECTION

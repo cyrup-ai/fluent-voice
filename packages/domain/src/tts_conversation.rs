@@ -1,6 +1,6 @@
 //! TTS conversation domain objects.
 
-use crate::voice_error::VoiceError;
+
 use futures_core::Stream;
 
 /// Engine-specific conversation object.

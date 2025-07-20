@@ -203,7 +203,9 @@ impl Decoder {
                     .enumerate()
                     .max_by(|(_, u), (_, v)| u.total_cmp(v))
                     .map(|(i, _)| i as u32)
-                    .unwrap()
+                    .ok_or_else(|| {
+                        VoiceError::Processing("No maximum found in logits".to_string())
+                    })?
             };
             tokens.push(next_token);
             let prob = softmax(&logits, candle_core::D::Minus1)?

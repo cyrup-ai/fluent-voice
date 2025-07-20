@@ -117,9 +117,15 @@ impl GainNormalizerFilter {
     /// Process a block of samples with gain normalization
     pub fn process_block(&mut self, samples: &[f32]) -> Vec<f32> {
         let mut output = samples.to_vec();
-        let frame_rms = Self::get_rms_level(&output);
-        self.filter(&mut output, frame_rms);
+        let rms = Self::get_rms_level(samples);
+        self.filter(&mut output, rms);
         output
+    }
+
+    /// Process a block of samples in-place
+    pub fn process(&mut self, samples: &mut [f32]) {
+        let rms = Self::get_rms_level(samples);
+        self.filter(samples, rms);
     }
 }
 

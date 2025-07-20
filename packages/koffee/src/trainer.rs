@@ -30,14 +30,14 @@ pub fn train_dir(input_dir: &str, output_path: &str, model_type: ModelType) -> R
 
     // Train the model
     let model = WakewordModelTrain(train_data, val_data, None, opts)
-        .map_err(|e| format!("Training failed: {:?}", e))?;
+        .map_err(|e| format!("Training failed: {e:?}"))?;
 
     // Save the trained model
     model
         .save_to_file(output_path)
-        .map_err(|e| format!("Failed to save model: {}", e))?;
+        .map_err(|e| format!("Failed to save model: {e}"))?;
 
-    println!("Model trained and saved to: {}", output_path);
+    println!("Model trained and saved to: {output_path}");
     Ok(())
 }
 
@@ -45,11 +45,11 @@ pub fn train_dir(input_dir: &str, output_path: &str, model_type: ModelType) -> R
 fn load_wav_files(dir_path: &str) -> Result<HashMap<String, Vec<u8>>> {
     let mut data = HashMap::new();
 
-    let dir = fs::read_dir(dir_path)
-        .map_err(|e| format!("Failed to read directory {}: {}", dir_path, e))?;
+    let dir =
+        fs::read_dir(dir_path).map_err(|e| format!("Failed to read directory {dir_path}: {e}"))?;
 
     for entry in dir {
-        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+        let entry = entry.map_err(|e| format!("Failed to read directory entry: {e}"))?;
         let path = entry.path();
 
         if let Some(ext) = path.extension() {
@@ -60,7 +60,7 @@ fn load_wav_files(dir_path: &str) -> Result<HashMap<String, Vec<u8>>> {
                     .ok_or_else(|| "Invalid filename".to_string())?;
 
                 let wav_data = fs::read(&path)
-                    .map_err(|e| format!("Failed to read wav file {}: {}", path.display(), e))?;
+                    .map_err(|e| format!("Failed to read wav file {}: {e}", path.display()))?;
 
                 data.insert(filename.to_string(), wav_data);
             }
@@ -68,7 +68,7 @@ fn load_wav_files(dir_path: &str) -> Result<HashMap<String, Vec<u8>>> {
     }
 
     if data.is_empty() {
-        return Err(format!("No wav files found in directory: {}", dir_path));
+        return Err(format!("No wav files found in directory: {dir_path}"));
     }
 
     Ok(data)

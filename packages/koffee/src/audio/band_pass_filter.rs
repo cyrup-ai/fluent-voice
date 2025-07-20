@@ -70,6 +70,13 @@ impl BandPassFilter {
         Self::design(sample_rate, low_cut, high_cut)
     }
 
+    /// Process a block of samples in-place
+    pub fn process(&mut self, samples: &mut [f32]) {
+        for sample in samples.iter_mut() {
+            *sample = self.process_sample(*sample);
+        }
+    }
+
     /// Re-compute coefficients (keeps delay-line).
     pub fn update(&mut self, sample_rate: f32, low_cut: f32, high_cut: f32) {
         *self = Self {
@@ -122,18 +129,21 @@ impl BandPassFilter {
         }
     }
 
-    /// Process a block of samples
+    /// Process a block of samples and return filtered results
     pub fn process_block(&mut self, samples: &[f32]) -> Vec<f32> {
-        samples.iter().map(|&sample| self.process(sample)).collect()
+        samples
+            .iter()
+            .map(|&sample| self.process_sample(sample))
+            .collect()
     }
 
     /// Process a single sample through the filter
-    pub fn process(&mut self, input: f32) -> f32 {
+    pub fn process_sample(&mut self, input: f32) -> f32 {
         let output = self.a0 * input + self.a1 * self.x1 + self.a2 * self.x2
             - self.b1 * self.y1
             - self.b2 * self.y2;
 
-        // Update delay line
+        // Update state variables
         self.x2 = self.x1;
         self.x1 = input;
         self.y2 = self.y1;

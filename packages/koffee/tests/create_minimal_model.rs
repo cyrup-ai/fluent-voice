@@ -1,11 +1,11 @@
 //! Test script to create a minimal valid wakeword model file
 
 use koffee::{
-    wakewords::{
-        wakeword_model::{ModelType, TensorData, WakewordModel},
-        WakewordSave,
-    },
     ModelWeights,
+    wakewords::{
+        WakewordSave,
+        wakeword_model::{ModelType, TensorData, WakewordModel},
+    },
 };
 use std::collections::HashMap;
 
@@ -30,6 +30,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path = "minimal_model.rpw";
     model.save_to_file(path)?;
     println!("✅ Created minimal model at: {}", path);
-    
+
     Ok(())
 }

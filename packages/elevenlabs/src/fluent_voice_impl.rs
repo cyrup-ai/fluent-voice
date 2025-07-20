@@ -80,7 +80,7 @@ impl ElevenLabsTtsConversationBuilder {
                 .build()?;
             self.engine = Some(engine);
         }
-        Ok(self.engine.as_ref().unwrap())
+        Ok(self.engine.as_ref().ok_or(VoiceError::Configuration("Engine not initialized".to_string()))?)
     }
 }
 
@@ -221,7 +221,7 @@ impl ElevenLabsSttConversationBuilder {
                 .build()?;
             self.engine = Some(engine);
         }
-        Ok(self.engine.as_ref().unwrap())
+        Ok(self.engine.as_ref().ok_or(VoiceError::Configuration("Engine not initialized".to_string()))?)
     }
 }
 

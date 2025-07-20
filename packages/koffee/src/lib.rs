@@ -23,16 +23,20 @@ pub mod config;
 pub mod constants;
 pub mod kfc;
 pub mod server;
+
 pub mod trainer;
+pub mod wake_unwake;
 pub mod wakewords;
 
 /* ────────── public façade & re-exports (backward-compat) ─────────────── */
 pub use audio::{Endianness, Sample, SampleFormat};
 pub use config::{
     AudioFmt, BandPassConfig, DetectorConfig, FiltersConfig, GainNormalizationConfig,
-    KoffeeCandleConfig, ScoreMode,
+    KoffeeCandleConfig, ScoreMode, VADMode,
 };
+pub use wake_unwake::{WakeUnwakeConfig, WakeUnwakeDetector, WakeUnwakeState};
 pub use constants::*;
+
 pub use wakewords::wakeword_model::{ModelType, ModelWeights};
 
 /* ───────────────────────── crate imports ─────────────────────────────── */
@@ -190,10 +194,10 @@ impl Kfc {
     /// Push **mono f32** samples.
     pub fn process_samples(&mut self, samples: &[f32]) -> Option<KoffeeCandleDetection> {
         /* optional VAD (skip speech-free windows) */
-        if let Some(vad) = &mut self.vad_detector {
-            if !vad.is_voice(samples) {
-                return None;
-            }
+        if let Some(vad) = &mut self.vad_detector
+            && !vad.is_voice(samples)
+        {
+            return None;
         }
 
         /* optional filters */
@@ -220,7 +224,7 @@ impl Kfc {
                 self.threshold,
             ) {
                 hit.name = name.clone();
-                if best.as_ref().map_or(true, |b| hit.score > b.score) {
+                if best.as_ref().is_none_or(|b| hit.score > b.score) {
                     best = Some(hit);
                 }
             }

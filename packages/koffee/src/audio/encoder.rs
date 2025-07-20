@@ -181,7 +181,7 @@ impl AudioEncoder {
     /// * `frame_ms`   – frame length in **milliseconds**
     /// * `target_sr`  – desired output sample-rate (e.g. 16 000)
     pub fn new(fmt: &AudioFmt, frame_ms: usize, target_sr: usize) -> Result<Self> {
-        let mut in_spf = (fmt.sample_rate * frame_ms / 1_000) * fmt.channels as usize; // samples / frame (input)
+        let in_spf = (fmt.sample_rate * frame_ms / 1_000) * fmt.channels as usize; // samples / frame (input)
         let out_spf = target_sr * frame_ms / 1_000; // samples / frame (out)
 
         /* optional FFT resampler --------------------------------------------------- */

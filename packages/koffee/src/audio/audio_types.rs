@@ -8,8 +8,7 @@
 /* ─────────────────────────────── ENUMS ─────────────────────────────── */
 
 /// PCM sample encoding.
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone, Copy, Debug)]
 pub enum SampleFormat {
     /// 8-bit signed integer samples.
     I8,
@@ -71,8 +70,7 @@ impl fmt::Display for SampleFormat {
 }
 
 /// Endianness of a byte stream.
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone, Debug)]
 pub enum Endianness {
     /// Big-endian byte ordering.
     Big,

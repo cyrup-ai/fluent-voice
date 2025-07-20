@@ -91,11 +91,29 @@ fn should_refresh_cache() -> Result<bool, Box<dyn std::error::Error>> {
 }
 
 async fn fetch_voices_from_api() -> Result<Vec<ElevenLabsVoice>, Box<dyn std::error::Error>> {
+    // Try to fetch from API, but fall back to static voices if it fails
+    match try_fetch_from_api().await {
+        Ok(voices) => {
+            println!("Successfully fetched {} voices from ElevenLabs API", voices.len());
+            Ok(voices)
+        }
+        Err(e) => {
+            println!("Failed to fetch from API ({}), using fallback voices", e);
+            Ok(get_fallback_voices())
+        }
+    }
+}
+
+async fn try_fetch_from_api() -> Result<Vec<ElevenLabsVoice>, Box<dyn std::error::Error>> {
     let api_key = env::var("ELEVENLABS_API_KEY")
         .or_else(|_| env::var("ELEVEN_API_KEY"))
         .map_err(|_| "ELEVENLABS_API_KEY or ELEVEN_API_KEY environment variable required for voice generation")?;
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(false) // Keep security but handle cert errors gracefully
+        .timeout(std::time::Duration::from_secs(10)) // Quick timeout
+        .build()?;
+        
     let response = client
         .get("https://api.elevenlabs.io/v1/voices")
         .header("xi-api-key", &api_key)
@@ -109,6 +127,87 @@ async fn fetch_voices_from_api() -> Result<Vec<ElevenLabsVoice>, Box<dyn std::er
 
     let voices_response: VoicesResponse = response.json().await?;
     Ok(voices_response.voices)
+}
+
+fn get_fallback_voices() -> Vec<ElevenLabsVoice> {
+    // Static list of popular ElevenLabs voices for offline builds
+    vec![
+        ElevenLabsVoice {
+            voice_id: "21m00Tcm4TlvDq8ikWAM".to_string(),
+            name: "Rachel".to_string(),
+            category: Some("Generated".to_string()),
+            description: Some("Young, cheerful American female voice".to_string()),
+            labels: None,
+            preview_url: Some("https://storage.googleapis.com/eleven-public-prod/premade/voices/21m00Tcm4TlvDq8ikWAM/48e4e68e-e940-4fd7-891f-91b20ce01c41.mp3".to_string()),
+            available_for_tiers: Some(vec!["free".to_string(), "starter".to_string(), "creator".to_string(), "pro".to_string()]),
+            settings: Some(VoiceSettings {
+                stability: Some(0.75),
+                similarity_boost: Some(0.75),
+                style: Some(0.0),
+                use_speaker_boost: Some(true),
+            }),
+        },
+        ElevenLabsVoice {
+            voice_id: "AZnzlk1XvdvUeBnXmlld".to_string(),
+            name: "Domi".to_string(),
+            category: Some("Generated".to_string()),
+            description: Some("Strong, confident female voice".to_string()),
+            labels: None,
+            preview_url: Some("https://storage.googleapis.com/eleven-public-prod/premade/voices/AZnzlk1XvdvUeBnXmlld/d5b76ce8-8e5e-4f96-aa78-3b54b0fb4af4.mp3".to_string()),
+            available_for_tiers: Some(vec!["free".to_string(), "starter".to_string(), "creator".to_string(), "pro".to_string()]),
+            settings: Some(VoiceSettings {
+                stability: Some(0.75),
+                similarity_boost: Some(0.75),
+                style: Some(0.0),
+                use_speaker_boost: Some(true),
+            }),
+        },
+        ElevenLabsVoice {
+            voice_id: "EXAVITQu4vr4xnSDxMaL".to_string(),
+            name: "Bella".to_string(),
+            category: Some("Generated".to_string()),
+            description: Some("Warm, friendly female voice".to_string()),
+            labels: None,
+            preview_url: Some("https://storage.googleapis.com/eleven-public-prod/premade/voices/EXAVITQu4vr4xnSDxMaL/e8c86b0a-e1c9-4b8a-9036-30b0f0d41dc5.mp3".to_string()),
+            available_for_tiers: Some(vec!["free".to_string(), "starter".to_string(), "creator".to_string(), "pro".to_string()]),
+            settings: Some(VoiceSettings {
+                stability: Some(0.75),
+                similarity_boost: Some(0.75),
+                style: Some(0.0),
+                use_speaker_boost: Some(true),
+            }),
+        },
+        ElevenLabsVoice {
+            voice_id: "ErXwobaYiN019PkySvjV".to_string(),
+            name: "Antoni".to_string(),
+            category: Some("Generated".to_string()),
+            description: Some("Professional, articulate male voice".to_string()),
+            labels: None,
+            preview_url: Some("https://storage.googleapis.com/eleven-public-prod/premade/voices/ErXwobaYiN019PkySvjV/bb50e5bd-0844-44a0-9a72-7e7c5f71bee3.mp3".to_string()),
+            available_for_tiers: Some(vec!["free".to_string(), "starter".to_string(), "creator".to_string(), "pro".to_string()]),
+            settings: Some(VoiceSettings {
+                stability: Some(0.75),
+                similarity_boost: Some(0.75),
+                style: Some(0.0),
+                use_speaker_boost: Some(true),
+            }),
+        },
+        ElevenLabsVoice {
+            voice_id: "VR6AewLTigWG4xSOukaG".to_string(),
+            name: "Arnold".to_string(),
+            category: Some("Generated".to_string()),
+            description: Some("Deep, authoritative male voice".to_string()),
+            labels: None,
+            preview_url: Some("https://storage.googleapis.com/eleven-public-prod/premade/voices/VR6AewLTigWG4xSOukaG/f752a3bb-86ce-46f6-ae5c-2b3b3c7ba4ca.mp3".to_string()),
+            available_for_tiers: Some(vec!["free".to_string(), "starter".to_string(), "creator".to_string(), "pro".to_string()]),
+            settings: Some(VoiceSettings {
+                stability: Some(0.75),
+                similarity_boost: Some(0.75),
+                style: Some(0.0),
+                use_speaker_boost: Some(true),
+            }),
+        },
+    ]
 }
 
 fn save_voice_cache(voices: &[ElevenLabsVoice]) -> Result<(), Box<dyn std::error::Error>> {

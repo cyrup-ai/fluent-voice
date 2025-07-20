@@ -6,9 +6,10 @@ use crate::{
         COMPARATOR_DEFAULT_BAND_SIZE, DETECTOR_DEFAULT_AVG_THRESHOLD, DETECTOR_DEFAULT_MIN_SCORES,
         DETECTOR_DEFAULT_REFERENCE, DETECTOR_DEFAULT_THRESHOLD, DETECTOR_INTERNAL_SAMPLE_RATE,
     },
+    wake_unwake::WakeUnwakeConfig,
 };
 /// Wav format representation
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct AudioFmt {
     /// Indicates the sample rate of the input audio stream.
     pub sample_rate: usize,
@@ -30,7 +31,7 @@ impl Default for AudioFmt {
     }
 }
 /// Configures the gain-normalizer audio filter used.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct GainNormalizationConfig {
     /// Enables the filter.
     pub enabled: bool,
@@ -53,7 +54,7 @@ impl Default for GainNormalizationConfig {
     }
 }
 /// Configures the band-pass audio filter used.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct BandPassConfig {
     /// Enables the filter.
     pub enabled: bool,
@@ -72,8 +73,7 @@ impl Default for BandPassConfig {
     }
 }
 /// Configures the audio filters.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct FiltersConfig {
     /// Enables a gain-normalizer audio filter that intent to approximate the volume of the stream
     /// to a reference level (RMS of the samples is used as volume measure).
@@ -83,8 +83,7 @@ pub struct FiltersConfig {
 }
 
 /// Indicates how to calculate the final score.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum ScoreMode {
     /// Calculate average of all scores.
     Average,
@@ -144,8 +143,7 @@ impl std::str::FromStr for ScoreMode {
     }
 }
 /// Configures VAD detector sensibility.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum VADMode {
     /// Easy mode - more permissive voice detection.
     Easy,
@@ -186,7 +184,7 @@ impl std::str::FromStr for VADMode {
     }
 }
 /// Configures the detector scoring behavior.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct DetectorConfig {
     /// Minimum required score against the wakeword averaged feature frame vector.
     pub avg_threshold: f32,
@@ -224,9 +222,10 @@ impl Default for DetectorConfig {
         }
     }
 }
+
+
 /// Encapsulates all the tool configurations.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct KoffeeCandleConfig {
     /// Configures expected audio input format.
     pub fmt: AudioFmt,
@@ -234,4 +233,6 @@ pub struct KoffeeCandleConfig {
     pub detector: DetectorConfig,
     /// Configures input audio filters.
     pub filters: FiltersConfig,
+    /// Configures wake/unwake detection system.
+    pub wake_unwake: WakeUnwakeConfig,
 }

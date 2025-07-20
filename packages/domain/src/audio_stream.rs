@@ -1,4 +1,4 @@
-use crate::{AudioChunk, VoiceError};
+use crate::AudioChunk;
 use futures::Stream;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -20,7 +20,7 @@ impl AudioStream {
 
     /// Create AudioStream from any compatible stream
     #[inline]
-    pub fn from_stream<S>(stream: S) -> Self 
+    pub fn from_stream<S>(stream: S) -> Self
     where
         S: Stream<Item = AudioChunk> + Send + Unpin + 'static,
     {

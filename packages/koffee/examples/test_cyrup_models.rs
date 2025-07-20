@@ -78,10 +78,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("==================================");
     println!();
 
-    // Load wake word model (syrup.rpw for "cyrup")
-    let wake_model = match WakewordModel::load_from_file("syrup.rpw") {
+    // Load wake word model from test resources
+    let wake_model = match WakewordModel::load_from_file("./tests/resources/oye_casa_g_v2.rpw") {
         Ok(m) => {
-            println!("✅ Loaded wake model: syrup.rpw");
+            println!("✅ Loaded wake model: oye_casa_g_v2.rpw");
             m
         }
         Err(e) => {
@@ -90,14 +90,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // Try to load stop model (cyrup_stop.rpw)
-    let stop_model = match WakewordModel::load_from_file("cyrup_stop.rpw") {
+    // Try to load a different model for stop detection
+    let stop_model = match WakewordModel::load_from_file("./tests/resources/ok_casa-tiny.rpw") {
         Ok(m) => {
-            println!("✅ Loaded stop model: cyrup_stop.rpw");
+            println!("✅ Loaded stop model: ok_casa-tiny.rpw");
             Some(m)
         }
-        Err(_) => {
-            println!("⚠️  No stop model found - will use double-tap detection");
+        Err(e) => {
+            println!(
+                "⚠️  No stop model found - will use double-tap detection: {}",
+                e
+            );
             None
         }
     };
@@ -121,7 +124,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             gain_normalizer: koffee::config::GainNormalizationConfig {
                 enabled: true,
-                gain_level: 0.095,
+                gain_ref: Some(0.095),
                 ..Default::default()
             },
         },
@@ -151,17 +154,57 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Audio setup
     let host = cpal::default_host();
+
+    // Get the default input device
     let device = host
         .default_input_device()
-        .ok_or("No default input device available")?;
+        .ok_or("No input device available")?;
 
-    println!("🎙️  Using: {}", device.name()?);
+    println!("Audio device: {}", device.name()?);
 
-    let stream_config = StreamConfig {
-        channels: 1,
-        sample_rate: SampleRate(16000),
-        buffer_size: cpal::BufferSize::Default,
+    // Get all supported input configurations
+    let mut supported_configs = device
+        .supported_input_configs()
+        .map_err(|e| format!("Failed to get supported input configs: {}", e))?
+        .collect::<Vec<_>>();
+
+    if supported_configs.is_empty() {
+        return Err("No supported input configurations found".into());
+    }
+
+    // Sort by sample rate (prefer higher rates)
+    supported_configs.sort_by(|a, b| b.max_sample_rate().0.cmp(&a.max_sample_rate().0));
+
+    // Try to find a configuration with 1 channel (mono)
+    let mono_config = supported_configs.iter().find(|c| c.channels() == 1);
+
+    // Use the first available config (prefer mono if available)
+    let config = match mono_config {
+        Some(c) => c.clone(),
+        None => supported_configs[0].clone(),
     };
+
+    // Create a stream config with the highest supported sample rate
+    let stream_config = config.with_sample_rate(config.max_sample_rate()).config();
+
+    println!("Selected audio config: {:?}", stream_config);
+    println!("Sample format: {:?}", config.sample_format());
+    println!("Channels: {}", config.channels());
+    println!("Sample rate: {} Hz", stream_config.sample_rate.0);
+
+    // Print all supported configurations for debugging
+    println!("\nAll supported input configurations:");
+    for (i, cfg) in supported_configs.iter().enumerate() {
+        println!(
+            "  {}. {:?} (channels: {}, sample rate: {} - {} Hz, format: {:?})",
+            i + 1,
+            cfg,
+            cfg.channels(),
+            cfg.min_sample_rate().0,
+            cfg.max_sample_rate().0,
+            cfg.sample_format()
+        );
+    }
 
     // Create application state
     let state = AppState::new(wake_detector, stop_detector);
@@ -185,24 +228,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stop_detector_clone = Arc::clone(&state.stop_detector);
     let state_clone = state.clone();
 
-    let mut audio_buffer = Vec::new();
-    let chunk_size = 480; // 30ms at 16kHz
+    let mut audio_buffer: Vec<u8> = Vec::new();
+    let chunk_size = (30.0 * stream_config.sample_rate.0 as f32 / 1000.0 * 2.0) as usize; // 30ms of audio in bytes (2 bytes per sample)
 
+    // Create a callback that processes audio samples
     let data_callback = move |data: &[f32], _: &cpal::InputCallbackInfo| {
-        // Convert and buffer audio
+        // Convert the incoming samples to i16 format
         for &sample in data {
-            let sample_i16 = (sample * i16::MAX as f32) as i16;
+            // Convert from f32 to i16 (f32 is in range [-1.0, 1.0])
+            let sample_i16 = (sample * i16::MAX as f32)
+                .max(i16::MIN as f32)
+                .min(i16::MAX as f32) as i16;
             audio_buffer.extend_from_slice(&sample_i16.to_le_bytes());
         }
 
-        // Process chunks
-        while audio_buffer.len() >= chunk_size * 2 {
-            let chunk: Vec<u8> = audio_buffer.drain(..chunk_size * 2).collect();
+        // Process complete chunks of audio data (chunk_size is in bytes)
+        while audio_buffer.len() >= chunk_size {
+            let chunk = &audio_buffer[..chunk_size];
+
+            // Process the audio chunk
             let is_awake = awake_clone.load(Ordering::Relaxed);
 
             // Always check for wake word
             if let Ok(mut detector) = wake_detector_clone.try_lock() {
-                if let Some(detection) = detector.process_bytes(&chunk) {
+                if let Some(detection) = detector.process_bytes(chunk) {
                     state_clone.add_detection("wake".to_string(), detection.score);
                     handle_wake_detection(detection, &state_clone);
                 }
@@ -210,23 +259,58 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Check for stop word if awake and detector exists
             if is_awake {
-                if let Ok(stop_opt) = stop_detector_clone.try_lock() {
-                    if let Some(ref mut stop_det) = *stop_opt {
-                        if let Some(detection) = stop_det.process_bytes(&chunk) {
+                if let Ok(mut stop_opt) = stop_detector_clone.try_lock() {
+                    if let Some(mut stop_det) = stop_opt.as_mut() {
+                        if let Some(detection) = stop_det.process_bytes(chunk) {
                             state_clone.add_detection("stop".to_string(), detection.score);
                             handle_stop_detection(detection, &state_clone);
                         }
                     }
                 }
             }
+
+            audio_buffer.drain(..chunk_size);
         }
     };
 
+    // Build and start the input stream with better error handling
+    println!(
+        "\nCreating audio input stream with config: {:?}",
+        stream_config
+    );
+
+    // Create the error callback
     let error_callback = |err| {
-        eprintln!("Audio error: {}", err);
+        eprintln!("An error occurred on the audio stream: {}", err);
     };
 
-    let stream = device.build_input_stream(&stream_config, data_callback, error_callback, None)?;
+    // Try to build the input stream with the supported config
+    println!(
+        "Attempting to build input stream with format: {:?}",
+        config.sample_format()
+    );
+
+    let stream =
+        match device.build_input_stream(&stream_config, data_callback, error_callback, None) {
+            Ok(stream) => {
+                println!("Successfully created audio input stream");
+                stream
+            }
+            Err(e) => {
+                eprintln!("Failed to create audio input stream: {}", e);
+                eprintln!("Available input formats:");
+                if let Ok(formats) = device.supported_input_configs() {
+                    for format in formats {
+                        eprintln!("  {:?}", format);
+                    }
+                } else {
+                    eprintln!("  Could not retrieve supported input formats");
+                }
+                return Err(Box::new(e) as Box<dyn std::error::Error>);
+            }
+        };
+
+    println!("Audio stream created successfully");
 
     stream.play()?;
 

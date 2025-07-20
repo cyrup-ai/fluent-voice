@@ -13,6 +13,7 @@ pub mod config;
 pub mod generation;
 pub mod layers;
 pub mod model;
+pub mod model_downloader;
 pub mod optimizations;
 pub mod setup;
 pub mod state;

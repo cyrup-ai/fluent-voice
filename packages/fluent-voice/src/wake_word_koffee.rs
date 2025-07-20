@@ -14,13 +14,14 @@ use koffee::{
 };
 use std::{
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
+    time::{Duration, Instant},
 };
 
 /// Default wake word detector implementation using Koffee.
 pub struct KoffeeWakeWordDetector {
     /// The underlying Koffee detector.
-    detector: Arc<Mutex<KoffeeCandle>>,
+    detector: Arc<RwLock<KoffeeCandle>>,
     /// Current configuration.
     config: WakeWordConfig,
 }
@@ -34,9 +35,93 @@ impl KoffeeWakeWordDetector {
         })?;
 
         Ok(Self {
-            detector: Arc::new(Mutex::new(detector)),
+            detector: Arc::new(RwLock::new(detector)),
             config: WakeWordConfig::default(),
         })
+    }
+
+    /// Lock-free read access with timeout and exponential backoff.
+    #[inline]
+    fn try_read_detector<T, F>(&self, operation: F) -> WakeWordResult<T>
+    where
+        F: FnOnce(&KoffeeCandle) -> T,
+    {
+        const MAX_RETRIES: u32 = 5;
+        const BASE_DELAY_MS: u64 = 1;
+
+        for retry in 0..MAX_RETRIES {
+            match self.detector.try_read() {
+                Ok(detector) => return Ok(operation(&*detector)),
+                Err(_) => {
+                    if retry < MAX_RETRIES - 1 {
+                        // Exponential backoff with jitter
+                        let delay_ms = BASE_DELAY_MS * (2_u64.pow(retry));
+                        std::thread::sleep(Duration::from_millis(delay_ms));
+                    }
+                }
+            }
+        }
+
+        Err(VoiceError::ProcessingError(
+            "Detector read lock timeout after retries".to_string(),
+        ))
+    }
+
+    /// Lock-free write access with timeout and exponential backoff.
+    #[inline]
+    fn try_write_detector<T, F>(&self, operation: F) -> WakeWordResult<T>
+    where
+        F: FnOnce(&mut KoffeeCandle) -> T,
+    {
+        const MAX_RETRIES: u32 = 5;
+        const BASE_DELAY_MS: u64 = 1;
+
+        for retry in 0..MAX_RETRIES {
+            match self.detector.try_write() {
+                Ok(mut detector) => return Ok(operation(&mut *detector)),
+                Err(_) => {
+                    if retry < MAX_RETRIES - 1 {
+                        // Exponential backoff with jitter
+                        let delay_ms = BASE_DELAY_MS * (2_u64.pow(retry));
+                        std::thread::sleep(Duration::from_millis(delay_ms));
+                    }
+                }
+            }
+        }
+
+        Err(VoiceError::ProcessingError(
+            "Detector write lock timeout after retries".to_string(),
+        ))
+    }
+
+    /// Static lock-free read access for use in async contexts.
+    #[inline]
+    fn try_read_detector_static<T, F>(
+        detector: &Arc<RwLock<KoffeeCandle>>,
+        operation: F,
+    ) -> WakeWordResult<T>
+    where
+        F: FnOnce(&KoffeeCandle) -> T,
+    {
+        const MAX_RETRIES: u32 = 5;
+        const BASE_DELAY_MS: u64 = 1;
+
+        for retry in 0..MAX_RETRIES {
+            match detector.try_read() {
+                Ok(detector_guard) => return Ok(operation(&*detector_guard)),
+                Err(_) => {
+                    if retry < MAX_RETRIES - 1 {
+                        // Exponential backoff with jitter
+                        let delay_ms = BASE_DELAY_MS * (2_u64.pow(retry));
+                        std::thread::sleep(Duration::from_millis(delay_ms));
+                    }
+                }
+            }
+        }
+
+        Err(VoiceError::ProcessingError(
+            "Detector read lock timeout after retries".to_string(),
+        ))
     }
 }
 
@@ -55,17 +140,19 @@ impl WakeWordDetector for KoffeeWakeWordDetector {
             ))
         })?;
 
-        let mut detector = self.detector.lock().unwrap();
-        detector.add_wakeword_model(model).map_err(|e| {
-            VoiceError::Configuration(format!(
-                "Failed to add wake word model '{}': {}",
-                wake_word, e
-            ))
-        })
+        self.try_write_detector(|detector| {
+            detector.add_wakeword_model(model).map_err(|e| {
+                VoiceError::Configuration(format!(
+                    "Failed to add wake word model '{}': {}",
+                    wake_word, e
+                ))
+            })
+        })?
     }
 
     fn process_audio(&mut self, audio_data: &[u8]) -> WakeWordResult<Vec<Self::Event>> {
-        let detection_opt = self.detector.lock().unwrap().process_bytes(audio_data);
+        let detection_opt =
+            self.try_read_detector(|detector| detector.process_bytes(audio_data))?;
 
         let mut events = Vec::new();
         if let Some(detection) = detection_opt {
@@ -91,7 +178,7 @@ impl WakeWordDetector for KoffeeWakeWordDetector {
     }
 
     fn process_samples(&mut self, samples: &[f32]) -> WakeWordResult<Vec<Self::Event>> {
-        let detection_opt = self.detector.lock().unwrap().process_samples(samples);
+        let detection_opt = self.try_read_detector(|detector| detector.process_samples(samples))?;
 
         let mut events = Vec::new();
         if let Some(detection) = detection_opt {
@@ -124,10 +211,9 @@ impl WakeWordDetector for KoffeeWakeWordDetector {
         };
 
         // Update the detector with new configuration
-        self.detector
-            .lock()
-            .unwrap()
-            .update_config(&detector_config);
+        self.try_write_detector(|detector| {
+            detector.update_config(&detector_config);
+        })?;
 
         // Store our configuration
         self.config = config;
@@ -155,20 +241,28 @@ impl WakeWordStream for KoffeeWakeWordDetector {
             let detector = Arc::clone(&detector);
             let config = config.clone();
             async move {
-                let detection_opt = detector.lock().unwrap().process_bytes(&audio_chunk);
-                if let Some(detection) = detection_opt {
-                    if detection.score >= config.confidence_threshold {
-                        let event = WakeWordEvent {
-                            word: detection.name.clone(),
-                            confidence: detection.score,
-                            timestamp_ms: detection.counter as u64,
-                        };
-                        Some(Ok(event))
-                    } else {
-                        None
+                let detection_result = Self::try_read_detector_static(&detector, |det| {
+                    det.process_bytes(&audio_chunk)
+                });
+
+                match detection_result {
+                    Ok(detection_opt) => {
+                        if let Some(detection) = detection_opt {
+                            if detection.score >= config.confidence_threshold {
+                                let event = WakeWordEvent {
+                                    word: detection.name.clone(),
+                                    confidence: detection.score,
+                                    timestamp_ms: detection.counter as u64,
+                                };
+                                Some(Ok(event))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
                     }
-                } else {
-                    None
+                    Err(e) => Some(Err(e)),
                 }
             }
         })
@@ -187,20 +281,28 @@ impl WakeWordStream for KoffeeWakeWordDetector {
             let detector = Arc::clone(&detector);
             let config = config.clone();
             async move {
-                let detection_opt = detector.lock().unwrap().process_samples(&sample_chunk);
-                if let Some(detection) = detection_opt {
-                    if detection.score >= config.confidence_threshold {
-                        let event = WakeWordEvent {
-                            word: detection.name.clone(),
-                            confidence: detection.score,
-                            timestamp_ms: detection.counter as u64,
-                        };
-                        Some(Ok(event))
-                    } else {
-                        None
+                let detection_result = Self::try_read_detector_static(&detector, |det| {
+                    det.process_samples(&sample_chunk)
+                });
+
+                match detection_result {
+                    Ok(detection_opt) => {
+                        if let Some(detection) = detection_opt {
+                            if detection.score >= config.confidence_threshold {
+                                let event = WakeWordEvent {
+                                    word: detection.name.clone(),
+                                    confidence: detection.score,
+                                    timestamp_ms: detection.counter as u64,
+                                };
+                                Some(Ok(event))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
                     }
-                } else {
-                    None
+                    Err(e) => Some(Err(e)),
                 }
             }
         })

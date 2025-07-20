@@ -26,5 +26,3 @@ categories = ["audio", "speech", "builder", "voice", "rust"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/cyrup-ai/fluent-voice"
 authors = ["David Maple<david@cyrup.ai>"]
-
-[workspace.dependencies]

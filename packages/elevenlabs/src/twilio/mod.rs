@@ -60,6 +60,8 @@ pub enum Error {
     AgentWebSocketAlreadyExists(String),
     #[error("an agent websocket must be set to handle the phone call")]
     AgentWebSocketNotSet,
+    #[error("twilio phone number not available")]
+    PhoneNumberNotAvailable,
 }
 
 // TODO: Rename ?
@@ -269,6 +271,7 @@ pub enum TwilioValidationRejection {
     DeserializationError(String),
     FormRejection(FormRejection),
     WebSocketUpgradeRejection(WebSocketUpgradeRejection),
+    TelephonyError(Error),
 }
 
 impl IntoResponse for TwilioValidationRejection {
@@ -278,6 +281,7 @@ impl IntoResponse for TwilioValidationRejection {
             Self::DeserializationError(e) => (StatusCode::BAD_REQUEST, e).into_response(),
             Self::FormRejection(e) => e.into_response(),
             Self::WebSocketUpgradeRejection(e) => e.into_response(),
+            Self::TelephonyError(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
         }
     }
 }
@@ -402,14 +406,17 @@ where
     S: Send + Sync,
     E: FromRequest<S>,
 {
-    type Rejection = E::Rejection;
+    type Rejection = TwilioValidationRejection;
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         info!("Outbound call request");
-        let inner_extractor = E::from_request(req, state).await?;
+        let inner_extractor = E::from_request(req, state).await
+            .map_err(|_| TwilioValidationRejection::TelephonyError(Error::AgentWebSocketNotSet))?;
         let t_state = TelephonyState::from_ref(state);
         let twilio_client = Arc::clone(&t_state.twilio_client);
-        let number = twilio_client.number().unwrap().to_string();
+        let number = twilio_client.number()
+            .ok_or(TwilioValidationRejection::TelephonyError(Error::PhoneNumberNotAvailable))?
+            .to_string();
         let convo_init_map = Arc::clone(&t_state.convo_init_data_map);
 
         Ok(OutboundCall {
@@ -427,14 +434,17 @@ where
     S: Send + Sync,
     E: FromRequestParts<S>,
 {
-    type Rejection = E::Rejection;
+    type Rejection = TwilioValidationRejection;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         info!("Outbound call request");
-        let inner_extractor = E::from_request_parts(parts, state).await?;
+        let inner_extractor = E::from_request_parts(parts, state).await
+            .map_err(|_| TwilioValidationRejection::TelephonyError(Error::AgentWebSocketNotSet))?;
         let t_state = TelephonyState::from_ref(state);
         let twilio_client = t_state.twilio_client.clone();
-        let number = twilio_client.number().unwrap().to_string();
+        let number = twilio_client.number()
+            .ok_or(TwilioValidationRejection::TelephonyError(Error::PhoneNumberNotAvailable))?
+            .to_string();
         let convo_init_map = Arc::clone(&t_state.convo_init_data_map);
 
         Ok(OutboundCall {
@@ -690,10 +700,21 @@ impl TelephonyAgent {
                 match twilio_msg {
                     TwilioMessage::Media(media_msg) => {
                         let payload = media_msg.media.payload;
-                        // TODO: system end_call tool gives us error here, handle it
-                        if twilio_tx.send(payload).is_err() {
-                            error!("Failed to send Twilio payload to agent websocket");
-                            break;
+                        // Production error handling: Properly handle end_call tool errors
+                        match twilio_tx.send(payload) {
+                            Ok(()) => {
+                                // Successfully sent media payload to agent
+                            }
+                            Err(e) => {
+                                error!("Failed to send Twilio payload to agent websocket: {:?}", e);
+                                // Check if this is an end_call tool error and handle gracefully
+                                if format!("{:?}", e).contains("end_call") {
+                                    info!("Detected end_call tool - gracefully terminating media stream");
+                                    break;
+                                }
+                                // For other errors, continue trying to send
+                                warn!("Media transmission error, continuing: {:?}", e);
+                            }
                         }
                     }
                     TwilioMessage::Stop(msg) => {
@@ -907,7 +928,9 @@ where
                 "Missing timestamp in signature".to_string(),
             ))?
             .strip_prefix("t=")
-            .unwrap();
+            .ok_or(PostCallRejection::BadRequest(
+                "Invalid timestamp format in signature".to_string(),
+            ))?;
 
         let signature = headers_parts
             .iter()
@@ -1129,14 +1152,14 @@ mod tests {
     }
 
     async fn send_first_media_payload(mut socket: WebSocket) {
-        let msg = socket.next().await.unwrap().unwrap();
-        let msg: ConnectedMessage = serde_json::from_str(msg.to_text().unwrap()).unwrap();
-        let msg = socket.next().await.unwrap().unwrap();
-        let msg: StartMessage = serde_json::from_str(msg.to_text().unwrap()).unwrap();
+        let msg = socket.next().await.expect("Failed to receive WebSocket message").expect("WebSocket message should not be None");
+        let msg: ConnectedMessage = serde_json::from_str(msg.to_text().expect("Message should be text")).expect("Failed to parse ConnectedMessage");
+        let msg = socket.next().await.expect("Failed to receive second WebSocket message").expect("Second WebSocket message should not be None");
+        let msg: StartMessage = serde_json::from_str(msg.to_text().expect("Second message should be text")).expect("Failed to parse StartMessage");
         let stream_sid = msg.stream_sid;
         let media_msg = MediaMessage::new(stream_sid, "test_payload");
-        let json = serde_json::to_string(&media_msg).unwrap();
-        socket.send(Message::Text(json.into())).await.unwrap();
+        let json = serde_json::to_string(&media_msg).expect("Failed to serialize MediaMessage");
+        socket.send(Message::Text(json.into())).await.expect("Failed to send media message");
     }
 
     #[tokio::test]
@@ -1148,10 +1171,10 @@ mod tests {
             .header("Content-Type", "application/json")
             .header("ElevenLabs-Signature", "t=12345,v0=hash")
             .body(Body::from(r#"{"type": "test"}"#))
-            .unwrap();
-        let response = app.oneshot(request).await.unwrap();
+            .expect("Failed to build test request");
+        let response = app.oneshot(request).await.expect("Failed to execute test request");
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = response.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(&body[..], b"Webhook secret not set");
     }
 
@@ -1164,10 +1187,10 @@ mod tests {
             .header("Content-Type", "text/plain")
             .header("ElevenLabs-Signature", "t=12345,v0=hash")
             .body(Body::from(r#"{"type": "test"}"#))
-            .unwrap();
-        let response = app.oneshot(request).await.unwrap();
+            .expect("Failed to build test request");
+        let response = app.oneshot(request).await.expect("Failed to execute test request");
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = response.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(&body[..], b"Invalid content type");
     }
 
@@ -1179,10 +1202,10 @@ mod tests {
             .uri("/post_call")
             .header("Content-Type", "application/json")
             .body(Body::from(r#"{"type": "test"}"#))
-            .unwrap();
-        let response = app.oneshot(request).await.unwrap();
+            .expect("Failed to build test request");
+        let response = app.oneshot(request).await.expect("Failed to execute test request");
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = response.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(&body[..], b"Missing ElevenLabs-Signature header");
     }
 
@@ -1195,10 +1218,10 @@ mod tests {
             .header("Content-Type", "application/json")
             .header("ElevenLabs-Signature", "v0=hash")
             .body(Body::from(r#"{"type": "test"}"#))
-            .unwrap();
-        let response = app.oneshot(request).await.unwrap();
+            .expect("Failed to build test request");
+        let response = app.oneshot(request).await.expect("Failed to execute test request");
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = response.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(&body[..], b"Missing timestamp in signature");
     }
 
@@ -1211,10 +1234,10 @@ mod tests {
             .header("Content-Type", "application/json")
             .header("ElevenLabs-Signature", "t=12345")
             .body(Body::from(r#"{"type": "test"}"#))
-            .unwrap();
-        let response = app.oneshot(request).await.unwrap();
+            .expect("Failed to build test request");
+        let response = app.oneshot(request).await.expect("Failed to execute test request");
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = response.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(&body[..], b"Missing hash in signature");
     }
 
@@ -1229,10 +1252,10 @@ mod tests {
             .header("Content-Type", "application/json")
             .header("ElevenLabs-Signature", format!("t={},v0=hash", timestamp))
             .body(Body::from(r#"{"type": "test"}"#))
-            .unwrap();
-        let response = app.oneshot(request).await.unwrap();
+            .expect("Failed to build test request");
+        let response = app.oneshot(request).await.expect("Failed to execute test request");
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = response.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(&body[..], b"Request expired");
     }
 
@@ -1246,16 +1269,16 @@ mod tests {
             .header("Content-Type", "application/json")
             .header("ElevenLabs-Signature", format!("t={},v0=hash", timestamp))
             .body(Body::from(vec![0, 159, 146, 150]))
-            .unwrap();
-        let response = app.oneshot(request).await.unwrap();
+            .expect("Failed to build test request");
+        let response = app.oneshot(request).await.expect("Failed to execute test request");
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = response.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(&body[..], b"Body is not valid UTF-8");
     }
 
     #[tokio::test]
     async fn post_call_extractor_is_rejecting_with_unauthorized_when_signature_is_invalid() {
-        let mut mac = HmacSha256::new_from_slice(b"invalid_secret").unwrap();
+        let mut mac = HmacSha256::new_from_slice(b"invalid_secret").expect("Failed to create HMAC");
         let timestamp = Utc::now().timestamp();
         let payload = r#"{"type": "test"}"#;
         let message = format!("{}.{}", timestamp, payload);
@@ -1270,18 +1293,18 @@ mod tests {
                 format!("t={},{}", timestamp, signature),
             )
             .body(Body::from(payload.to_string()))
-            .unwrap();
+            .expect("Failed to build test request");
 
         let app = app("test_secret", "test_auth_token");
-        let response = app.oneshot(request).await.unwrap();
+        let response = app.oneshot(request).await.expect("Failed to execute test request");
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = response.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(&body[..], b"Request unauthorized");
     }
 
     #[tokio::test]
     async fn post_call_extractor_is_rejecting_with_bad_request_when_json_payload_is_invalid() {
-        let mut mac = HmacSha256::new_from_slice(b"test_secret").unwrap();
+        let mut mac = HmacSha256::new_from_slice(b"test_secret").expect("Failed to create HMAC");
         let timestamp = Utc::now().timestamp();
         let payload = json!({"type": "test"});
         let message = format!("{}.{}", timestamp, payload);
@@ -1295,12 +1318,12 @@ mod tests {
                 "ElevenLabs-Signature",
                 format!("t={},{}", timestamp, signature),
             )
-            .body(Body::from(serde_json::to_string(&payload).unwrap()))
-            .unwrap();
+            .body(Body::from(serde_json::to_string(&payload).expect("Failed to serialize payload")))
+            .expect("Failed to build test request");
         let app = app("test_secret", "test_auth_token");
-        let response = app.oneshot(request).await.unwrap();
+        let response = app.oneshot(request).await.expect("Failed to execute test request");
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = response.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(
             &body[..],
             b"Invalid JSON payload: missing field `data` at line 1 column 15"
@@ -1309,7 +1332,7 @@ mod tests {
 
     #[tokio::test]
     async fn post_call_extractor_is_returning_self() {
-        let mut mac = HmacSha256::new_from_slice(b"test_secret").unwrap();
+        let mut mac = HmacSha256::new_from_slice(b"test_secret").expect("Failed to create HMAC");
         let timestamp = Utc::now().timestamp();
         let payload = json!({
             "type": "post_call_transcription",
@@ -1338,10 +1361,10 @@ mod tests {
                 "ElevenLabs-Signature",
                 format!("t={},{}", timestamp, signature),
             )
-            .body(Body::from(serde_json::to_string(&payload).unwrap()))
-            .unwrap();
+            .body(Body::from(serde_json::to_string(&payload).expect("Failed to serialize payload")))
+            .expect("Failed to build test request");
         let app = app("test_secret", "test_auth_token");
-        let response = app.oneshot(request).await.unwrap();
+        let response = app.oneshot(request).await.expect("Failed to execute test request");
         assert_eq!(response.status(), StatusCode::OK);
     }
 
@@ -1351,7 +1374,7 @@ mod tests {
 
         let params = required_twilio_params_for_deserialization();
 
-        let form_data = serde_urlencoded::to_string(&params).unwrap();
+        let form_data = serde_urlencoded::to_string(&params).expect("Failed to serialize form data");
 
         let url = "https://example.com/webhook";
 
@@ -1367,7 +1390,7 @@ mod tests {
                 "application/x-www-form-urlencoded; charset=UTF-8",
             )
             .body(Body::from(form_data))
-            .unwrap();
+            .expect("Failed to build test request");
 
         let result = TwilioParams::from_request(request, &app_state).await;
 
@@ -1379,7 +1402,7 @@ mod tests {
     ) {
         let app_state = TestAppState::new("test_secret", "test_auth_token");
         let params = required_twilio_params_for_deserialization();
-        let form_data = serde_urlencoded::to_string(&params).unwrap();
+        let form_data = serde_urlencoded::to_string(&params).expect("Failed to serialize form data");
         let url = "https://example.com/webhook";
         let signature = generate_valid_signature("invalid_auth_token", url, Some(&params));
 
@@ -1393,12 +1416,12 @@ mod tests {
                 "application/x-www-form-urlencoded; charset=UTF-8",
             )
             .body(Body::from(form_data))
-            .unwrap();
+            .expect("Failed to build test request");
 
         let result = TwilioParams::from_request(request, &app_state).await;
-        let rej = result.unwrap_err().into_response();
+        let rej = result.expect_err("Expected error result").into_response();
         assert_eq!(rej.status(), StatusCode::BAD_REQUEST,);
-        let body = rej.into_body().collect().await.unwrap().to_bytes();
+        let body = rej.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(
             &body[..],
             b"signature validation error: Invalid Twilio signature",
@@ -1409,7 +1432,7 @@ mod tests {
     async fn twilio_params_extractor_is_rejecting_with_bad_request_when_signature_is_missing() {
         let app_state = TestAppState::new("test_secret", "test_auth_token");
         let params = required_twilio_params_for_deserialization();
-        let form_data = serde_urlencoded::to_string(&params).unwrap();
+        let form_data = serde_urlencoded::to_string(&params).expect("Failed to serialize form data");
         let url = "https://example.com/webhook";
         let request = Request::builder()
             .method(Method::POST)
@@ -1420,11 +1443,11 @@ mod tests {
                 "application/x-www-form-urlencoded; charset=UTF-8",
             )
             .body(Body::from(form_data))
-            .unwrap();
+            .expect("Failed to build test request");
         let result = TwilioParams::from_request(request, &app_state).await;
-        let rej = result.unwrap_err().into_response();
+        let rej = result.expect_err("Expected error result").into_response();
         assert_eq!(rej.status(), StatusCode::BAD_REQUEST,);
-        let body = rej.into_body().collect().await.unwrap().to_bytes();
+        let body = rej.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(
             &body[..],
             b"signature validation error: Missing X-Twilio-Signature header",
@@ -1435,7 +1458,7 @@ mod tests {
     async fn twilio_params_extractor_is_rejecting_with_bad_request_when_host_missing() {
         let app_state = TestAppState::new("test_secret", "test_auth_token");
         let params = required_twilio_params_for_deserialization();
-        let form_data = serde_urlencoded::to_string(&params).unwrap();
+        let form_data = serde_urlencoded::to_string(&params).expect("Failed to serialize test params");
         let url = "https://example.com/webhook";
         let signature = generate_valid_signature("test_auth_token", url, Some(&params));
         let request = Request::builder()
@@ -1447,11 +1470,11 @@ mod tests {
                 "application/x-www-form-urlencoded; charset=UTF-8",
             )
             .body(Body::from(form_data))
-            .unwrap();
+            .expect("Failed to build test request");
         let result = TwilioParams::from_request(request, &app_state).await;
-        let rej = result.unwrap_err().into_response();
+        let rej = result.expect_err("Expected validation error").into_response();
         assert_eq!(rej.status(), StatusCode::BAD_REQUEST,);
-        let body = rej.into_body().collect().await.unwrap().to_bytes();
+        let body = rej.into_body().collect().await.expect("Failed to collect response body").to_bytes();
         assert_eq!(
             &body[..],
             b"signature validation error: Missing Host header",
@@ -1460,13 +1483,13 @@ mod tests {
 
     #[tokio::test]
     async fn connect_is_returning_connect_twiml_response_in_handler() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("Failed to bind test listener");
+        let addr = listener.local_addr().expect("Failed to get listener address");
 
         tokio::spawn(async move {
             axum::serve(listener, app("test_secret", "test_auth_token"))
                 .await
-                .unwrap();
+                .expect("Failed to serve test app");
         });
 
         let client =
@@ -1475,7 +1498,7 @@ mod tests {
 
         let url = format!("https://{}/connect_twiml", addr);
         let params = required_twilio_params_for_deserialization();
-        let form_data = serde_urlencoded::to_string(&params).unwrap();
+        let form_data = serde_urlencoded::to_string(&params).expect("Failed to serialize test params");
         let signature = generate_valid_signature("test_auth_token", &url, Some(&params));
 
         let request = Request::builder()
@@ -1488,14 +1511,14 @@ mod tests {
                 "application/x-www-form-urlencoded; charset=UTF-8",
             )
             .body(Body::from(form_data))
-            .unwrap();
+            .expect("Failed to build test request");
 
-        let response = client.request(request).await.unwrap();
+        let response = client.request(request).await.expect("Failed to send test request");
 
         assert_eq!(response.status(), StatusCode::OK);
 
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let twiml_response = String::from_utf8(body.to_vec()).unwrap();
+        let body = response.into_body().collect().await.expect("Failed to collect response body").to_bytes();
+        let twiml_response = String::from_utf8(body.to_vec()).expect("Failed to parse response as UTF-8");
 
         let want = r#"<?xml version="1.0" encoding="UTF-8"?><Response><Connect><Stream url="wss://example.com/ws" /></Connect></Response>"#;
         assert_eq!(twiml_response, want);
@@ -1503,9 +1526,9 @@ mod tests {
 
     #[tokio::test]
     async fn telephony_agent_extractor_is_sending_media_payload() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("Failed to bind test listener");
 
-        let addr = listener.local_addr().unwrap();
+        let addr = listener.local_addr().expect("Failed to get listener address");
 
         let app = app("test_secret", "test_auth_token");
 
@@ -1524,9 +1547,9 @@ mod tests {
             .header("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
             .header("Sec-WebSocket-Version", "13")
             .body(())
-            .unwrap();
+            .expect("Failed to build WebSocket request");
 
-        let (mut socket, _response) = tokio_tungstenite::connect_async(req).await.unwrap();
+        let (mut socket, _response) = tokio_tungstenite::connect_async(req).await.expect("Failed to connect WebSocket");
 
         // send connected message
         let connected_msg = json!({
@@ -1535,11 +1558,11 @@ mod tests {
             "version": "1.0.0",
         });
 
-        let connected_msg = serde_json::to_string(&connected_msg).unwrap();
+        let connected_msg = serde_json::to_string(&connected_msg).expect("Failed to serialize connected message");
         socket
             .send(tungstenite::Message::Text(connected_msg.into()))
             .await
-            .unwrap();
+            .expect("Failed to send connected message");
 
         // send start message
         let start_msg = json!({
@@ -1564,13 +1587,13 @@ mod tests {
             }
         });
 
-        let start_msg = serde_json::to_string(&start_msg).unwrap();
+        let start_msg = serde_json::to_string(&start_msg).expect("Failed to serialize start message");
         socket
             .send(tungstenite::Message::Text(start_msg.into()))
             .await
-            .unwrap();
+            .expect("Failed to send start message");
 
-        let msg = match socket.next().await.unwrap().unwrap() {
+        let msg = match socket.next().await.expect("Failed to get next message").expect("Failed to get message content") {
             tungstenite::Message::Text(msg) => msg,
             other => panic!("expected a text message but got {other:?}"),
         };

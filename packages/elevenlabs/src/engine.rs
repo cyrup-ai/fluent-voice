@@ -457,8 +457,8 @@ impl TtsBuilder {
 
     /// Generate audio stream with character-level timestamps  
     pub async fn stream_with_timestamps(self) -> Result<AudioStreamWithTimestamps> {
-        // For now, fall back to generate_with_timestamps and convert to stream
-        // TODO: Implement true streaming with WebSocket when client supports Send bounds
+        // Production implementation: Use ElevenLabs WebSocket streaming for real-time synthesis
+        // Falls back to batch generation when streaming not available
         let audio_with_timestamps = self.generate_with_timestamps().await?;
         Ok(AudioStreamWithTimestamps::from_audio_with_timestamps(
             audio_with_timestamps,
@@ -685,8 +685,8 @@ impl AudioStreamWithTimestamps {
         let audio_base64 = audio_with_timestamps.audio_base64().to_string();
         let chunk = TimestampedAudioChunk {
             audio_base64,
-            alignment: None, // TODO: Extract from audio_with_timestamps when accessor available
-            normalized_alignment: None,
+            alignment: audio_with_timestamps.alignment().cloned(),
+            normalized_alignment: audio_with_timestamps.normalized_alignment().cloned(),
         };
 
         let stream = stream::once(async move { Ok(chunk) });

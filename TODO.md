@@ -1,3 +1,350 @@
+# 🚨 CRITICAL PRODUCTION SAFETY AUDIT - UNWRAP/EXPECT VIOLATIONS
+
+## 🚨 CRITICAL PRODUCTION SAFETY - UNWRAP() VIOLATIONS (Must Fix Immediately)
+
+### ElevenLabs Crate - Network and Engine Safety
+
+#### Engine State Unwraps
+- [ ] Fix engine unwrapping in fluent_voice_impl.rs
+  - **File**: `packages/elevenlabs/src/fluent_voice_impl.rs`
+  - **Lines**: 83, 224 (engine.as_ref().unwrap())
+  - **Architecture**: Replace with Result-based engine state validation
+  - **Implementation**: Use `engine.as_ref().ok_or(VoiceError::EngineNotInitialized)?` pattern
+  - **Performance**: Zero-allocation error handling with stack-based Results
+  - **Constraints**: No unsafe, no locking, blazing-fast error propagation
+
+#### Twilio WebSocket/HTTP Unwraps (50+ Critical Violations)
+- [ ] Fix WebSocket unwraps in twilio module (Network Safety Critical)
+  - **File**: `packages/elevenlabs/src/twilio/mod.rs`
+  - **Lines**: 412, 437, 910, 1132-1139, 1151-1152, 1154, 1167-1168, 1170, 1182-1183, 1185, 1198-1199, 1201, 1214-1215, 1217, 1232-1233, 1235, 1249-1250, 1252, 1258, 1273, 1276, 1278, 1284, 1298-1299, 1301, 1303, 1312, 1341-1342, 1344, 1354, 1370, 1382, 1396, 1401, 1412, 1423, 1427, 1438, 1450, 1454, 1463-1464, 1469, 1478, 1491, 1493, 1497-1498, 1506, 1508, 1527, 1529, 1538, 1542, 1567, 1571, 1573
+  - **Architecture**: Comprehensive error propagation with custom TwilioError hierarchy
+  - **Implementation**: 
+    - Create `TwilioError`, `WebSocketError`, `HttpError` enum variants
+    - Replace all `.unwrap()` with `.map_err(|e| TwilioError::...)?` patterns
+    - Implement retry mechanisms with exponential backoff for network failures
+    - Add circuit breaker pattern for repeated WebSocket failures
+    - Create graceful fallback strategies for offline mode
+  - **Performance**: Zero-allocation error handling, lock-free retry mechanisms
+  - **Constraints**: No unsafe, no unchecked, no locking, elegant ergonomic error handling
+
+#### Text Processing and Utility Unwraps
+- [ ] Fix text processing unwraps in utils module
+  - **File**: `packages/elevenlabs/src/utils/mod.rs`
+  - **Lines**: 34, 40, 42, 49
+  - **Architecture**: Robust text processing with comprehensive error handling
+  - **Implementation**: Replace unwraps with proper UTF-8 validation and text boundary checking
+  - **Performance**: Zero-allocation string processing with stack-based operations
+  - **Constraints**: No unsafe, no locking, blazing-fast text processing
+
+#### API Endpoint Unwraps
+- [ ] Fix API response unwraps across endpoints
+  - **Files**: Multiple files in `packages/elevenlabs/src/endpoints/`
+  - **Lines**: Various JSON parsing and response handling unwraps
+  - **Architecture**: Comprehensive API error handling with retry mechanisms
+  - **Implementation**: Replace unwraps with proper serde error handling and API response validation
+  - **Performance**: Zero-allocation JSON processing with efficient error propagation
+  - **Constraints**: No unsafe, no locking, production-quality API handling
+
+### Fluent-Voice Crate - Audio and Concurrency Safety
+
+#### Wake Word Detection Mutex Unwraps (High Concurrency Risk)
+- [ ] Fix wake word detector mutex unwraps
+  - **File**: `packages/fluent-voice/src/wake_word_koffee.rs`
+  - **Lines**: 58, 68, 94, 129, 158, 190 (detector.lock().unwrap())
+  - **Architecture**: Lock-free wake word detection using atomic operations and channels
+  - **Implementation**:
+    - Replace `Mutex<T>` with `RwLock<T>` for read-heavy operations
+    - Use `Arc<RwLock<T>>` with `.try_read()` and `.try_write()` methods
+    - Implement timeout-based retries with exponential backoff
+    - Add circuit breaker pattern for repeated lock failures
+    - Create dedicated error types: `DetectorLockError`, `WakeWordError`
+  - **Performance**: Lock-free detection with atomic ring buffers, zero-allocation error handling
+  - **Constraints**: No locking in hot paths, use ownership patterns for thread safety
+
+#### Audio Processing Unwraps
+- [ ] Fix audio stream unwraps in microphone module
+  - **File**: `packages/fluent-voice/src/audio_io/microphone.rs`
+  - **Lines**: 206 (audio stream processing)
+  - **Architecture**: Resilient audio processing with fallback devices
+  - **Implementation**:
+    - Implement audio buffer recycling to avoid allocation panics
+    - Use ring buffers with lock-free atomic operations
+    - Add audio format validation before processing
+    - Create fallback audio devices when primary fails
+    - Implement audio stream recovery mechanisms
+  - **Performance**: Zero-allocation audio processing, blazing-fast sample handling
+  - **Constraints**: No unsafe, no locking, real-time audio performance
+
+### Kyutai Crate - ML Model Safety
+
+#### TTS Model Mutex Unwraps
+- [ ] Fix TTS streaming model unwraps
+  - **File**: `packages/kyutai/src/tts_streaming.rs`
+  - **Lines**: 26, 174 (model.lock().unwrap())
+  - **Architecture**: Lock-free ML model access with atomic reference counting
+  - **Implementation**:
+    - Replace mutex with atomic reference counting
+    - Use `Arc<AtomicPtr<T>>` for lock-free model access
+    - Implement model instance pooling for concurrent access
+    - Add model loading/unloading state management
+    - Create dedicated error types: `ModelLockError`, `ModelAccessError`
+  - **Performance**: Zero-allocation model access, blazing-fast inference
+  - **Constraints**: No locking, no unsafe, real-time ML inference performance
+
+#### ML Tensor Unwraps  
+- [ ] Fix tensor creation unwraps in engine
+  - **File**: `packages/kyutai/src/engine.rs`
+  - **Lines**: 88 (Tensor::zeros().unwrap())
+  - **Architecture**: Robust tensor operations with comprehensive error handling
+  - **Implementation**: Replace unwraps with proper tensor validation and memory management
+  - **Performance**: Zero-allocation tensor operations with stack-based error handling
+  - **Constraints**: No unsafe, no locking, efficient ML operations
+
+### LiveKit Crate - Real-Time Audio Safety
+
+#### Audio Buffer Unwraps
+- [ ] Fix audio buffer processing unwraps
+  - **File**: `packages/livekit/src/playback.rs`
+  - **Lines**: 477 (data.as_slice::<i16>().unwrap())
+  - **Architecture**: Safe audio buffer handling with format validation
+  - **Implementation**: 
+    - Add audio format compatibility checking before processing
+    - Implement graceful format conversion when possible
+    - Create fallback processing for unsupported formats
+    - Use Result-based audio buffer validation
+  - **Performance**: Zero-allocation audio format handling, blazing-fast buffer processing
+  - **Constraints**: No unsafe, no locking, real-time audio performance
+
+## ⚠️ HIGH PRIORITY PRODUCTION SAFETY - EXPECT() VIOLATIONS
+
+### Audio Device Management
+- [ ] Fix device enumeration expects in audio_device_manager
+  - **File**: `packages/fluent-voice/src/audio_device_manager.rs`
+  - **Lines**: 202, 212, 215, 226, 243 (device creation and enumeration expects)
+  - **Architecture**: Graceful device fallback with comprehensive error handling
+  - **Implementation**:
+    - Replace `.expect("Failed to create manager")` with proper error propagation
+    - Implement fallback to default devices when enumeration fails
+    - Add device capability validation before use
+    - Create comprehensive DeviceError enum variants
+  - **Performance**: Zero-allocation device management with efficient fallback strategies
+  - **Constraints**: No unsafe, no locking, production-quality device handling
+
+### Cryptographic Operations
+- [ ] Fix HMAC creation expects in twilio module
+  - **File**: `packages/elevenlabs/src/twilio/mod.rs`
+  - **Lines**: 1041, 1110 (HMAC creation expects)
+  - **Architecture**: Secure cryptographic error handling with proper key validation
+  - **Implementation**:
+    - Replace expects with proper cryptographic error handling
+    - Implement key validation before HMAC creation
+    - Add secure key wiping on errors
+    - Create CryptographicError enum variants
+  - **Performance**: Zero-allocation cryptographic operations with secure error handling
+  - **Constraints**: No unsafe, no locking, cryptographically secure implementations
+
+### Audio Stream Processing
+- [ ] Fix audio stream expects in microphone module
+  - **File**: `packages/fluent-voice/src/audio_io/microphone.rs`
+  - **Lines**: 685 (device enumeration expect)
+  - **Architecture**: Resilient audio stream creation with device fallback
+  - **Implementation**: Replace expects with graceful device enumeration and fallback handling
+  - **Performance**: Zero-allocation stream creation with efficient device selection
+  - **Constraints**: No unsafe, no locking, real-time audio stream performance
+
+## 🔧 NON-PRODUCTION CODE ELIMINATION
+
+### TTS Synthesis Placeholder Implementations
+- [ ] Replace TTS synthesis placeholders with actual implementation
+  - **File**: `packages/fluent-voice/src/fluent_voice.rs`
+  - **Lines**: 355, 389, 415, 416 ("TODO: Implement actual", "For now", sine wave placeholder)
+  - **Architecture**: Complete TTS synthesis integration with DiaVoiceBuilder backend
+  - **Implementation**:
+    - Replace sine wave generator with actual TTS model integration
+    - Implement proper DiaVoiceBuilder streaming synthesis API integration
+    - Add real voice synthesis with configurable voice parameters
+    - Create streaming synthesis with proper chunk boundaries and timing
+    - Remove all "TODO" and "for now" placeholder comments
+  - **Performance**: Zero-allocation synthesis with blazing-fast audio generation, lock-free streaming
+  - **Constraints**: No unsafe, no locking, production-quality voice synthesis
+
+### Audio Processing Placeholders
+- [ ] Replace conditioning placeholder in TTS streaming
+  - **File**: `packages/kyutai/src/tts_streaming.rs`
+  - **Lines**: 161 ("Placeholder - would need actual conditioning")
+  - **Architecture**: Complete conditioning parameter implementation for ML model control
+  - **Implementation**:
+    - Implement proper conditioning parameter handling for TTS models
+    - Add voice characteristic controls (pitch, speed, emotion)
+    - Create conditioning parameter validation and bounds checking
+    - Remove placeholder comments and implement actual functionality
+  - **Performance**: Zero-allocation conditioning with compile-time parameter optimization
+  - **Constraints**: No unsafe, no locking, real-time ML conditioning
+
+### Duration Calculation Implementation
+- [ ] Implement actual duration calculation in TTS builder
+  - **File**: `packages/fluent-voice/src/builders/tts_builder.rs`
+  - **Lines**: 690 ("TODO: Calculate actual duration")
+  - **Architecture**: Text analysis and model-based duration calculation
+  - **Implementation**:
+    - Implement text analysis for duration prediction (character count, phoneme analysis)
+    - Add model-based timing calculations using TTS engine parameters
+    - Create accurate duration estimation for streaming synthesis
+    - Remove TODO comment and implement production-quality duration calculation
+  - **Performance**: Zero-allocation duration calculation with compile-time text analysis optimization
+  - **Constraints**: No unsafe, no locking, blazing-fast duration prediction
+
+## 📁 LARGE FILE DECOMPOSITION (Architecture Quality)
+
+### ElevenLabs ConvAI Agents (2454 lines) - Agent Management System
+- [ ] Decompose agents.rs into logical submodules
+  - **File**: `packages/elevenlabs/src/endpoints/convai/agents.rs`
+  - **Lines**: 1-2454 (entire file decomposition)
+  - **Architecture**: Modular agent management system with clear separation of concerns
+  - **Implementation**:
+    - Create `src/endpoints/convai/agents/` module directory
+    - `agent_builder.rs` - Agent configuration and creation (lines 1-400)
+    - `agent_registry.rs` - Agent lifecycle management (lines 401-800)
+    - `conversation_handler.rs` - Conversation state management (lines 801-1200)
+    - `voice_profile.rs` - Voice configuration and switching (lines 1201-1600)
+    - `streaming_engine.rs` - Real-time audio processing (lines 1601-2000)
+    - `error_types.rs` - Agent-specific error handling (lines 2001-2454)
+    - Update mod.rs to export all submodules with clean public API
+  - **Performance**: Zero-allocation module boundaries with compile-time interface optimization
+  - **Constraints**: No unsafe, no locking, elegant ergonomic modular architecture
+
+### ElevenLabs TTS Engine (1961 lines) - Core Engine Architecture
+- [ ] Decompose engine.rs into TTS engine components
+  - **File**: `packages/elevenlabs/src/engine.rs`
+  - **Lines**: 1-1961 (entire file decomposition)
+  - **Architecture**: Layered TTS engine architecture with clear component boundaries
+  - **Implementation**:
+    - Create `src/engine/` module directory
+    - `core_engine.rs` - Core TTS functionality (lines 1-300)
+    - `voice_manager.rs` - Voice selection and management (lines 301-600)
+    - `synthesis_pipeline.rs` - Audio generation pipeline (lines 601-900)
+    - `streaming_processor.rs` - Real-time streaming (lines 901-1200)
+    - `quality_controller.rs` - Audio quality management (lines 1201-1500)
+    - `cache_manager.rs` - Response caching system (lines 1501-1961)
+    - Update mod.rs to export clean engine interface
+  - **Performance**: Zero-allocation engine components with blazing-fast synthesis pipeline
+  - **Constraints**: No unsafe, no locking, production-quality modular TTS architecture
+
+### Fluent-Voice STT Engine (1621 lines) - Speech Recognition System
+- [ ] Decompose default_stt_engine.rs into STT components
+  - **File**: `packages/fluent-voice/src/engines/default_stt_engine.rs`
+  - **Lines**: 1-1621 (entire file decomposition)
+  - **Architecture**: Modular speech recognition system with real-time processing
+  - **Implementation**:
+    - Create `src/engines/stt/` module directory
+    - `core_engine.rs` - STT engine implementation (lines 1-300)
+    - `audio_processor.rs` - Audio preprocessing and SIMD optimization (lines 301-600)
+    - `transcription_handler.rs` - Text processing and formatting (lines 601-900)
+    - `streaming_recognizer.rs` - Real-time recognition pipeline (lines 901-1200)
+    - `wake_word_integration.rs` - Wake word detection integration (lines 1201-1400)
+    - `vad_processor.rs` - Voice activity detection (lines 1401-1621)
+    - Update mod.rs to export unified STT interface
+  - **Performance**: Zero-allocation STT processing with lock-free real-time recognition
+  - **Constraints**: No unsafe, no locking, blazing-fast speech recognition architecture
+
+### ElevenLabs Twilio Integration (1583 lines) - Telephony System
+- [ ] Decompose twilio/mod.rs into telephony components
+  - **File**: `packages/elevenlabs/src/twilio/mod.rs`
+  - **Lines**: 1-1583 (entire file decomposition)
+  - **Architecture**: Modular telephony integration with WebSocket and HTTP handling
+  - **Implementation**:
+    - Create `src/twilio/` module directory structure
+    - `websocket_handler.rs` - WebSocket communication and protocols (lines 1-300)
+    - `http_server.rs` - HTTP endpoint handling and routing (lines 301-600)
+    - `auth_manager.rs` - Authentication and security (lines 601-900)
+    - `media_processor.rs` - Audio format conversion (lines 901-1200)
+    - `call_state.rs` - Call session management (lines 1201-1583)
+    - Update mod.rs to export telephony interface
+  - **Performance**: Zero-allocation telephony processing with lock-free WebSocket handling
+  - **Constraints**: No unsafe, no locking, production-quality telephony architecture
+
+### Kyutai Engine (1441 lines) - ML Model Management
+- [ ] Decompose kyutai engine.rs into ML components
+  - **File**: `packages/kyutai/src/engine.rs`
+  - **Lines**: 1-1441 (entire file decomposition)
+  - **Architecture**: Modular ML model management with efficient inference
+  - **Implementation**:
+    - Create `src/engine/` module directory
+    - `model_manager.rs` - Model loading and lifecycle (lines 1-300)
+    - `inference_engine.rs` - ML inference pipeline (lines 301-600)
+    - `audio_processor.rs` - Audio preprocessing for ML (lines 601-900)
+    - `streaming_generator.rs` - Real-time generation (lines 901-1200)
+    - `config_manager.rs` - Model configuration (lines 1201-1441)
+    - Update mod.rs to export ML engine interface
+  - **Performance**: Zero-allocation ML inference with lock-free model access
+  - **Constraints**: No unsafe, no locking, blazing-fast ML inference architecture
+
+### LiveKit Playback (1261 lines) - Real-Time Audio
+- [ ] Decompose livekit playback.rs into audio components
+  - **File**: `packages/livekit/src/playback.rs`
+  - **Lines**: 1-1261 (entire file decomposition)
+  - **Architecture**: Modular real-time audio processing with platform optimization
+  - **Implementation**:
+    - Create `src/playback/` module directory
+    - `audio_engine.rs` - Core audio processing (lines 1-250)
+    - `platform_macos.rs` - macOS-specific audio handling (lines 251-500)
+    - `platform_generic.rs` - Cross-platform audio (lines 501-750)
+    - `buffer_manager.rs` - Audio buffer management (lines 751-1000)
+    - `stream_processor.rs` - Real-time streaming (lines 1001-1261)
+    - Update mod.rs to export audio interface
+  - **Performance**: Zero-allocation audio processing with platform-optimized paths
+  - **Constraints**: No unsafe, no locking, real-time audio performance
+
+### Additional Large Files (300+ lines each)
+- [ ] Decompose fluent-voice microphone.rs (1114 lines) into audio input components
+- [ ] Decompose kyutai speech_generator.rs (975 lines) into generation pipeline
+- [ ] Decompose kyutai config.rs (935 lines) into configuration management
+- [ ] Decompose fluent-voice stt_builder.rs (827 lines) into builder components
+- [ ] Decompose elevenlabs genai/tts.rs (818 lines) into GenAI TTS components
+- [ ] Decompose cargo-hakari-regenerate cli.rs (772 lines) into CLI components
+
+## 🧪 TEST EXTRACTION (Code Organization)
+
+### Extract Tests from Source Files
+- [ ] Extract audio device manager tests to dedicated test directory
+  - **File**: `packages/fluent-voice/src/audio_device_manager.rs`
+  - **Lines**: 206-250 (#[cfg(test)] mod tests)
+  - **Architecture**: Separate test organization with nextest integration
+  - **Implementation**:
+    - Create `packages/fluent-voice/tests/audio_device_manager.rs`
+    - Move all test functions from source to test file
+    - Update test imports to use crate interface
+    - Remove #[cfg(test)] module from source file
+    - Ensure tests run with `cargo nextest run`
+  - **Performance**: Zero impact on production builds, faster parallel test execution
+  - **Constraints**: Complete test coverage preservation, nextest compatibility
+
+- [ ] Extract twilio integration tests to dedicated test directory
+  - **File**: `packages/elevenlabs/src/twilio/mod.rs`
+  - **Lines**: 994-1580 (#[cfg(test)] mod tests)
+  - **Architecture**: Comprehensive telephony integration testing
+  - **Implementation**:
+    - Create `packages/elevenlabs/tests/twilio_integration.rs`
+    - Move all WebSocket and HTTP tests from source
+    - Update test dependencies and imports
+    - Remove test module from source file
+    - Ensure all integration tests pass with nextest
+  - **Performance**: Clean production builds, efficient parallel test execution
+  - **Constraints**: Full integration test coverage, production environment simulation
+
+### Bootstrap Nextest for Parallel Testing
+- [ ] Ensure nextest is properly configured for all test extraction
+  - **Architecture**: Fast parallel test execution across entire workspace
+  - **Implementation**:
+    - Verify nextest installation and configuration
+    - Update test runner commands in justfile and CI
+    - Ensure all extracted tests work with nextest
+    - Add test coverage verification steps
+  - **Performance**: Blazing-fast parallel test execution
+  - **Constraints**: Complete test compatibility, no test regression
+
+---
+
 # Fluent-Voice Compilation Issues - Fixing All Warnings and Errors 🚨
 
 ## 🚨 Compilation Errors (Must Fix First)
@@ -638,7 +985,7 @@ DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MI
 - [ ] **QA-28**: Rate fix quality 1-10 and provide specific feedback
 - [ ] Fix snake_case naming: mSelector, mScope, mElement in livekit/playback.rs:23:5, :24:5, :25:5
 - [ ] **QA-29**: Rate fix quality 1-10 and provide specific feedback
-- [ ] Implement apm_command_tx, output_task_running, frame_pool fields in livekit/playback.rs:57:5
+- [ ] Implement apm_command_tx, output_task_running, frame_pool fields in livekit/playbook.rs:57:5
 - [ ] **QA-30**: Rate fix quality 1-10 and provide specific feedback
 - [ ] Implement samples_per_channel field in livekit/playback.rs:78:5
 - [ ] **QA-31**: Rate fix quality 1-10 and provide specific feedback
@@ -767,3 +1114,406 @@ DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MI
 3. **Implement Don't Delete**: Assume unused code needs implementation unless proven otherwise
 4. **Production Quality**: No shortcuts, no suppression annotations
 5. **Verify Functionality**: Test that features actually work after implementation
+---
+
+# ⚡ ULTRA HIGH PRIORITY: PROGRESSHUB INTEGRATION FOR DIA MODEL DOWNLOADS ⚡
+### Zero-Allocation, Blazing-Fast, No-Locking Model Download Architecture
+
+## 🎯 CRITICAL PRODUCTION INTEGRATION: Replace hf-hub with ProgressHub for All Model Downloads
+
+### 1. Update Dia Cargo.toml Dependencies for ProgressHub Integration
+- [ ] **File**: `packages/dia/Cargo.toml`
+- [ ] **Lines**: 53 (uncomment and update progresshub dependency), 50 (remove hf-hub dependency)
+- [ ] **Architecture**: Add progresshub workspace dependencies with zero-allocation, lock-free design
+- [ ] **Implementation**:
+  - Add `progresshub-config = { path = "../../progresshub/config" }`
+  - Add `progresshub-progress = { path = "../../progresshub/progress" }`  
+  - Add `progresshub-client-selector = { path = "../../progresshub/client_selector" }`
+  - Remove `hf-hub = "0.4.3"` dependency once integration complete
+  - Update workspace-hack after dependency changes: `cargo hakari generate`
+- [ ] **Performance Constraints**:
+  - Zero allocation in dependency resolution
+  - Blazing-fast compile times with optimized workspace-hack
+  - No locking mechanisms in progresshub integration
+  - Production-quality error handling with semantic Result types
+- [ ] **Technical Details**:
+  - Progresshub provides unified download API across XET, HTTP backends
+  - Event-driven progress system with bandwidth monitoring
+  - Automatic backend selection for optimal performance
+  - Compatible with dia's existing ProgressUpdate interface
+- [ ] **Constraints**: No unsafe, no unchecked, elegant ergonomic integration, production-quality dependencies
+
+### 2. Replace Direct hf-hub Downloads in Model.rs with ProgressHub
+- [ ] **File**: `packages/dia/src/model.rs`
+- [ ] **Lines**: 32-48 (load_encodec function direct hf-hub usage)
+- [ ] **Architecture**: Zero-allocation model downloading with lock-free caching and error handling
+- [ ] **Implementation**:
+  - Replace `hf_hub::api::sync::Api` with `progresshub_client_selector::Client`
+  - Update `load_encodec` function signature to accept progress callback
+  - Implement semantic error handling with custom ModelError variants
+  - Use progresshub's event-driven progress tracking instead of blocking downloads
+  - Cache downloaded models efficiently using progresshub's XET backend when available
+  - Remove `once_cell` usage and replace with async lazy initialization
+- [ ] **Performance Constraints**:
+  - Zero allocation in model loading hot paths
+  - Blazing-fast downloads using XET protocol when available
+  - Lock-free model caching with atomic reference counting
+  - No blocking operations, full async/await pattern
+  - Never use unwrap() or expect() in implementation
+- [ ] **Technical Details**:
+  - Function signature: `async fn load_encodec(device: &Device, progress_tx: Option<Sender<DownloadProgress>>) -> Result<&'static EncodecModel, ModelError>`
+  - Use `progresshub::ModelDownloader::new().model("facebook/encodec_24khz").download().await?`
+  - Implement proper EncodecModel caching with Arc<T> and atomic initialization
+  - Convert all hf_hub errors to semantic ModelError variants
+  - Support both cached and fresh download scenarios
+- [ ] **Constraints**: No unsafe, no locking, elegant ergonomic code, blazing-fast model loading
+
+### 3. Implement Actual Model Downloads in Setup.rs Using ProgressHub
+- [ ] **File**: `packages/dia/src/setup.rs`
+- [ ] **Lines**: 21-68 (entire setup function rewrite)
+- [ ] **Architecture**: Complete model download orchestration with zero-allocation progress tracking
+- [ ] **Implementation**:
+  - Replace file existence checks with actual progresshub downloads
+  - Implement concurrent downloads for DIA model and EnCodec using MultiDownloadOrchestrator
+  - Create unified download progress reporting compatible with existing ProgressUpdate system
+  - Add comprehensive error handling for download failures, network issues, disk space
+  - Implement fallback strategies for offline mode and cached models
+  - Support model path customization while defaulting to progresshub cache locations
+- [ ] **Performance Constraints**:
+  - Zero allocation in download orchestration
+  - Blazing-fast concurrent downloads with optimal backend selection
+  - Lock-free progress aggregation across multiple downloads
+  - No blocking operations, streaming progress updates
+  - Never use unwrap() or expect() in implementation
+- [ ] **Technical Details**:
+  - Download both DIA_MODEL ("nari-labs/Dia-1.6B") and ENCODEC ("facebook/encodec_24khz") concurrently
+  - Function signature: `async fn setup(weights_path: Option<String>, tokenizer_path: Option<String>, tx: Sender<ProgressUpdate>) -> Result<ModelPaths, ModelSetupError>`
+  - Use `progresshub::MultiDownloadOrchestrator` for concurrent downloads
+  - Implement progress aggregation: combine individual download progress into unified ProgressUpdate
+  - Handle model validation after download completion
+  - Support resumable downloads and partial failure recovery
+- [ ] **Constraints**: No unsafe, no unchecked, no locking, elegant ergonomic code, production-quality downloads
+
+### 4. Create Unified ModelDownloader Wrapper for Dia ProgressUpdate Integration
+- [ ] **File**: `packages/dia/src/model_downloader.rs` (new file)
+- [ ] **Lines**: 1-200 (complete implementation)
+- [ ] **Architecture**: Bridge between progresshub and dia's existing progress system with zero allocation
+- [ ] **Implementation**:
+  - Create `DiaModelDownloader` struct wrapping progresshub client
+  - Implement progress event translation from `DownloadProgress` to `ProgressUpdate`
+  - Add model-specific download methods for DIA and EnCodec models
+  - Implement unified error handling with custom `ModelDownloadError` enum
+  - Support bandwidth monitoring and download optimization
+  - Create atomic progress aggregation for multi-model downloads
+- [ ] **Performance Constraints**:
+  - Zero allocation in progress event translation
+  - Blazing-fast event handling with inline optimizations
+  - Lock-free progress aggregation using atomic operations
+  - No heap allocation in progress hot paths
+  - Never use unwrap() or expect() in implementation
+- [ ] **Technical Details**:
+  - Struct: `pub struct DiaModelDownloader { client: progresshub_client_selector::Client, progress_tx: Sender<ProgressUpdate> }`
+  - Methods: `download_dia_model()`, `download_encodec()`, `download_all()`
+  - Progress translation: `DownloadProgress -> ProgressUpdate` with preserved semantics
+  - Error handling: `ModelDownloadError` with variants for network, disk, validation errors
+  - Integration with dia's existing UI progress display
+- [ ] **Constraints**: No unsafe, no unchecked, no locking, elegant ergonomic wrapper, production-quality integration
+
+### 5. Update App.rs ProgressUpdate for ProgressHub Compatibility
+- [ ] **File**: `packages/dia/src/app.rs`
+- [ ] **Lines**: 6 (ProgressUpdate struct definition and usage locations)
+- [ ] **Architecture**: Ensure ProgressUpdate struct is fully compatible with progresshub's DownloadProgress
+- [ ] **Implementation**:
+  - Verify ProgressUpdate fields match progresshub::DownloadProgress exactly
+  - Add any missing fields needed for comprehensive progress reporting
+  - Implement conversion traits between ProgressUpdate and DownloadProgress
+  - Update UI handling to support enhanced progress information from progresshub
+  - Add bandwidth monitoring display if not already present
+- [ ] **Performance Constraints**:
+  - Zero allocation in progress struct conversion
+  - Blazing-fast UI updates with efficient progress data handling
+  - No locking in progress update paths
+  - Stack-based progress struct operations
+  - Never use unwrap() or expect() in implementation
+- [ ] **Technical Details**:
+  - Current fields: `path: String, bytes_downloaded: u64, total_bytes: u64, speed_mbps: f64`
+  - Progresshub fields: `path: String, bytes_downloaded: u64, total_bytes: u64, speed_mbps: f64`
+  - Implement `From<DownloadProgress> for ProgressUpdate` and vice versa
+  - Update UI components to display enhanced progress information
+  - Support progress aggregation for multi-model downloads
+- [ ] **Constraints**: No unsafe, no unchecked, elegant ergonomic structs, blazing-fast UI performance
+
+### 6. Remove hf-hub Dependency and Validate Integration
+- [ ] **File**: `packages/dia/Cargo.toml`
+- [ ] **Lines**: 50 (hf-hub dependency removal)
+- [ ] **Architecture**: Clean removal of hf-hub with comprehensive validation
+- [ ] **Implementation**:
+  - Remove `hf-hub = "0.4.3"` from dependencies
+  - Search entire dia crate for remaining hf-hub imports and usage
+  - Replace any remaining direct hf-hub calls with progresshub equivalents
+  - Update all import statements to use progresshub types
+  - Regenerate workspace-hack with `cargo hakari generate`
+  - Verify no compilation errors after removal
+- [ ] **Performance Constraints**:
+  - Zero regression in download performance
+  - Blazing-fast compilation without hf-hub dependency
+  - No unused dependencies remaining
+  - Clean workspace dependency resolution
+  - Never use unwrap() or expect() in any remaining code
+- [ ] **Technical Details**:
+  - Search pattern: `grep -r "hf_hub\|hf-hub" packages/dia/src/`
+  - Remove imports: `use hf_hub::*` patterns
+  - Update Cargo.lock and workspace-hack after dependency changes
+  - Verify `cargo check` passes without warnings
+  - Ensure `cargo build --release` completes successfully
+- [ ] **Constraints**: No unsafe, no unchecked, elegant ergonomic cleanup, production-quality dependency management
+
+### 7. Comprehensive End-to-End Testing of ProgressHub Integration
+- [ ] **File**: `packages/dia/tests/model_download_integration.rs` (new test file)
+- [ ] **Lines**: 1-300 (complete test suite)
+- [ ] **Architecture**: Comprehensive integration testing with zero-allocation, lock-free test patterns
+- [ ] **Implementation**:
+  - Test DIA model download with progress tracking
+  - Test EnCodec model download with progress tracking
+  - Test concurrent multi-model downloads
+  - Test download failure recovery and retry mechanisms
+  - Test offline mode with cached models
+  - Test progress update integration with UI system
+  - Verify XET backend selection when available
+  - Test bandwidth monitoring and optimization
+- [ ] **Performance Constraints**:
+  - Zero allocation in test execution paths
+  - Blazing-fast test execution with parallel testing
+  - No locking in test code
+  - Efficient mock/stub patterns for network testing
+  - Never use unwrap() or expect() in test implementations
+- [ ] **Technical Details**:
+  - Use `nextest` for parallel test execution
+  - Mock network responses for reliable testing
+  - Test both cached and fresh download scenarios
+  - Verify progress events are correctly generated and handled
+  - Test error conditions: network failures, disk full, corrupted downloads
+  - Integration with dia's existing setup and model loading flows
+- [ ] **Constraints**: No unsafe, no unchecked, no locking, elegant ergonomic tests, production-quality validation
+
+## 🔧 TECHNICAL INTEGRATION SPECIFICATIONS
+
+### ProgressHub Architecture Integration Points
+- **Config**: Use `progresshub-config` for download configuration and environment setup
+- **Progress**: Use `progresshub-progress` for event-driven progress tracking and bandwidth monitoring
+- **Client Selector**: Use `progresshub-client-selector` for automatic backend selection (XET vs HTTP)
+- **Error Handling**: Create semantic error types that wrap progresshub errors with dia-specific context
+- **Async Integration**: Full async/await patterns, no blocking operations in download paths
+
+### Performance Requirements
+- **Zero Allocation**: All download paths must avoid heap allocation in hot paths
+- **Blazing Fast**: XET protocol when available, HTTP fallback, concurrent downloads
+- **No Locking**: Use ownership patterns and async channels instead of mutexes
+- **Production Quality**: Comprehensive error handling, retry mechanisms, offline support
+
+### Validation Criteria
+- [ ] `cargo check --message-format short --quiet` passes with 0 warnings
+- [ ] `cargo nextest run` passes all model download tests
+- [ ] `cargo build --release --message-format short --quiet` completes successfully
+- [ ] `just check` (workspace-level) passes all formatting and linting
+- [ ] Model downloads work in both online and offline scenarios
+- [ ] Progress tracking integrates seamlessly with existing dia UI
+- [ ] Download performance equals or exceeds current hf-hub implementation
+# ⚡ CORRECTED PROGRESSHUB INTEGRATION: Remove Fake Code and Use Real ProgressHub ⚡
+
+## 🎯 CRITICAL CORRECTION: Use Real ../progresshub Instead of Fake Implementations
+
+### 1. Remove Fake ProgressHub Code from Dia Package  
+- [ ] **File**: `packages/dia/src/model_downloader.rs`
+- [ ] **Action**: Delete entire file (lines 1-237) - this is fake progresshub code incorrectly created
+- [ ] **Architecture**: Remove fake DiaModelDownloader, ProgressAggregator classes that duplicate progresshub functionality
+- [ ] **Implementation**: `rm packages/dia/src/model_downloader.rs`
+- [ ] **Constraints**: DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA. Make ONLY THE MINIMAL, SURGICAL CHANGES required.
+- [ ] **QA-21**: Act as Objective QA Rust developer - verify fake progresshub wrapper code has been completely removed and no abstraction layers remain
+
+### 2. Revert Fake ProgressHub Code in model.rs
+- [ ] **File**: `packages/dia/src/model.rs`
+- [ ] **Lines**: 27-101 (fake ProgressHubClient usage in load_encodec function)
+- [ ] **Action**: Remove fake progresshub imports and implementations, revert to original or prepare for real progresshub
+- [ ] **Architecture**: Remove fake imports: progresshub_client_selector::Client, progresshub_config::DownloadConfig
+- [ ] **Implementation**: Delete fake atomic EnCodec loading, keep simple model loading pattern for real progresshub integration
+- [ ] **Constraints**: Zero allocation, blazing-fast, no unsafe, no unchecked, no locking, elegant ergonomic code
+- [ ] **QA-22**: Act as Objective QA Rust developer - verify all fake progresshub client code removed and function is ready for real progresshub integration
+
+### 3. Revert Fake ProgressHub Code in setup.rs
+- [ ] **File**: `packages/dia/src/setup.rs`
+- [ ] **Lines**: 1-226 (entire fake progresshub setup)
+- [ ] **Action**: Remove fake MultiDownloadOrchestrator, ProgressAggregator code
+- [ ] **Architecture**: Remove fake progresshub imports and complex download orchestration
+- [ ] **Implementation**: Revert to simple setup function that can be modified to use real progresshub
+- [ ] **Constraints**: Never use unwrap() or expect() in src code, use proper Result<T,E> error handling
+- [ ] **QA-23**: Act as Objective QA Rust developer - verify fake progresshub orchestration code removed and setup function is minimal
+
+### 4. Remove Fake ProgressHub Dependencies from Dia Cargo.toml
+- [ ] **File**: `packages/dia/Cargo.toml`
+- [ ] **Lines**: 53-55 (fake progresshub dependencies)
+- [ ] **Action**: Remove progresshub-config, progresshub-progress, progresshub-client-selector dependencies
+- [ ] **Architecture**: Remove fake sub-crate dependencies, prepare for single progresshub dependency
+- [ ] **Implementation**: Delete lines with fake progresshub-* dependencies
+- [ ] **Constraints**: DO NOT MOCK, FABRICATE, FAKE or SIMULATE ANY OPERATION or DATA
+- [ ] **QA-24**: Act as Objective QA Rust developer - verify fake progresshub sub-dependencies removed from Cargo.toml
+
+### 5. Read Real ProgressHub API and Structure
+- [ ] **File**: `../progresshub/src/lib.rs` and related source files
+- [ ] **Action**: Read actual progresshub source code to understand real API
+- [ ] **Architecture**: Understand real progresshub exports, types, and usage patterns
+- [ ] **Implementation**: Read progresshub source to identify: main download functions, error types, configuration options
+- [ ] **Constraints**: Focus on understanding real API, not creating wrapper abstractions
+- [ ] **QA-25**: Act as Objective QA Rust developer - verify understanding of real progresshub API from source code reading
+
+### 6. Read Real ProgressHub Cargo.toml Structure
+- [ ] **File**: `../progresshub/Cargo.toml`
+- [ ] **Action**: Understand how to properly depend on progresshub as path dependency
+- [ ] **Architecture**: Understand progresshub's actual crate structure and exports
+- [ ] **Implementation**: Identify correct dependency path and any required features
+- [ ] **Constraints**: Single dependency approach, no sub-crate dependencies
+- [ ] **QA-26**: Act as Objective QA Rust developer - verify correct understanding of progresshub dependency structure
+
+### 7. Add Real ProgressHub Dependency to Dia Package
+- [ ] **File**: `packages/dia/Cargo.toml`
+- [ ] **Lines**: Around line 50 (dependencies section)
+- [ ] **Action**: Add `progresshub = { path = "../../../progresshub" }` dependency
+- [ ] **Architecture**: Single progresshub dependency, no sub-crates
+- [ ] **Implementation**: Add single line for progresshub path dependency
+- [ ] **Constraints**: Blazing-fast compilation, zero unnecessary dependencies
+- [ ] **QA-27**: Act as Objective QA Rust developer - verify single progresshub dependency added correctly with proper relative path
+
+### 8. Replace hf-hub Usage in Whisper Builder
+- [ ] **File**: `packages/whisper/src/builder.rs`
+- [ ] **Lines**: 18 (hf-hub import), usage locations for model downloads
+- [ ] **Action**: Replace `use hf_hub::{Repo, RepoType, api::sync::Api};` with progresshub import
+- [ ] **Architecture**: Direct progresshub API calls instead of hf-hub calls
+- [ ] **Implementation**: Replace hf_hub::api::sync::Api::new()?.repo().get() pattern with progresshub equivalent
+- [ ] **Constraints**: Zero allocation, elegant ergonomic code, never use unwrap() or expect()
+- [ ] **QA-28**: Act as Objective QA Rust developer - verify hf-hub calls replaced with direct progresshub calls maintaining same functionality
+
+### 9. Add ProgressHub Dependency to Whisper Package
+- [ ] **File**: `packages/whisper/Cargo.toml`
+- [ ] **Lines**: 97 (remove hf-hub), add progresshub dependency
+- [ ] **Action**: Remove `hf-hub = "0.4.3"` and add `progresshub = { path = "../../progresshub" }`
+- [ ] **Architecture**: Replace hf-hub dependency with progresshub path dependency
+- [ ] **Implementation**: Surgical dependency replacement
+- [ ] **Constraints**: No locking, blazing-fast dependency resolution
+- [ ] **QA-29**: Act as Objective QA Rust developer - verify hf-hub dependency removed and progresshub dependency added correctly
+
+### 10. Replace hf-hub Usage in Whisper Core
+- [ ] **File**: `packages/whisper/src/whisper.rs`
+- [ ] **Lines**: 16 (hf-hub import), model download usage locations
+- [ ] **Action**: Replace hf-hub API calls with direct progresshub calls
+- [ ] **Architecture**: Keep same model loading logic, change download mechanism only
+- [ ] **Implementation**: Minimal surgical replacement of download calls
+- [ ] **Constraints**: Zero allocation in download paths, no unsafe, elegant ergonomic code
+- [ ] **QA-30**: Act as Objective QA Rust developer - verify whisper model downloads now use progresshub directly
+
+### 11. Replace hf-hub Usage in Whisper Microphone
+- [ ] **File**: `packages/whisper/src/microphone.rs`
+- [ ] **Lines**: 11 (hf-hub import), model download locations
+- [ ] **Action**: Replace hf-hub calls with progresshub direct API usage
+- [ ] **Architecture**: Surgical replacement maintaining existing error handling
+- [ ] **Implementation**: Replace download mechanism while keeping function signatures
+- [ ] **Constraints**: No unchecked operations, blazing-fast performance
+- [ ] **QA-31**: Act as Objective QA Rust developer - verify whisper microphone model downloads use progresshub
+
+### 12. Add ProgressHub Dependency to Fluent-Voice Package
+- [ ] **File**: `packages/fluent-voice/Cargo.toml`
+- [ ] **Lines**: 68 (remove hf-hub), add progresshub
+- [ ] **Action**: Remove `hf-hub = "0.4.3"` and add `progresshub = { path = "../../progresshub" }`
+- [ ] **Architecture**: Replace hf-hub with progresshub dependency
+- [ ] **Implementation**: Dependency replacement in Cargo.toml
+- [ ] **Constraints**: Elegant ergonomic dependency management
+- [ ] **QA-32**: Act as Objective QA Rust developer - verify fluent-voice package has progresshub dependency
+
+### 13. Replace hf-hub Usage in Fluent-Voice Microphone
+- [ ] **File**: `packages/fluent-voice/src/audio_io/microphone.rs`
+- [ ] **Lines**: 16 (hf-hub import), model download usage
+- [ ] **Action**: Replace hf-hub API with direct progresshub calls
+- [ ] **Architecture**: Direct progresshub usage for model downloads
+- [ ] **Implementation**: Surgical replacement of download calls
+- [ ] **Constraints**: Zero allocation, no locking, blazing-fast model loading
+- [ ] **QA-33**: Act as Objective QA Rust developer - verify fluent-voice microphone uses progresshub for downloads
+
+### 14. Add ProgressHub Dependency to Cyterm Package
+- [ ] **File**: `packages/cyterm/Cargo.toml`
+- [ ] **Lines**: 55 (remove hf-hub), add progresshub
+- [ ] **Action**: Remove `hf-hub = "0.3"` and add `progresshub = { path = "../../progresshub" }`
+- [ ] **Architecture**: Replace hf-hub with progresshub dependency
+- [ ] **Implementation**: Dependency replacement
+- [ ] **Constraints**: No unsafe, elegant ergonomic code
+- [ ] **QA-34**: Act as Objective QA Rust developer - verify cyterm package has progresshub dependency
+
+### 15. Replace hf-hub Usage in Cyterm LLM
+- [ ] **File**: `packages/cyterm/src/llm.rs`
+- [ ] **Lines**: 55-66 (hf-hub model download calls)
+- [ ] **Action**: Replace `hf_hub::api::sync::Api::new()?.repo().get()` with progresshub direct calls
+- [ ] **Architecture**: Keep existing model loading logic, change download mechanism
+- [ ] **Implementation**: Replace weights_path and tokenizer download calls with progresshub
+- [ ] **Constraints**: Never use unwrap() or expect(), proper Result<T,E> error handling
+- [ ] **QA-35**: Act as Objective QA Rust developer - verify cyterm LLM model downloads use progresshub
+
+### 16. Replace hf-hub Usage in Cyterm ASR
+- [ ] **File**: `packages/cyterm/src/asr/whisper_loop.rs`
+- [ ] **Lines**: 61 (hf-hub import and usage)
+- [ ] **Action**: Replace hf-hub API with progresshub calls
+- [ ] **Architecture**: Direct progresshub usage for whisper model downloads
+- [ ] **Implementation**: Surgical replacement of download mechanism
+- [ ] **Constraints**: Zero allocation, blazing-fast, no locking
+- [ ] **QA-36**: Act as Objective QA Rust developer - verify cyterm ASR uses progresshub for whisper downloads
+
+### 17. Implement Real ProgressHub Usage in Dia Model Loading
+- [ ] **File**: `packages/dia/src/model.rs` (after cleanup)
+- [ ] **Lines**: Model download locations (to be determined after cleanup)
+- [ ] **Action**: Add progresshub model download calls where needed for dia models
+- [ ] **Architecture**: Direct progresshub API usage for DIA/EnCodec model downloads
+- [ ] **Implementation**: Use real progresshub API for model downloads
+- [ ] **Constraints**: Elegant ergonomic code, complete implementation with no future enhancements
+- [ ] **QA-37**: Act as Objective QA Rust developer - verify dia model loading uses real progresshub API
+
+### 18. Regenerate Workspace-Hack After Dependencies Change
+- [ ] **File**: Workspace-level dependency management
+- [ ] **Action**: Run `cargo hakari generate` to update workspace-hack after dependency changes
+- [ ] **Architecture**: Update optimized workspace dependency compilation
+- [ ] **Implementation**: Execute hakari commands to regenerate workspace-hack
+- [ ] **Constraints**: Blazing-fast compilation optimization
+- [ ] **QA-38**: Act as Objective QA Rust developer - verify workspace-hack properly regenerated after dependency changes
+
+### 19. Verify Compilation Across All Modified Packages
+- [ ] **Files**: All modified packages (dia, whisper, fluent-voice, cyterm)
+- [ ] **Action**: Run `cargo check --message-format short --quiet` for each package
+- [ ] **Architecture**: Ensure all progresshub integrations compile successfully
+- [ ] **Implementation**: Check compilation of each modified package individually
+- [ ] **Constraints**: Zero warnings, blazing-fast compilation
+- [ ] **QA-39**: Act as Objective QA Rust developer - verify all packages compile without errors after progresshub integration
+
+### 20. Final Verification of hf-hub Removal
+- [ ] **Files**: Entire workspace
+- [ ] **Action**: Search for remaining hf-hub usage in workspace packages (excluding candle examples)
+- [ ] **Architecture**: Ensure complete migration from hf-hub to progresshub
+- [ ] **Implementation**: `grep -r "hf_hub\|hf-hub" packages/` should return no matches
+- [ ] **Constraints**: Complete surgical replacement with no remnants
+- [ ] **QA-40**: Act as Objective QA Rust developer - verify no hf-hub usage remains in workspace packages
+
+## 🔧 TECHNICAL ARCHITECTURE REQUIREMENTS
+
+### Real ProgressHub Integration Principles
+- **Direct API Usage**: Use progresshub directly, no wrapper abstractions or custom classes
+- **Surgical Changes**: Replace only download mechanisms, keep existing function signatures
+- **Zero Allocation**: All download paths must avoid heap allocation in hot paths
+- **No Locking**: Use ownership patterns and async channels instead of mutexes
+- **Production Quality**: Complete implementations with comprehensive error handling
+
+### Performance Constraints  
+- **Blazing Fast**: Optimal download performance with real progresshub backend
+- **No Unsafe**: All code must be memory safe without unsafe blocks
+- **No Unchecked**: All operations must include proper bounds checking
+- **Elegant Ergonomic**: Clean, readable code using latest Rust idioms
+
+### Error Handling Requirements
+- **Never use unwrap()**: All Results must be handled explicitly
+- **Never use expect() in src**: Only allowed in test code  
+- **Semantic Errors**: Use proper Result<T,E> with meaningful error types
+- **Complete Handling**: No partial implementations or TODO comments

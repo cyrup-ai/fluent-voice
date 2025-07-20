@@ -524,7 +524,8 @@ async fn synthesize_speech_internal(
     use std::path::PathBuf;
 
     let device = Device::Cpu;
-    let codes = Tensor::zeros((1, 1), candle_core::DType::F32, &device).unwrap();
+    let codes = Tensor::zeros((1, 1), candle_core::DType::F32, &device)
+        .map_err(|e| VoiceError::Configuration(format!("Failed to create tensor: {}", e)))?;
     let voice_data = Arc::new(VoiceData {
         codes,
         sample_rate: 24000,
@@ -685,13 +686,25 @@ where
                     };
 
                 // Create AudioChunk from generated audio bytes
+                let duration_ms = if audio_bytes.is_empty() {
+                    0
+                } else {
+                    // Calculate duration based on audio data size and sample rate
+                    // Assuming 16-bit PCM at 24kHz sample rate
+                    let samples = audio_bytes.len() / 2; // 2 bytes per sample for 16-bit
+                    let duration_secs = samples as f64 / 24000.0; // 24kHz sample rate
+                    (duration_secs * 1000.0) as u64
+                };
+
+                let start_ms = chunk_index as u64 * duration_ms; // Cumulative timing
+
                 let audio_chunk = fluent_voice_domain::AudioChunk {
                     data: audio_bytes,
-                    duration_ms: 2000, // TODO: Calculate actual duration
-                    start_ms: 0,       // TODO: Calculate cumulative timing
+                    duration_ms,
+                    start_ms,
                     speaker_id: Some(line.id.clone()),
                     text: Some(line.text.clone()),
-                    format: None, // TODO: Set proper audio format
+                    format: Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
                 };
 
                 // Send AudioChunk instead of raw bytes

@@ -20,12 +20,14 @@ async fn main() -> Result<(), VoiceError> {
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
         .on_chunk(on_chunk_transform!(|transcription_chunk| {
-            Ok => transcription_chunk.into(),
-            Err(e) => Err(e)
+            match transcription_chunk {
+                Ok(chunk) => Ok(chunk.into()),
+                Err(e) => Err(e),
+            }
         }))
-        .listen(|conv| {
-            Ok => conv.into_stream(),
-            Err(e) => Err(e)
+        .listen(|conv| match conv {
+            Ok(conversation) => Ok(conversation.into_stream()),
+            Err(e) => Err(e),
         })
         .await;
 

@@ -47,10 +47,12 @@ bincode = "2.0.1"
 tracing = "0.1.41"
 anyhow = "1.0"
 byteorder = "1.5.0"
-hf-hub = "0.4.3"
+
 serde_json = "1.0.140"
 hound = "3.5.1"
-# progresshub = "0.1.0"
+progresshub-config = { path = "../../../progresshub/config" }
+progresshub-progress = { path = "../../../progresshub/progress" }
+progresshub-client-selector = { path = "../../../progresshub/client_selector" }
 serde = { version = "1.0.219", features = ["derive"] }
 clap = { version = "4.5.41", features = ["derive"] }
 thiserror = "2.0.12"
@@ -122,11 +124,6 @@ bindgen_cuda = { version = "0.1.5", optional = true }
 [target.'cfg(target_os = "macos")'.dependencies]
 accelerate-src = { version = "0.3", optional = true }
 
-[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.build-dependencies]
-bindgen_cuda = { version = "0.1.5", optional = true }
-
-[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.build-dependencies]
-bindgen_cuda = { version = "0.1.5", optional = true }
-
 [build-dependencies]
 anyhow = "1.0"
+bindgen_cuda = { version = "0.1.5", optional = true }

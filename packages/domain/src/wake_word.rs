@@ -1,6 +1,6 @@
 //! Wake word domain objects.
 
-use crate::voice_error::VoiceError;
+
 
 // All builder traits have been moved to fluent-voice package where they belong
 // Domain package contains only value types

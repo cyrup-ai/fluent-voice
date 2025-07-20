@@ -4,9 +4,9 @@ version = 4
 
 [[package]]
 name = "ab_glyph"
-version = "0.2.30"
+version = "0.2.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e0f4f6fbdc5ee39f2ede9f5f3ec79477271a6d6a2baff22310d51736bda6cea"
+checksum = "e074464580a518d16a7126262fffaaa47af89d4099d4cb403f8ed938ba12ee7d"
 dependencies = [
  "ab_glyph_rasterizer",
  "owned_ttf_parser",
@@ -179,6 +179,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anpa"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbd042758b51a8f57b0e4777d1d14a49db0c0a04d2b21ceae3f64d7a066384b1"
+
+[[package]]
 name = "anstream"
 version = "0.6.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -254,6 +260,12 @@ checksum = "dde20b3d026af13f561bdd0f15edf01fc734f0dafcedbaf42bba506a9517f223"
 dependencies = [
  "derive_arbitrary",
 ]
+
+[[package]]
+name = "arc-swap"
+version = "1.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
 
 [[package]]
 name = "arg_enum_proc_macro"
@@ -389,7 +401,21 @@ version = "0.38.0+1.3.281"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bb44936d800fea8f016d7f2311c6a4f97aebd5dc86f09906139ec848cf3a46f"
 dependencies = [
- "libloading",
+ "libloading 0.8.8",
+]
+
+[[package]]
+name = "asio-sys"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb111d0b927c4b860b42a8bd869b94f5f973b0395ed5892f1ab2be2dc6831ea8"
+dependencies = [
+ "bindgen 0.69.5",
+ "cc",
+ "num-derive 0.4.2",
+ "num-traits",
+ "parse_cfg",
+ "walkdir",
 ]
 
 [[package]]
@@ -446,9 +472,9 @@ dependencies = [
 
 [[package]]
 name = "async-io"
-version = "2.4.1"
+version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1237c0ae75a0f3765f58910ff9cdd0a12eeb39ab2f4c7de23262f337f0aacbb3"
+checksum = "19634d6336019ef220f09fd31168ce5c184b295cbf80345437cc36094ef223ca"
 dependencies = [
  "async-lock",
  "cfg-if",
@@ -459,8 +485,7 @@ dependencies = [
  "polling",
  "rustix 1.0.8",
  "slab",
- "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -663,7 +688,7 @@ version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dbfd150b5dbdb988bcc8fb1fe787eb6b7ee6180ca24da683b61ea5405f3d43ff"
 dependencies = [
- "bindgen",
+ "bindgen 0.69.5",
  "cc",
  "cmake",
  "dunce",
@@ -763,6 +788,26 @@ dependencies = [
  "shlex",
  "syn 2.0.104",
  "which",
+]
+
+[[package]]
+name = "bindgen"
+version = "0.71.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f58bf3d7db68cfbac37cfc485a8d711e87e064c3d0fe0435b92f7a407f9d6b3"
+dependencies = [
+ "bitflags 2.9.1",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.13.0",
+ "log",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash 2.1.1",
+ "shlex",
+ "syn 2.0.104",
 ]
 
 [[package]]
@@ -871,6 +916,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "bon"
+version = "3.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33d9ef19ae5263a138da9a86871eca537478ab0332a7770bac7e3f08b801f89f"
+dependencies = [
+ "bon-macros",
+ "rustversion",
+]
+
+[[package]]
+name = "bon-macros"
+version = "3.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "577ae008f2ca11ca7641bd44601002ee5ab49ef0af64846ce1ab6057218a5cc1"
+dependencies = [
+ "darling 0.21.0",
+ "ident_case",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.104",
+]
+
+[[package]]
 name = "brotli"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -920,9 +990,9 @@ dependencies = [
 
 [[package]]
 name = "bytemuck_derive"
-version = "1.9.3"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ecc273b49b3205b83d648f0690daa588925572cc5063745bfe547fe7ec8e1a1"
+checksum = "441473f2b4b0459a68628c744bc61d23e730fb00128b841d30fa4bb3972257e4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1014,7 +1084,7 @@ dependencies = [
 [[package]]
 name = "candle-core"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
 dependencies = [
  "accelerate-src",
  "byteorder",
@@ -1044,7 +1114,7 @@ dependencies = [
 [[package]]
 name = "candle-datasets"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
 dependencies = [
  "byteorder",
  "candle-core",
@@ -1061,7 +1131,7 @@ dependencies = [
 [[package]]
 name = "candle-flash-attn"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
 dependencies = [
  "anyhow",
  "bindgen_cuda",
@@ -1072,7 +1142,7 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
 dependencies = [
  "bindgen_cuda",
 ]
@@ -1080,7 +1150,7 @@ dependencies = [
 [[package]]
 name = "candle-metal-kernels"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
 dependencies = [
  "half",
  "metal 0.27.0",
@@ -1092,7 +1162,7 @@ dependencies = [
 [[package]]
 name = "candle-nn"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
 dependencies = [
  "accelerate-src",
  "candle-core",
@@ -1110,7 +1180,7 @@ dependencies = [
 [[package]]
 name = "candle-onnx"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
 dependencies = [
  "candle-core",
  "candle-nn",
@@ -1121,7 +1191,7 @@ dependencies = [
 [[package]]
 name = "candle-transformers"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle?branch=main#16b7b77e186a4d44ae70115c8f42eef77149ff92"
+source = "git+https://github.com/huggingface/candle?branch=main#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
 dependencies = [
  "accelerate-src",
  "byteorder",
@@ -1261,9 +1331,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.29"
+version = "1.2.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c1599538de2394445747c8cf7935946e3cc27e9625f889d979bfb2aaf569362"
+checksum = "deec109607ca693028562ed836a5f1c4b8bd77755c4e132fc5ce11b0b6211ae7"
 dependencies = [
  "jobserver",
  "libc 0.2.174",
@@ -1386,7 +1456,7 @@ checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
 dependencies = [
  "glob",
  "libc 0.2.174",
- "libloading",
+ "libloading 0.8.8",
 ]
 
 [[package]]
@@ -1400,6 +1470,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap-verbosity-flag"
+version = "3.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eeab6a5cdfc795a05538422012f20a5496f050223c91be4e5420bfd13c641fb1"
+dependencies = [
+ "clap",
+ "log",
+]
+
+[[package]]
 name = "clap_builder"
 version = "4.5.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1409,6 +1489,15 @@ dependencies = [
  "anstyle",
  "clap_lex",
  "strsim",
+]
+
+[[package]]
+name = "clap_complete"
+version = "4.5.55"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5abde44486daf70c5be8b8f8f1b66c49f86236edf6fa2abadb4d961c4c6229a"
+dependencies = [
+ "clap",
 ]
 
 [[package]]
@@ -1428,6 +1517,16 @@ name = "clap_lex"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
+
+[[package]]
+name = "clap_mangen"
+version = "0.2.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2fb6d3f935bbb9819391528b0e7cf655e78a0bc7a7c3d227211a1d24fc11db1"
+dependencies = [
+ "clap",
+ "roff",
+]
 
 [[package]]
 name = "cmake"
@@ -1528,6 +1627,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
+name = "colorsys"
+version = "0.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54261aba646433cb567ec89844be4c4825ca92a4f8afba52fc4dd88436e31bbd"
+
+[[package]]
 name = "combine"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1619,8 +1724,8 @@ dependencies = [
 
 [[package]]
 name = "const-serialize"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "const-serialize-macro",
  "serde",
@@ -1628,8 +1733,8 @@ dependencies = [
 
 [[package]]
 name = "const-serialize-macro"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1854,15 +1959,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cbd307f43cc2a697e2d1f8bc7a1d824b5269e052209e28883e5bc04d095aaa3f"
 dependencies = [
  "alsa",
+ "asio-sys",
  "coreaudio-rs",
  "dasp_sample",
+ "jack",
  "jni",
  "js-sys",
  "libc 0.2.174",
  "mach2",
  "ndk",
  "ndk-context",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "objc2-audio-toolbox",
  "objc2-core-audio",
@@ -1890,6 +1997,12 @@ checksum = "9481c1c90cbf2ac953f07c8d4a58aa3945c425b7185c9154d67a65e4230da511"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "critical-section"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 
 [[package]]
 name = "crossbeam"
@@ -1961,6 +2074,7 @@ dependencies = [
  "mio",
  "parking_lot",
  "rustix 1.0.8",
+ "serde",
  "signal-hook",
  "signal-hook-mio",
  "winapi",
@@ -2023,13 +2137,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctrlc"
+version = "3.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46f93780a459b7d656ef7f071fe699c4d3d2cb201c4b24d085b6ddc505276e73"
+dependencies = [
+ "nix 0.30.1",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "cudarc"
 version = "0.16.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17200eb07e7d85a243aa1bf4569a7aa998385ba98d14833973a817a63cc86e92"
 dependencies = [
  "half",
- "libloading",
+ "libloading 0.8.8",
 ]
 
 [[package]]
@@ -2040,9 +2164,9 @@ checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
 name = "cxx"
-version = "1.0.160"
+version = "1.0.161"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be1149bab7a5580cb267215751389597c021bfad13c0bb00c54e19559333764c"
+checksum = "a3523cc02ad831111491dd64b27ad999f1ae189986728e477604e61b81f828df"
 dependencies = [
  "cc",
  "cxxbridge-cmd",
@@ -2054,9 +2178,9 @@ dependencies = [
 
 [[package]]
 name = "cxx-build"
-version = "1.0.160"
+version = "1.0.161"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aeeaf1aefae8e0f5141920a7ecbc64a22ab038d4b4ac59f2d19e0effafd5b53"
+checksum = "212b754247a6f07b10fa626628c157593f0abf640a3dd04cce2760eca970f909"
 dependencies = [
  "cc",
  "codespan-reporting 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2069,9 +2193,9 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-cmd"
-version = "1.0.160"
+version = "1.0.161"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c36ac1f9a72064b1f41fd7b49a4c1b3bf33b9ccb1274874dda6d264f57c55964"
+checksum = "f426a20413ec2e742520ba6837c9324b55ffac24ead47491a6e29f933c5b135a"
 dependencies = [
  "clap",
  "codespan-reporting 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2083,55 +2207,21 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-flags"
-version = "1.0.160"
+version = "1.0.161"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "170c6ff5d009663866857a91ebee55b98ea4d4b34e7d7aba6dc4a4c95cc7b748"
+checksum = "a258b6069020b4e5da6415df94a50ee4f586a6c38b037a180e940a43d06a070d"
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.160"
+version = "1.0.161"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4984a142211026786011a7e79fa22faa1eca1e9cbf0e60bffecfd57fd3db88f1"
+checksum = "e8dec184b52be5008d6eaf7e62fc1802caf1ad1227d11b3b7df2c409c7ffc3f4"
 dependencies = [
  "indexmap 2.10.0",
  "proc-macro2",
  "quote",
  "rustversion",
  "syn 2.0.104",
-]
-
-[[package]]
-name = "cyrup_sugars"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#abb4fdba226ca7147a77c34ee131147e1dc0810e"
-dependencies = [
- "futures",
- "parking_lot",
- "sugars_async_stream 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
- "sugars_async_task 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
- "sugars_builders 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
- "sugars_collections 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
- "sugars_gix 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
- "sugars_macros 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
- "tokio",
- "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
-]
-
-[[package]]
-name = "cyrup_sugars"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars#abb4fdba226ca7147a77c34ee131147e1dc0810e"
-dependencies = [
- "futures",
- "parking_lot",
- "sugars_async_stream 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
- "sugars_async_task 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
- "sugars_builders 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
- "sugars_collections 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
- "sugars_gix 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
- "sugars_macros 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
- "tokio",
- "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
 ]
 
 [[package]]
@@ -2155,13 +2245,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "cyrup_sugars"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "futures",
+ "parking_lot",
+ "sugars_async_stream 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "sugars_async_task 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "sugars_builders 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "sugars_collections 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "sugars_gix 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "sugars_macros 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "tokio",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+]
+
+[[package]]
+name = "cyrup_sugars"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "futures",
+ "parking_lot",
+ "sugars_async_stream 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "sugars_async_task 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "sugars_builders 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "sugars_collections 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "sugars_gix 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "sugars_macros 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "tokio",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc7f46116c46ff9ab3eb1597a45688b6715c6e628b5c133e288e709a29bcb4ee"
 dependencies = [
- "darling_core",
- "darling_macro",
+ "darling_core 0.20.11",
+ "darling_macro 0.20.11",
+]
+
+[[package]]
+name = "darling"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a79c4acb1fd5fa3d9304be4c76e031c54d2e92d172a393e24b19a14fe8532fe9"
+dependencies = [
+ "darling_core 0.21.0",
+ "darling_macro 0.21.0",
 ]
 
 [[package]]
@@ -2179,12 +2313,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling_core"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74875de90daf30eb59609910b84d4d368103aaec4c924824c6799b28f77d6a1d"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn 2.0.104",
+]
+
+[[package]]
 name = "darling_macro"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
- "darling_core",
+ "darling_core 0.20.11",
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e79f8e61677d5df9167cd85265f8e5f64b215cdea3fb55eebc3e622e44c7a146"
+dependencies = [
+ "darling_core 0.21.0",
  "quote",
  "syn 2.0.104",
 ]
@@ -2298,7 +2457,7 @@ version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d5bcf7b024d6835cfb3d473887cd966994907effbe9227e8c8219824d06c4e8"
 dependencies = [
- "darling",
+ "darling 0.20.11",
  "proc-macro2",
  "quote",
  "syn 2.0.104",
@@ -2358,7 +2517,7 @@ dependencies = [
  "crossterm",
  "csv",
  "cudarc",
- "cyrup_sugars 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "cyrup_sugars 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
  "derive_more",
  "dioxus",
  "dirs",
@@ -2367,7 +2526,6 @@ dependencies = [
  "fluent_voice_domain",
  "gloo-timers",
  "half",
- "hf-hub",
  "hound",
  "image",
  "imageproc",
@@ -2379,10 +2537,13 @@ dependencies = [
  "once_cell",
  "palette",
  "pdf2image",
+ "progresshub-client-selector",
+ "progresshub-config",
+ "progresshub-progress",
  "pyo3",
  "rand 0.9.1",
  "rand_distr 0.5.1",
- "ratatui",
+ "ratatui 0.30.0-alpha.5 (git+https://github.com/ratatui/ratatui?branch=main)",
  "reqwest 0.12.22",
  "rodio",
  "rubato",
@@ -2444,8 +2605,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "dioxus-cli-config",
  "dioxus-config-macro",
@@ -2468,16 +2629,16 @@ dependencies = [
 
 [[package]]
 name = "dioxus-cli-config"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "wasm-bindgen",
 ]
 
 [[package]]
 name = "dioxus-config-macro"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2485,13 +2646,13 @@ dependencies = [
 
 [[package]]
 name = "dioxus-config-macros"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 
 [[package]]
 name = "dioxus-core"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "const_format",
  "dioxus-core-types",
@@ -2511,8 +2672,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-core-macro"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "convert_case 0.8.0",
  "dioxus-rsx",
@@ -2523,13 +2684,13 @@ dependencies = [
 
 [[package]]
 name = "dioxus-core-types"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 
 [[package]]
 name = "dioxus-devtools"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "dioxus-cli-config",
  "dioxus-core",
@@ -2546,8 +2707,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-devtools-types"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "dioxus-core",
  "serde",
@@ -2556,8 +2717,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-document"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "dioxus-core",
  "dioxus-core-macro",
@@ -2574,17 +2735,18 @@ dependencies = [
 
 [[package]]
 name = "dioxus-fullstack"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "base64 0.22.1",
  "bytes",
  "ciborium",
+ "dioxus-core",
  "dioxus-devtools",
+ "dioxus-document",
  "dioxus-fullstack-hooks",
  "dioxus-fullstack-protocol",
  "dioxus-history",
- "dioxus-lib",
  "dioxus-web",
  "dioxus_server_macro",
  "futures-channel",
@@ -2597,8 +2759,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-fullstack-hooks"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "dioxus-core",
  "dioxus-fullstack-protocol",
@@ -2611,8 +2773,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-fullstack-protocol"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "base64 0.22.1",
  "ciborium",
@@ -2623,8 +2785,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-history"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "dioxus-core",
  "tracing",
@@ -2632,8 +2794,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-hooks"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "dioxus-core",
  "dioxus-signals",
@@ -2648,8 +2810,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-html"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "async-trait",
  "dioxus-core",
@@ -2669,8 +2831,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-html-internal-macro"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "convert_case 0.8.0",
  "proc-macro2",
@@ -2680,8 +2842,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-interpreter-js"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "js-sys",
  "lazy-js-bundle",
@@ -2694,20 +2856,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "dioxus-lib"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
-dependencies = [
- "dioxus-core",
- "dioxus-document",
- "dioxus-history",
- "dioxus-html",
-]
-
-[[package]]
 name = "dioxus-logger"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "console_error_panic_hook",
  "dioxus-cli-config",
@@ -2718,8 +2869,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-rsx"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "proc-macro2",
  "proc-macro2-diagnostics",
@@ -2729,8 +2880,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-signals"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "dioxus-core",
  "futures-channel",
@@ -2744,8 +2895,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus-web"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "async-trait",
  "dioxus-cli-config",
@@ -2776,8 +2927,8 @@ dependencies = [
 
 [[package]]
 name = "dioxus_server_macro"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2869,7 +3020,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330c60081dcc4c72131f8eb70510f1ac07223e5d4163db481a04a0befcffa412"
 dependencies = [
- "libloading",
+ "libloading 0.8.8",
 ]
 
 [[package]]
@@ -2998,7 +3149,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76d07902c93376f1e96c34abc4d507c0911df3816cef50b01f5a2ff3ad8c370d"
 dependencies = [
- "darling",
+ "darling 0.20.11",
  "proc-macro2",
  "quote",
  "syn 2.0.104",
@@ -3309,6 +3460,7 @@ dependencies = [
 name = "fluent-voice-workspace-hack"
 version = "0.1.0"
 dependencies = [
+ "ahash",
  "aho-corasick",
  "anstream",
  "anyhow",
@@ -3318,10 +3470,15 @@ dependencies = [
  "bytes",
  "cc",
  "chrono",
+ "color-eyre",
  "compact_str",
- "crossbeam-queue",
+ "console 0.15.11",
+ "cpal",
+ "crossbeam-epoch",
+ "crossbeam-utils",
+ "crossterm",
  "crypto-common",
- "cyrup_sugars 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "data-encoding",
  "derive_more",
  "derive_more-impl",
  "digest",
@@ -3335,16 +3492,21 @@ dependencies = [
  "futures-task",
  "futures-util",
  "getrandom 0.2.16",
+ "getrandom 0.3.3",
+ "hashbrown 0.14.5",
  "hashbrown 0.15.4",
  "image",
  "itertools 0.12.1",
  "itertools 0.14.0",
  "js-sys",
+ "jsonwebtoken",
  "log",
  "manganis-core",
  "matrixmultiply",
  "memchr",
+ "memmap2",
  "miniz_oxide",
+ "mio",
  "ndarray",
  "num-complex",
  "num-integer",
@@ -3353,6 +3515,8 @@ dependencies = [
  "once_cell",
  "ort",
  "ort-sys",
+ "percent-encoding",
+ "portable-atomic",
  "proc-macro2",
  "prost",
  "prost-types",
@@ -3365,30 +3529,38 @@ dependencies = [
  "rustls 0.23.29",
  "rustls-webpki 0.103.4",
  "scopeguard",
+ "semver",
  "serde",
+ "serde_json",
  "sha1",
  "simd-adler32",
  "slotmap",
  "smallvec 1.15.1",
  "stable_deref_trait",
- "strum 0.27.1",
- "sugars_collections 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "strum 0.27.2",
+ "subtle",
  "symphonia",
  "symphonia-bundle-mp3",
  "symphonia-format-riff",
  "syn 2.0.104",
+ "target-lexicon 0.13.2",
  "time",
+ "time-macros",
  "tokenizers",
  "tokio",
+ "tokio-stream",
  "tokio-tungstenite 0.26.2",
- "toml_datetime",
+ "toml_datetime 0.6.11",
  "toml_edit",
+ "tracing",
  "tracing-core",
  "tracing-subscriber",
  "tungstenite 0.26.2",
  "ureq 2.12.1",
+ "url",
  "wasm-bindgen",
  "web-sys",
+ "winnow",
  "zeroize",
 ]
 
@@ -3463,7 +3635,7 @@ dependencies = [
  "crossbeam-utils",
  "csv",
  "cudarc",
- "cyrup_sugars 0.1.3",
+ "cyrup_sugars 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "derive_more",
  "dia",
  "enterpolation",
@@ -3532,7 +3704,7 @@ dependencies = [
  "livekit",
  "livekit-api 0.4.4",
  "parking_lot",
- "ratatui",
+ "ratatui 0.30.0-alpha.5 (git+https://github.com/ratatui/ratatui?branch=main)",
  "rustfft",
  "thiserror 2.0.12",
 ]
@@ -3584,13 +3756,13 @@ dependencies = [
  "rustls 0.23.29",
  "serde",
  "serde_json",
- "strum 0.27.1",
+ "strum 0.27.2",
  "syn 2.0.104",
  "tempfile",
  "thiserror 2.0.12",
  "tokio",
  "tokio-tungstenite 0.27.0",
- "webpki-roots 1.0.1",
+ "webpki-roots 1.0.2",
 ]
 
 [[package]]
@@ -3689,7 +3861,7 @@ dependencies = [
  "cpal",
  "csv",
  "cudarc",
- "cyrup_sugars 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "cyrup_sugars 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
  "enterpolation",
  "fluent-voice-workspace-hack",
  "fluent_voice_domain",
@@ -3723,6 +3895,18 @@ dependencies = [
  "tracing-subscriber",
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "flume"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da0e4dd2a88388a1f4ccc7c9ce104604dab68d9f408dc34cd45823d5a9069095"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "nanorand",
+ "spin",
 ]
 
 [[package]]
@@ -4192,11 +4376,25 @@ dependencies = [
 
 [[package]]
 name = "generational-box"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "parking_lot",
  "tracing",
+]
+
+[[package]]
+name = "generator"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d18470a76cb7f8ff746cf1f7470914f900252ec36bbc40b569d74b1258446827"
+dependencies = [
+ "cc",
+ "cfg-if",
+ "libc 0.2.174",
+ "log",
+ "rustversion",
+ "windows 0.61.3",
 ]
 
 [[package]]
@@ -4690,6 +4888,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "hickory-proto"
+version = "0.25.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8a6fe56c0038198998a6f217ca4e7ef3a5e51f46163bd6dd60b5c71ca6c6502"
+dependencies = [
+ "async-trait",
+ "cfg-if",
+ "data-encoding",
+ "enum-as-inner",
+ "futures-channel",
+ "futures-io",
+ "futures-util",
+ "idna",
+ "ipnet",
+ "once_cell",
+ "rand 0.9.1",
+ "ring",
+ "thiserror 2.0.12",
+ "tinyvec",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "hickory-resolver"
+version = "0.25.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc62a9a99b0bfb44d2ab95a7208ac952d31060efc16241c87eaf36406fecf87a"
+dependencies = [
+ "cfg-if",
+ "futures-util",
+ "hickory-proto",
+ "ipconfig",
+ "moka",
+ "once_cell",
+ "parking_lot",
+ "rand 0.9.1",
+ "resolv-conf",
+ "smallvec 1.15.1",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "hmac"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4767,6 +5011,18 @@ dependencies = [
  "http 1.3.1",
  "http-body 1.0.1",
  "pin-project-lite",
+]
+
+[[package]]
+name = "http_req"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82a7c3c6b4c8a03ff99675e8d236e09931244269511c468a8950cbf46a0b0c77"
+dependencies = [
+ "base64 0.22.1",
+ "native-tls",
+ "unicase",
+ "zeroize",
 ]
 
 [[package]]
@@ -4848,10 +5104,26 @@ dependencies = [
  "http 1.3.1",
  "hyper 1.6.0",
  "hyper-util",
+ "log",
  "rustls 0.23.29",
+ "rustls-native-certs 0.8.1",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls 0.26.2",
+ "tower-service",
+ "webpki-roots 1.0.2",
+]
+
+[[package]]
+name = "hyper-timeout"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b90d566bffbce6a75bd8b09a05aa8c2cb1fabb6cb348f8840c9e4c90a0d83b0"
+dependencies = [
+ "hyper 1.6.0",
+ "hyper-util",
+ "pin-project-lite",
+ "tokio",
  "tower-service",
 ]
 
@@ -5193,11 +5465,11 @@ dependencies = [
 
 [[package]]
 name = "instability"
-version = "0.3.7"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bf9fed6d91cfb734e7476a06bde8300a1b94e217e1b523b6f0cd1a01998c71d"
+checksum = "435d80800b936787d62688c927b6490e887c7ef5ff9ce922c6c6050fca75eb9a"
 dependencies = [
- "darling",
+ "darling 0.20.11",
  "indoc",
  "proc-macro2",
  "quote",
@@ -5276,10 +5548,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipconfig"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b58db92f96b720de98181bbbe63c831e87005ab460c1bf306eb2622b4707997f"
+dependencies = [
+ "socket2",
+ "widestring",
+ "windows-sys 0.48.0",
+ "winreg",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "469fb0b9cefa57e3ef31275ee7cacb78f2fdca44e4765491884a2b119d4eb130"
+
+[[package]]
+name = "ipnetwork"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "iri-string"
@@ -5353,6 +5646,33 @@ name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
+
+[[package]]
+name = "jack"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f70ca699f44c04a32d419fc9ed699aaea89657fc09014bf3fa238e91d13041b9"
+dependencies = [
+ "bitflags 2.9.1",
+ "jack-sys",
+ "lazy_static",
+ "libc 0.2.174",
+ "log",
+]
+
+[[package]]
+name = "jack-sys"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6013b7619b95a22b576dfb43296faa4ecbe40abbdb97dfd22ead520775fc86ab"
+dependencies = [
+ "bitflags 1.3.2",
+ "lazy_static",
+ "libc 0.2.174",
+ "libloading 0.7.4",
+ "log",
+ "pkg-config",
+]
 
 [[package]]
 name = "jiff"
@@ -5434,9 +5754,11 @@ checksum = "5a87cc7a48537badeae96744432de36f4be2b4a34a05a5ef32e9dd8a1c169dde"
 dependencies = [
  "base64 0.22.1",
  "js-sys",
+ "pem",
  "ring",
  "serde",
  "serde_json",
+ "simple_asn1",
 ]
 
 [[package]]
@@ -5465,7 +5787,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6aae1df220ece3c0ada96b8153459b67eebe9ae9212258bb0134ae60416fdf76"
 dependencies = [
  "libc 0.2.174",
- "libloading",
+ "libloading 0.8.8",
  "pkg-config",
 ]
 
@@ -5495,9 +5817,13 @@ dependencies = [
  "clap",
  "console_error_panic_hook",
  "cpal",
+ "crossbeam-channel",
  "csv",
+ "ctrlc",
  "cudarc",
+ "dia",
  "enterpolation",
+ "env_logger",
  "fluent-voice-workspace-hack",
  "fluent_voice_domain",
  "half",
@@ -5510,8 +5836,10 @@ dependencies = [
  "js-sys",
  "log",
  "memmap2",
+ "mio",
  "num-traits",
  "palette",
+ "parking_lot",
  "pdf2image",
  "pyo3",
  "rand 0.9.1",
@@ -5521,13 +5849,15 @@ dependencies = [
  "safetensors 0.6.0",
  "serde",
  "serde_json",
+ "slab",
  "smallvec 2.0.0-alpha.11",
- "strum 0.27.1",
+ "strum 0.27.2",
  "symphonia",
  "tempfile",
  "thiserror 2.0.12",
  "tokenizers",
  "tokio",
+ "toml 0.9.2",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
@@ -5552,8 +5882,8 @@ checksum = "bf36173d4167ed999940f804952e6b08197cae5ad5d572eb4db150ce8ad5d58f"
 
 [[package]]
 name = "lazy-js-bundle"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 
 [[package]]
 name = "lazy_static"
@@ -5653,6 +5983,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib_bandwydth"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "clap-verbosity-flag",
+ "clap_complete",
+ "clap_mangen",
+ "color-eyre",
+ "crossbeam",
+ "crossbeam-channel",
+ "crossbeam-queue",
+ "crossterm",
+ "derive_more",
+ "eyre",
+ "futures",
+ "futures-core",
+ "futures-timer",
+ "futures-util",
+ "hickory-proto",
+ "hickory-resolver",
+ "http_req",
+ "itertools 0.14.0",
+ "libc 0.2.174",
+ "log",
+ "netstat2",
+ "nix 0.30.1",
+ "octocrab",
+ "once_cell",
+ "pin-project-lite",
+ "pnet",
+ "pnet_macros_support",
+ "procfs",
+ "ratatui 0.30.0-alpha.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
+ "resolv-conf",
+ "serde",
+ "simplelog",
+ "strum 0.27.2",
+ "sysinfo 0.35.2",
+ "tachyonfx",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "unicode-width 0.2.0",
+ "windows-sys 0.60.2",
+ "zip 4.3.0",
+]
+
+[[package]]
 name = "libbz2-rs-sys"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5687,6 +6068,16 @@ checksum = "5037190e1f70cbeef565bd267599242926f724d3b8a9f510fd7e0b540cfa4404"
 dependencies = [
  "arbitrary",
  "cc",
+]
+
+[[package]]
+name = "libloading"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b67380fd3b2fbe7527a606e18729d21c6f3951633d0500574c4dc22d2d638b9f"
+dependencies = [
+ "cfg-if",
+ "winapi",
 ]
 
 [[package]]
@@ -5727,9 +6118,9 @@ checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "libredox"
-version = "0.1.4"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1580801010e535496706ba011c15f8532df6b42297d2e471fec38ceadd8c0638"
+checksum = "4488594b9328dee448adb906d8b126d9b7deb7cf5c22161ee591610bb1be83c0"
 dependencies = [
  "bitflags 2.9.1",
  "libc 0.2.174",
@@ -5759,7 +6150,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf0d9716420364790e85cbb9d3ac2c950bde16a7dd36f3209b7dfdfc4a24d01f"
 dependencies = [
- "bindgen",
+ "bindgen 0.69.5",
  "cc",
  "system-deps",
 ]
@@ -5846,7 +6237,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "lazy_static",
- "libloading",
+ "libloading 0.8.8",
  "libwebrtc",
  "livekit-api 0.4.2",
  "livekit-protocol 0.3.9",
@@ -5992,6 +6383,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3bd0dd2cd90571056fdb71f6275fada10131182f84899f4b2a916e565d81d86"
 
 [[package]]
+name = "loom"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "419e0dc8046cb947daa77eb95ae174acfbddb7673b4151f56d1eed8e93fbfaca"
+dependencies = [
+ "cfg-if",
+ "generator",
+ "scoped-tls",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "loop9"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6087,8 +6491,8 @@ dependencies = [
 
 [[package]]
 name = "manganis"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "const-serialize",
  "manganis-core",
@@ -6097,8 +6501,8 @@ dependencies = [
 
 [[package]]
 name = "manganis-core"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "const-serialize",
  "dioxus-cli-config",
@@ -6108,8 +6512,8 @@ dependencies = [
 
 [[package]]
 name = "manganis-macro"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "dunce",
  "macro-string",
@@ -6278,6 +6682,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "moka"
+version = "0.12.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9321642ca94a4282428e6ea4af8cc2ca4eac48ac7a6a4ea8f33f76d0ce70926"
+dependencies = [
+ "crossbeam-channel",
+ "crossbeam-epoch",
+ "crossbeam-utils",
+ "loom",
+ "parking_lot",
+ "portable-atomic",
+ "rustc_version",
+ "smallvec 1.15.1",
+ "tagptr",
+ "thiserror 1.0.69",
+ "uuid",
+]
+
+[[package]]
 name = "monostate"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6354,6 +6777,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nanorand"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a51313c5820b0b02bd422f4b44776fbf47961755c74ce64afc73bfad10226c3"
+dependencies = [
+ "getrandom 0.2.16",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6422,6 +6854,73 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca2b420f638f07fe83056b55ea190bb815f609ec5a35e7017884a10f78839c9e"
 
 [[package]]
+name = "netlink-packet-core"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72724faf704479d67b388da142b186f916188505e7e0b26719019c525882eda4"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "netlink-packet-utils",
+]
+
+[[package]]
+name = "netlink-packet-sock-diag"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a495cb1de50560a7cd12fdcf023db70eec00e340df81be31cedbbfd4aadd6b76"
+dependencies = [
+ "anyhow",
+ "bitflags 1.3.2",
+ "byteorder",
+ "libc 0.2.174",
+ "netlink-packet-core",
+ "netlink-packet-utils",
+ "smallvec 1.15.1",
+]
+
+[[package]]
+name = "netlink-packet-utils"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ede8a08c71ad5a95cdd0e4e52facd37190977039a4704eb82a283f713747d34"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "paste",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "netlink-sys"
+version = "0.8.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16c903aa70590cb93691bf97a767c8d1d6122d2cc9070433deb3bbf36ce8bd23"
+dependencies = [
+ "bytes",
+ "libc 0.2.174",
+ "log",
+]
+
+[[package]]
+name = "netstat2"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6422b6a8c7635e8a82323e4cdf07a90e91901e07f4c1f0f3a245d54b4637e55c"
+dependencies = [
+ "bindgen 0.71.1",
+ "bitflags 2.9.1",
+ "byteorder",
+ "netlink-packet-core",
+ "netlink-packet-sock-diag",
+ "netlink-packet-utils",
+ "netlink-sys",
+ "num-derive 0.3.3",
+ "num-traits",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6450,6 +6949,24 @@ dependencies = [
  "libc 0.2.174",
  "memoffset",
 ]
+
+[[package]]
+name = "nix"
+version = "0.30.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
+dependencies = [
+ "bitflags 2.9.1",
+ "cfg-if",
+ "cfg_aliases",
+ "libc 0.2.174",
+]
+
+[[package]]
+name = "no-std-net"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43794a0ace135be66a25d3ae77d41b91615fb68ae937f904090203e81f755b65"
 
 [[package]]
 name = "nom"
@@ -6534,6 +7051,17 @@ name = "num-conv"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+
+[[package]]
+name = "num-derive"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "876a53fff98e03a936a674b29568b0e605f06b29372c2489ff4de23f1949743d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "num-derive"
@@ -6833,6 +7361,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-io-kit"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71c1c64d6120e51cd86033f67176b1cb66780c2efe34dec55176f77befd93c0a"
+dependencies = [
+ "libc 0.2.174",
+ "objc2-core-foundation",
+]
+
+[[package]]
 name = "objc2-link-presentation"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6994,10 +7532,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "octocrab"
+version = "0.44.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86996964f8b721067b6ed238aa0ccee56ecad6ee5e714468aa567992d05d2b91"
+dependencies = [
+ "arc-swap",
+ "async-trait",
+ "base64 0.22.1",
+ "bytes",
+ "cfg-if",
+ "chrono",
+ "either",
+ "futures",
+ "futures-util",
+ "http 1.3.1",
+ "http-body 1.0.1",
+ "http-body-util",
+ "hyper 1.6.0",
+ "hyper-rustls 0.27.7",
+ "hyper-timeout",
+ "hyper-util",
+ "jsonwebtoken",
+ "once_cell",
+ "percent-encoding",
+ "pin-project",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "serde_urlencoded",
+ "snafu",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "url",
+ "web-time",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+dependencies = [
+ "critical-section",
+ "portable-atomic",
+]
 
 [[package]]
 name = "once_cell_polyfill"
@@ -7117,7 +7699,7 @@ dependencies = [
 name = "ort"
 version = "2.0.0-rc.10"
 dependencies = [
- "libloading",
+ "libloading 0.8.8",
  "ndarray",
  "ort-sys",
  "smallvec 2.0.0-alpha.11",
@@ -7261,6 +7843,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "parse_cfg"
+version = "4.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "905787a434a2c721408e7c9a252e85f3d93ca0f118a5283022636c0e05a7ea49"
+dependencies = [
+ "nom",
+]
+
+[[package]]
 name = "password-hash"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7355,6 +7946,16 @@ dependencies = [
  "image",
  "rayon",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "pem"
+version = "3.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38af38e8470ac9dee3ce1bae1af9c1671fffc44ddfd8bd1d0a3445bf349a8ef3"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
 ]
 
 [[package]]
@@ -7555,7 +8156,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "849e188f90b1dda88fe2bfe1ad31fe5f158af2c98f80fb5d13726c44f3f01112"
 dependencies = [
- "bindgen",
+ "bindgen 0.69.5",
  "libspa-sys",
  "system-deps",
 ]
@@ -7565,6 +8166,97 @@ name = "pkg-config"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
+
+[[package]]
+name = "pnet"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "682396b533413cc2e009fbb48aadf93619a149d3e57defba19ff50ce0201bd0d"
+dependencies = [
+ "ipnetwork",
+ "pnet_base",
+ "pnet_datalink",
+ "pnet_packet",
+ "pnet_sys",
+ "pnet_transport",
+]
+
+[[package]]
+name = "pnet_base"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffc190d4067df16af3aba49b3b74c469e611cad6314676eaf1157f31aa0fb2f7"
+dependencies = [
+ "no-std-net",
+]
+
+[[package]]
+name = "pnet_datalink"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e79e70ec0be163102a332e1d2d5586d362ad76b01cec86f830241f2b6452a7b7"
+dependencies = [
+ "ipnetwork",
+ "libc 0.2.174",
+ "pnet_base",
+ "pnet_sys",
+ "winapi",
+]
+
+[[package]]
+name = "pnet_macros"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13325ac86ee1a80a480b0bc8e3d30c25d133616112bb16e86f712dcf8a71c863"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "pnet_macros_support"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eed67a952585d509dd0003049b1fc56b982ac665c8299b124b90ea2bdb3134ab"
+dependencies = [
+ "pnet_base",
+]
+
+[[package]]
+name = "pnet_packet"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c96ebadfab635fcc23036ba30a7d33a80c39e8461b8bd7dc7bb186acb96560f"
+dependencies = [
+ "glob",
+ "pnet_base",
+ "pnet_macros",
+ "pnet_macros_support",
+]
+
+[[package]]
+name = "pnet_sys"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d4643d3d4db6b08741050c2f3afa9a892c4244c085a72fcda93c9c2c9a00f4b"
+dependencies = [
+ "libc 0.2.174",
+ "winapi",
+]
+
+[[package]]
+name = "pnet_transport"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f604d98bc2a6591cf719b58d3203fd882bdd6bf1db696c4ac97978e9f4776bf"
+dependencies = [
+ "libc 0.2.174",
+ "pnet_base",
+ "pnet_packet",
+ "pnet_sys",
+]
 
 [[package]]
 name = "png"
@@ -7581,17 +8273,16 @@ dependencies = [
 
 [[package]]
 name = "polling"
-version = "3.8.0"
+version = "3.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b53a684391ad002dd6a596ceb6c74fd004fdce75f4be2e3f615068abbea5fd50"
+checksum = "8ee9b2fa7a4517d2c91ff5bc6c297a427a96749d15f98fcdbb22c05571a4d4b7"
 dependencies = [
  "cfg-if",
  "concurrent-queue",
  "hermit-abi 0.5.2",
  "pin-project-lite",
  "rustix 1.0.8",
- "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -7745,6 +8436,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "procfs"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc5b72d8145275d844d4b5f6d4e1eef00c8cd889edb6035c21675d1bb1f45c9f"
+dependencies = [
+ "bitflags 2.9.1",
+ "chrono",
+ "flate2",
+ "hex",
+ "procfs-core",
+ "rustix 0.38.44",
+]
+
+[[package]]
+name = "procfs-core"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "239df02d8349b06fc07398a3a1697b06418223b1c7725085e801e7c0fc6a12ec"
+dependencies = [
+ "bitflags 2.9.1",
+ "chrono",
+ "hex",
+]
+
+[[package]]
 name = "prodash"
 version = "29.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7771,6 +8487,99 @@ checksum = "52717f9a02b6965224f95ca2a81e2e0c5c43baacd28ca057577988930b6c3d5b"
 dependencies = [
  "quote",
  "syn 2.0.104",
+]
+
+[[package]]
+name = "progresshub-client-quic"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "futures-core",
+ "futures-util",
+ "num-traits",
+ "progresshub-config",
+ "progresshub-progress",
+ "reqwest 0.12.22",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "progresshub-client-selector"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "bytes",
+ "dirs",
+ "futures",
+ "futures-core",
+ "futures-util",
+ "lib_bandwydth",
+ "progresshub-client-quic",
+ "progresshub-client-xet",
+ "progresshub-config",
+ "progresshub-progress",
+ "reqwest 0.12.22",
+ "serde",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "progresshub-client-xet"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "bytes",
+ "dashmap",
+ "dirs",
+ "flume",
+ "fnv",
+ "futures-core",
+ "futures-util",
+ "hex",
+ "num-traits",
+ "once_cell",
+ "parking_lot",
+ "progresshub-config",
+ "progresshub-progress",
+ "rand 0.9.1",
+ "reqwest 0.12.22",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "progresshub-config"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "once_cell",
+ "parking_lot",
+ "serde",
+]
+
+[[package]]
+name = "progresshub-progress"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "flume",
+ "futures",
+ "lib_bandwydth",
+ "once_cell",
+ "parking_lot",
+ "progresshub-config",
+ "tokio",
+ "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
@@ -8122,10 +8931,10 @@ dependencies = [
  "log",
  "pin-project",
  "pollster 0.4.0",
- "ratatui",
+ "ratatui 0.30.0-alpha.5 (git+https://github.com/ratatui/ratatui?branch=main)",
  "reqwest 0.12.22",
  "serde",
- "termcolor 1.4.1",
+ "termcolor 2.0.0",
  "thiserror 2.0.12",
  "tokio",
  "unicode-width 0.2.0",
@@ -8140,20 +8949,35 @@ dependencies = [
 [[package]]
 name = "ratatui"
 version = "0.30.0-alpha.5"
-source = "git+https://github.com/ratatui/ratatui?branch=main#98f85b86502fca754ec25698298684e9acbda746"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71365e96fb8f1350c02908e788815c5a57c0c1f557673b274a94edee7a4fe001"
 dependencies = [
  "instability",
- "ratatui-core",
- "ratatui-crossterm",
- "ratatui-macros",
- "ratatui-termwiz",
- "ratatui-widgets",
+ "ratatui-core 0.1.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ratatui-crossterm 0.1.0-alpha.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ratatui-macros 0.7.0-alpha.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ratatui-termwiz 0.1.0-alpha.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ratatui-widgets 0.3.0-alpha.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ratatui"
+version = "0.30.0-alpha.5"
+source = "git+https://github.com/ratatui/ratatui?branch=main#cfebd68e18847f55f54f3610c863c8cfa4b4e49c"
+dependencies = [
+ "instability",
+ "ratatui-core 0.1.0-alpha.6 (git+https://github.com/ratatui/ratatui?branch=main)",
+ "ratatui-crossterm 0.1.0-alpha.5 (git+https://github.com/ratatui/ratatui?branch=main)",
+ "ratatui-macros 0.7.0-alpha.4 (git+https://github.com/ratatui/ratatui?branch=main)",
+ "ratatui-termwiz 0.1.0-alpha.5 (git+https://github.com/ratatui/ratatui?branch=main)",
+ "ratatui-widgets 0.3.0-alpha.5 (git+https://github.com/ratatui/ratatui?branch=main)",
 ]
 
 [[package]]
 name = "ratatui-core"
 version = "0.1.0-alpha.6"
-source = "git+https://github.com/ratatui/ratatui?branch=main#98f85b86502fca754ec25698298684e9acbda746"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f836b2eac888da74162b680a8facdbe784ae73df3b0f711eef74bb90a7477f78"
 dependencies = [
  "bitflags 2.9.1",
  "compact_str",
@@ -8162,7 +8986,26 @@ dependencies = [
  "itertools 0.14.0",
  "kasuari",
  "lru 0.14.0",
- "strum 0.27.1",
+ "strum 0.27.2",
+ "thiserror 2.0.12",
+ "unicode-segmentation",
+ "unicode-truncate",
+ "unicode-width 0.2.0",
+]
+
+[[package]]
+name = "ratatui-core"
+version = "0.1.0-alpha.6"
+source = "git+https://github.com/ratatui/ratatui?branch=main#cfebd68e18847f55f54f3610c863c8cfa4b4e49c"
+dependencies = [
+ "bitflags 2.9.1",
+ "compact_str",
+ "hashbrown 0.15.4",
+ "indoc",
+ "itertools 0.14.0",
+ "kasuari",
+ "lru 0.14.0",
+ "strum 0.27.2",
  "thiserror 2.0.12",
  "unicode-segmentation",
  "unicode-truncate",
@@ -8172,35 +9015,67 @@ dependencies = [
 [[package]]
 name = "ratatui-crossterm"
 version = "0.1.0-alpha.5"
-source = "git+https://github.com/ratatui/ratatui?branch=main#98f85b86502fca754ec25698298684e9acbda746"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22f4a90548bf8ed759d226d621d73561110db23aee7b7dc4e12c39ac7132062f"
 dependencies = [
  "crossterm",
  "instability",
- "ratatui-core",
+ "ratatui-core 0.1.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ratatui-crossterm"
+version = "0.1.0-alpha.5"
+source = "git+https://github.com/ratatui/ratatui?branch=main#cfebd68e18847f55f54f3610c863c8cfa4b4e49c"
+dependencies = [
+ "crossterm",
+ "instability",
+ "ratatui-core 0.1.0-alpha.6 (git+https://github.com/ratatui/ratatui?branch=main)",
 ]
 
 [[package]]
 name = "ratatui-macros"
 version = "0.7.0-alpha.4"
-source = "git+https://github.com/ratatui/ratatui?branch=main#98f85b86502fca754ec25698298684e9acbda746"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f4c660248a5a9edf95698cf33dc36a82ae48a918594480cdada340d81584e0b"
 dependencies = [
- "ratatui-core",
- "ratatui-widgets",
+ "ratatui-core 0.1.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ratatui-widgets 0.3.0-alpha.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ratatui-macros"
+version = "0.7.0-alpha.4"
+source = "git+https://github.com/ratatui/ratatui?branch=main#cfebd68e18847f55f54f3610c863c8cfa4b4e49c"
+dependencies = [
+ "ratatui-core 0.1.0-alpha.6 (git+https://github.com/ratatui/ratatui?branch=main)",
+ "ratatui-widgets 0.3.0-alpha.5 (git+https://github.com/ratatui/ratatui?branch=main)",
 ]
 
 [[package]]
 name = "ratatui-termwiz"
 version = "0.1.0-alpha.5"
-source = "git+https://github.com/ratatui/ratatui?branch=main#98f85b86502fca754ec25698298684e9acbda746"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cbb5d7645e56f06ead2a49a72b9cc05022f0b215ec7cdf39d37ed94e9a73d69"
 dependencies = [
- "ratatui-core",
+ "ratatui-core 0.1.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "termwiz",
+]
+
+[[package]]
+name = "ratatui-termwiz"
+version = "0.1.0-alpha.5"
+source = "git+https://github.com/ratatui/ratatui?branch=main#cfebd68e18847f55f54f3610c863c8cfa4b4e49c"
+dependencies = [
+ "ratatui-core 0.1.0-alpha.6 (git+https://github.com/ratatui/ratatui?branch=main)",
  "termwiz",
 ]
 
 [[package]]
 name = "ratatui-widgets"
 version = "0.3.0-alpha.5"
-source = "git+https://github.com/ratatui/ratatui?branch=main#98f85b86502fca754ec25698298684e9acbda746"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "388428527811be6da3e23157d951308d9eae4ce1b4d1d545a55673bbcdfb7326"
 dependencies = [
  "bitflags 2.9.1",
  "hashbrown 0.15.4",
@@ -8208,8 +9083,26 @@ dependencies = [
  "instability",
  "itertools 0.14.0",
  "line-clipping",
- "ratatui-core",
- "strum 0.27.1",
+ "ratatui-core 0.1.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "strum 0.27.2",
+ "time",
+ "unicode-segmentation",
+ "unicode-width 0.2.0",
+]
+
+[[package]]
+name = "ratatui-widgets"
+version = "0.3.0-alpha.5"
+source = "git+https://github.com/ratatui/ratatui?branch=main#cfebd68e18847f55f54f3610c863c8cfa4b4e49c"
+dependencies = [
+ "bitflags 2.9.1",
+ "hashbrown 0.15.4",
+ "indoc",
+ "instability",
+ "itertools 0.14.0",
+ "line-clipping",
+ "ratatui-core 0.1.0-alpha.6 (git+https://github.com/ratatui/ratatui?branch=main)",
+ "strum 0.27.2",
  "time",
  "unicode-segmentation",
  "unicode-width 0.2.0",
@@ -8236,7 +9129,7 @@ dependencies = [
  "maybe-rayon",
  "new_debug_unreachable",
  "noop_proc_macro",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "once_cell",
  "paste",
@@ -8532,7 +9425,14 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
+ "webpki-roots 1.0.2",
 ]
+
+[[package]]
+name = "resolv-conf"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95325155c684b1c89f7765e30bc1c42e4a6da51ca513615660cb8a62ef9a88e3"
 
 [[package]]
 name = "rgb"
@@ -8576,6 +9476,12 @@ dependencies = [
  "num-rational",
  "symphonia",
 ]
+
+[[package]]
+name = "roff"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88f8660c1ff60292143c98d08fc6e2f654d722db50410e3f3797d40baaf9d8f3"
 
 [[package]]
 name = "roxmltree"
@@ -8759,7 +9665,7 @@ dependencies = [
  "rustls-webpki 0.103.4",
  "security-framework 3.2.0",
  "security-framework-sys",
- "webpki-root-certs 1.0.1",
+ "webpki-root-certs 1.0.2",
  "windows-sys 0.59.0",
 ]
 
@@ -8872,7 +9778,7 @@ dependencies = [
  "rand 0.8.5",
  "screencapturekit",
  "screencapturekit-sys",
- "sysinfo",
+ "sysinfo 0.30.13",
  "tao-core-video-sys",
  "windows 0.58.0",
  "windows-capture",
@@ -8949,6 +9855,15 @@ dependencies = [
  "memmap2",
  "smithay-client-toolkit",
  "tiny-skia",
+]
+
+[[package]]
+name = "secrecy"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
+dependencies = [
+ "zeroize",
 ]
 
 [[package]]
@@ -9062,13 +9977,23 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.140"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
+checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
 dependencies = [
  "itoa",
  "memchr",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_path_to_error"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59fab13f937fa393d08645bf3a84bdfe86e296747b506ada67bb15f10f218b2a"
+dependencies = [
+ "itoa",
  "serde",
 ]
 
@@ -9097,6 +10022,15 @@ name = "serde_spanned"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf41e0cfaf7226dca15e8197172c295a782857fcb97fad1808a166870dee75a3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "serde_spanned"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40734c41988f7306bb04f0ecf60ec0f3f1caa34290e4e8ea471dcd3346483b83"
 dependencies = [
  "serde",
 ]
@@ -9298,6 +10232,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "simple-easing"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "832ddd7df0d98d6fd93b973c330b7c8e0742d5cb8f1afc7dea89dba4d2531aa1"
+
+[[package]]
+name = "simple_asn1"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "297f631f50729c8c99b84667867963997ec0b50f32b2a7dbcab828ef0541e8bb"
+dependencies = [
+ "num-bigint",
+ "num-traits",
+ "thiserror 2.0.12",
+ "time",
+]
+
+[[package]]
 name = "simplelog"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9419,6 +10371,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "snafu"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "320b01e011bf8d5d7a4a4a4be966d9160968935849c83b918827f6a435e7f627"
+dependencies = [
+ "snafu-derive",
+]
+
+[[package]]
+name = "snafu-derive"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1961e2ef424c1424204d3a5d6975f934f56b6d50ff5732382d84ebf460e147f7"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
 name = "snap"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9443,6 +10416,15 @@ dependencies = [
  "byteorder",
  "libc 0.2.174",
  "winapi",
+]
+
+[[package]]
+name = "spin"
+version = "0.9.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+dependencies = [
+ "lock_api",
 ]
 
 [[package]]
@@ -9513,11 +10495,11 @@ checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 
 [[package]]
 name = "strum"
-version = "0.27.1"
+version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f64def088c51c9510a8579e3c5d67c65349dcf755e5479ad3d010aa6454e2c32"
+checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
 dependencies = [
- "strum_macros 0.27.1",
+ "strum_macros 0.27.2",
 ]
 
 [[package]]
@@ -9535,25 +10517,24 @@ dependencies = [
 
 [[package]]
 name = "strum_macros"
-version = "0.27.1"
+version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c77a8c5abcaf0f9ce05d62342b7d298c346515365c36b673df4ebe3ced01fde8"
+checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "rustversion",
  "syn 2.0.104",
 ]
 
 [[package]]
 name = "subsecond"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "js-sys",
  "libc 0.2.174",
- "libloading",
+ "libloading 0.8.8",
  "memfd",
  "memmap2",
  "serde",
@@ -9566,8 +10547,8 @@ dependencies = [
 
 [[package]]
 name = "subsecond-types"
-version = "0.7.0-alpha.2"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=main#54d465a7b5a208876844b80cf5a98e5a3014eca4"
+version = "0.7.0-alpha.3"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=main#98f7667fb42fbefa8c4b74c67f157410aebf753e"
 dependencies = [
  "serde",
 ]
@@ -9577,32 +10558,6 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
-
-[[package]]
-name = "sugars_async_stream"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#abb4fdba226ca7147a77c34ee131147e1dc0810e"
-dependencies = [
- "futures",
- "parking_lot",
- "sugars_async_task 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
- "sugars_collections 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
- "tokio",
- "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
-]
-
-[[package]]
-name = "sugars_async_stream"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars#abb4fdba226ca7147a77c34ee131147e1dc0810e"
-dependencies = [
- "futures",
- "parking_lot",
- "sugars_async_task 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
- "sugars_collections 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
- "tokio",
- "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
-]
 
 [[package]]
 name = "sugars_async_stream"
@@ -9621,25 +10576,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "sugars_async_task"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+name = "sugars_async_stream"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
  "futures",
  "parking_lot",
- "sugars_collections 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "sugars_async_task 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "sugars_collections 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
  "tokio",
  "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
-name = "sugars_async_task"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+name = "sugars_async_stream"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
  "futures",
  "parking_lot",
- "sugars_collections 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "sugars_async_task 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "sugars_collections 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
  "tokio",
  "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
 ]
@@ -9658,30 +10615,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "sugars_builders"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+name = "sugars_async_task"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
- "hashbrown 0.15.4",
- "serde",
- "serde_json",
- "sugars_async_task 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
- "sugars_collections 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
- "sugars_macros 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "futures",
+ "parking_lot",
+ "sugars_collections 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "tokio",
  "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
-name = "sugars_builders"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+name = "sugars_async_task"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
- "hashbrown 0.15.4",
- "serde",
- "serde_json",
- "sugars_async_task 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
- "sugars_collections 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
- "sugars_macros 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "futures",
+ "parking_lot",
+ "sugars_collections 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "tokio",
  "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
 ]
 
@@ -9701,24 +10654,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "sugars_collections"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+name = "sugars_builders"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
  "hashbrown 0.15.4",
  "serde",
  "serde_json",
+ "sugars_async_task 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "sugars_collections 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "sugars_macros 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
  "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
-name = "sugars_collections"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+name = "sugars_builders"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
  "hashbrown 0.15.4",
  "serde",
  "serde_json",
+ "sugars_async_task 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "sugars_collections 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "sugars_macros 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
  "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
 ]
 
@@ -9735,24 +10694,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "sugars_gix"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+name = "sugars_collections"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
- "gix-hash",
  "hashbrown 0.15.4",
- "parking_lot",
+ "serde",
+ "serde_json",
  "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
-name = "sugars_gix"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+name = "sugars_collections"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
- "gix-hash",
  "hashbrown 0.15.4",
- "parking_lot",
+ "serde",
+ "serde_json",
  "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
 ]
 
@@ -9769,26 +10728,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "sugars_macros"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+name = "sugars_gix"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
+ "gix-hash",
  "hashbrown 0.15.4",
- "proc-macro2",
- "quote",
- "syn 2.0.104",
+ "parking_lot",
  "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
 ]
 
 [[package]]
-name = "sugars_macros"
-version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+name = "sugars_gix"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
+ "gix-hash",
  "hashbrown 0.15.4",
- "proc-macro2",
- "quote",
- "syn 2.0.104",
+ "parking_lot",
  "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
 ]
 
@@ -9803,6 +10760,32 @@ dependencies = [
  "quote",
  "syn 2.0.104",
  "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sugars_macros"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "hashbrown 0.15.4",
+ "proc-macro2",
+ "quote",
+ "sugars_collections 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+ "syn 2.0.104",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main)",
+]
+
+[[package]]
+name = "sugars_macros"
+version = "0.1.3"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars#a72046f9a431e6b5082c1b2f70768d5558bf0518"
+dependencies = [
+ "hashbrown 0.15.4",
+ "proc-macro2",
+ "quote",
+ "sugars_collections 0.1.3 (git+https://github.com/cyrup-ai/cyrup-sugars)",
+ "syn 2.0.104",
+ "workspace-hack 0.1.0 (git+https://github.com/cyrup-ai/cyrup-sugars)",
 ]
 
 [[package]]
@@ -10128,6 +11111,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sysinfo"
+version = "0.35.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c3ffa3e4ff2b324a57f7aeb3c349656c7b127c3c189520251a648102a92496e"
+dependencies = [
+ "libc 0.2.174",
+ "memchr",
+ "ntapi",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "windows 0.61.3",
+]
+
+[[package]]
 name = "system-configuration"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10191,6 +11188,25 @@ dependencies = [
  "strip-ansi-escapes",
  "unicode-width 0.1.14",
 ]
+
+[[package]]
+name = "tachyonfx"
+version = "0.15.0"
+dependencies = [
+ "anpa",
+ "bon",
+ "colorsys",
+ "compact_str",
+ "ratatui 0.30.0-alpha.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "simple-easing",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "tagptr"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
 
 [[package]]
 name = "tao-core-video-sys"
@@ -10308,7 +11324,7 @@ dependencies = [
  "log",
  "memmem",
  "nix 0.29.0",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "ordered-float 4.6.0",
  "pest",
@@ -10607,6 +11623,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -10707,9 +11724,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc1beb996b9d83529a9e75c17a1686767d148d70663143c7854d8b4a09ced362"
 dependencies = [
  "serde",
- "serde_spanned",
- "toml_datetime",
+ "serde_spanned 0.6.9",
+ "toml_datetime 0.6.11",
  "toml_edit",
+]
+
+[[package]]
+name = "toml"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed0aee96c12fa71097902e0bb061a5e1ebd766a6636bb605ba401c45c1650eac"
+dependencies = [
+ "indexmap 2.10.0",
+ "serde",
+ "serde_spanned 1.0.0",
+ "toml_datetime 0.7.0",
+ "toml_parser",
+ "toml_writer",
+ "winnow",
 ]
 
 [[package]]
@@ -10722,6 +11754,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml_datetime"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bade1c3e902f58d73d3f294cd7f20391c1cb2fbcb643b73566bc773971df91e3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "toml_edit"
 version = "0.22.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10729,9 +11770,18 @@ checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
 dependencies = [
  "indexmap 2.10.0",
  "serde",
- "serde_spanned",
- "toml_datetime",
+ "serde_spanned 0.6.9",
+ "toml_datetime 0.6.11",
  "toml_write",
+ "winnow",
+]
+
+[[package]]
+name = "toml_parser"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97200572db069e74c512a14117b296ba0a80a30123fbbb5aa1f4a348f639ca30"
+dependencies = [
  "winnow",
 ]
 
@@ -10740,6 +11790,12 @@ name = "toml_write"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
+
+[[package]]
+name = "toml_writer"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcc842091f2def52017664b53082ecbbeb5c7731092bad69d2c63050401dfd64"
 
 [[package]]
 name = "topology-traits"
@@ -10761,8 +11817,10 @@ dependencies = [
  "pin-project-lite",
  "sync_wrapper 1.0.2",
  "tokio",
+ "tokio-util",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -10781,6 +11839,7 @@ dependencies = [
  "tower",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -10801,6 +11860,7 @@ version = "0.1.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "784e0ac535deb450455cbfa28a6f0df145ea1bb7ae51b821cf5e7927fdcfbdd0"
 dependencies = [
+ "log",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",
@@ -11079,7 +12139,7 @@ checksum = "90b70b37e9074642bc5f60bb23247fd072a84314ca9e71cdf8527593406a0dd3"
 dependencies = [
  "gemm 0.18.2",
  "half",
- "libloading",
+ "libloading 0.8.8",
  "memmap2",
  "num",
  "num-traits",
@@ -11301,6 +12361,7 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]
@@ -11676,6 +12737,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
+ "serde",
  "wasm-bindgen",
 ]
 
@@ -11685,14 +12747,14 @@ version = "0.26.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75c7f0ef91146ebfb530314f5f1d24528d7f0767efbfd31dce919275413e393e"
 dependencies = [
- "webpki-root-certs 1.0.1",
+ "webpki-root-certs 1.0.2",
 ]
 
 [[package]]
 name = "webpki-root-certs"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86138b15b2b7d561bc4469e77027b8dd005a43dc502e9031d1f5afc8ce1f280e"
+checksum = "4e4ffd8df1c57e87c325000a3d6ef93db75279dc3a231125aac571650f22b12a"
 dependencies = [
  "rustls-pki-types",
 ]
@@ -11703,14 +12765,14 @@ version = "0.26.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "521bc38abb08001b01866da9f51eb7c5d647a19260e00054a8c7fd5f9e57f7a9"
 dependencies = [
- "webpki-roots 1.0.1",
+ "webpki-roots 1.0.2",
 ]
 
 [[package]]
 name = "webpki-roots"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8782dd5a41a24eed3a4f40b606249b3e236ca61adf1f25ea4d45c73de122b502"
+checksum = "7e8983c3ab33d6fb807cfcdad2491c4ea8cbc8ed839181c7dfd9c67c83e261b2"
 dependencies = [
  "rustls-pki-types",
 ]
@@ -11919,7 +12981,7 @@ dependencies = [
  "js-sys",
  "khronos-egl",
  "libc 1.0.0-alpha.1",
- "libloading",
+ "libloading 0.8.8",
  "log",
  "metal 0.32.0",
  "naga",
@@ -11975,6 +13037,12 @@ dependencies = [
  "bytemuck",
  "safe_arch",
 ]
+
+[[package]]
+name = "widestring"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd7cf3379ca1aac9eea11fba24fd7e315d621f8dfe35c8d7d2be8b793726e07d"
 
 [[package]]
 name = "winapi"
@@ -12645,7 +13713,7 @@ checksum = "beffa227304dbaea3ad6a06ac674f9bc83a3dec3b7f63eeb442de37e7cb6bb01"
 [[package]]
 name = "workspace-hack"
 version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars.git?branch=main#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
  "futures-core",
  "hashbrown 0.15.4",
@@ -12660,7 +13728,7 @@ dependencies = [
 [[package]]
 name = "workspace-hack"
 version = "0.1.0"
-source = "git+https://github.com/cyrup-ai/cyrup-sugars#abb4fdba226ca7147a77c34ee131147e1dc0810e"
+source = "git+https://github.com/cyrup-ai/cyrup-sugars#a72046f9a431e6b5082c1b2f70768d5558bf0518"
 dependencies = [
  "futures-core",
  "hashbrown 0.15.4",
@@ -12698,7 +13766,7 @@ dependencies = [
  "as-raw-xcb-connection",
  "gethostname",
  "libc 0.2.174",
- "libloading",
+ "libloading 0.8.8",
  "once_cell",
  "rustix 0.38.44",
  "x11rb-protocol",

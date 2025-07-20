@@ -3,8 +3,18 @@
 //! This example trains a wake word model for "syrup" using the existing
 //! training samples in the syrup_training/ directory.
 //!
-//! Usage: cargo run --example train_syrup
+//! Usage:
+//!   cargo run --example train_syrup -- [OPTIONS]
+//!
+//! Options:
+//!   -m, --model-type TYPE  Model type: 0=Tiny, 1=Small (default), 2=Medium, 3=Large
+//!   -l, --learning-rate LR Learning rate (default: 0.001)
+//!   -e, --epochs N         Number of training epochs (default: 20)
+//!   -b, --batch-size N     Batch size (default: 2)
+//!   -o, --output FILE      Output model file (default: syrup_new.rpw)
+//!   -h, --help             Print help
 
+use clap::Parser;
 use koffee::{
     ModelType,
     wakewords::{
@@ -16,15 +26,49 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+/// Command line arguments for the training script
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Model type: 0=Tiny, 1=Small (default), 2=Medium, 3=Large
+    #[arg(short, long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(0..=3))]
+    model_type: u8,
+
+    /// Learning rate
+    #[arg(short, long, default_value_t = 0.001)]
+    learning_rate: f64,
+
+    /// Number of training epochs
+    #[arg(short, long, default_value_t = 20)]
+    epochs: usize,
+
+    /// Batch size
+    #[arg(short, long, default_value_t = 2)]
+    batch_size: usize,
+
+    /// Output model file
+    #[arg(short, long, default_value = "syrup_new.rpw")]
+    output: String,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🍯 Training 'Syrup' Wake Word Model");
     println!("==================================");
     println!();
 
+    // Parse command line arguments
+    let args = Args::parse();
+
     // Training configuration
     let training_dir = "syrup_training";
-    let output_model = "syrup_new.rpw";
-    let model_type = ModelType::Small; // Small model for quick training and response
+    let output_model = &args.output;
+    let model_type = match args.model_type {
+        0 => ModelType::Tiny,
+        1 => ModelType::Small,
+        2 => ModelType::Medium,
+        3 => ModelType::Large,
+        _ => ModelType::Small, // Default to Small
+    };
 
     // Check if training directory exists
     if !Path::new(training_dir).exists() {
@@ -55,9 +99,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configure training with optimal settings for wake word detection
     let train_options = WakewordModelTrainOptions {
         model_type: model_type as u8,
-        lr: 0.001,
-        epochs: 20,    // Reduced epochs for stability
-        batch_size: 2, // Even smaller batch size for very limited data
+        lr: args.learning_rate,
+        epochs: args.epochs,
+        batch_size: args.batch_size,
         ..Default::default()
     };
 
@@ -93,15 +137,57 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!();
 
     // Save the model
-    println!("💾 Saving model to: {}", output_model);
-    model.save_to_file(output_model)?;
+    let output_path = Path::new(output_model);
+    let output_dir = output_path.parent().unwrap_or_else(|| Path::new("."));
+    let output_filename = output_path
+        .file_name()
+        .unwrap_or_else(|| "syrup.rpw".as_ref());
 
-    println!("✅ Model saved successfully!");
+    // Create output directory if it doesn't exist
+    if !output_dir.exists() {
+        fs::create_dir_all(output_dir)?;
+    }
 
-    // Replace the old model
-    if Path::new("syrup.rpw").exists() {
-        println!("🔄 Backing up old model to syrup_old.rpw");
-        fs::rename("syrup.rpw", "syrup_old.rpw")?;
+    let output_path = output_dir.join(output_filename);
+    let output_path_str = output_path.to_str().unwrap_or("unknown");
+
+    println!("💾 Saving model to: {}", output_path.display());
+    model.save_to_file(&output_path_str)?;
+    println!("✅ Model saved successfully to: {}", output_path.display());
+
+    // Create a symlink to the default location if not already there
+    let default_path = Path::new("syrup.rpw");
+    if output_path != default_path {
+        if default_path.exists() {
+            let backup_path = Path::new("syrup_old.rpw");
+            println!("🔄 Backing up old model to: {}", backup_path.display());
+            if backup_path.exists() {
+                fs::remove_file(backup_path)?;
+            }
+            fs::rename(default_path, backup_path)?;
+        }
+
+        // Create a symlink if possible, otherwise copy the file
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&output_path, default_path).unwrap_or_else(|_| {
+            println!("⚠️  Could not create symlink, copying file instead");
+            fs::copy(&output_path, default_path).expect("Failed to copy model file");
+        });
+
+        #[cfg(not(unix))]
+        {
+            println!(
+                "⚠️  Copying model to default location: {}",
+                default_path.display()
+            );
+            fs::copy(&output_path, default_path).expect("Failed to copy model file");
+        }
+
+        println!(
+            "🔗 Created shortcut: {} -> {}",
+            default_path.display(),
+            output_path.display()
+        );
     }
 
     println!("📋 Moving new model to syrup.rpw");

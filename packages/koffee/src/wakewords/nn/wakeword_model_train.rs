@@ -333,8 +333,8 @@ pub fn train(
     let batches = tr_x.len().div_ceil(opts.batch_size);
     let mut best_val = f32::INFINITY;
     let mut epochs_no_improve = 0usize;
-    // keep a snapshot of the best weights
-    let mut best_weights: Option<Vec<u8>> = None;
+    // keep a snapshot of the best weights as ModelWeights::Map
+    let mut best_weights: Option<ModelWeights> = None;
     // cosine schedule support
     let cosine = opts.lr_decay.is_sign_negative();
 
@@ -356,7 +356,7 @@ pub fn train(
             epoch_loss += f32::try_from(&loss)?;
 
             // -------- per-batch validation -----------------
-            if global_step % opts.test_every == 0 {
+            if global_step.is_multiple_of(opts.test_every) {
                 let v_logits = forward_fn(&batched_val_x)?;
                 let v_loss = nn::loss::cross_entropy(&v_logits, &val_y_t)?;
                 best_val = best_val.min(f32::try_from(&v_loss)?);
@@ -372,9 +372,6 @@ pub fn train(
         if vloss < best_val - 1e-6 {
             best_val = vloss;
             epochs_no_improve = 0;
-            // Serialize to Ciborium (CBOR) format
-            let mut buf = Vec::<u8>::new();
-
             // Handle potential poisoned mutex
             let lock_result = var_map.data().lock();
             let guard = match lock_result {
@@ -404,12 +401,8 @@ pub fn train(
                 );
             }
 
-            // Wrap in ModelWeights
-            let weights = ModelWeights::Map(tensors);
-
-            // Serialize
-            ciborium::into_writer(&weights, &mut buf)?;
-            best_weights = Some(buf);
+            // Store weights as ModelWeights::Map directly
+            best_weights = Some(ModelWeights::Map(tensors));
         } else {
             epochs_no_improve += 1;
             if epochs_no_improve >= opts.early_stop_pat {
@@ -446,14 +439,11 @@ pub fn train(
 
     /* ---------- 5. Pack result ---------- */
 
-    // use best checkpoint if we have one, otherwise current weights
-    let weights_bytes = if let Some(w) = best_weights {
-        w
+    // Get the final weights - either the best checkpoint or current weights
+    let final_weights = if let Some(weights) = best_weights {
+        weights
     } else {
-        // serialise current weights if no better snapshot
-        let mut buf = Vec::<u8>::new();
-
-        // Handle potential poisoned mutex
+        // Get current weights if no better snapshot exists
         let lock_result = var_map.data().lock();
         let guard = match lock_result {
             Ok(g) => g,
@@ -482,20 +472,20 @@ pub fn train(
             );
         }
 
-        // Wrap in ModelWeights
-        let weights = ModelWeights::Map(tensors);
-
-        // Serialize
-        ciborium::into_writer(&weights, &mut buf)?;
-        buf
+        // Return as ModelWeights::Map directly
+        ModelWeights::Map(tensors)
     };
 
+    // Convert the model type from the training options to the proper enum
+    let model_type = ModelType::from(opts.model_type);
+    log::debug!("Saving model with type: {:?}", model_type);
+
     Ok(WakewordModel::new(
-        labels,                            // Vec<String> – must include "none"
-        tr_x.len(),                        // train_size  (number of KFC frames)
-        (COEFFS as u16, FRAMES as u16),    // kfc_size
-        ModelType::Tiny,                   // m_type – default; can be param-ised
-        ModelWeights::from(weights_bytes), // best weights
-        (rms_train + rms_val) * 0.5,       // rms_level   (median RMS of samples)
+        labels,                         // Vec<String> – must include "none"
+        tr_x.len(),                     // train_size  (number of KFC frames)
+        (COEFFS as u16, FRAMES as u16), // kfc_size
+        model_type,                     // Use the model type from training options
+        final_weights,                  // best weights as ModelWeights::Map
+        (rms_train + rms_val) * 0.5,    // rms_level   (median RMS of samples)
     ))
 }
