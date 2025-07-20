@@ -13,7 +13,7 @@ use clap::{Parser, ValueEnum};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use flate2::{Compression as GzCompression, write::GzEncoder};
 use futures::stream::Stream;
-use hf_hub::{Repo, RepoType, api::sync::Api};
+use progresshub_client_selector::{Client, DownloadConfig, Backend};
 use rand::SeedableRng;
 use rand_distr::{Distribution, weighted::WeightedIndex};
 #[cfg(feature = "microphone")]
@@ -729,14 +729,36 @@ pub fn record() -> impl Stream<Item = Result<TranscriptionSegmentImpl>> {
             (None, None) => (default_model, default_revision),
         };
 
-        let api = match Api::new() {
-            Ok(api) => api,
+        // Download model using real progresshub client
+        let client = Client::new(Backend::Auto);
+        let config = DownloadConfig {
+            destination: match dirs::cache_dir() {
+                Some(dir) => dir.join("fluent-voice").join("whisper").join(&model_id),
+                None => {
+                    yield Err(anyhow::anyhow!("Cannot determine cache directory").into());
+                    return;
+                }
+            },
+            show_progress: false,
+            use_cache: true,
+        };
+
+        let download_result = match client.download_model_auto(&model_id, &config, None).await {
+            Ok(result) => result,
             Err(e) => {
-                yield Err(anyhow::anyhow!("Failed to create API client: {}", e).into());
+                yield Err(anyhow::anyhow!("Model download failed: {}", e).into());
                 return;
             }
         };
-        let repo = api.repo(Repo::with_revision(model_id, RepoType::Model, revision));
+
+        let model_files = match download_result.models.first() {
+            Some(model) => &model.files,
+            None => {
+                yield Err(anyhow::anyhow!("No models in download result").into());
+                return;
+            }
+        };
+
         let (config_filename, tokenizer_filename, weights_filename) = if args.quantized {
             let ext = match args.model {
                 WhichModel::TinyEn => "tiny-en",
@@ -746,23 +768,57 @@ pub fn record() -> impl Stream<Item = Result<TranscriptionSegmentImpl>> {
                     return;
                 }
             };
-            match (
-                repo.get(&format!("config-{ext}.json")),
-                repo.get(&format!("tokenizer-{ext}.json")),
-                repo.get(&format!("model-{ext}-q80.gguf")),
-            ) {
-                (Ok(config), Ok(tokenizer), Ok(model)) => (config, tokenizer, model),
-                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
-                    yield Err(anyhow::anyhow!("Failed to get model files: {}", e).into());
+            let config = match model_files.iter()
+                .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("config-{ext}.json"))) {
+                Some(file) => file.path.clone(),
+                None => {
+                    yield Err(anyhow::anyhow!("config-{ext}.json not found").into());
                     return;
                 }
-            }
+            };
+            let tokenizer = match model_files.iter()
+                .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("tokenizer-{ext}.json"))) {
+                Some(file) => file.path.clone(),
+                None => {
+                    yield Err(anyhow::anyhow!("tokenizer-{ext}.json not found").into());
+                    return;
+                }
+            };
+            let model = match model_files.iter()
+                .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("model-{ext}-q80.gguf"))) {
+                Some(file) => file.path.clone(),
+                None => {
+                    yield Err(anyhow::anyhow!("model-{ext}-q80.gguf not found").into());
+                    return;
+                }
+            };
+            (config, tokenizer, model)
         } else {
-            match (
-                repo.get("config.json"),
-                repo.get("tokenizer.json"),
-                repo.get("model.safetensors"),
-            ) {
+            let config = match model_files.iter()
+                .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("config.json")) {
+                Some(file) => file.path.clone(),
+                None => {
+                    yield Err(anyhow::anyhow!("config.json not found").into());
+                    return;
+                }
+            };
+            let tokenizer = match model_files.iter()
+                .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("tokenizer.json")) {
+                Some(file) => file.path.clone(),
+                None => {
+                    yield Err(anyhow::anyhow!("tokenizer.json not found").into());
+                    return;
+                }
+            };
+            let model = match model_files.iter()
+                .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("model.safetensors")) {
+                Some(file) => file.path.clone(),
+                None => {
+                    yield Err(anyhow::anyhow!("model.safetensors not found").into());
+                    return;
+                }
+            };
+            (config, tokenizer, model)
                 (Ok(config), Ok(tokenizer), Ok(model)) => (config, tokenizer, model),
                 (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
                     yield Err(anyhow::anyhow!("Failed to get model files: {}", e).into());

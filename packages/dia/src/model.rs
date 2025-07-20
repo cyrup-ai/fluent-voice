@@ -24,80 +24,64 @@ use crate::{
 // ---------- optional EnCodec round-trip -----------------------------------
 
 use candle_transformers::models::encodec::{Config as EncodecCfg, Model as EncodecModel};
-use progresshub_client_selector::Client as ProgressHubClient;
-use progresshub_config::DownloadConfig;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use progresshub_client_selector::{Client, DownloadConfig, Backend};
+use std::sync::OnceLock;
 
-/// Zero-allocation, lock-free EnCodec model storage using atomic pointer
-static ENCODEC: AtomicPtr<EncodecModel> = AtomicPtr::new(std::ptr::null_mut());
-
-/// Custom error type for semantic model loading errors
+/// Error type for model operations
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
-    #[error("Model download failed: {0}")]
-    DownloadError(#[from] anyhow::Error),
-    #[error("Model loading failed: {0}")]
+    #[error("Loading error: {0}")]
     LoadingError(#[from] candle_core::Error),
-    #[error("Model initialization failed: {0}")]
-    InitializationError(String),
+    #[error("Model error: {0}")]
+    ModelError(String),
 }
 
-/// Zero-allocation, blazing-fast EnCodec model loading with progresshub integration
-pub async fn load_encodec(device: &Device) -> Result<&'static EncodecModel, ModelError> {
-    // Check if already loaded using lock-free atomic access
-    let existing = ENCODEC.load(Ordering::Acquire);
-    if !existing.is_null() {
-        return Ok(unsafe { &*existing });
+/// Zero-allocation, lock-free EnCodec model storage
+static ENCODEC: OnceLock<EncodecModel> = OnceLock::new();
+
+/// Load EnCodec model using real progresshub with zero-allocation caching
+pub async fn load_encodec(device: &Device) -> Result<&'static EncodecModel, candle_core::Error> {
+    if let Some(model) = ENCODEC.get() {
+        return Ok(model);
     }
 
-    // Download model using progresshub with automatic backend selection
-    let client = ProgressHubClient::new().map_err(|e| ModelError::InitializationError(format!("Failed to create progresshub client: {}", e)))?;
-    
+    // Download model using real progresshub client selector
+    let client = Client::new(Backend::Auto);
     let config = DownloadConfig {
-        destination: None, // Use default cache location
-        show_progress: false, // No UI progress for background loading
-        use_cache: true, // Enable efficient caching
+        destination: dirs::cache_dir()
+            .ok_or_else(|| candle_core::Error::Msg("Cannot determine cache directory".to_string()))?
+            .join("fluent-voice")
+            .join("encodec"),
+        show_progress: false,
+        use_cache: true,
     };
 
     let download_result = client
-        .download_model("facebook/encodec_24khz", config)
+        .download_model_auto("facebook/encodec_24khz", &config, None)
         .await
-        .map_err(ModelError::DownloadError)?;
+        .map_err(|e| candle_core::Error::Msg(format!("Model download failed: {}", e)))?;
 
     // Find the model.safetensors file in downloaded files
     let weights_path = download_result
-        .file_paths
+        .models
+        .first()
+        .ok_or_else(|| candle_core::Error::Msg("No models in download result".to_string()))?
+        .files
         .iter()
-        .find(|path| path.file_name().and_then(|n| n.to_str()) == Some("model.safetensors"))
-        .ok_or_else(|| ModelError::InitializationError("model.safetensors not found in downloaded files".to_string()))?;
+        .find(|file| file.path.file_name().and_then(|n| n.to_str()) == Some("model.safetensors"))
+        .ok_or_else(|| candle_core::Error::Msg("model.safetensors not found in downloaded files".to_string()))?;
 
     // Load model with zero-allocation memory mapping
     let vb = unsafe { 
-        VarBuilder::from_mmaped_safetensors(&[weights_path], DType::F32, device)
-            .map_err(ModelError::LoadingError)?
+        VarBuilder::from_mmaped_safetensors(&[&weights_path.path], DType::F32, device)?
     };
     
-    let model = EncodecModel::new(&EncodecCfg::default(), vb)
-        .map_err(ModelError::LoadingError)?;
+    let model = EncodecModel::new(&EncodecCfg::default(), vb)?;
 
-    // Atomic initialization - only one thread succeeds, others use the result
-    let model_ptr = Box::into_raw(Box::new(model));
-    match ENCODEC.compare_exchange_weak(
-        std::ptr::null_mut(),
-        model_ptr,
-        Ordering::Release,
-        Ordering::Relaxed,
-    ) {
-        Ok(_) => {
-            // Successfully installed our model
-            Ok(unsafe { &*model_ptr })
-        }
-        Err(existing_ptr) => {
-            // Another thread beat us to it, clean up our model and use theirs
-            unsafe { Box::from_raw(model_ptr) }; // Clean up our allocation
-            Ok(unsafe { &*existing_ptr })
-        }
-    }
+    // Store in OnceLock - only first thread succeeds, others get the cached version
+    ENCODEC.set(model).map_err(|_| candle_core::Error::Msg("Failed to cache EnCodec model".to_string()))?;
+    
+    Ok(ENCODEC.get().unwrap())
 }
 
 // -------------------------------------------------------------------------

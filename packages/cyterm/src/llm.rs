@@ -20,6 +20,7 @@ use candle_core::{Device, Tensor};
     feature = "mkl"
 ))]
 use candle_transformers::models::llama2_c as m;
+use progresshub_client_selector::{Client, DownloadConfig, Backend};
 use tokenizers::Tokenizer;
 
 pub struct LlmConfig {
@@ -52,9 +53,32 @@ fn llm_loop(
     prompt_rx: Receiver<String>,
     reply_tx: Sender<String>,
 ) -> anyhow::Result<()> {
-    let weights_path = hf_hub::api::sync::Api::new()?
-        .repo(hf_hub::Repo::model(cfg.model_id.clone()))
-        .get(&cfg.which_bin)?;
+    // Download model using real progresshub client
+    let client = Client::new(Backend::Auto);
+    let model_config = DownloadConfig {
+        destination: dirs::cache_dir()
+            .ok_or_else(|| anyhow::anyhow!("Cannot determine cache directory"))?
+            .join("fluent-voice")
+            .join("llama2c")
+            .join(&cfg.model_id),
+        show_progress: false,
+        use_cache: true,
+    };
+
+    let model_download = client
+        .download_model_auto(&cfg.model_id, &model_config, None)
+        .await?;
+
+    let weights_path = model_download
+        .models
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("No models in download result"))?
+        .files
+        .iter()
+        .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&cfg.which_bin))
+        .ok_or_else(|| anyhow::anyhow!("Model weights file not found"))?
+        .path
+        .clone();
 
     let mut file = std::fs::File::open(weights_path)?;
     let config = m::Config::from_reader(&mut file)?;
@@ -63,10 +87,30 @@ fn llm_loop(
     let mut cache = m::Cache::new(true, &config, vb.pp("rot"))?;
     let llama = m::Llama::load(vb, config.clone())?;
 
-    let tokenizer = hf_hub::api::sync::Api::new()?
-        .model("hf-internal-testing/llama-tokenizer".to_string())
-        .get("tokenizer.json")?;
-    let tokenizer = Tokenizer::from_file(tokenizer)?;
+    let tokenizer_config = DownloadConfig {
+        destination: dirs::cache_dir()
+            .ok_or_else(|| anyhow::anyhow!("Cannot determine cache directory"))?
+            .join("fluent-voice")
+            .join("tokenizer"),
+        show_progress: false,
+        use_cache: true,
+    };
+
+    let tokenizer_download = client
+        .download_model_auto("hf-internal-testing/llama-tokenizer", &tokenizer_config, None)
+        .await?;
+
+    let tokenizer_path = tokenizer_download
+        .models
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("No tokenizer in download result"))?
+        .files
+        .iter()
+        .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("tokenizer.json"))
+        .ok_or_else(|| anyhow::anyhow!("tokenizer.json not found"))?
+        .path
+        .clone();
+    let tokenizer = Tokenizer::from_file(tokenizer_path)?;
 
     loop {
         // block on a sentence from the ASR pipeline

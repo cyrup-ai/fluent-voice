@@ -13,7 +13,7 @@ use anyhow::{Error as E, Result};
 use candle_core::{Device, IndexOp, Tensor};
 use candle_nn::{VarBuilder, ops::softmax};
 use clap::{Parser, ValueEnum};
-use hf_hub::{Repo, RepoType, api::sync::Api};
+use progresshub_client_selector::{Client, DownloadConfig, Backend};
 use rand::SeedableRng;
 use rand::distr::Distribution;
 use rand::distr::weighted::WeightedIndex;
@@ -499,7 +499,8 @@ struct Args {
 }
 
 #[allow(dead_code)] // Development/testing binary - not used in library
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     use tracing_chrome::ChromeLayerBuilder;
     use tracing_subscriber::prelude::*;
 
@@ -527,37 +528,101 @@ fn main() -> Result<()> {
     };
 
     let (config_filename, tokenizer_filename, _weights_filename, _input) = {
-        let api = Api::new()?;
-        let dataset = api.dataset("Narsil/candle-examples".to_string());
-        let repo = api.repo(Repo::with_revision(model_id, RepoType::Model, revision));
+        // Download model using real progresshub client
+        let client = Client::new(Backend::Auto);
+        let model_config = DownloadConfig {
+            destination: dirs::cache_dir()
+                .ok_or_else(|| anyhow::anyhow!("Cannot determine cache directory"))?
+                .join("fluent-voice")
+                .join("whisper")
+                .join(model_id),
+            show_progress: false,
+            use_cache: true,
+        };
+
+        let model_download = client
+            .download_model_auto(&model_id, &model_config, None)
+            .await?;
+
+        let dataset_config = DownloadConfig {
+            destination: dirs::cache_dir()
+                .ok_or_else(|| anyhow::anyhow!("Cannot determine cache directory"))?
+                .join("fluent-voice")
+                .join("candle-examples"),
+            show_progress: false,
+            use_cache: true,
+        };
+
+        let dataset_download = client
+            .download_model_auto("Narsil/candle-examples", &dataset_config, None)
+            .await?;
+
+        let model_files = &model_download
+            .models
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("No models in download result"))?
+            .files;
+
+        let dataset_files = &dataset_download
+            .models
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("No dataset in download result"))?
+            .files;
+
         let sample = if let Some(input) = args.input {
             if let Some(sample) = input.strip_prefix("sample:") {
-                dataset.get(&format!("samples_{sample}.wav"))?
+                dataset_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("samples_{sample}.wav")))
+                    .ok_or_else(|| anyhow::anyhow!("Sample file not found"))?
+                    .path.clone()
             } else {
                 std::path::PathBuf::from(input)
             }
         } else {
             println!(
-                "No audio file submitted: Downloading https://huggingface.co/datasets/Narsil/candle_demo/blob/main/samples_jfk.wav"
+                "No audio file submitted: Using downloaded samples_jfk.wav"
             );
-            dataset.get("samples_jfk.wav")?
+            dataset_files.iter()
+                .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("samples_jfk.wav"))
+                .ok_or_else(|| anyhow::anyhow!("samples_jfk.wav not found"))?
+                .path.clone()
         };
+
         let (config, tokenizer, model) = if args.quantized {
             let ext = match args.model {
                 WhichModel::TinyEn => "tiny-en",
                 WhichModel::Tiny => "tiny",
-                _ => unimplemented!("no quantized support for {:?}", args.model),
+                _ => anyhow::bail!("no quantized support for {:?}", args.model),
             };
             (
-                repo.get(&format!("config-{ext}.json"))?,
-                repo.get(&format!("tokenizer-{ext}.json"))?,
-                repo.get(&format!("model-{ext}-q80.gguf"))?,
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("config-{ext}.json")))
+                    .ok_or_else(|| anyhow::anyhow!("config-{ext}.json not found"))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("tokenizer-{ext}.json")))
+                    .ok_or_else(|| anyhow::anyhow!("tokenizer-{ext}.json not found"))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("model-{ext}-q80.gguf")))
+                    .ok_or_else(|| anyhow::anyhow!("model-{ext}-q80.gguf not found"))?
+                    .path.clone(),
             )
         } else {
-            let config = repo.get("config.json")?;
-            let tokenizer = repo.get("tokenizer.json")?;
-            let model = repo.get("model.safetensors")?;
-            (config, tokenizer, model)
+            (
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("config.json"))
+                    .ok_or_else(|| anyhow::anyhow!("config.json not found"))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("tokenizer.json"))
+                    .ok_or_else(|| anyhow::anyhow!("tokenizer.json not found"))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("model.safetensors"))
+                    .ok_or_else(|| anyhow::anyhow!("model.safetensors not found"))?
+                    .path.clone(),
+            )
         };
         (config, tokenizer, model, sample)
     };

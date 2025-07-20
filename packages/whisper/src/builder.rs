@@ -15,7 +15,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use candle_core::{Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::whisper::{self as m, Config};
-use hf_hub::{Repo, RepoType, api::sync::Api};
+use progresshub_client_selector::{Client, DownloadConfig, Backend};
 use std::path::PathBuf;
 use tokenizers::Tokenizer;
 
@@ -232,12 +232,28 @@ impl WhisperTranscriber {
             .unwrap_or(default_model);
         let revision = "main";
 
-        let api = Api::new().map_err(|e| VoiceError::ProcessingError(e.to_string()))?;
-        let repo = api.repo(Repo::with_revision(
-            model_id.to_string(),
-            RepoType::Model,
-            revision.to_string(),
-        ));
+        // Download model using real progresshub client
+        let client = Client::new(Backend::Auto);
+        let config = DownloadConfig {
+            destination: dirs::cache_dir()
+                .ok_or_else(|| VoiceError::ProcessingError("Cannot determine cache directory".to_string()))?
+                .join("fluent-voice")
+                .join("whisper")
+                .join(model_id),
+            show_progress: false,
+            use_cache: true,
+        };
+
+        let download_result = client
+            .download_model_auto(model_id, &config, None)
+            .await
+            .map_err(|e| VoiceError::ProcessingError(format!("Model download failed: {}", e)))?;
+
+        let model_files = &download_result
+            .models
+            .first()
+            .ok_or_else(|| VoiceError::ProcessingError("No models in download result".to_string()))?
+            .files;
 
         let (config_filename, tokenizer_filename, weights_filename) = if self.config.quantized {
             let ext = match self.config.which_model {
@@ -251,21 +267,33 @@ impl WhisperTranscriber {
                 }
             };
             (
-                repo.get(&format!("config-{ext}.json"))
-                    .map_err(|e| VoiceError::ProcessingError(e.to_string()))?,
-                repo.get(&format!("tokenizer-{ext}.json"))
-                    .map_err(|e| VoiceError::ProcessingError(e.to_string()))?,
-                repo.get(&format!("model-{ext}-q80.gguf"))
-                    .map_err(|e| VoiceError::ProcessingError(e.to_string()))?,
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("config-{ext}.json")))
+                    .ok_or_else(|| VoiceError::ProcessingError(format!("config-{ext}.json not found")))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("tokenizer-{ext}.json")))
+                    .ok_or_else(|| VoiceError::ProcessingError(format!("tokenizer-{ext}.json not found")))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("model-{ext}-q80.gguf")))
+                    .ok_or_else(|| VoiceError::ProcessingError(format!("model-{ext}-q80.gguf not found")))?
+                    .path.clone(),
             )
         } else {
             (
-                repo.get("config.json")
-                    .map_err(|e| VoiceError::ProcessingError(e.to_string()))?,
-                repo.get("tokenizer.json")
-                    .map_err(|e| VoiceError::ProcessingError(e.to_string()))?,
-                repo.get("model.safetensors")
-                    .map_err(|e| VoiceError::ProcessingError(e.to_string()))?,
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("config.json"))
+                    .ok_or_else(|| VoiceError::ProcessingError("config.json not found".to_string()))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("tokenizer.json"))
+                    .ok_or_else(|| VoiceError::ProcessingError("tokenizer.json not found".to_string()))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("model.safetensors"))
+                    .ok_or_else(|| VoiceError::ProcessingError("model.safetensors not found".to_string()))?
+                    .path.clone(),
             )
         };
 

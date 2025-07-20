@@ -28,8 +28,9 @@ use std::time::{Duration, Instant};
 use crossbeam_channel::{bounded, Receiver, Sender, TryRecvError};
 use tracing::{debug, error, info, instrument, warn};
 
-use crate::config::{KoffeeCandleConfig, ModelType};
-use crate::detector::KoffeeCandle;
+use crate::config::KoffeeCandleConfig;
+use crate::wakewords::wakeword_model::ModelType;
+use crate::KoffeeCandle;
 use crate::wakewords::{WakewordLoad, WakewordModel};
 
 /// Wake/Unwake state enumeration
@@ -514,45 +515,34 @@ impl WakeUnwakeDetector {
     ) {
         metrics.add_samples_processed(samples.len() as u64);
         
-        match detector.process_samples(samples) {
-            Ok(detections) => {
-                for detection in detections {
-                    if detection.score >= config.confidence_threshold {
-                        let current_state_val = current_state.load(Ordering::Acquire);
-                        let timestamp = Instant::now();
+        if let Some(detection) = detector.process_samples(samples) {
+            if detection.score >= config.confidence_threshold {
+                let current_state_val = current_state.load(Ordering::Acquire);
+                let timestamp = Instant::now();
+                
+                match current_state_val {
+                    0 => { // Sleep state - wake word detected
+                        metrics.increment_wake_detections();
+                        debug!("Wake word detected with confidence: {}", detection.score);
                         
-                        match current_state_val {
-                            0 => { // Sleep state - wake word detected
-                                metrics.increment_wake_detections();
-                                debug!("Wake word detected with confidence: {}", detection.score);
-                                
-                                let _ = event_sender.try_send(DetectorEvent::WakeDetected {
-                                    confidence: detection.score,
-                                    timestamp,
-                                });
-                            }
-                            1 => { // Awake state - unwake word detected
-                                metrics.increment_unwake_detections();
-                                debug!("Unwake word detected with confidence: {}", detection.score);
-                                
-                                let _ = event_sender.try_send(DetectorEvent::UnwakeDetected {
-                                    confidence: detection.score,
-                                    timestamp,
-                                });
-                            }
-                            _ => {
-                                warn!("Invalid state value: {}", current_state_val);
-                            }
-                        }
+                        let _ = event_sender.try_send(DetectorEvent::WakeDetected {
+                            confidence: detection.score,
+                            timestamp,
+                        });
+                    }
+                    1 => { // Awake state - unwake word detected
+                        metrics.increment_unwake_detections();
+                        debug!("Unwake word detected with confidence: {}", detection.score);
+                        
+                        let _ = event_sender.try_send(DetectorEvent::UnwakeDetected {
+                            confidence: detection.score,
+                            timestamp,
+                        });
+                    }
+                    _ => {
+                        warn!("Invalid state value: {}", current_state_val);
                     }
                 }
-            }
-            Err(e) => {
-                error!("Error processing samples: {}", e);
-                let _ = event_sender.try_send(DetectorEvent::Error {
-                    message: format!("Error processing samples: {}", e),
-                    timestamp: Instant::now(),
-                });
             }
         }
     }

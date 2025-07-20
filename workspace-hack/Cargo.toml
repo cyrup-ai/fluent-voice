@@ -62,6 +62,7 @@ memmap2 = { version = "0.9", default-features = false, features = ["stable_deref
 miniz_oxide = { version = "0.8", features = ["simd"] }
 mio = { version = "1", features = ["net", "os-ext"] }
 ndarray = { version = "0.16" }
+num-bigint = { version = "0.4", default-features = false, features = ["std"] }
 num-complex = { version = "0.4", features = ["bytemuck"] }
 num-integer = { version = "0.1", features = ["i128"] }
 num-rational = { version = "0.4", features = ["num-bigint-std"] }

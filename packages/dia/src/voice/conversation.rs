@@ -65,7 +65,6 @@ impl<S: Speaker> Conversation<S> {
         use candle_core::{DType, Device, IndexOp};
         use candle_nn::VarBuilder;
         use candle_transformers::generation::LogitsProcessor;
-        use std::sync::mpsc;
         use tokenizers::Tokenizer;
 
         // Get device (prefer GPU if available)
@@ -78,8 +77,7 @@ impl<S: Speaker> Conversation<S> {
         };
 
         // Setup models if not already done
-        let (tx, _rx) = mpsc::channel();
-        let model_paths = setup::setup(None, None, tx)
+        let model_paths = setup::setup()
             .await
             .map_err(|e| VoiceError::ConfigError(format!("Model setup failed: {}", e)))?;
 
@@ -278,6 +276,7 @@ impl<S: Speaker> Conversation<S> {
 
         let pcm = dia
             .decode_audio_codes(&codes_t)
+            .await
             .map_err(|e| VoiceError::GenerationError(format!("Audio decoding failed: {}", e)))?
             .squeeze(0)
             .map_err(|e| VoiceError::GenerationError(format!("PCM squeeze failed: {}", e)))?

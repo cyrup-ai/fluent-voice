@@ -50,8 +50,6 @@ byteorder = "1.5.0"
 
 serde_json = "1.0.140"
 hound = "3.5.1"
-progresshub-config = { path = "../../../progresshub/config" }
-progresshub-progress = { path = "../../../progresshub/progress" }
 progresshub-client-selector = { path = "../../../progresshub/client_selector" }
 serde = { version = "1.0.219", features = ["derive"] }
 clap = { version = "4.5.41", features = ["derive"] }
@@ -69,6 +67,7 @@ pdf2image = { version = "0.1.3", optional = true }
 safetensors = { version = "0.6", optional = true }
 csv = { version = "1.3.1", optional = true }
 cpal = { version = "0.16.0", optional = true }
+futures-util = "0.3.31"
 
 [features]
 default = ["microphone", "metal"]  # macOS-optimized defaults with Metal acceleration

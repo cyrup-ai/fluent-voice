@@ -8,7 +8,7 @@ use anyhow::{Error as E, Result};
 use candle_core::{Device, IndexOp, Tensor};
 use candle_nn::{VarBuilder, ops::softmax};
 use clap::{Parser, ValueEnum};
-use hf_hub::{Repo, RepoType, api::sync::Api};
+use progresshub_client_selector::{Client, DownloadConfig, Backend};
 use rand::{SeedableRng, distr::Distribution};
 use tokenizers::Tokenizer;
 
@@ -518,24 +518,63 @@ pub fn record() -> Result<()> {
     };
 
     let (config_filename, tokenizer_filename, weights_filename) = {
-        let api = Api::new()?;
-        let repo = api.repo(Repo::with_revision(model_id, RepoType::Model, revision));
+        // Download model using real progresshub client
+        let client = Client::new(Backend::Auto);
+        let config = DownloadConfig {
+            destination: dirs::cache_dir()
+                .ok_or_else(|| anyhow::anyhow!("Cannot determine cache directory"))?
+                .join("fluent-voice")
+                .join("whisper")
+                .join(model_id),
+            show_progress: false,
+            use_cache: true,
+        };
+
+        let download_result = client
+            .download_model_auto(model_id, &config, None)
+            .await?;
+
+        let model_files = &download_result
+            .models
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("No models in download result"))?
+            .files;
+
         let (config, tokenizer, model) = if args.quantized {
             let ext = match args.model {
                 WhichModel::TinyEn => "tiny-en",
                 WhichModel::Tiny => "tiny",
-                _ => unimplemented!("no quantized support for {:?}", args.model),
+                _ => anyhow::bail!("no quantized support for {:?}", args.model),
             };
             (
-                repo.get(&format!("config-{ext}.json"))?,
-                repo.get(&format!("tokenizer-{ext}.json"))?,
-                repo.get(&format!("model-{ext}-q80.gguf"))?,
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("config-{ext}.json")))
+                    .ok_or_else(|| anyhow::anyhow!("config-{ext}.json not found"))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("tokenizer-{ext}.json")))
+                    .ok_or_else(|| anyhow::anyhow!("tokenizer-{ext}.json not found"))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some(&format!("model-{ext}-q80.gguf")))
+                    .ok_or_else(|| anyhow::anyhow!("model-{ext}-q80.gguf not found"))?
+                    .path.clone(),
             )
         } else {
-            let config = repo.get("config.json")?;
-            let tokenizer = repo.get("tokenizer.json")?;
-            let model = repo.get("model.safetensors")?;
-            (config, tokenizer, model)
+            (
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("config.json"))
+                    .ok_or_else(|| anyhow::anyhow!("config.json not found"))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("tokenizer.json"))
+                    .ok_or_else(|| anyhow::anyhow!("tokenizer.json not found"))?
+                    .path.clone(),
+                model_files.iter()
+                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("model.safetensors"))
+                    .ok_or_else(|| anyhow::anyhow!("model.safetensors not found"))?
+                    .path.clone(),
+            )
         };
         (config, tokenizer, model)
     };

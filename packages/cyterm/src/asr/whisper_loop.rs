@@ -58,15 +58,38 @@ fn whisper_loop(
     text_tx: Sender<PartialTranscript>,
 ) -> anyhow::Result<()> {
     use candle_nn::ops::softmax;
-    use hf_hub::api::sync::Api;
+    use progresshub_client_selector::{Client, DownloadConfig, Backend};
     use tokenizers::Tokenizer;
 
     let tokenizer = Tokenizer::from_file(tokenizer).expect("tokenizer");
     let vb = {
-        let weights = Api::new()?
-            .repo(cfg.model_id.clone())
-            .with_revision("main".to_owned())
-            .get("model.safetensors")?;
+        // Download model using real progresshub client
+        let client = Client::new(Backend::Auto);
+        let config = DownloadConfig {
+            destination: dirs::cache_dir()
+                .ok_or_else(|| anyhow::anyhow!("Cannot determine cache directory"))?
+                .join("fluent-voice")
+                .join("whisper")
+                .join(&cfg.model_id),
+            show_progress: false,
+            use_cache: true,
+        };
+
+        let download_result = client
+            .download_model_auto(&cfg.model_id, &config, None)
+            .await?;
+
+        let weights = download_result
+            .models
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("No models in download result"))?
+            .files
+            .iter()
+            .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("model.safetensors"))
+            .ok_or_else(|| anyhow::anyhow!("model.safetensors not found"))?
+            .path
+            .clone();
+
         unsafe { candle_nn::VarBuilder::from_mmaped_safetensors(&[weights], DTYPE, &device)? }
     };
     let mut model = w::Whisper::load(&vb, cfg.clone())?;
