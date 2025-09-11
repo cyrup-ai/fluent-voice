@@ -1,0 +1,161 @@
+[package]
+name = "fluent_voice_livekit"
+version = "0.1.0"
+edition = "2024"
+description = "LiveKit integration for real-time audio/video streaming in fluent-voice"
+readme = "README.md"
+license = "Apache-2.0"
+repository = "https://github.com/davidmaple/fluent-voice"
+keywords = ["livekit", "streaming", "webrtc", "real-time", "video"]
+categories = ["multimedia", "network-programming", "web-programming"]
+
+[lints]
+rust = { unsafe_code = "warn" }
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[[example]]
+name = "test_app"
+required-features = ["test"]
+
+[features]
+default = ["microphone", "metal"]
+test = []
+
+# --- Candle backend features (required for all candle crates) -----
+cuda = [
+    "dep:cudarc",
+    "dep:bindgen_cuda",
+    "dep:candle-kernels",
+    "candle-core/cuda",
+    "candle-nn/cuda",
+    "candle-transformers/cuda",
+]
+cudnn = ["cuda", "cudarc/cudnn"]
+metal = [
+    "dep:metal",
+    "dep:candle-metal-kernels",
+    "candle-core/metal",
+    "candle-nn/metal",
+    "candle-transformers/metal",
+]
+accelerate = [
+    "dep:accelerate-src",
+    "candle-core/accelerate",
+    "candle-nn/accelerate",
+    "candle-transformers/accelerate",
+]
+mkl = [
+    "dep:intel-mkl-src",
+    "candle-core/mkl",
+    "candle-nn/mkl",
+    "candle-transformers/mkl",
+]
+flash-attn = [
+    "cuda",
+    "dep:candle-flash-attn",
+    "candle-transformers?/flash-attn",
+]
+nccl = ["cuda", "dep:half"]
+onnx = ["dep:candle-onnx"]
+
+# --- Audio features ---
+microphone = []
+encodec = []
+mimi = []
+snac = []
+
+[dependencies]
+# fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+fluent_voice_domain = { path = "../domain" }
+fluent_video = { path = "../video" }
+
+tracing = "0.1.41"
+anyhow = "1"
+cpal = "0.16.0"
+crossbeam-queue = "0.3.12"
+futures = "0.3.31"
+rustls-platform-verifier = "0.6"
+rustls = "0.23.31"
+# image = "0.25.6" # in workspace-hack
+livekit-api = { version = "0.4", features = ["native-tls"] } # in workspace-hack
+log = "0.4.27"
+nanoid = "0.4.0"
+parking_lot = "0.12.4"
+postage = "0.5.0"
+# tokio = { version = "1.45.1", features = ["rt", "sync", "macros"] } # in workspace-hack
+tokio-tungstenite = "0.27.0"
+# wgpu = { path = "../../zeroshot/wgpu/wgpu" } # in workspace-hack
+raw-window-handle = "0.6.2"
+tokio = "1.47"
+
+# Candle ML dependencies
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-flash-attn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-onnx = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+candle-datasets = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, optional = true }
+
+# — Optional acceleration dependencies —
+half = { version = "2.6.0", optional = true }
+
+# Platform-specific acceleration dependencies
+cudarc = { version = "0.17", optional = true, default-features = false, features = [
+    "cublas",
+    "cublaslt",
+    "cudnn",
+    "curand",
+    "dynamic-linking",
+    "f16",
+    "std",
+] }
+metal = { version = "0.32.0", optional = true }
+bindgen_cuda = { version = "0.1.5", optional = true }
+candle-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+candle-metal-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+gpui = "0.1.0"
+pollster = "0.4.0"
+winit = "0.30.12"
+core-video = "0.4.3"
+coreaudio-rs = "0.13.0"
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+# ratagpu = { path = "../../../zeroshot/packages/ratagpu"} # Commented out - external dependency
+# naga = "26.0.0" # in workspace-hack
+
+[target.'cfg(not(all(target_os = "windows", target_env = "gnu")))'.dependencies]
+libwebrtc = { git = "https://github.com/zed-industries/livekit-rust-sdks" }
+livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", features = [
+    "native-tls",
+] }
+
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
+intel-mkl-src = { version = "0.8.1", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+intel-mkl-src = { version = "0.8.1", optional = true }
+
+[target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
+scap = "0.0.8"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10.1"
+core-video = "0.4.3"
+coreaudio-rs = "0.13.0"
+objc2 = "0.6"
+accelerate-src = { version = "0.3.2", optional = true }
+
+[dev-dependencies]
+sha2 = "0.11.0-rc.0"
+simplelog = "0.12.2"
+
+[build-dependencies]
+# serde = { version = "1.0.219", features = ["derive"] } # in workspace-hack
+# serde_json = "1.0.140" # in workspace-hack
+
+[package.metadata.cargo-machete]
+ignored = ["serde_json"]
+
+# accelerate-src already included in macos dependencies above

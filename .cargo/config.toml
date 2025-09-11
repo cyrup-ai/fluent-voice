@@ -1,0 +1,27 @@
+[build]
+rustflags = ["--cfg", "reqwest_unstable"]
+
+[env]
+CUDARC_CUDA_VERSION = "12020"
+CUDA_COMPUTE_CAP = "75"
+
+# =============================================================================
+# Platform-Optimized Defaults Configuration
+# =============================================================================
+# 
+# All packages with candle dependencies now default to "metal" acceleration on
+# macOS for optimal performance. This configuration is automatically applied
+# when building without explicit feature flags.
+#
+# To override these defaults:
+# - Use --no-default-features to disable all defaults
+# - Use --features to enable specific features
+# - Use --features cpu-only for CPU-only builds
+#
+# Examples:
+#   cargo build                          # Uses metal on macOS
+#   cargo build --no-default-features    # CPU-only build
+#   cargo build --features cuda          # Force CUDA acceleration
+#   cargo run --bin dia                  # Uses metal on macOS
+#   cargo run --bin dia --no-default-features # CPU-only dia
+# =============================================================================

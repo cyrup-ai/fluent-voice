@@ -1,0 +1,21 @@
+{
+    "name": "universal-audio-stream-kit",
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "build": "tsc --noEmit",
+        "lint": "eslint \"{src,test}/**/*.{ts,js}\"",
+        "test": "npm run build && npm run lint && node test/e2e-universal-audio.mjs"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.28",
+        "@typescript-eslint/eslint-plugin": "^7.9.0",
+        "@typescript-eslint/parser": "^7.9.0",
+        "chai": "^5.1.0",
+        "eslint": "^9.3.1",
+        "eslint-plugin-import": "^2.29.1",
+        "puppeteer": "^22.7.0",
+        "typescript": "^5.5.2",
+        "@audio/worklet": "1.0.0"
+    }
+}

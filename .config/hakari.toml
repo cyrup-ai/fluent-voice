@@ -1,0 +1,23 @@
+# https://docs.rs/cargo-hakari/latest/cargo_hakari/config
+
+hakari-package = "fluent-voice-workspace-hack"
+dep-format-version = "4"
+resolver = "3"
+
+[final-excludes]
+third-party = [
+    { name = "candle-core", git = "https://github.com/huggingface/candle", branch = "main" },
+    { name = "candle-nn", git = "https://github.com/huggingface/candle", branch = "main" },
+    { name = "candle-transformers", git = "https://github.com/huggingface/candle", branch = "main" },
+    { name = "candle-flash-attn", git = "https://github.com/huggingface/candle", branch = "main" },
+    { name = "candle-onnx", git = "https://github.com/huggingface/candle", branch = "main" },
+    { name = "candle-datasets", git = "https://github.com/huggingface/candle", branch = "main" },
+    { name = "candle-metal-kernels", git = "https://github.com/huggingface/candle", branch = "main" },
+    { name = "candle-kernels", git = "https://github.com/huggingface/candle", branch = "main" },
+    { name = "cudarc" },
+    { name = "bindgen_cuda" },
+    { name = "half" },
+    { name = "metal" },
+    { name = "accelerate-src" },
+    { name = "intel-mkl-src" }
+]

@@ -1,0 +1,18 @@
+[package]
+name = "fluent_voice_koko"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/davidmaple/fluent-voice"
+
+[dependencies]
+fluent-voice-workspace-hack = { version = "0.1.0", path = "../../workspace-hack" }
+
+# clap = { version = "4.5.40", features = ["derive"] } # in workspace-hack
+fluent_voice_kokoros = { version = "0.1.0", path = "../kokoros" }
+fluent_voice_openai = { version = "0.1.0", path = "../../openai" }
+# tokio = { version = "1.45.1", features = ["rt", "sync", "macros"] } # in workspace-hack
+
+[[bin]]
+name = "koko"
+path = "src/main.rs"

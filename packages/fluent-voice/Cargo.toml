@@ -1,0 +1,187 @@
+[package]
+name = "fluent_voice"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cyrup-ai/fluent-voice"
+description = "Pure-trait fluent builder API for TTS & STT engines."
+keywords = ["voice", "tts", "stt", "audio", "fluent"]
+categories = ["multimedia::audio", "api-bindings", "asynchronous"]
+
+[features]
+# Platform-conditional defaults - automatically enable optimal acceleration
+default = ["microphone", "tokio-runtime", "metal"]
+# Common feature combinations
+cpu-only = ["microphone", "tokio-runtime"]
+tokio-runtime = []
+wasm-runtime = []
+std_async = []
+simd = []
+
+# --- Candle backend features (required for all candle crates) -----
+cuda = [
+    "dep:cudarc",
+    "dep:bindgen_cuda",
+    "candle-core/cuda",
+    "candle-nn/cuda",
+    "candle-transformers/cuda",
+    "fluent_voice_whisper/cuda",
+    "fluent_voice_vad/cuda",
+    "koffee/cuda",
+    "dia/cuda",
+]
+cudnn = ["cuda", "cudarc/cudnn"]
+metal = [
+    "dep:metal",
+    "candle-core/metal",
+    "candle-nn/metal",
+    "candle-transformers/metal",
+    "fluent_voice_whisper/metal",
+    "fluent_voice_vad/metal",
+    "koffee/metal",
+    "dia/metal",
+]
+accelerate = [
+    "dep:accelerate-src",
+    "candle-core/accelerate",
+    "candle-nn/accelerate",
+    "candle-transformers/accelerate",
+    "fluent_voice_whisper/accelerate",
+    "fluent_voice_vad/accelerate",
+    "koffee/accelerate",
+    "dia/accelerate",
+]
+mkl = [
+    "dep:intel-mkl-src",
+    "candle-core/mkl",
+    "candle-nn/mkl",
+    "candle-transformers/mkl",
+    "fluent_voice_whisper/mkl",
+    "fluent_voice_vad/mkl",
+    "koffee/mkl",
+    "dia/mkl",
+]
+
+# Audio processing features
+microphone = ["dep:cpal", "dep:rubato"]
+encodec = ["dep:cpal", "dep:symphonia", "dep:rubato"]
+mimi = ["dep:cpal", "dep:symphonia", "dep:rubato"]
+snac = ["dep:cpal", "dep:symphonia", "dep:rubato"]
+depth_anything_v2 = ["dep:palette", "dep:enterpolation"]
+# hashbrown-json = ["cyrup_sugars/hashbrown-json"]  # Feature temporarily disabled
+crossbeam-async = ["dep:crossbeam"]
+
+[dependencies]
+# fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+fluent_voice_domain = { path = "../domain" }
+fluent_voice_whisper = { path = "../whisper", features = [
+    "async-stream",
+    "audio",
+    "display",
+    "record",
+] }
+fluent_voice_vad = { path = "../vad", features = ["async", "ort"] }
+koffee = { path = "../koffee" }
+dia = { path = "../dia" }
+cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", branch = "main", package = "cyrup_sugars", features = ["all"] }
+futures-core = "0.3.31"
+futures = "0.3.31"
+futures-util = "0.3.31"
+tokio = { version = "1.47.1", features = ["full"] }
+tokio-stream = "0.1.17"
+anyhow = "1"
+dirs = "6.0.0"
+serde = { version = "1.0.219", features = ["derive"] }
+parking_lot = "0.12.4"
+derive_more = { version = "2.0.1", features = ["full"] }
+async-stream = "0.3.6"
+crossbeam = { version = "0.8.4", optional = true }
+cpal = { version = "0.16.0", optional = true }
+rubato = { version = "0.16.2", optional = true, features = ["fft_resampler"] }
+symphonia = { version = "0.5.4", optional = true }
+clap = { version = "4.5", features = ["derive"] }
+rand = "0.9.2"
+rand_distr = "0.5.1"
+# progresshub = { path = "../../../progresshub/packages/progresshub" }  # Removed to fix sized_chunks overflow
+hound = "3.5.1"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tokenizers = "0.21.4"
+flate2 = "1.1.2"
+crossbeam-channel = "0.5.15"
+crossbeam-utils = "0.8.21"
+ringbuf = "0.4.8"
+ndarray = "0.16.1"
+memmap2 = "0.9.7"
+serde_json = "1"
+byteorder = "1.5.0"
+log = "0.4.27"
+
+# Optional acceleration dependencies
+half = { version = "2.6.0", optional = true }
+
+# Platform-specific acceleration dependencies
+metal = { version = "0.32.0", optional = true }
+candle-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+candle-metal-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+
+# Optional ML/data dependencies
+image = { version = "0.25.6", optional = true }
+num-traits = { version = "0.2", optional = true }
+palette = { version = "0.7.6", optional = true }
+enterpolation = { version = "0.3.0", optional = true }
+pyo3 = { version = "0.25.1", features = [
+    "auto-initialize",
+    "abi3-py311",
+], optional = true }
+pdf2image = { version = "0.1.3", optional = true }
+safetensors = { version = "0.6", optional = true }
+csv = { version = "1.3.1", optional = true }
+
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+tracing = "0.1.41"
+hashbrown = "0.15"
+rodio = { version = "0.21.1", features = ["wav"] }
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+
+[dev-dependencies]
+# tokio is in workspace-hack
+# futures-util is in workspace-hack
+imageproc = "0.25.0"
+ab_glyph = "0.2.31"
+tracing = "0.1.41"
+tracing-chrome = "0.7.2"
+
+# OS-specific acceleration dependencies
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
+cudarc = { version = "0.17", optional = true, default-features = false, features = [
+    "cublas",
+    "cublaslt",
+    "cudnn",
+    "curand",
+    "dynamic-linking",
+    "f16",
+    "std",
+] }
+intel-mkl-src = { version = "0.8.1", optional = true }
+bindgen_cuda = { version = "0.1.5", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+cudarc = { version = "0.17", optional = true, default-features = false, features = [
+    "cublas",
+    "cublaslt",
+    "cudnn",
+    "curand",
+    "dynamic-linking",
+    "f16",
+    "std",
+] }
+intel-mkl-src = { version = "0.8.1", optional = true }
+bindgen_cuda = { version = "0.1.5", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+accelerate-src = { version = "0.3.2", optional = true }
+
+
+[build-dependencies]

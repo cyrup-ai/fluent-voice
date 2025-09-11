@@ -1,0 +1,175 @@
+[package]
+name = "dia"
+version = "0.1.0"
+edition = "2024"
+description = "Dia Voice in pure Rust for real-time conversational AI with streaming audio"
+license = "Apache-2.0"
+repository = "https://github.com/davidmaple/fluent-voice"
+keywords = ["ai", "conversation", "audio", "streaming", "moshi"]
+categories = ["multimedia::audio", "science", "algorithms"]
+
+
+[dependencies]
+# fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", branch = "main", package = "cyrup_sugars", features = ["all"] }
+fluent_voice_domain = { path = "../domain" }
+progresshub = { path = "../../../progresshub/packages/progresshub", default-features = false }
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+rubato = { version = "0.16.2", optional = true }                                                                   # FFT resampler
+symphonia = { version = "0.5", optional = true }
+# External loudness crate no longer required – local DSP implementation
+
+# ─────────────────────────── HuggingFace model downloader ─────────────────────────────
+tracing-chrome = "0.7.2"
+dioxus = { git = "https://github.com/DioxusLabs/dioxus", branch = "main", optional = true }
+rand_distr = "0.5.1"
+gloo-timers = { version = "0.3.0", optional = true }
+wasm-bindgen = { version = "0.2.100", optional = true }
+js-sys = { version = "0.3.77", optional = true }
+tokenizers = "0.21.4"
+tokio = { version = "1.47", features = ["full"] }
+tokio-stream = "0.1.17"
+crossterm = "0.29.0"
+dirs = "6.0.0"
+derive_more = "2.0.1"
+once_cell = "1.21.3"
+bytemuck = "1.23"
+rodio = { version = "0.21.1", features = ["default"] }
+indicatif = "0.18.0"
+ratatui = { git = "https://github.com/ratatui/ratatui", branch = "main", features = [
+    "crossterm",
+] }
+rand = "0.9.2"
+sha2 = "0.11.0-rc.0"
+reqwest = { version = "0.12", features = ["json"] }
+bincode = "2.0.1"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+anyhow = "1"
+byteorder = "1.5.0"
+
+clap = { version = "4", features = ["derive"] }
+thiserror = "2"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1"
+hound = "3.5.1"
+
+# Optional acceleration dependencies removed (already defined above)
+
+# Optional ML/data dependencies
+image = { version = "0.25.6", optional = true }
+num-traits = { version = "0.2", optional = true }
+palette = { version = "0.7.6", optional = true }
+enterpolation = { version = "0.3.0", optional = true }
+pyo3 = { version = "0.25.1", features = [
+    "auto-initialize",
+    "abi3-py311",
+], optional = true }
+pdf2image = { version = "0.1.3", optional = true }
+safetensors = { version = "0.6", optional = true }
+csv = { version = "1.3.1", optional = true }
+cpal = { version = "0.16.0", optional = true }
+futures-util = "0.3.31"
+tempfile = "3.20.0"
+
+# Platform-specific acceleration dependencies
+cudarc = { version = "0.17", optional = true, default-features = false, features = [
+    "cublas",
+    "cublaslt",
+    "cudnn",
+    "curand",
+    "dynamic-linking",
+    "f16",
+    "std",
+] }
+metal = { version = "0.32.0", optional = true }
+bindgen_cuda = { version = "0.1.5", optional = true }
+candle-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+candle-metal-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+half = { version = "2.6.0", optional = true }
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+futures-core = "0.3.31"
+
+
+[features]
+default = ["microphone", "metal"]
+
+# --- Candle backend features (required for all candle crates) -----
+cuda = [
+    "dep:cudarc",
+    "dep:bindgen_cuda",
+    "dep:candle-kernels",
+    "candle-core/cuda",
+    "candle-nn/cuda",
+    "candle-transformers/cuda",
+]
+cudnn = ["cuda", "cudarc/cudnn"]
+metal = [
+    "dep:metal",
+    "dep:candle-metal-kernels",
+    "candle-core/metal",
+    "candle-nn/metal",
+    "candle-transformers/metal",
+]
+accelerate = [
+    "dep:accelerate-src",
+    "candle-core/accelerate",
+    "candle-nn/accelerate",
+    "candle-transformers/accelerate",
+]
+mkl = [
+    "dep:intel-mkl-src",
+    "candle-core/mkl",
+    "candle-nn/mkl",
+    "candle-transformers/mkl",
+]
+
+# UI features
+ui = ["dioxus", "js-sys", "wasm-bindgen", "gloo-timers"]
+
+# Audio processing features
+microphone = ["dep:cpal", "dep:rubato"]
+encodec = ["dep:cpal", "dep:symphonia", "dep:rubato"]
+mimi = ["dep:cpal", "dep:symphonia", "dep:rubato"]
+snac = ["dep:cpal", "dep:symphonia", "dep:rubato"]
+depth_anything_v2 = ["dep:palette", "dep:enterpolation"]
+
+# This will be configured through .cargo/config.toml instead
+[package.metadata.docs.rs]
+# Configure docs.rs build
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+# OS-specific acceleration dependencies
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
+intel-mkl-src = { version = "0.8", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+intel-mkl-src = { version = "0.8", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+accelerate-src = { version = "0.3", optional = true }
+
+[lib]
+name = "dia"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dia"
+path = "src/main.rs"
+
+[[bin]]
+name = "speak"
+path = "src/bin/speak.rs"
+
+[dev-dependencies]
+memmap2 = "0.9.7"
+ab_glyph = "0.2.31"
+
+[build-dependencies]
+anyhow = "1.0"
+serde_json = "1"
+hound = "3.5.1"
+serde = { version = "1.0.219", features = ["derive"] }

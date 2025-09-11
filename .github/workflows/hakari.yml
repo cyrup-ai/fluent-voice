@@ -1,0 +1,17 @@
+name: Verify workspace-hack
+on: [push, pull_request]
+
+jobs:
+  hakari-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-hakari
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hakari
+      - name: Check workspace-hack is up-to-date
+        run: cargo hakari generate --diff
+      - name: Verify workspace-hack dependencies
+        run: cargo hakari verify

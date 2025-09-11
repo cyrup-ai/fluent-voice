@@ -1,0 +1,25 @@
+[package]
+name        = "fluent_voice_domain"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cyrup-ai/fluent-voice"
+description = "Shared domain objects and types for fluent-voice ecosystem."
+readme = "README.md"
+keywords = ["voice", "audio", "tts", "stt", "domain"]
+categories = ["multimedia::audio", "api-bindings", "data-structures"]
+
+[dependencies]
+thiserror = "2"
+serde = { version = "1.0.219", features = ["derive"] }
+futures-core = "0.3.31"
+futures-util = "0.3.31"
+futures = "0.3.31"
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+# ChunkHandler pattern from cyrup_sugars
+cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", branch = "main", features = ["all"] }
+# fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+
+[lib]
+path = "src/lib.rs"
+name = "fluent_voice_domain"

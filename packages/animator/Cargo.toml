@@ -1,0 +1,113 @@
+[package]
+name = "fluent_voice_animator"
+version = "0.1.0"
+edition = "2024"
+description = "Real-time audio visualization and animation library for fluent-voice ecosystem"
+readme = "README.md"
+license = "Apache-2.0"
+repository = "https://github.com/davidmaple/fluent-voice"
+authors = ["David Maple <david@cyrup.ai"]
+keywords = ["audio", "visualization", "animation", "tui", "real-time"]
+categories = ["multimedia::audio", "visualization", "graphics"]
+
+[dependencies]
+# fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+
+parking_lot = "0.12.4"
+livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", features = [
+    "native-tls",
+] }
+livekit-api = { version = "0.4.5", features = [
+    "native-tls",
+] } # in workspace-hack
+rustfft = "6.4.0"
+cpal = "0.16.0"
+crossterm = "0.29.0"
+image = "0.25.6"
+ratatui = { git = "https://github.com/ratatui/ratatui", branch = "main", features = [
+    "crossterm",
+] }
+clap = { version = "4.5", features = ["derive"] }
+thiserror = "2"
+anyhow = "1.0"
+
+# Candle ML dependencies
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+
+# — Optional acceleration dependencies —
+half = { version = "2.6.0", optional = true }
+
+# Platform-specific acceleration dependencies
+cudarc = { version = "0.17", optional = true, default-features = false, features = [
+    "cublas",
+    "cublaslt",
+    "cudnn",
+    "curand",
+    "dynamic-linking",
+    "f16",
+    "std",
+] }
+metal = { version = "0.32", optional = true }
+bindgen_cuda = { version = "0.1.5", optional = true }
+candle-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+candle-metal-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+fluent-voice-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[features]
+default = ["microphone", "metal"]
+
+# --- Candle backend features (required for all candle crates) -----
+cuda = [
+    "dep:cudarc",
+    "dep:bindgen_cuda",
+    "dep:candle-kernels",
+    "candle-core/cuda",
+    "candle-nn/cuda",
+    "candle-transformers/cuda",
+]
+cudnn = ["cuda", "cudarc/cudnn"]
+metal = [
+    "dep:metal",
+    "dep:candle-metal-kernels",
+    "candle-core/metal",
+    "candle-nn/metal",
+    "candle-transformers/metal",
+]
+accelerate = [
+    "dep:accelerate-src",
+    "candle-core/accelerate",
+    "candle-nn/accelerate",
+    "candle-transformers/accelerate",
+]
+mkl = [
+    "dep:intel-mkl-src",
+    "candle-core/mkl",
+    "candle-nn/mkl",
+    "candle-transformers/mkl",
+]
+
+# --- Audio features ---
+microphone = []
+encodec = []
+mimi = []
+snac = []
+
+# OS-specific acceleration dependencies
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
+intel-mkl-src = { version = "0.8", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+intel-mkl-src = { version = "0.8", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+accelerate-src = { version = "0.3", optional = true }
+
+[[bin]]
+path = "src/main.rs"
+name = "anima"
+
+[lib]
+path = "src/lib.rs"
+name = "fluent_voice_animator"

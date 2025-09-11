@@ -1,0 +1,80 @@
+[package]
+name = "fluent-voice-kyutai"
+version = "0.1.0"
+edition = "2024"
+description = "Moshi language model implementation for fluent-voice using Kyutai research"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cyrup-ai/fluent-voice"
+keywords = ["moshi", "kyutai", "language-model", "ai", "conversation"]
+categories = ["multimedia::audio", "science", "algorithms"]
+
+[dependencies]
+# Latest candle from GitHub main branch
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+
+# — Optional acceleration dependencies —
+half = { version = "2.6", optional = true }
+
+# Platform-specific acceleration dependencies
+cudarc = { version = "0.17", optional = true, default-features = false, features = ["cublas", "cublaslt", "cudnn", "curand", "dynamic-linking", "f16", "std"] }
+metal = { version = "0.32", optional = true }
+bindgen_cuda = { version = "0.1.5", optional = true }
+candle-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+candle-metal-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+
+# Fluent-voice integration
+fluent_voice_domain = { path = "../domain" }
+fluent_voice = { path = "../fluent-voice" }
+
+# Cyrup sugars for ChunkHandler pattern
+cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", branch = "main", features = ["all"] }
+futures-core = "0.3"
+futures-util = "0.3"
+crossbeam-channel = "0.5"
+crossbeam-utils = "0.8"
+
+# Core dependencies
+serde = { version = "1.0.219", features = ["derive"] }
+anyhow = "1"
+tracing = "0.1.41"
+serde_json = "1"
+byteorder = "1.5.0"
+rayon = "1"
+thiserror = "2.0"
+
+# HuggingFace tokenizers for production text processing
+tokenizers = { version = "0.22.0", features = ["http"] }
+
+fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+rand = "0.9.2"
+
+# Future async support (not currently used)
+
+[features]
+default = ["metal"]
+
+# HTTP feature for pretrained tokenizer loading
+http = ["tokenizers/http"]
+
+# --- Candle backend features (required for all candle crates) -----
+cuda = ["dep:cudarc", "dep:bindgen_cuda", "dep:candle-kernels", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+cudnn = ["cuda", "cudarc/cudnn"]
+metal = ["dep:metal", "dep:candle-metal-kernels", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
+accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]
+mkl = ["dep:intel-mkl-src", "candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
+
+# OS-specific acceleration dependencies
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
+intel-mkl-src = { version = "0.8", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+intel-mkl-src = { version = "0.8", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+accelerate-src = { version = "0.3", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1.47", features = ["full"] }

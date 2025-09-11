@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+		{
+			"path": "../zeroshot"
+		},
+		{
+			"path": "../fluent-ai"
+		},
+		{
+			"path": "../sugars"
+		}
+	],
+	"settings": {}
+}

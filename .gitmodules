@@ -1,0 +1,6 @@
+[submodule "candle/moshi"]
+	path = candle/moshi
+	url = https://github.com/kyutai-labs/moshi.git
+[submodule "dia-voice"]
+	path = dia-voice
+	url = https://github.com/cyrup-ai/dia-voice

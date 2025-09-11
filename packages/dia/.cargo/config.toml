@@ -1,0 +1,38 @@
+# Configuration for nightly rustdoc features
+# This requires using cargo +nightly
+
+# Configure external documentation links
+[doc.extern-map.registries]
+crates-io = "https://docs.rs/"
+
+# Maps for standard library documentation
+[doc.extern-map]
+std = "https://doc.rust-lang.org/nightly/"
+core = "https://doc.rust-lang.org/nightly/core/"
+alloc = "https://doc.rust-lang.org/nightly/alloc/"
+
+# Rustdoc flags for feature enablement
+[unstable]
+rustdoc-scrape-examples = true
+rustdoc-map = true
+
+# Set JSON as default output format
+[build]
+rustdoc-args = ["--output-format", "json"]
+rustflags = ["-C", "target-cpu=native"]
+
+# Environment variables for Metal and CUDA
+[target.'cfg(target_os = "macos")'.env]
+# Metal-specific settings
+METAL_LIBRARY_PATH = "../target/metal-lib"
+
+[target.'cfg(not(target_os = "macos"))'.env]
+# CUDA-specific settings - adjust for your GPU if needed
+CUDA_COMPUTE_CAP = "86"
+
+# Command examples:
+# Generate HTML docs with all features:
+# cargo +nightly doc --no-deps -Z unstable-options -Z rustdoc-map -Z rustdoc-scrape-examples
+# 
+# Generate JSON docs (will be default with this config):
+# cargo +nightly doc --no-deps -Z unstable-options -Z rustdoc-map -Z rustdoc-scrape-examples --output-format json

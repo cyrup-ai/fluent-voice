@@ -1,0 +1,34 @@
+[workspace]
+resolver = "3"
+members = [
+    "packages/animator",
+    "packages/cargo-hakari-regenerate",
+    "packages/cyterm",
+    "packages/dia",
+    "packages/domain",
+    "packages/elevenlabs",
+    "packages/fluent-voice",
+    "packages/fluent-voice-samples",
+    "packages/koffee",
+    "packages/kyutai",
+    "packages/livekit",
+    "packages/vad",
+    "packages/video",
+    "packages/whisper",
+    "workspace-hack",
+    "forks/ort",
+    "forks/ort/ort-sys",
+]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+description = "Pure-trait fluent builder API for TTS & STT engines."
+keywords = ["voice", "tts", "stt", "speech", "builder", "fluent"]
+categories = ["audio", "speech", "builder", "voice", "rust"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cyrup-ai/fluent-voice"
+authors = ["David Maple<david@cyrup.ai>"]
+
+# NEVER ADD WORKSPACE DEPENDENCIES. THIS IS CARGO HAKARI
+# READ ./CARGO_HAKARI.md

@@ -1,0 +1,55 @@
+[package]
+name        = "ort-sys"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme.workspace = true
+links = "onnxruntime"
+
+[features]
+default = [ "std" ]
+std = []
+training = []
+download-binaries = [ "ureq", "tar", "flate2", "sha2" ]
+load-dynamic = []
+copy-dylibs = []
+
+disable-linking = []
+
+cuda = []
+tensorrt = []
+openvino = []
+onednn = []
+directml = []
+nnapi = []
+coreml = []
+xnnpack = []
+rocm = []
+acl = []
+armnn = []
+tvm = []
+migraphx = []
+rknpu = []
+vitis = []
+cann = []
+qnn = []
+webgpu = [ "dep:glob" ]
+azure = []
+nv = []
+
+[dependencies]
+fluent-voice-workspace-hack = { version = "0.1", path = "../../../workspace-hack" }
+# fluent-voice-workspace-hack = { path = "../../../workspace-hack" }
+
+[build-dependencies]
+ureq = { version = "3.0.12", optional = true, default-features = false, features = [ "native-tls", "socks-proxy" ] }
+tar = { version = "0.4.44", optional = true }
+flate2 = { version = "1.1.2", optional = true }
+sha2 = { version = "0.11.0-rc.0", optional = true }
+pkg-config = "0.3.32"
+glob = { version = "0.3", optional = true }
