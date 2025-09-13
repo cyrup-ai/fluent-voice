@@ -30,7 +30,7 @@ impl TimestampMetadata {
     }
 
     /// Export to WebVTT format
-    pub fn to_vtt(&self) -> Result<String, crate::FluentVoiceError> {
+    pub fn to_vtt(&self) -> Result<String, crate::engine::FluentVoiceError> {
         if let Some(word_alignments) = &self.word_alignments {
             let mut vtt = String::from("WEBVTT\n\n");
             for word in word_alignments {
@@ -43,7 +43,7 @@ impl TimestampMetadata {
             }
             Ok(vtt)
         } else {
-            Err(crate::FluentVoiceError::ConfigError(
+            Err(crate::engine::FluentVoiceError::ConfigError(
                 "No word alignments available for VTT export".into(),
             ))
         }

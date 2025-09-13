@@ -1,7 +1,7 @@
 mod builder;
 #[cfg(feature = "microphone")]
 mod microphone;
-mod multilingual;
+pub mod multilingual;
 #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 mod pcm_decode;
 mod stream;
@@ -12,7 +12,6 @@ mod whisper;
 pub use builder::{ModelConfig, WhisperTranscriber};
 #[cfg(feature = "microphone")]
 pub use microphone::{Model, token_id};
-pub use multilingual::detect_language;
 #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 pub use pcm_decode::pcm_decode;
 pub use stream::WhisperStream;

@@ -5,16 +5,10 @@ use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
 #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::core::conv::FromSample;
 
-#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
-fn conv<T>(samples: &mut Vec<f32>, data: std::borrow::Cow<symphonia::core::audio::AudioBuffer<T>>)
-where
-    T: symphonia::core::sample::Sample,
-    f32: symphonia::core::conv::FromSample<T>,
-{
-    samples.extend(data.chan(0).iter().map(|v| f32::from_sample(*v)))
-}
+
 
 #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
+#[allow(dead_code)] // Function used conditionally based on features
 fn conv_stereo_to_mono<T>(
     samples: &mut Vec<f32>,
     data: std::borrow::Cow<symphonia::core::audio::AudioBuffer<T>>,

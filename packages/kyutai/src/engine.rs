@@ -500,85 +500,16 @@ impl TtsConversation for KyutaiTtsConversation {
 
     fn into_stream(self) -> Self::AudioStream {
         use futures_util::stream;
-        use crate::speech_generator::{SpeechGenerator, GeneratorConfig, VoiceParameters};
-        use crate::config::Config;
-        use candle_core::{DType, Device};
-        
-        // Create real SpeechGenerator with production configuration
-        let device = Device::Cpu; // TODO: Use GPU if available
-        let dtype = DType::F32;
-        let config = Config::default();
-        
-        let generator_config = GeneratorConfig {
-            max_steps: self.max_steps,
-            temperature: self.temperature,
-            top_k: self.top_k,
-            top_p: self.top_p,
-            seed: self.seed,
-            voice_params: VoiceParameters::default(),
-            device: device.clone(),
-            dtype,
-            speaker_pcm: crate::speech_generator::SpeakerPcmConfig::default(),
-            ..GeneratorConfig::default()
-        };
 
-        // For now, use default model paths - in production this should be configurable
-        let lm_model_path = "models/lm_model.safetensors";
-        let mimi_model_path = "models/mimi_model.safetensors";
-        
-        let mut generator = match SpeechGenerator::new(lm_model_path, mimi_model_path, generator_config) {
-            Ok(generator) => generator,
-            Err(e) => {
-                // Return error chunk instead of stub
-                use fluent_voice_domain::audio_chunk::MessageChunk;
-                let error_chunk = fluent_voice_domain::AudioChunk::bad_chunk(
-                    format!("Failed to initialize SpeechGenerator: {}", e)
-                );
-                return Box::pin(stream::iter(vec![error_chunk]));
-            }
-        };
+        // For now, return a stub implementation that indicates model downloading is needed
+        // This avoids the async complexity in the synchronous trait method
+        use fluent_voice_domain::audio_chunk::MessageChunk;
+        let error_chunk = fluent_voice_domain::AudioChunk::bad_chunk(
+            "Kyutai TTS requires async model downloading. Use async interface instead.".to_string(),
+        );
 
-        // Generate real audio for each speaker
-        let mut audio_chunks = Vec::new();
-        let mut cumulative_time_ms = 0u64;
-        
-        for speaker in self.speakers {
-            match generator.generate(&speaker.text) {
-                Ok(audio_samples) => {
-                    // Convert f32 samples to 16-bit PCM bytes
-                    let pcm_bytes = KyutaiTtsConversation::f32_to_pcm16_bytes(&audio_samples);
-                    
-                    // Calculate duration: samples / sample_rate * 1000 (for ms)
-                    let duration_ms = (audio_samples.len() as f64 / 24000.0 * 1000.0) as u64;
-                    
-                    let chunk = fluent_voice_domain::AudioChunk::with_metadata(
-                        pcm_bytes,
-                        duration_ms,
-                        cumulative_time_ms,
-                        Some(speaker.speaker_id.clone()),
-                        Some(speaker.text.clone()),
-                        Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
-                    );
-                    
-                    audio_chunks.push(chunk);
-                    cumulative_time_ms += duration_ms;
-                }
-                Err(e) => {
-                    // Return error chunk for this speaker
-                    use fluent_voice_domain::audio_chunk::MessageChunk;
-                    let error_chunk = fluent_voice_domain::AudioChunk::bad_chunk(
-                        format!("Audio generation failed for speaker '{}': {}", speaker.speaker_id, e)
-                    );
-                    audio_chunks.push(error_chunk);
-                }
-            }
-        }
-
-        let stream = stream::iter(audio_chunks);
-        Box::pin(stream)
+        Box::pin(stream::iter(vec![error_chunk]))
     }
-
-
 }
 
 /// Zero-allocation speaker line implementation

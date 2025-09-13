@@ -8,9 +8,7 @@ use crate::{DType, Module, Tensor, VarBuilder};
 use candle_core::IndexOp;
 use candle_nn::ops;
 
-// Import optimizations when GPU features are enabled
-#[cfg(any(feature = "cuda", feature = "metal"))]
-use crate::optimizations::{attention_optimized, matmul_optimized};
+// GPU optimizations have been simplified - using Candle's built-in optimizations
 
 /// Convenience: small −∞ used for masking logits.
 const NEG_INF: f32 = -1e30;
@@ -82,18 +80,7 @@ impl DenseGeneral {
     pub fn forward(&self, x: &Tensor) -> candle_core::Result<Tensor> {
         let x2 = x.flatten_all()?;
 
-        // Use optimized matmul for GPU when available
-        #[cfg(any(feature = "cuda", feature = "metal"))]
-        let y = if matches!(
-            x.device(),
-            candle_core::Device::Cuda(_) | candle_core::Device::Metal(_)
-        ) {
-            matmul_optimized(&x2, &self.w)?
-        } else {
-            x2.matmul(&self.w)?
-        };
-
-        #[cfg(not(any(feature = "cuda", feature = "metal")))]
+        // Use standard matmul - Candle automatically optimizes for GPU
         let y = x2.matmul(&self.w)?;
 
         let output_shape: Vec<_> = x.dims()[..x.rank() - 1]
@@ -153,16 +140,7 @@ impl Rotary {
 // ───────────────────── Scaled-Dot-Product Attention with MASK ────────────
 
 fn sdpa(q: &Tensor, k: &Tensor, v: &Tensor, mask: Option<&Tensor>) -> candle_core::Result<Tensor> {
-    // Use optimized attention for GPU when available
-    #[cfg(any(feature = "cuda", feature = "metal"))]
-    if matches!(
-        q.device(),
-        candle_core::Device::Cuda(_) | candle_core::Device::Metal(_)
-    ) {
-        return attention_optimized(q, k, v, mask, false);
-    }
-
-    // Standard implementation for CPU
+    // Standard implementation - Candle automatically optimizes for GPU
     use candle_core::D;
     let dim = q.dim(D::Minus1)?;
     let scale = 1f64 / (dim as f64).sqrt();

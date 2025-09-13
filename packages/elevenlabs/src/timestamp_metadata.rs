@@ -115,6 +115,45 @@ pub struct VoiceSettingsSnapshot {
     pub speed: Option<f32>,
 }
 
+/// Complete synthesis context for timestamp metadata generation
+#[derive(Debug, Clone)]
+pub struct SynthesisContext {
+    pub voice_id: String,
+    pub model_id: String,
+    pub text: String,
+    pub voice_settings: Option<VoiceSettingsSnapshot>,
+    pub output_format: String,
+    pub language: Option<String>,
+}
+
+impl SynthesisContext {
+    /// Create SynthesisContext from TtsBuilder context
+    pub fn from_tts_builder(
+        voice_id: &str,
+        model_id: &str,
+        text: Option<&str>,
+        voice_settings: Option<&crate::shared::VoiceSettings>,
+        output_format: &str,
+        language_code: Option<&str>,
+    ) -> Self {
+        Self {
+            voice_id: voice_id.to_string(),
+            model_id: model_id.to_string(),
+            text: text.unwrap_or("").to_string(),
+            voice_settings: voice_settings.map(|vs| VoiceSettingsSnapshot {
+                // ElevenLabs API defaults as per their official documentation
+                stability: vs.stability.unwrap_or(0.5), // Default stability
+                similarity_boost: vs.similarity_boost.unwrap_or(0.75), // Default similarity boost
+                style: vs.style,
+                use_speaker_boost: vs.use_speaker_boost,
+                speed: vs.speed,
+            }),
+            output_format: output_format.to_string(),
+            language: language_code.map(|s| s.to_string()),
+        }
+    }
+}
+
 /// Convert ElevenLabs Alignment to CharacterTimestamp vector
 impl From<&Alignment> for Vec<CharacterTimestamp> {
     fn from(alignment: &Alignment) -> Self {
@@ -122,11 +161,19 @@ impl From<&Alignment> for Vec<CharacterTimestamp> {
             .characters
             .iter()
             .enumerate()
-            .map(|(i, character)| CharacterTimestamp {
-                character: character.clone(),
-                start_seconds: alignment.character_start_times_seconds[i],
-                end_seconds: alignment.character_end_times_seconds[i],
-                text_position: i,
+            .filter_map(|(i, character)| {
+                // Ensure array bounds are valid before accessing
+                if i < alignment.character_start_times_seconds.len() 
+                    && i < alignment.character_end_times_seconds.len() {
+                    Some(CharacterTimestamp {
+                        character: character.clone(),
+                        start_seconds: alignment.character_start_times_seconds[i],
+                        end_seconds: alignment.character_end_times_seconds[i],
+                        text_position: i,
+                    })
+                } else {
+                    None
+                }
             })
             .collect()
     }
@@ -165,7 +212,7 @@ impl TimestampMetadata {
         self.synthesis_end = Some(SystemTime::now());
         self.processing_time_ms = Some(
             self.synthesis_end
-                .unwrap()
+                .expect("synthesis_end should be set immediately above")
                 .duration_since(self.synthesis_start)
                 .map_err(|e| {
                     crate::engine::FluentVoiceError::ConfigError(format!(
@@ -226,13 +273,15 @@ impl TimestampMetadata {
 
         // Handle final word
         if !current_word.is_empty() {
-            words.push(WordTimestamp {
-                word: current_word,
-                start_seconds: word_start_seconds,
-                end_seconds: self.character_alignments.last().unwrap().end_seconds,
-                word_position: word_start_pos,
-                character_range: (char_start_pos, self.character_alignments.len()),
-            });
+            if let Some(last_char) = self.character_alignments.last() {
+                words.push(WordTimestamp {
+                    word: current_word,
+                    start_seconds: word_start_seconds,
+                    end_seconds: last_char.end_seconds,
+                    word_position: word_start_pos,
+                    character_range: (char_start_pos, self.character_alignments.len()),
+                });
+            }
         }
 
         self.word_alignments = Some(words);

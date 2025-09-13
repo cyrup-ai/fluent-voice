@@ -17,6 +17,7 @@ pub mod lm;
 pub mod lm_generate;
 pub mod mimi;
 pub mod model;
+pub mod models;
 pub mod nn;
 pub mod quantization;
 pub mod sampling_config;
@@ -36,6 +37,10 @@ pub mod wav;
 pub use self::asr::{State as AsrState, Word};
 pub use self::engine::{KyutaiEngine, KyutaiSttConversationBuilder, KyutaiTtsConversationBuilder};
 pub use self::error::{MoshiError, Result};
+pub use self::models::{
+    KyutaiModelConfig, KyutaiModelManager, KyutaiModelPaths, download_kyutai_models,
+    download_kyutai_models_with_config,
+};
 pub use self::speech_generator::{
     AudioStream, GenerationStats, SpeechGenerationError, SpeechGenerator, SpeechGeneratorBuilder,
     VoiceParameters,

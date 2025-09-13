@@ -22,9 +22,7 @@ use dia::{
     setup,
 };
 
-// Import optimizations when GPU features are enabled
-#[cfg(any(feature = "cuda", feature = "metal"))]
-use dia::optimizations::channel_delay_gpu;
+// GPU optimizations have been simplified - channel_delay_gpu removed
 
 /// Anything below this RMS is considered silence (skip LUFS stage).
 const SILENCE_THRESHOLD: f32 = 1e-4;
@@ -187,14 +185,6 @@ async fn async_main() -> anyhow::Result<()> {
     // If we have an audio prompt, pre-fill the decoder with it (mimic BOS).
     if let Some(ap) = &audio_prompt_codes {
         // Apply temporal delays before prefilling decoder
-        #[cfg(any(feature = "cuda", feature = "metal"))]
-        let ap_delayed = if matches!(device, Device::Cuda(_) | Device::Metal(_)) {
-            channel_delay_gpu::delayed_view_gpu(ap, cfg.data.audio_pad_value)?
-        } else {
-            channel_delay::delayed_view(ap, cfg.data.audio_pad_value)?
-        };
-
-        #[cfg(not(any(feature = "cuda", feature = "metal")))]
         let ap_delayed = channel_delay::delayed_view(ap, cfg.data.audio_pad_value)?;
 
         let ap_b2tc = ap_delayed
@@ -236,14 +226,6 @@ async fn async_main() -> anyhow::Result<()> {
         };
 
         // Apply temporal delays before model sees the tokens
-        #[cfg(any(feature = "cuda", feature = "metal"))]
-        let toks = if matches!(device, Device::Cuda(_) | Device::Metal(_)) {
-            channel_delay_gpu::delayed_view_gpu(&toks, cfg.data.audio_pad_value)?
-        } else {
-            channel_delay::delayed_view(&toks, cfg.data.audio_pad_value)?
-        };
-
-        #[cfg(not(any(feature = "cuda", feature = "metal")))]
         let toks = channel_delay::delayed_view(&toks, cfg.data.audio_pad_value)?;
 
         // Decoder forward (CFG).
@@ -267,14 +249,6 @@ async fn async_main() -> anyhow::Result<()> {
         Tensor::from_slice(&codes, (codes.len(), cfg.data.channels), &device)?.unsqueeze(0)?; // [1,T,C]
 
     // Remove temporal delays before EnCodec decoding
-    #[cfg(any(feature = "cuda", feature = "metal"))]
-    let codes_t = if matches!(device, Device::Cuda(_) | Device::Metal(_)) {
-        channel_delay_gpu::undelayed_view_gpu(&codes_t, cfg.data.audio_pad_value)?
-    } else {
-        channel_delay::undelayed_view(&codes_t, cfg.data.audio_pad_value)?
-    };
-
-    #[cfg(not(any(feature = "cuda", feature = "metal")))]
     let codes_t = channel_delay::undelayed_view(&codes_t, cfg.data.audio_pad_value)?;
 
     let pcm = dia

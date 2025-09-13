@@ -22,6 +22,7 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "microphone")]
 use crate::microphone::Model;
 use candle_transformers::models::whisper::{self as m, Config};
+use fluent_voice_whisper::multilingual;
 
 #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use candle_transformers::models::whisper::audio;
@@ -630,7 +631,7 @@ fn process_audio(
     };
 
     let language_token = match (args.model.is_multilingual(), args.language) {
-        (true, None) => Some(crate::multilingual::detect_language(
+        (true, None) => Some(multilingual::detect_language(
             &mut model, &tokenizer, &mel,
         )?),
         (false, None) => None,

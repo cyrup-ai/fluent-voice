@@ -6,9 +6,7 @@ use std::sync::Arc;
 use super::{PitchNote, Speaker, VocalSpeedMod, VoiceError, VoicePlayer, VoicePool};
 use crate::audio::channel_delay;
 
-// Import optimizations when GPU features are enabled
-#[cfg(any(feature = "cuda", feature = "metal"))]
-use crate::optimizations::channel_delay_gpu;
+// GPU optimizations have been simplified - channel_delay_gpu removed
 
 /// A conversation that can generate speech with configured speakers and settings
 pub struct Conversation<S: Speaker> {
@@ -161,18 +159,10 @@ impl<S: Speaker> Conversation<S> {
         // Pre-fill with audio prompt if available
         if let Some(ap) = &audio_prompt_codes {
             // Apply temporal delays before prefilling decoder
-            #[cfg(any(feature = "cuda", feature = "metal"))]
-            let ap_delayed = if matches!(
-                device,
-                candle_core::Device::Cuda(_) | candle_core::Device::Metal(_)
-            ) {
-                channel_delay_gpu::delayed_view_gpu(ap, cfg.data.audio_pad_value)
-            } else {
-                channel_delay::delayed_view(ap, cfg.data.audio_pad_value)
-            }
-            .map_err(|e| {
-                VoiceError::GenerationError(format!("Channel delay adjustment failed: {e}"))
-            })?;
+            let ap_delayed = channel_delay::delayed_view(ap, cfg.data.audio_pad_value)
+                .map_err(|e| {
+                    VoiceError::GenerationError(format!("Channel delay adjustment failed: {e}"))
+                })?;
 
             #[cfg(not(any(feature = "cuda", feature = "metal")))]
             let ap_delayed =
@@ -221,24 +211,9 @@ impl<S: Speaker> Conversation<S> {
             };
 
             // Apply temporal delays before model sees the tokens
-            #[cfg(any(feature = "cuda", feature = "metal"))]
-            let toks = if matches!(
-                device,
-                candle_core::Device::Cuda(_) | candle_core::Device::Metal(_)
-            ) {
-                channel_delay_gpu::delayed_view_gpu(&toks, cfg.data.audio_pad_value)
-            } else {
-                channel_delay::delayed_view(&toks, cfg.data.audio_pad_value)
-            }
-            .map_err(|e| {
+            let toks = channel_delay::delayed_view(&toks, cfg.data.audio_pad_value).map_err(|e| {
                 VoiceError::GenerationError(format!("Channel delay adjustment failed: {e}"))
             })?;
-
-            #[cfg(not(any(feature = "cuda", feature = "metal")))]
-            let toks =
-                channel_delay::delayed_view(&toks, cfg.data.audio_pad_value).map_err(|e| {
-                    VoiceError::GenerationError(format!("Channel delay adjustment failed: {}", e))
-                })?;
 
             let logits = dia
                 .decode_step(&toks, &mut dec_state)
@@ -272,24 +247,9 @@ impl<S: Speaker> Conversation<S> {
                 })?;
 
         // Remove temporal delays before EnCodec decoding
-        #[cfg(any(feature = "cuda", feature = "metal"))]
-        let codes_t = if matches!(
-            device,
-            candle_core::Device::Cuda(_) | candle_core::Device::Metal(_)
-        ) {
-            channel_delay_gpu::undelayed_view_gpu(&codes_t, cfg.data.audio_pad_value)
-        } else {
-            channel_delay::undelayed_view(&codes_t, cfg.data.audio_pad_value)
-        }
-        .map_err(|e| {
+        let codes_t = channel_delay::undelayed_view(&codes_t, cfg.data.audio_pad_value).map_err(|e| {
             VoiceError::GenerationError(format!("Channel delay adjustment failed: {e}"))
         })?;
-
-        #[cfg(not(any(feature = "cuda", feature = "metal")))]
-        let codes_t =
-            channel_delay::undelayed_view(&codes_t, cfg.data.audio_pad_value).map_err(|e| {
-                VoiceError::GenerationError(format!("Channel delay adjustment failed: {}", e))
-            })?;
 
         let pcm = dia
             .decode_audio_codes(&codes_t)

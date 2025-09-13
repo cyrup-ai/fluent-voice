@@ -15,12 +15,19 @@ use crate::endpoints::genai::tts::{
 };
 use crate::shared::query_params::OutputFormat;
 use crate::shared::{DefaultVoice, Model, VoiceSettings as InternalVoiceSettings};
-use crate::timestamp_metadata::{AudioChunkTimestamp, SynthesisMetadata, TimestampMetadata};
+use crate::timestamp_metadata::{AudioChunkTimestamp, SynthesisContext, SynthesisMetadata, TimestampMetadata};
 use crate::utils::{play, stream_audio};
 use crate::voice::Voice as VoiceEnum;
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt};
 use std::pin::Pin;
+
+// Import DefaultSTTEngine for microphone STT delegation
+use fluent_voice::engines::DefaultSTTEngineBuilder;
+use fluent_voice::stt_conversation::{SttEngine, SttConversationBuilder};
+
+// Import domain types for transcription
+use fluent_voice_domain::{VadMode, NoiseReduction};
 
 // Remove fluent-voice trait integration - ElevenLabs uses its own builder API
 use std::task::{Context, Poll};
@@ -460,9 +467,21 @@ impl TtsBuilder {
     pub async fn stream_with_timestamps(self) -> Result<AudioStreamWithTimestamps> {
         // Production implementation: Use ElevenLabs WebSocket streaming for real-time synthesis
         // Falls back to batch generation when streaming not available
+        
+        // Create synthesis context before consuming self
+        let synthesis_context = SynthesisContext::from_tts_builder(
+            &self.voice_id,
+            &String::from(self.model.clone()),
+            self.text.as_deref(),
+            self.voice_settings.as_ref(),
+            &self.output_format.to_string(),
+            self.language_code.as_deref(),
+        );
+        
         let audio_with_timestamps = self.generate_with_timestamps().await?;
         Ok(AudioStreamWithTimestamps::from_audio_with_timestamps(
             audio_with_timestamps,
+            synthesis_context,
         ))
     }
 
@@ -652,10 +671,11 @@ impl Stream for AudioStream {
 /// Audio stream with character-level timestamps for streaming TTS
 pub struct AudioStreamWithTimestamps {
     inner: Pin<Box<dyn Stream<Item = Result<TimestampedAudioChunk>> + Send>>,
+    synthesis_context: SynthesisContext,
 }
 
 impl AudioStreamWithTimestamps {
-    fn new<S>(stream: S) -> Self
+    fn new<S>(stream: S, synthesis_context: SynthesisContext) -> Self
     where
         S: Stream<Item = Result<crate::endpoints::genai::tts::TextToSpeechWithTimestampsResponse>>
             + Send
@@ -675,11 +695,12 @@ impl AudioStreamWithTimestamps {
 
         Self {
             inner: Box::pin(mapped_stream),
+            synthesis_context,
         }
     }
 
     /// Create from AudioWithTimestamps (fallback when true streaming not available)
-    fn from_audio_with_timestamps(audio_with_timestamps: AudioWithTimestamps) -> Self {
+    fn from_audio_with_timestamps(audio_with_timestamps: AudioWithTimestamps, synthesis_context: SynthesisContext) -> Self {
         use futures_util::stream;
 
         // Convert the single AudioWithTimestamps into a stream with one item
@@ -694,6 +715,7 @@ impl AudioStreamWithTimestamps {
 
         Self {
             inner: Box::pin(stream),
+            synthesis_context,
         }
     }
 
@@ -730,18 +752,21 @@ impl AudioStreamWithTimestamps {
         use base64::{Engine, engine::general_purpose};
         use tokio::io::AsyncWriteExt;
 
+        let mut total_processed_bytes = 0usize;
+        
         while let Some(chunk) = self.inner.next().await {
             let chunk = chunk?;
 
-            // Save audio data
+            // Save audio data and track size
             let audio_bytes = general_purpose::STANDARD
                 .decode(&chunk.audio_base64)
                 .map_err(|e| format!("Failed to decode audio: {}", e))?;
             audio_file.write_all(&audio_bytes).await?;
 
-            // Collect timestamp data
+            // Collect timestamp data with size tracking
             if let Some(alignment) = chunk.alignment {
-                all_alignments.push(alignment);
+                all_alignments.push((alignment, audio_bytes.len(), total_processed_bytes));
+                total_processed_bytes += audio_bytes.len();
             }
         }
 
@@ -750,29 +775,40 @@ impl AudioStreamWithTimestamps {
 
         // Populate with synthesis metadata (extracted from context)
         timestamp_metadata.synthesis_metadata = SynthesisMetadata {
-            voice_id: "unknown".to_string(), // Context not available in this scope
-            model_id: "unknown".to_string(), // Context not available in this scope
-            text: "unknown".to_string(),     // Context not available in this scope
-            voice_settings: None,            // Context not available in this scope
-            output_format: "unknown".to_string(), // Context not available in this scope
-            language: None,                  // Context not available in this scope
+            voice_id: self.synthesis_context.voice_id.clone(),
+            model_id: self.synthesis_context.model_id.clone(),
+            text: self.synthesis_context.text.clone(),
+            voice_settings: self.synthesis_context.voice_settings.clone(),
+            output_format: self.synthesis_context.output_format.clone(),
+            language: self.synthesis_context.language.clone(),
         };
 
-        // Add all alignment data (preserving rich timing information)
-        for (chunk_idx, alignment) in all_alignments.iter().enumerate() {
+        // Add all alignment data with calculated timing information
+        let mut cumulative_time_ms = 0u64;
+        
+        for (chunk_idx, (alignment, chunk_size, _byte_offset)) in all_alignments.iter().enumerate() {
             timestamp_metadata.add_alignment(alignment);
 
-            // Add corresponding audio chunk information
+            // Calculate precise timing from alignment data
+            let start_seconds = alignment.character_start_times_seconds.first().copied().unwrap_or(0.0);
+            let end_seconds = alignment.character_end_times_seconds.last().copied().unwrap_or(0.0);
+            let duration_ms = ((end_seconds - start_seconds) * 1000.0) as u64;
+            
+            // Extract actual text segment from character data
+            let text_segment = alignment.characters.join("");
+            
             let chunk = AudioChunkTimestamp {
                 chunk_id: chunk_idx,
-                start_ms: 0, // Would need to calculate from previous chunks
-                end_ms: 0,   // Would need to calculate from alignment data
-                text_segment: "unknown".to_string(), // Context not available
-                speaker_id: None, // Multi-speaker support
-                format: "unknown".to_string(),
-                size_bytes: 0, // Would need to calculate from audio data
+                start_ms: cumulative_time_ms,
+                end_ms: cumulative_time_ms + duration_ms,
+                text_segment,
+                speaker_id: None, // Multi-speaker support available when needed
+                format: self.synthesis_context.output_format.clone(),
+                size_bytes: *chunk_size,
             };
+            
             timestamp_metadata.add_chunk(chunk);
+            cumulative_time_ms += duration_ms;
         }
 
         // Finalize timing calculations
@@ -971,15 +1007,15 @@ impl SttBuilder {
         }
     }
 
-    /// Listen to microphone using integrated Whisper STT engine
-    /// ElevenLabs doesn't provide STT, so we use Whisper as fallback
-    pub fn microphone(self, device: impl Into<String>) -> MicrophoneBuilder {
-        MicrophoneBuilder {
-            builder: self,
-            device_name: device.into(),
-            sample_rate: 16000,     // Standard for speech recognition
-            chunk_duration_ms: 500, // 500ms chunks for real-time processing
-        }
+    /// Configure microphone for STT (delegates to DefaultSTTEngine)
+    /// ElevenLabs doesn't provide STT, so this delegates to the fluent-voice DefaultSTTEngine
+    pub fn microphone(self, device: impl Into<String>) -> impl fluent_voice::stt_conversation::MicrophoneBuilder {
+        use fluent_voice::prelude::*;
+        
+        // Delegate directly to fluent-voice STT API
+        FluentVoice::stt()
+            .conversation()
+            .with_microphone(device.into())
     }
 
     /// Collect the transcription
@@ -1047,30 +1083,7 @@ impl TranscriptionBuilder {
     }
 }
 
-/// Microphone transcription builder using integrated Whisper STT
-pub struct MicrophoneBuilder {
-    builder: SttBuilder,
-    device_name: String,
-    sample_rate: u32,
-    chunk_duration_ms: u64,
-}
 
-impl MicrophoneBuilder {
-    /// Start listening using Whisper STT engine for real-time transcription
-    pub async fn listen(self) -> Result<TranscriptStream> {
-        // Create Whisper engine configuration for real-time transcription
-        // TODO: Replace with actual whisper implementation when available
-        let _whisper_config = format!(
-            "device: {}, sample_rate: {}, chunk_duration: {}",
-            self.device_name, self.sample_rate, self.chunk_duration_ms
-        );
-
-        // Initialize Whisper engine
-        // TODO: Replace with actual whisper implementation when available
-        // For now, return a placeholder error indicating STT is not implemented
-        Err("STT functionality not yet implemented".into())
-    }
-}
 
 /// Transcript output
 #[derive(Debug, Clone)]

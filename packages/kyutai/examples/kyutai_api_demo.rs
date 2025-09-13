@@ -11,12 +11,12 @@
 //!
 //! Run with: `cargo run --example kyutai_api_demo`
 
-use fluent_voice_domain::{VocalSpeedMod, PitchRange, VoiceId, AudioFormat, Speaker};
 use fluent_voice_domain::audio_chunk::AudioChunk;
+use fluent_voice_domain::{AudioFormat, PitchRange, Speaker, VocalSpeedMod, VoiceId};
 use fluent_voice_kyutai::engine::KyutaiSpeakerLine;
+use futures_util::stream;
 use std::error::Error;
 use tokio_stream::StreamExt;
-use futures_util::stream;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -88,10 +88,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // Simulate audio generation timing
         let text_length = speaker.text().len();
         let duration_ms = (text_length as f64 * 50.0) as u64; // ~50ms per character
-        
+
         // Create mock PCM data (1024 bytes = ~5ms at 24kHz 16-bit stereo)
         let mock_pcm_data = vec![0u8; 1024];
-        
+
         let chunk = AudioChunk::with_metadata(
             mock_pcm_data,
             duration_ms,
@@ -100,10 +100,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Some(speaker.text.clone()),
             Some(AudioFormat::Pcm24Khz),
         );
-        
+
         audio_chunks.push(chunk);
         cumulative_time_ms += duration_ms;
-        
+
         println!("  ✓ {} ({} ms)", speaker.speaker_id, duration_ms);
     }
 
@@ -120,20 +120,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
         total_chunks += 1;
         total_duration_ms += chunk.duration_ms();
         total_audio_bytes += chunk.data().len();
-        
-        println!("  Chunk {}: {} ({} ms, {} bytes)", 
-                 total_chunks, 
-                 chunk.speaker_id().unwrap_or("Unknown"),
-                 chunk.duration_ms(),
-                 chunk.data().len());
+
+        println!(
+            "  Chunk {}: {} ({} ms, {} bytes)",
+            total_chunks,
+            chunk.speaker_id().unwrap_or("Unknown"),
+            chunk.duration_ms(),
+            chunk.data().len()
+        );
     }
 
     // Summary
     println!("\n📊 Processing Summary:");
     println!("  • Total chunks: {}", total_chunks);
-    println!("  • Total duration: {:.2}s", total_duration_ms as f64 / 1000.0);
+    println!(
+        "  • Total duration: {:.2}s",
+        total_duration_ms as f64 / 1000.0
+    );
     println!("  • Total audio data: {} bytes", total_audio_bytes);
-    println!("  • Average chunk size: {} bytes", total_audio_bytes / total_chunks);
+    println!(
+        "  • Average chunk size: {} bytes",
+        total_audio_bytes / total_chunks
+    );
 
     println!("\n✅ Kyutai TTS API integration demo completed successfully!");
     println!("   Note: This demo uses mock audio data. Real synthesis requires model files.");

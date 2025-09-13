@@ -43,7 +43,7 @@ pub struct GenerationConfig {
 // Import optimizations for GPU acceleration
 #[cfg(any(feature = "cuda", feature = "metal"))]
 use crate::optimizations::{
-    GpuConfig, MemoryPool, channel_delay_gpu, get_compute_dtype, get_optimal_config,
+    GpuConfig, get_compute_dtype, get_optimal_config,
 };
 
 /// Convenience: extremely small ε to replace `-inf` when we build masks.
@@ -155,8 +155,6 @@ pub struct DiaTts {
     #[cfg(any(feature = "cuda", feature = "metal"))]
     _gpu_config: GpuConfig,
     #[cfg(any(feature = "cuda", feature = "metal"))]
-    _memory_pool: MemoryPool,
-    #[cfg(any(feature = "cuda", feature = "metal"))]
     _compute_dtype: DType,
 }
 
@@ -169,9 +167,6 @@ impl DiaTts {
         let compute_dtype = get_compute_dtype(&device, gpu_config.mixed_precision);
 
         #[cfg(any(feature = "cuda", feature = "metal"))]
-        let memory_pool = MemoryPool::new(&device);
-
-        #[cfg(any(feature = "cuda", feature = "metal"))]
         if matches!(device, Device::Cuda(_) | Device::Metal(_)) {
             tracing::info!("GPU Optimizations enabled:");
             tracing::info!(device = ?device, "  - Device");
@@ -180,10 +175,6 @@ impl DiaTts {
                 "  - Mixed precision"
             );
             tracing::info!(dtype = ?compute_dtype, "  - Compute dtype");
-            tracing::info!(
-                optimal_batch_size = gpu_config.optimal_batch_size,
-                "  - Optimal batch size"
-            );
         }
 
         Self {
@@ -192,8 +183,6 @@ impl DiaTts {
             device,
             #[cfg(any(feature = "cuda", feature = "metal"))]
             _gpu_config: gpu_config,
-            #[cfg(any(feature = "cuda", feature = "metal"))]
-            _memory_pool: memory_pool,
             #[cfg(any(feature = "cuda", feature = "metal"))]
             _compute_dtype: compute_dtype,
         }
@@ -289,15 +278,7 @@ impl DiaTts {
             let bos_row = Tensor::full(bos, (1, self.cfg.data.channels), &self.device)?;
             let prefill = Tensor::cat(&[&bos_row, prompt], 0)?; // prepend BOS
 
-            // Apply channel delays before prefilling (use GPU version if available)
-            #[cfg(any(feature = "cuda", feature = "metal"))]
-            let prefill_delayed = if matches!(self.device, Device::Cuda(_) | Device::Metal(_)) {
-                channel_delay_gpu::delayed_view_gpu(&prefill, self.cfg.data.audio_pad_value)?
-            } else {
-                delayed_view(&prefill, self.cfg.data.audio_pad_value)?
-            };
-
-            #[cfg(not(any(feature = "cuda", feature = "metal")))]
+            // Apply channel delays before prefilling
             let prefill_delayed = delayed_view(&prefill, self.cfg.data.audio_pad_value)?;
 
             let pref_batched = prefill_delayed.unsqueeze(0)?; // [1,T,C]
@@ -349,20 +330,8 @@ impl DiaTts {
             }
         }
 
-        // Remove channel delays before returning tokens for decoding (use GPU version if available)
-        #[cfg(any(feature = "cuda", feature = "metal"))]
-        let final_tokens = if matches!(self.device, Device::Cuda(_) | Device::Metal(_)) {
-            channel_delay_gpu::undelayed_view_gpu(
-                &generated.generated_tokens,
-                self.cfg.data.audio_pad_value,
-            )?
-        } else {
-            undelayed_view(&generated.generated_tokens, self.cfg.data.audio_pad_value)?
-        };
-
-        #[cfg(not(any(feature = "cuda", feature = "metal")))]
-        let final_tokens =
-            undelayed_view(&generated.generated_tokens, self.cfg.data.audio_pad_value)?;
+        // Remove channel delays before returning tokens for decoding
+        let final_tokens = undelayed_view(&generated.generated_tokens, self.cfg.data.audio_pad_value)?;
 
         Ok(final_tokens)
     }

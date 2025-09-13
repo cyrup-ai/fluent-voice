@@ -428,7 +428,7 @@ impl DefaultTtsBuilder {
 
     /// Start a synthesis session with parameter validation
     pub fn start_session(&mut self) -> Result<String, VoiceError> {
-        let mut params = self
+        let params = self
             .synthesis_parameters
             .take()
             .unwrap_or_else(SynthesisParameters::new);

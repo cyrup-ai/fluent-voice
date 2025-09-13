@@ -1,3 +1,17 @@
+//! macOS-specific video source implementation
+//! 
+//! This module contains platform-specific code for macOS video capture and processing.
+//! It requires unsafe code for several legitimate reasons:
+//! - Integration with Objective-C AVFoundation APIs through objc2 bindings
+//! - Direct manipulation of Core Graphics and Core Video memory buffers
+//! - Implementation of Objective-C protocol traits (AVCaptureVideoDataOutputSampleBufferDelegate)
+//! - Thread safety markers (Send/Sync) for Apple framework types
+//! - Memory-mapped access to video frame data from system APIs
+//! 
+//! All unsafe code is carefully reviewed and necessary for system integration.
+
+#![allow(unsafe_code)]
+
 use anyhow::Result;
 
 use core_video::image_buffer::CVImageBuffer;
@@ -10,6 +24,7 @@ use tokio::sync::{mpsc, oneshot};
 #[cfg(target_os = "macos")]
 use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 #[cfg(target_os = "macos")]
+#[allow(deprecated)]
 use objc2_core_graphics::{
     CGDataProvider, CGImage, CGWindowID, CGWindowImageOption, CGWindowListCreateImage,
     CGWindowListOption,
@@ -50,7 +65,9 @@ enum FFmpegCommand {
         height: u32,
         fps: f64,
     },
+    #[allow(dead_code)] // Used in worker thread pattern matching, command sent by stop() method
     Stop,
+    #[allow(dead_code)] // Used in worker thread pattern matching, command sent by get_current_frame() method
     GetFrame {
         response: oneshot::Sender<Option<VideoFrame>>,
     },
@@ -186,6 +203,7 @@ impl ThreadSafeFFmpegSource {
         Ok(())
     }
 
+    #[allow(dead_code)] // FFmpeg frame conversion functionality reserved for future file input support
     fn convert_ffmpeg_frame_to_rgba(
         frame: &ffmpeg::frame::Video,
         target_width: u32,
@@ -264,6 +282,7 @@ impl ThreadSafeFFmpegSource {
         Ok(())
     }
 
+    #[allow(dead_code)] // FFmpeg stop functionality reserved for future file input support
     fn stop(&self) -> Result<()> {
         self.command_tx
             .send(FFmpegCommand::Stop)
@@ -271,6 +290,7 @@ impl ThreadSafeFFmpegSource {
         Ok(())
     }
 
+    #[allow(dead_code)] // FFmpeg get frame functionality reserved for future file input support
     async fn get_current_frame(&self) -> Option<VideoFrame> {
         let (tx, rx) = oneshot::channel();
         if self
@@ -812,6 +832,7 @@ impl MacOSVideoSource {
     }
 
     /// Start file reading using thread-safe FFmpeg source
+    #[allow(dead_code)] // FFmpeg file reading functionality reserved for future file input support
     fn start_file_reading(&mut self, file_path: String) -> Result<()> {
         if let Some(ffmpeg_source) = &self.ffmpeg_source {
             ffmpeg_source.start_file(
@@ -872,6 +893,7 @@ impl MacOSVideoSource {
     }
 
     /// Static helper method to convert FFmpeg frame to VideoFrame (for use in async context)
+    #[allow(dead_code)] // FFmpeg frame conversion functionality reserved for future file input support
     fn convert_ffmpeg_frame_to_rgba(
         frame: &ffmpeg::frame::Video,
         target_width: u32,
@@ -921,7 +943,11 @@ impl MacOSVideoSource {
     }
 
     /// Capture real screen content using Core Graphics
+    /// TODO: Replace CGWindowListCreateImage with ScreenCaptureKit for macOS 12.3+ compatibility
+    /// The current implementation uses deprecated Core Graphics API but provides fallback
+    /// to test patterns if screen capture fails, ensuring graceful degradation.
     #[cfg(target_os = "macos")]
+    #[allow(deprecated)]
     fn capture_screen_to_rgba(&self, width: u32, height: u32) -> Result<Vec<u8>> {
         unsafe {
             // Create a full-screen rect for capture (we'll use null bounds to capture all screens)

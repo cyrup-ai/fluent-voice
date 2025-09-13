@@ -531,6 +531,88 @@ impl LmModel {
         Ok(filtered_logits)
     }
 
+    /// Get raw logits for text generation without sampling
+    /// Used for custom sampling strategies like repetition penalty
+    pub fn get_raw_logits(
+        &self,
+        text_token: u32,
+        audio_codes: &[u32],
+        conditions: Option<&std::collections::HashMap<String, Tensor>>,
+    ) -> Result<Tensor> {
+        // Convert text token to tensor
+        let text_input = Tensor::new(&[text_token], &self.device)?.unsqueeze(0)?;
+
+        // Get text embeddings
+        let text_emb = text_input.apply(&self.text_in_embeddings)?;
+
+        // Convert audio codes to embeddings and combine
+        let mut audio_embs = Vec::new();
+        for &code in audio_codes {
+            let code_tensor = Tensor::new(&[code], &self.device)?.unsqueeze(0)?;
+            let audio_emb = code_tensor.apply(&self.audio_in_embeddings)?;
+            audio_embs.push(audio_emb);
+        }
+
+        // Combine text and audio embeddings
+        let mut all_embs = vec![text_emb];
+        all_embs.extend(audio_embs);
+        let mut combined_emb = Tensor::cat(&all_embs, 1)?;
+
+        // Apply conditioning if available
+        if let Some(conditions) = conditions {
+            if let Some(ref _conditioner) = self.conditioner {
+                // Convert HashMap<String, Tensor> to our Condition format
+                let mut condition_map = std::collections::HashMap::new();
+                for (name, tensor) in conditions {
+                    condition_map.insert(
+                        name.clone(),
+                        conditioner::Condition::AddToInput(tensor.clone()),
+                    );
+                }
+
+                // Apply sum conditioning (added to embeddings)
+                let mut conditioned_emb = combined_emb.clone();
+                for (name, condition) in &condition_map {
+                    if name.contains("sum") || name.contains("add") {
+                        conditioned_emb = condition.add_to_input(&conditioned_emb)?;
+                    }
+                }
+
+                // Use conditioned embeddings for forward pass
+                combined_emb = conditioned_emb;
+            }
+        }
+
+        // Forward through transformer
+        let transformer_out = self.transformer.forward(&combined_emb, None)?;
+
+        // Apply depformer if available
+        let final_out = match &self.depformer {
+            Some(depformer) => depformer.forward(&transformer_out, None)?,
+            None => transformer_out,
+        };
+
+        // Get logits for text output
+        let logits = final_out.apply(&self.text_out_head)?;
+
+        // Get the last timestep logits
+        let last_logits = logits.narrow(1, logits.dim(1)? - 1, 1)?.squeeze(1)?;
+
+        // Generate and store audio tokens for consistency
+        let mut audio_tokens = Vec::new();
+        for audio_head in &self.audio_out_heads {
+            let audio_logits = final_out.apply(audio_head)?;
+            let audio_last_logits = audio_logits
+                .narrow(1, audio_logits.dim(1)? - 1, 1)?
+                .squeeze(1)?;
+            let audio_token = audio_last_logits.argmax(1)?.to_scalar::<u32>()?;
+            audio_tokens.push(audio_token);
+        }
+        *self.last_audio_tokens_state.borrow_mut() = Some(audio_tokens);
+
+        Ok(last_logits)
+    }
+
     /// Get the last generated audio tokens from the model state
     /// Returns None if no audio tokens were generated in the last step
     pub fn last_audio_tokens(&self) -> Option<Vec<u32>> {

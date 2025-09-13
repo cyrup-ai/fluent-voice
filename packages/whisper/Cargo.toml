@@ -18,6 +18,11 @@ authors      = ["David Maple <david@cyrup.ai>"]
 keywords = ["whisper", "stt", "speech-recognition", "openai", "candle"]
 categories = ["multimedia::audio", "science", "algorithms"]
 
+# Binary targets
+[[bin]]
+name = "whisper"
+path = "src/whisper.rs"
+
 # ------------------------------------------------
 #  Dependencies
 # ------------------------------------------------

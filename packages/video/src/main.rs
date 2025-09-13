@@ -219,8 +219,9 @@ impl VideoChat {
 
         // Start event handling task with room access for track publishing
         let local_track = self.local_track.clone();
+        let room = std::sync::Arc::new(room);
         let room_clone = room.clone();
-        let args_clone = args.clone();
+        let _args_clone = args.clone();
         let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel();
 
         let handle = tokio::spawn(async move {
@@ -251,7 +252,7 @@ impl VideoChat {
                         // Handle receiving remote video tracks
                         if let livekit::track::RemoteTrack::Video(remote_video_track) = track {
                             match VideoTrackView::new_from_remote(remote_video_track) {
-                                Ok(track_view) => {
+                                Ok(_track_view) => {
                                     // Store remote track view for rendering
                                     // Note: This would typically be sent to the main thread via a channel
                                     // For now, we log successful creation
@@ -271,11 +272,7 @@ impl VideoChat {
                             match create_local_video_track_from_fluent_track(video_track).await {
                                 Ok(local_video_track) => {
                                     let options = TrackPublishOptions {
-                                        source: if args_clone.screen {
-                                            TrackSource::ScreenShare
-                                        } else {
-                                            TrackSource::Camera
-                                        },
+                                        source: TrackSource::Camera, // Use Camera for both screen and camera sources
                                         simulcast: false,
                                         video_codec: VideoCodec::H264,
                                         ..Default::default()
@@ -377,8 +374,6 @@ async fn create_local_video_track_from_fluent_track(
     let resolution = VideoResolution {
         width,
         height,
-        frame_rate: 30.0,
-        aspect_ratio: width as f32 / height as f32,
     };
     let rtc_source = NativeVideoSource::new(resolution);
 
@@ -390,9 +385,9 @@ async fn create_local_video_track_from_fluent_track(
 
     // Start frame feeding task with cancellation support
     let frame_stream = fluent_track.get_frame_stream();
-    let (feed_shutdown_tx, feed_shutdown_rx) = tokio::sync::oneshot::channel();
+    let (_feed_shutdown_tx, feed_shutdown_rx) = tokio::sync::oneshot::channel();
     let _feed_handle = tokio::spawn(async move {
-        feed_frames_to_source(rtc_source, frame_stream, feed_shutdown_rx).await;
+        feed_frames_to_source(rtc_source, Box::pin(frame_stream), feed_shutdown_rx).await;
     });
 
     // Note: In a full implementation, we would store feed_shutdown_tx somewhere
@@ -405,7 +400,7 @@ async fn create_local_video_track_from_fluent_track(
 /// Feed frames from fluent-voice VideoTrack to LiveKit VideoSource
 async fn feed_frames_to_source(
     rtc_source: NativeVideoSource,
-    mut frame_stream: impl futures::Stream<Item = fluent_video::VideoFrame> + Send + Unpin + 'static,
+    mut frame_stream: std::pin::Pin<Box<dyn futures::Stream<Item = fluent_video::VideoFrame> + Send + 'static>>,
     mut shutdown_rx: tokio::sync::oneshot::Receiver<()>,
 ) {
     let mut interval = tokio::time::interval(Duration::from_millis(33)); // ~30fps
@@ -444,7 +439,7 @@ async fn feed_frames_to_source(
 
                         let video_frame = VideoFrame {
                             rotation: VideoRotation::VideoRotation0,
-                            buffer: Box::new(i420_buffer),
+                            buffer: i420_buffer,
                             timestamp_us,
                         };
 

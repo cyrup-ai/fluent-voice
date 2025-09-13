@@ -21,14 +21,15 @@ use core_video;
 // Core Video pixel format constants for format detection
 #[cfg(target_os = "macos")]
 mod pixel_format_constants {
-    use core_foundation::base::OSType;
+    // OSType is a 32-bit unsigned integer in Core Foundation
+    pub type OSType = u32;
 
-    pub const kCVPixelFormatType_32BGRA: OSType =
-        b"BGRA".iter().fold(0u32, |acc, &b| (acc << 8) | b as u32);
-    pub const kCVPixelFormatType_32ARGB: OSType = 32u32;
-    pub const kCVPixelFormatType_24RGB: OSType = 24u32;
-    pub const kCVPixelFormatType_420YpCbCr8BiPlanarFullRange: OSType =
-        b"420f".iter().fold(0u32, |acc, &b| (acc << 8) | b as u32);
+    // FourCC codes for pixel formats (computed at compile time with const evaluation)
+    pub const K_CVPIXEL_FORMAT_TYPE_32_BGRA: OSType = 0x42475241; // 'BGRA'
+    pub const K_CVPIXEL_FORMAT_TYPE_32_ARGB: OSType = 0x32000000; // 32-bit ARGB
+    pub const K_CVPIXEL_FORMAT_TYPE_24_RGB: OSType = 0x18000000;  // 24-bit RGB
+    #[allow(dead_code)] // Reserved for future YUV format support
+    pub const K_CVPIXEL_FORMAT_TYPE_420_YP_CB_CR8_BI_PLANAR_FULL_RANGE: OSType = 0x34323066; // '420f'
 }
 use fluent_video::{VideoSource, VideoSourceOptions};
 // Platform-specific CoreAudio types - optimized for lock-free operation
@@ -989,7 +990,7 @@ unsafe fn get_buffer_data(frame: &RemoteVideoFrame) -> Result<Vec<u8>, Box<dyn s
     }
 
     // Detect pixel format for proper conversion
-    let pixel_format = frame.pixel_format_type();
+    let pixel_format = frame.get_pixel_format();
 
     // Calculate actual buffer size and copy data
     let buffer_size = bytes_per_row * height;
@@ -998,13 +999,13 @@ unsafe fn get_buffer_data(frame: &RemoteVideoFrame) -> Result<Vec<u8>, Box<dyn s
     // Convert based on detected pixel format
     use pixel_format_constants::*;
     match pixel_format {
-        kCVPixelFormatType_32BGRA => {
+        K_CVPIXEL_FORMAT_TYPE_32_BGRA => {
             convert_bgra_to_rgba(slice, width as usize, height as usize, bytes_per_row)
         }
-        kCVPixelFormatType_32ARGB => {
+        K_CVPIXEL_FORMAT_TYPE_32_ARGB => {
             convert_argb_to_rgba(slice, width as usize, height as usize, bytes_per_row)
         }
-        kCVPixelFormatType_24RGB => {
+        K_CVPIXEL_FORMAT_TYPE_24_RGB => {
             convert_rgb_to_rgba(slice, width as usize, height as usize, bytes_per_row)
         }
         _ => {

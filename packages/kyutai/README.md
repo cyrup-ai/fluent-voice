@@ -1,6 +1,8 @@
 # fluent-voice-kyutai
 
-Moshi language model implementation for fluent-voice using Kyutai research.
+[github](https://github.com/kyutai-labs/delayed-streams-modeling)
+[Huggingfaces TTS Model](https://huggingface.co/kyutai/tts-voices)
+[Moshi](https://github.com/kyutai-labs/moshi)
 
 ## Features
 

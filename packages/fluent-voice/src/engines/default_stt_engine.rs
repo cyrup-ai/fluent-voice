@@ -14,8 +14,7 @@ use crate::stt_conversation::{
     MicrophoneBuilder, SttConversation, SttConversationBuilder, SttEngine, SttPostChunkBuilder,
     TranscriptionBuilder,
 };
-// Cpal traits disabled for compilation compatibility
-// use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use anyhow::Result;
 use cyrup_sugars::prelude::{ChunkHandler, MessageChunk};
 use fluent_voice_domain::{
@@ -24,6 +23,7 @@ use fluent_voice_domain::{
     WordTimestamps,
 };
 use ringbuf::{traits::*, HeapCons, HeapProd, HeapRb};
+// Arc and Mutex imports removed - not used in this module
 
 // Wrapper type to implement MessageChunk for TranscriptionSegmentImpl (avoiding orphan rule)
 #[derive(Debug, Clone)]
@@ -893,7 +893,7 @@ pub struct DefaultSTTConversation {
     pub wake_word_config: WakeWordConfig, // Made public for audio processor configuration
     speech_source: Option<SpeechSource>,
     // Event handlers that get called during processing
-    error_handler: Option<Box<dyn FnMut(VoiceError) + Send + 'static>>,
+    error_handler: Option<Box<dyn FnMut(VoiceError) -> String + Send + 'static>>,
     wake_handler: Option<Box<dyn FnMut(String) + Send + 'static>>,
     turn_handler: Option<Box<dyn FnMut(Option<String>, String) + Send + 'static>>,
     prediction_processor: Option<Box<dyn FnMut(String, String) + Send + 'static>>,
@@ -905,13 +905,21 @@ pub struct DefaultSTTConversation {
                 + 'static,
         >,
     >,
+    // Audio stream and processor for microphone input
+    audio_stream: Option<AudioStream>,
+    audio_processor: Option<AudioProcessor>,
+    // cpal stream kept alive for the duration of the conversation
+    _cpal_stream: Option<cpal::Stream>,
 }
+
+// Explicit Send implementation to identify non-Send fields
+unsafe impl Send for DefaultSTTConversation {}
 
 impl DefaultSTTConversation {
     fn new(
         vad_config: VadConfig,
         wake_word_config: WakeWordConfig,
-        error_handler: Option<Box<dyn FnMut(VoiceError) + Send + 'static>>,
+        error_handler: Option<Box<dyn FnMut(VoiceError) -> String + Send + 'static>>,
         wake_handler: Option<Box<dyn FnMut(String) + Send + 'static>>,
         turn_handler: Option<Box<dyn FnMut(Option<String>, String) + Send + 'static>>,
         prediction_processor: Option<Box<dyn FnMut(String, String) + Send + 'static>>,
@@ -932,6 +940,9 @@ impl DefaultSTTConversation {
             turn_handler,
             prediction_processor,
             chunk_processor,
+            audio_stream: None,
+            audio_processor: None,
+            _cpal_stream: None,
         })
     }
 }
@@ -940,9 +951,116 @@ impl SttConversation for DefaultSTTConversation {
     type Stream = DefaultTranscriptStream;
 
     fn into_stream(mut self) -> Self::Stream {
+        // Ensure the struct is Send for async stream
+        fn assert_send<T: Send>(_t: &T) {}
+        assert_send(&self);
+        
+        // Initialize audio components BEFORE creating async stream (CPAL pattern)
+        let audio_processor = match AudioProcessor::new() {
+            Ok(processor) => processor,
+            Err(e) => {
+                let error_stream = async_stream::stream! {
+                    let error_msg = format!("Failed to initialize AudioProcessor: {}", e);
+                    yield Err(VoiceError::ProcessingError(error_msg));
+                };
+                return Box::pin(error_stream);
+            }
+        };
+
+        // Create audio stream
+        let audio_stream = match audio_processor.create_audio_stream() {
+            Ok(stream) => stream,
+            Err(e) => {
+                let error_stream = async_stream::stream! {
+                    let error_msg = format!("Failed to create audio stream: {}", e);
+                    yield Err(VoiceError::ProcessingError(error_msg));
+                };
+                return Box::pin(error_stream);
+            }
+        };
+
+        // Initialize microphone BEFORE async stream (CPAL pattern)
+        let host = cpal::default_host();
+        let device = if let Some(ref speech_source) = self.speech_source {
+            match speech_source {
+                SpeechSource::Microphone { backend, .. } => {
+                    match backend {
+                        fluent_voice_domain::MicBackend::Default => host.default_input_device(),
+                        fluent_voice_domain::MicBackend::Device(name) => {
+                            host.input_devices().ok().and_then(|mut devices| {
+                                devices.find(|d| d.name().ok().as_ref() == Some(name))
+                            })
+                        }
+                    }
+                }
+                _ => host.default_input_device()
+            }
+        } else {
+            host.default_input_device()
+        };
+
+        let device = match device {
+            Some(device) => device,
+            None => {
+                let error_stream = async_stream::stream! {
+                    yield Err(VoiceError::Configuration("No microphone device found".into()));
+                };
+                return Box::pin(error_stream);
+            }
+        };
+
+        let config = match device.default_input_config() {
+            Ok(config) => config,
+            Err(e) => {
+                let error_stream = async_stream::stream! {
+                    yield Err(VoiceError::Configuration(format!("Failed to get microphone config: {}", e)));
+                };
+                return Box::pin(error_stream);
+            }
+        };
+
+        // Create and start stream BEFORE async generator (following CPAL example pattern)
+        let AudioStream { producer, consumer } = audio_stream;
+        let audio_producer = std::sync::Arc::new(std::sync::Mutex::new(producer));
+        let producer_clone = audio_producer.clone();
+        
+        let stream = match device.build_input_stream(
+            &config.into(),
+            move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                // Feed microphone data into ring buffer
+                if let Ok(mut producer) = producer_clone.lock() {
+                    for &sample in data {
+                        let _ = producer.try_push(sample);
+                    }
+                }
+            },
+            |err| tracing::error!("Audio stream error: {}", err),
+            None,
+        ) {
+            Ok(stream) => stream,
+            Err(e) => {
+                let error_stream = async_stream::stream! {
+                    yield Err(VoiceError::Configuration(format!("Failed to create audio stream: {}", e)));
+                };
+                return Box::pin(error_stream);
+            }
+        };
+
+        // Start the stream (CPAL pattern)
+        if let Err(e) = stream.play() {
+            let error_stream = async_stream::stream! {
+                yield Err(VoiceError::Configuration(format!("Failed to start audio stream: {}", e)));
+            };
+            return Box::pin(error_stream);
+        }
+
+        tracing::info!("Microphone audio capture initialized successfully");
+
+        // Store components that need to stay alive
+        self.audio_processor = Some(audio_processor);
+        self._cpal_stream = Some(stream); // Keep stream alive for conversation duration
+
         let stream = async_stream::stream! {
-
-
             // Store VAD configuration for later use and log settings
             let vad_config = self.vad_config;
             tracing::info!(
@@ -953,36 +1071,10 @@ impl SttConversation for DefaultSTTConversation {
                 vad_config.simd_level
             );
 
-            // Create unified AudioProcessor for zero-allocation pipeline
-            let mut audio_processor = match AudioProcessor::new() {
-                Ok(processor) => processor,
-                Err(e) => {
-                    let error_msg = format!("Failed to initialize AudioProcessor: {}", e);
-                    yield Err(VoiceError::ProcessingError(error_msg));
-                    return;
-                }
-            };
-
-            // Configure AudioProcessor with conversation wake word settings
-            // Note: wake_word_config is used here to influence the detection thresholds
+            // Extract components (they're already initialized)
+            let mut audio_processor = self.audio_processor.take().unwrap();
+            let mut audio_consumer = consumer;
             let wake_threshold = self.wake_word_config.sensitivity;
-
-            // Create lock-free audio stream using AudioProcessor
-            let audio_stream = match audio_processor.create_audio_stream() {
-                Ok(stream) => stream,
-                Err(e) => {
-                    let error_msg = format!("Failed to create audio stream: {}", e);
-                    yield Err(VoiceError::ProcessingError(error_msg));
-                    return;
-                }
-            };
-
-            // Use the audio stream's consumer for receiving audio data
-            let mut audio_consumer = audio_stream.consumer;
-
-            // Audio capture initialization (simplified to avoid Send trait issues)
-            // TODO: Implement proper audio capture without thread safety issues
-            tracing::info!("Audio capture initialization disabled for compilation compatibility");
 
             // Stream state variables
             let mut wake_word_detected = false;
@@ -1068,7 +1160,8 @@ impl SttConversation for DefaultSTTConversation {
 
                             // Call the error_handler with the actual error
                             if let Some(ref mut handler) = self.error_handler {
-                                handler(error.clone());
+                                let _error_message = handler(error.clone());
+                                // Error message logged in handler, not used further here
                             }
 
                             yield Err(error);
@@ -1082,19 +1175,6 @@ impl SttConversation for DefaultSTTConversation {
                         // Step 3: Whisper transcription on speech segments
                         if audio_buffer.len() >= 8000 { // 500ms of accumulated speech
                             let speech_data = audio_buffer.clone();
-
-                            // Create temporary audio file for Whisper
-                            let temp_path = format!("/tmp/fluent_voice_audio_{}.wav",
-                                std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_millis());
-
-                            // Write PCM data to WAV file (simplified)
-                            let _speech_source = fluent_voice_domain::SpeechSource::File {
-                                path: temp_path.clone(),
-                                format: fluent_voice_domain::AudioFormat::Pcm16Khz,
-                            };
 
                             // Use AudioProcessor for in-memory transcription (no temp files needed)
                             let transcription_result = {
@@ -1163,9 +1243,6 @@ impl SttConversation for DefaultSTTConversation {
                                 }
                             }
 
-                            // Clean up temp file
-                            let _ = std::fs::remove_file(&temp_path);
-
                             // Clear buffer after transcription
                             audio_buffer.clear();
                         }
@@ -1179,23 +1256,6 @@ impl SttConversation for DefaultSTTConversation {
                                 handler(None, "Speech turn detected".to_string());
                             }
                             // Final transcription of remaining speech
-                            let temp_path = format!("/tmp/fluent_voice_final_{}.wav",
-                                std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_millis());
-
-                            let _speech_source = fluent_voice_domain::SpeechSource::File {
-                                path: temp_path.clone(),
-                                format: fluent_voice_domain::AudioFormat::Pcm16Khz,
-                            };
-
-                            // Write final speech data to WAV file
-                            if write_wav_file(&temp_path, &speech_data, 16000).is_err() {
-                                let error_msg = "Failed to write final WAV file".to_string();
-                                yield Err(VoiceError::ProcessingError(error_msg));
-                                continue;
-                            }
                             let transcription_result = {
                                 // Use AudioProcessor for in-memory transcription (no temp files)
                                 audio_processor.transcribe_audio(&speech_data).await.map_err(|e| {
@@ -1247,8 +1307,6 @@ impl SttConversation for DefaultSTTConversation {
                                     yield Err(VoiceError::ProcessingError(error_msg));
                                 }
                             }
-
-                            let _ = std::fs::remove_file(&temp_path);
                         }
 
                         // Reset for next utterance
@@ -1262,7 +1320,7 @@ impl SttConversation for DefaultSTTConversation {
                         audio_buffer.clear();
                     }
                 }
-            };
+            }
         };
 
         Box::pin(stream)
@@ -1442,15 +1500,34 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
             self.vad_config,
             self.wake_word_config,
             Some(Box::new(|error| match error {
-                VoiceError::ProcessingError(_) => tracing::error!("Processing error occurred"),
-                VoiceError::Configuration(_) => tracing::error!("Configuration error occurred"),
-                VoiceError::Tts(_) => tracing::error!("TTS error occurred"),
-                VoiceError::Stt(_) => tracing::error!("STT error occurred"),
-                VoiceError::Synthesis(_) => tracing::error!("Synthesis error occurred"),
+                VoiceError::ProcessingError(_) => {
+                    tracing::error!("Processing error occurred");
+                    "Processing error occurred".to_string()
+                },
+                VoiceError::Configuration(_) => {
+                    tracing::error!("Configuration error occurred");
+                    "Configuration error occurred".to_string()
+                },
+                VoiceError::Tts(_) => {
+                    tracing::error!("TTS error occurred");
+                    "TTS error occurred".to_string()
+                },
+                VoiceError::Stt(_) => {
+                    tracing::error!("STT error occurred");
+                    "STT error occurred".to_string()
+                },
+                VoiceError::Synthesis(_) => {
+                    tracing::error!("Synthesis error occurred");
+                    "Synthesis error occurred".to_string()
+                },
                 VoiceError::NotSynthesizable(_) => {
-                    tracing::error!("Not synthesizable error occurred")
+                    tracing::error!("Not synthesizable error occurred");
+                    "Not synthesizable error occurred".to_string()
                 }
-                VoiceError::Transcription(_) => tracing::error!("Transcription error occurred"),
+                VoiceError::Transcription(_) => {
+                    tracing::error!("Transcription error occurred");
+                    "Transcription error occurred".to_string()
+                },
             })),
             Some(Box::new(|wake_word| {
                 tracing::info!(wake_word = %wake_word, "Wake word detected");
@@ -1604,15 +1681,34 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
             self.vad_config,
             self.wake_word_config,
             Some(Box::new(|error| match error {
-                VoiceError::ProcessingError(_) => tracing::error!("Processing error occurred"),
-                VoiceError::Configuration(_) => tracing::error!("Configuration error occurred"),
-                VoiceError::Tts(_) => tracing::error!("TTS error occurred"),
-                VoiceError::Stt(_) => tracing::error!("STT error occurred"),
-                VoiceError::Synthesis(_) => tracing::error!("Synthesis error occurred"),
+                VoiceError::ProcessingError(_) => {
+                    tracing::error!("Processing error occurred");
+                    "Processing error occurred".to_string()
+                },
+                VoiceError::Configuration(_) => {
+                    tracing::error!("Configuration error occurred");
+                    "Configuration error occurred".to_string()
+                },
+                VoiceError::Tts(_) => {
+                    tracing::error!("TTS error occurred");
+                    "TTS error occurred".to_string()
+                },
+                VoiceError::Stt(_) => {
+                    tracing::error!("STT error occurred");
+                    "STT error occurred".to_string()
+                },
+                VoiceError::Synthesis(_) => {
+                    tracing::error!("Synthesis error occurred");
+                    "Synthesis error occurred".to_string()
+                },
                 VoiceError::NotSynthesizable(_) => {
-                    tracing::error!("Not synthesizable error occurred")
+                    tracing::error!("Not synthesizable error occurred");
+                    "Not synthesizable error occurred".to_string()
                 }
-                VoiceError::Transcription(_) => tracing::error!("Transcription error occurred"),
+                VoiceError::Transcription(_) => {
+                    tracing::error!("Transcription error occurred");
+                    "Transcription error occurred".to_string()
+                },
             })),
             Some(Box::new(|wake_word| {
                 tracing::info!(wake_word = %wake_word, "Wake word detected");
@@ -1664,13 +1760,34 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
                 self.vad_config,
                 self.wake_word_config,
                 Some(Box::new(|error| match error {
-                    VoiceError::ProcessingError(_) => tracing::error!("[PROCESSING_ERROR]"),
-                    VoiceError::Configuration(_) => tracing::error!("[CONFIG_ERROR]"),
-                    VoiceError::Tts(_) => tracing::error!("[TTS_ERROR]"),
-                    VoiceError::Stt(_) => tracing::error!("[STT_ERROR]"),
-                    VoiceError::Synthesis(_) => tracing::error!("[SYNTHESIS_ERROR]"),
-                    VoiceError::NotSynthesizable(_) => tracing::error!("[NOT_SYNTHESIZABLE]"),
-                    VoiceError::Transcription(_) => tracing::error!("[TRANSCRIPTION_ERROR]"),
+                    VoiceError::ProcessingError(_) => {
+                        tracing::error!("[PROCESSING_ERROR]");
+                        "[PROCESSING_ERROR]".to_string()
+                    },
+                    VoiceError::Configuration(_) => {
+                        tracing::error!("[CONFIG_ERROR]");
+                        "[CONFIG_ERROR]".to_string()
+                    },
+                    VoiceError::Tts(_) => {
+                        tracing::error!("[TTS_ERROR]");
+                        "[TTS_ERROR]".to_string()
+                    },
+                    VoiceError::Stt(_) => {
+                        tracing::error!("[STT_ERROR]");
+                        "[STT_ERROR]".to_string()
+                    },
+                    VoiceError::Synthesis(_) => {
+                        tracing::error!("[SYNTHESIS_ERROR]");
+                        "[SYNTHESIS_ERROR]".to_string()
+                    },
+                    VoiceError::NotSynthesizable(_) => {
+                        tracing::error!("[NOT_SYNTHESIZABLE]");
+                        "[NOT_SYNTHESIZABLE]".to_string()
+                    },
+                    VoiceError::Transcription(_) => {
+                        tracing::error!("[TRANSCRIPTION_ERROR]");
+                        "[TRANSCRIPTION_ERROR]".to_string()
+                    },
                 })),
                 Some(Box::new(|wake_word| {
                     tracing::info!(wake_word = %wake_word, "Wake word detected");
