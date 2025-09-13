@@ -15,8 +15,8 @@ use candle_core::{IndexOp, Tensor};
     feature = "mkl"
 ))]
 use candle_nn::ops::softmax;
-use rand::distributions::WeightedIndex;
 use rand::{SeedableRng, rngs::StdRng};
+use rand_distr::{Distribution, weighted::WeightedIndex};
 use tokenizers::Tokenizer;
 
 use crate::asr::model::WhisperModel;
@@ -45,26 +45,30 @@ pub struct WhisperDecoder {
 }
 
 impl WhisperDecoder {
-    pub fn new(model: WhisperModel, tokenizer: Tokenizer, seed: u64) -> Result<Self> {
-        let device = &model
-            .encoder_forward(
-                &Tensor::zeros(
-                    (1, 1, 1),
-                    candle_core::DType::F32,
-                    &candle_core::Device::Cpu,
-                )?,
-                true,
-            )?
-            .device(); // hack to grab device
+    pub fn new(mut model: WhisperModel, tokenizer: Tokenizer, seed: u64) -> Result<Self> {
+        let temp_tensor = model.encoder_forward(
+            &Tensor::zeros(
+                (1, 1, 1),
+                candle_core::DType::F32,
+                &candle_core::Device::Cpu,
+            )?,
+            true,
+        )?;
+        let device = temp_tensor.device().clone();
 
         let no_ts = token_id(&tokenizer, m::NO_TIMESTAMPS_TOKEN)?;
+        let sot = token_id(&tokenizer, m::SOT_TOKEN)?;
+        let eot = token_id(&tokenizer, m::EOT_TOKEN)?;
+        let transcribe = token_id(&tokenizer, m::TRANSCRIBE_TOKEN)?;
+        let translate = token_id(&tokenizer, m::TRANSLATE_TOKEN)?;
+
         // build suppress-mask
         let mut suppress = vec![0f32; model.config().vocab_size];
         for id in &model.config().suppress_tokens {
             suppress[*id as usize] = f32::NEG_INFINITY;
         }
         suppress[no_ts as usize] = f32::NEG_INFINITY;
-        let suppress = Tensor::new(&suppress, device)?;
+        let suppress = Tensor::new(&*suppress, &device)?;
 
         Ok(Self {
             model,
@@ -73,10 +77,10 @@ impl WhisperDecoder {
             temperature_fallback: &m::TEMPERATURES,
             no_timestamp_token: no_ts,
             suppress,
-            sot: token_id(&tokenizer, m::SOT_TOKEN)?,
-            eot: token_id(&tokenizer, m::EOT_TOKEN)?,
-            transcribe: token_id(&tokenizer, m::TRANSCRIBE_TOKEN)?,
-            translate: token_id(&tokenizer, m::TRANSLATE_TOKEN)?,
+            sot,
+            eot,
+            transcribe,
+            translate,
         })
     }
 
@@ -129,7 +133,10 @@ impl WhisperDecoder {
                 break;
             }
             tokens.push(next);
-            let piece = self.tokenizer.decode(&[next], true)?;
+            let piece = self
+                .tokenizer
+                .decode(&[next], true)
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
             text.push_str(&piece);
         }
         Ok(text)

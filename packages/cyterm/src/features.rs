@@ -55,9 +55,10 @@ pub fn extract(ring: &[f32], pos: usize) -> [f32; FEATURE_DIM] {
     debug_assert!(pos < RING_SIZE);
 
     // FFT setup (lazy-initialised, shared across calls).
-    static PLANNER: Lazy<FftPlanner<f32>> = Lazy::new(|| FftPlanner::<f32>::new());
-    static FFT: Lazy<std::sync::Arc<dyn Fft<f32> + Sync + Send>> =
-        Lazy::new(|| PLANNER.plan_fft_forward(WINDOW));
+    static FFT: Lazy<std::sync::Arc<dyn Fft<f32> + Sync + Send>> = Lazy::new(|| {
+        let mut planner = FftPlanner::<f32>::new();
+        planner.plan_fft_forward(WINDOW)
+    });
 
     let mut scratch = vec![Complex32::default(); WINDOW];
     let mut out = [0f32; FEATURE_DIM];

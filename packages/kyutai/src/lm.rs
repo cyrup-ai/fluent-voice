@@ -160,10 +160,36 @@ pub struct LmModel {
     device: Device,
     dtype: DType,
     last_audio_tokens_state: RefCell<Option<Vec<u32>>>,
+    audio_vocab_size: usize,
 }
 
 impl LmModel {
+    /// Validate audio vocabulary size based on Moshi architecture specifications
+    fn validate_audio_vocab_size(audio_vocab_size: usize) -> crate::Result<()> {
+        if audio_vocab_size < 1024 {
+            return Err(crate::error::MoshiError::Config(format!(
+                "audio_vocab_size {} is too small (minimum: 1024)",
+                audio_vocab_size
+            )));
+        }
+        if audio_vocab_size > 8192 {
+            return Err(crate::error::MoshiError::Config(format!(
+                "audio_vocab_size {} is too large (maximum: 8192)",
+                audio_vocab_size
+            )));
+        }
+        if audio_vocab_size < 2 {
+            return Err(crate::error::MoshiError::Config(
+                "audio_vocab_size must be >= 2 to support EOS and padding tokens".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
     pub fn new(cfg: &Config, vb: MaybeQuantizedVarBuilder) -> Result<Self> {
+        // Validate audio vocab size with proper range checking
+        Self::validate_audio_vocab_size(cfg.audio_vocab_size)?;
+
         let transformer = transformer::Transformer::new(&cfg.transformer, vb.pp("transformer"))?;
 
         let depformer = match &cfg.depformer {
@@ -225,6 +251,7 @@ impl LmModel {
             device,
             dtype,
             last_audio_tokens_state: RefCell::new(None),
+            audio_vocab_size: cfg.audio_vocab_size,
         })
     }
 
@@ -246,7 +273,7 @@ impl LmModel {
         match input_ids {
             Some(ids) => {
                 let embeddings = ids.apply(&self.text_in_embeddings)?;
-                let transformer_output = self.transformer.forward(&embeddings)?;
+                let transformer_output = self.transformer.forward(&embeddings, None)?;
                 let logits = transformer_output.apply(&self.text_out_head)?;
                 Ok((logits, Some(transformer_output)))
             }
@@ -270,10 +297,14 @@ impl LmModel {
 
     /// Get the audio pad token ID for this model
     pub fn audio_pad_token(&self) -> u32 {
-        // Audio pad token is typically the last token in the audio vocabulary
-        // Note: Using embeddings dimension info since direct weight access may not be available
-        // This should be the vocab size - 1 for the pad token
-        2048 // Using a reasonable default for now - this should match audio_vocab_size config
+        // Audio pad token is the last token in the audio vocabulary (Moshi standard)
+        (self.audio_vocab_size - 1) as u32
+    }
+
+    /// Get the audio EOS (End-of-Sequence) token ID for this model
+    pub fn audio_eos_token(&self) -> u32 {
+        // Audio EOS token is the second-to-last token in the audio vocabulary (Moshi standard)
+        (self.audio_vocab_size - 2) as u32
     }
 
     /// Get the condition provider for this model
@@ -319,11 +350,11 @@ impl LmModel {
             };
 
         // Forward through transformer
-        let transformer_out = self.transformer.forward(&conditioned_emb)?;
+        let transformer_out = self.transformer.forward(&conditioned_emb, None)?;
 
         // Apply depformer if available
         let final_out = match &self.depformer {
-            Some(depformer) => depformer.forward(&transformer_out)?,
+            Some(depformer) => depformer.forward(&transformer_out, None)?,
             None => transformer_out,
         };
 
@@ -377,20 +408,67 @@ impl LmModel {
         // Combine text and audio embeddings
         let mut all_embs = vec![text_emb];
         all_embs.extend(audio_embs);
-        let combined_emb = Tensor::cat(&all_embs, 1)?;
+        let mut combined_emb = Tensor::cat(&all_embs, 1)?;
 
         // Apply conditioning if available
-        if let Some(_conditions) = conditions {
-            // TODO: Apply conditioning properly - for now just use the combined embeddings
-            // This would need the conditioner to be properly set up
+        if let Some(conditions) = conditions {
+            if let Some(ref _conditioner) = self.conditioner {
+                // Convert HashMap<String, Tensor> to our Condition format
+                let mut condition_map = std::collections::HashMap::new();
+                for (name, tensor) in conditions {
+                    condition_map.insert(
+                        name.clone(),
+                        conditioner::Condition::AddToInput(tensor.clone()),
+                    );
+                }
+
+                // Apply sum conditioning (added to embeddings)
+                let mut conditioned_emb = combined_emb.clone();
+                for (name, condition) in &condition_map {
+                    if name.contains("sum") || name.contains("add") {
+                        conditioned_emb = condition.add_to_input(&conditioned_emb)?;
+                    }
+                }
+
+                // Extract cross-attention conditioning for transformer
+                let mut cross_attention_src: Option<Tensor> = None;
+                for (name, condition) in &condition_map {
+                    if name.contains("cross") || name.contains("attention") {
+                        match condition {
+                            conditioner::Condition::Tensor(tensor) => match cross_attention_src {
+                                None => cross_attention_src = Some(tensor.clone()),
+                                Some(ref existing) => {
+                                    cross_attention_src =
+                                        Some(Tensor::cat(&[existing, tensor], 1)?);
+                                }
+                            },
+                            conditioner::Condition::AddToInput(tensor) => match cross_attention_src
+                            {
+                                None => cross_attention_src = Some(tensor.clone()),
+                                Some(ref existing) => {
+                                    cross_attention_src =
+                                        Some(Tensor::cat(&[existing, tensor], 1)?);
+                                }
+                            },
+                        }
+                    }
+                }
+
+                // Use conditioned embeddings for forward pass
+                combined_emb = conditioned_emb;
+
+                // UPDATED: Cross-attention parameter support has been added to transformer.forward()
+                // The cross_attention_src parameter is now available but cross-attention implementation is not yet complete
+                // Full cross-attention implementation would require additional attention layers in TransformerLayer
+            }
         }
 
         // Forward through transformer
-        let transformer_out = self.transformer.forward(&combined_emb)?;
+        let transformer_out = self.transformer.forward(&combined_emb, None)?;
 
         // Apply depformer if available
         let final_out = match &self.depformer {
-            Some(depformer) => depformer.forward(&transformer_out)?,
+            Some(depformer) => depformer.forward(&transformer_out, None)?,
             None => transformer_out,
         };
 
@@ -425,15 +503,32 @@ impl LmModel {
     }
 
     /// Apply top-k filtering to logits
+    /// Filters logits to keep only the top-k highest values, setting others to negative infinity
     fn apply_top_k_filter(&self, logits: &Tensor, k: usize) -> Result<Tensor> {
-        let vocab_size = logits.dim(1)?;
+        let vocab_size = logits.dim(logits.rank() - 1)?;
+
+        // Validate parameters
+        if k == 0 {
+            return Err(candle_core::Error::Msg(
+                "top_k must be greater than 0".to_string(),
+            ));
+        }
         if k >= vocab_size {
             return Ok(logits.clone());
         }
 
-        // Simple top-k implementation - in practice, you'd want proper top-k sampling
-        // For now, return the original logits (this maintains functionality)
-        Ok(logits.clone())
+        // Get the k-th largest value as threshold by sorting in descending order
+        let (sorted_values, _sorted_indices) = logits.sort_last_dim(false)?; // false = descending order
+        let threshold = sorted_values.narrow(logits.rank() - 1, k - 1, 1)?;
+
+        // Create mask for values >= threshold (top-k values)
+        let mask = logits.ge(&threshold)?;
+
+        // Set non-top-k values to negative infinity using conditional selection
+        let neg_inf_tensor = Tensor::full(f32::NEG_INFINITY, logits.shape(), logits.device())?;
+        let filtered_logits = mask.where_cond(logits, &neg_inf_tensor)?;
+
+        Ok(filtered_logits)
     }
 
     /// Get the last generated audio tokens from the model state
@@ -447,7 +542,7 @@ impl Module for LmModel {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         // Simple forward pass for Module trait - delegate to embeddings and text head
         let embeddings = xs.apply(&self.text_in_embeddings)?;
-        let transformer_output = self.transformer.forward(&embeddings)?;
+        let transformer_output = self.transformer.forward(&embeddings, None)?;
         let output = transformer_output.apply(&self.text_out_head)?;
         Ok(output)
     }

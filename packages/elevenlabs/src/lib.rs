@@ -44,6 +44,10 @@ mod shared;
 mod tts;
 mod utils;
 
+// Timestamp modules - internal implementation
+mod timestamp_export;
+mod timestamp_metadata;
+
 // Internal engine module - NOT exposed
 mod engine;
 

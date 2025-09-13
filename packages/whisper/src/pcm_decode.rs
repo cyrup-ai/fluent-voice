@@ -15,7 +15,29 @@ where
 }
 
 #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
-pub(crate) fn pcm_decode<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<(Vec<f32>, u32)> {
+fn conv_stereo_to_mono<T>(
+    samples: &mut Vec<f32>,
+    data: std::borrow::Cow<symphonia::core::audio::AudioBuffer<T>>,
+) where
+    T: symphonia::core::sample::Sample,
+    f32: symphonia::core::conv::FromSample<T>,
+{
+    // Proper stereo-to-mono conversion by mixing both channels
+    if data.spec().channels.count() > 1 {
+        for frame in 0..data.frames() {
+            let mut sample = 0.0f32;
+            for ch in 0..data.spec().channels.count() {
+                sample += f32::from_sample(data.chan(ch)[frame]);
+            }
+            samples.push(sample / data.spec().channels.count() as f32);
+        }
+    } else {
+        samples.extend(data.chan(0).iter().map(|v| f32::from_sample(*v)));
+    }
+}
+
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
+pub fn pcm_decode<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<(Vec<f32>, u32)> {
     // Open the media source.
     let src = std::fs::File::open(path)?;
 
@@ -63,23 +85,36 @@ pub(crate) fn pcm_decode<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<(
             continue;
         }
         match decoder.decode(&packet)? {
-            AudioBufferRef::F32(buf) => pcm_data.extend(buf.chan(0)),
-            AudioBufferRef::U8(data) => conv(&mut pcm_data, data),
-            AudioBufferRef::U16(data) => conv(&mut pcm_data, data),
-            AudioBufferRef::U24(data) => conv(&mut pcm_data, data),
-            AudioBufferRef::U32(data) => conv(&mut pcm_data, data),
-            AudioBufferRef::S8(data) => conv(&mut pcm_data, data),
-            AudioBufferRef::S16(data) => conv(&mut pcm_data, data),
-            AudioBufferRef::S24(data) => conv(&mut pcm_data, data),
-            AudioBufferRef::S32(data) => conv(&mut pcm_data, data),
-            AudioBufferRef::F64(data) => conv(&mut pcm_data, data),
+            AudioBufferRef::F32(buf) => {
+                // Proper stereo-to-mono conversion by mixing both channels
+                if buf.spec().channels.count() > 1 {
+                    for frame in 0..buf.frames() {
+                        let mut sample = 0.0f32;
+                        for ch in 0..buf.spec().channels.count() {
+                            sample += buf.chan(ch)[frame];
+                        }
+                        pcm_data.push(sample / buf.spec().channels.count() as f32);
+                    }
+                } else {
+                    pcm_data.extend(buf.chan(0));
+                }
+            }
+            AudioBufferRef::U8(data) => conv_stereo_to_mono(&mut pcm_data, data),
+            AudioBufferRef::U16(data) => conv_stereo_to_mono(&mut pcm_data, data),
+            AudioBufferRef::U24(data) => conv_stereo_to_mono(&mut pcm_data, data),
+            AudioBufferRef::U32(data) => conv_stereo_to_mono(&mut pcm_data, data),
+            AudioBufferRef::S8(data) => conv_stereo_to_mono(&mut pcm_data, data),
+            AudioBufferRef::S16(data) => conv_stereo_to_mono(&mut pcm_data, data),
+            AudioBufferRef::S24(data) => conv_stereo_to_mono(&mut pcm_data, data),
+            AudioBufferRef::S32(data) => conv_stereo_to_mono(&mut pcm_data, data),
+            AudioBufferRef::F64(data) => conv_stereo_to_mono(&mut pcm_data, data),
         }
     }
     Ok((pcm_data, sample_rate))
 }
 
 #[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
-pub(crate) fn pcm_decode<P: AsRef<std::path::Path>>(_path: P) -> anyhow::Result<(Vec<f32>, u32)> {
+pub fn pcm_decode<P: AsRef<std::path::Path>>(_path: P) -> anyhow::Result<(Vec<f32>, u32)> {
     Err(anyhow::anyhow!(
         "PCM decode requires encodec, mimi, or snac features"
     ))

@@ -130,4 +130,14 @@ impl VideoTrack {
         })
         .filter(|frame| futures::future::ready(!frame.is_empty()))
     }
+
+    /// Get the width of the video track from the source
+    pub fn width(&self) -> u32 {
+        self.source.width()
+    }
+
+    /// Get the height of the video track from the source  
+    pub fn height(&self) -> u32 {
+        self.source.height()
+    }
 }

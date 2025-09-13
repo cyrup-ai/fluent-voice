@@ -23,7 +23,7 @@ use symphonia::core::{
     io::MediaSourceStream,
     meta::MetadataOptions,
     probe::Hint,
-    sample::Sample,
+    sample::{Sample, i24, u24},
 };
 
 // pcm_decode import removed - unused
@@ -91,11 +91,11 @@ pub fn encode_wav(path: &str, device: &Device, compress: bool) -> Result<Tensor>
             AudioBufferRef::F64(buf) => extend::<f64>(&mut pcm, buf.chan(0)),
             AudioBufferRef::U8(buf) => extend::<u8>(&mut pcm, buf.chan(0)),
             AudioBufferRef::U16(buf) => extend::<u16>(&mut pcm, buf.chan(0)),
-            AudioBufferRef::U24(_) => continue, // Skip 24-bit formats for now
+            AudioBufferRef::U24(buf) => extend::<u24>(&mut pcm, buf.chan(0)),
             AudioBufferRef::U32(buf) => extend::<u32>(&mut pcm, buf.chan(0)),
             AudioBufferRef::S8(buf) => extend::<i8>(&mut pcm, buf.chan(0)),
             AudioBufferRef::S16(buf) => extend::<i16>(&mut pcm, buf.chan(0)),
-            AudioBufferRef::S24(_) => continue, // Skip 24-bit formats for now
+            AudioBufferRef::S24(buf) => extend::<i24>(&mut pcm, buf.chan(0)),
             AudioBufferRef::S32(buf) => extend::<i32>(&mut pcm, buf.chan(0)),
         }
     }

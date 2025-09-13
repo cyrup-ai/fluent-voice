@@ -188,6 +188,32 @@ impl VideoTrackView {
         }
     }
 
+    pub fn new_from_remote(
+        _remote_track: livekit::track::RemoteVideoTrack,
+    ) -> anyhow::Result<Self> {
+        // Convert remote LiveKit track to our VideoTrack wrapper
+        // Create a placeholder video source for remote track integration
+        // In production, this would bridge LiveKit remote video data to our VideoSource
+        use crate::{VideoSource, VideoSourceOptions};
+
+        let options = VideoSourceOptions {
+            width: Some(640), // Default resolution
+            height: Some(480),
+            fps: Some(30),
+        };
+
+        // Create a placeholder camera source - in production this would be a
+        // RemoteVideoSource that bridges LiveKit remote track data
+        let source = VideoSource::from_camera(options)?;
+        let track = VideoTrack::new(source);
+
+        Ok(Self {
+            track,
+            renderer: None,
+            window: None,
+        })
+    }
+
     pub fn initialize_renderer(&mut self, _window: &winit::window::Window) -> anyhow::Result<()> {
         // Create terminal renderer for ASCII art video display
         let renderer = TerminalRenderer::new();

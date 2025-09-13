@@ -34,14 +34,14 @@ fn test_audio_output_projection_forward() -> Result<()> {
 
     // Create random tensors for weights and biases
     let mut tensors = std::collections::HashMap::new();
-    
+
     for i in 0..num_codebooks {
         let weight_key = format!("audio_proj_{}.weight", i);
         let bias_key = format!("audio_proj_{}.bias", i);
-        
+
         let weight = Tensor::randn(0f32, 1.0, (audio_vocab_size, d_model), &device)?;
         let bias = Tensor::randn(0f32, 1.0, (audio_vocab_size,), &device)?;
-        
+
         tensors.insert(weight_key, weight);
         tensors.insert(bias_key, bias);
     }
@@ -57,12 +57,17 @@ fn test_audio_output_projection_forward() -> Result<()> {
 
     // Verify output shape and properties
     assert_eq!(audio_logits.len(), num_codebooks);
-    
+
     for (i, logits) in audio_logits.iter().enumerate() {
         let shape = logits.shape();
-        assert_eq!(shape.dims(), &[batch_size, seq_len, audio_vocab_size], 
-                   "Codebook {} has incorrect shape: {:?}", i, shape.dims());
-        
+        assert_eq!(
+            shape.dims(),
+            &[batch_size, seq_len, audio_vocab_size],
+            "Codebook {} has incorrect shape: {:?}",
+            i,
+            shape.dims()
+        );
+
         // Verify logits are not all zeros (proper projection occurred)
         let sum = logits.sum_all()?.to_scalar::<f32>()?;
         assert!(sum.abs() > 1e-6, "Codebook {} logits are all zeros", i);
@@ -79,14 +84,14 @@ fn test_different_codebook_counts() -> Result<()> {
 
     for num_codebooks in [1, 4, 8, 16, 32] {
         let mut tensors = std::collections::HashMap::new();
-        
+
         for i in 0..num_codebooks {
             let weight_key = format!("audio_proj_{}.weight", i);
             let bias_key = format!("audio_proj_{}.bias", i);
-            
+
             let weight = Tensor::randn(0f32, 1.0, (audio_vocab_size, d_model), &device)?;
             let bias = Tensor::randn(0f32, 1.0, (audio_vocab_size,), &device)?;
-            
+
             tensors.insert(weight_key, weight);
             tensors.insert(bias_key, bias);
         }
@@ -95,10 +100,10 @@ fn test_different_codebook_counts() -> Result<()> {
         let projection = AudioOutputProjection::new(d_model, audio_vocab_size, num_codebooks, vb)?;
 
         assert_eq!(projection.num_codebooks(), num_codebooks);
-        
+
         let hidden_states = Tensor::randn(0f32, 1.0, (1, 1, d_model), &device)?;
         let audio_logits = projection.forward(&hidden_states)?;
-        
+
         assert_eq!(audio_logits.len(), num_codebooks);
     }
 

@@ -126,12 +126,12 @@ pub mod prelude {
     pub use fluent_voice_domain::prelude::*;
 
     /* Fluent-voice specific implementations */
-    pub use crate::{AsyncStream, AsyncTask};
     pub use crate::{
         audio_chunk::{AudioChunk, SynthesisChunk},
         stream_ext::TtsStreamExt,
         tts_settings::{Similarity, SpeakerBoost, Stability, StyleExaggeration},
     };
+    pub use crate::{AsyncStream, AsyncTask};
 
     /* Unified entry point */
     pub use crate::fluent_voice::{
@@ -161,10 +161,10 @@ pub mod prelude {
 
     /* Builder implementations */
     pub use crate::builders::{
-        MicrophoneBuilderImpl, SpeakerLine as Speaker, SpeakerLineBuilder,
-        SttConversationBuilderImpl, SttConversationImpl, TranscriptImpl, TranscriptionBuilderImpl,
-        TtsConversationBuilderImpl, TtsConversationImpl, stt_conversation_builder,
-        tts_conversation_builder,
+        stt_conversation_builder, tts_conversation_builder, MicrophoneBuilderImpl,
+        SpeakerLine as Speaker, SpeakerLineBuilder, SttConversationBuilderImpl,
+        SttConversationImpl, TranscriptImpl, TranscriptionBuilderImpl, TtsConversationBuilderImpl,
+        TtsConversationImpl,
     };
 
     /* Domain traits needed for examples - only import what exists in domain */

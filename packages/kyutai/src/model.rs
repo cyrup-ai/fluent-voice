@@ -33,7 +33,7 @@ impl AudioOutputProjection {
         vb: VarBuilder,
     ) -> Result<Self> {
         let mut codebook_projections = Vec::with_capacity(num_codebooks);
-        
+
         for i in 0..num_codebooks {
             let proj = candle_nn::linear(
                 d_model,
@@ -53,12 +53,12 @@ impl AudioOutputProjection {
     /// Forward pass through all codebook projections
     pub fn forward(&self, hidden_states: &Tensor) -> Result<Vec<Tensor>> {
         let mut audio_logits = Vec::with_capacity(self.num_codebooks);
-        
+
         for projection in &self.codebook_projections {
             let logits = hidden_states.apply(projection)?;
             audio_logits.push(logits);
         }
-        
+
         Ok(audio_logits)
     }
 
@@ -109,9 +109,9 @@ impl LmModel {
         let output_proj =
             candle_nn::linear(config.d_model, config.vocab_size, vb.pp("output_proj"))?;
 
-        // Create audio output projection with default values if not in config
-        let audio_vocab_size = 2049; // Standard audio vocab size for Moshi
-        let num_codebooks = 8; // Standard number of codebooks for Moshi
+        // Create audio output projection using configuration values
+        let audio_vocab_size = config.lm_config.audio_vocab_size;
+        let num_codebooks = config.lm_config.audio_codebooks;
         let audio_output_proj = AudioOutputProjection::new(
             config.d_model,
             audio_vocab_size,
@@ -268,7 +268,9 @@ impl LmModel {
             context.push(next_token_id);
 
             // Convert token ID to tensor and concatenate
-            let next_token = Tensor::new(&[next_token_id], &self.device)?.unsqueeze(0)?.unsqueeze(1)?;
+            let next_token = Tensor::new(&[next_token_id], &self.device)?
+                .unsqueeze(0)?
+                .unsqueeze(1)?;
             generated = Tensor::cat(&[&generated, &next_token], 1)?;
         }
 
@@ -349,15 +351,10 @@ impl LmModel {
 
         // Process audio tokens if provided
         if !audio_tokens.is_empty() {
-            // For now, we'll create a simple audio conditioning tensor
-            // In a full implementation, this would properly handle multi-codebook audio
-            let audio_dim = hidden_states.dim(2)?;
-            let audio_condition = Tensor::zeros(
-                (batch_size, seq_len, audio_dim),
-                hidden_states.dtype(),
-                &self.device,
-            )?;
-            hidden_states = hidden_states.broadcast_add(&audio_condition)?;
+            if let Some(audio_embeddings) = self.process_audio_tokens(&audio_tokens)? {
+                hidden_states =
+                    self.fuse_text_audio_representations(&hidden_states, &audio_embeddings)?;
+            }
         }
 
         // Forward through transformer
@@ -368,7 +365,7 @@ impl LmModel {
 
         // Generate proper audio logits using multi-codebook projection
         let audio_logits_vec = self.audio_output_proj.forward(&output)?;
-        
+
         // For backward compatibility, return the first codebook as the main audio logits
         // In a full implementation, this method signature should be updated to return Vec<Tensor>
         let audio_logits = if !audio_logits_vec.is_empty() {
@@ -408,15 +405,10 @@ impl LmModel {
 
         // Process audio tokens if provided
         if !audio_tokens.is_empty() {
-            // For now, we'll create a simple audio conditioning tensor
-            // In a full implementation, this would properly handle multi-codebook audio
-            let audio_dim = hidden_states.dim(2)?;
-            let audio_condition = Tensor::zeros(
-                (batch_size, seq_len, audio_dim),
-                hidden_states.dtype(),
-                &self.device,
-            )?;
-            hidden_states = hidden_states.broadcast_add(&audio_condition)?;
+            if let Some(audio_embeddings) = self.process_audio_tokens(&audio_tokens)? {
+                hidden_states =
+                    self.fuse_text_audio_representations(&hidden_states, &audio_embeddings)?;
+            }
         }
 
         // Forward through transformer
@@ -433,10 +425,78 @@ impl LmModel {
 
     /// Get audio output projection information
     pub fn audio_projection_info(&self) -> (usize, usize) {
-        (self.audio_output_proj.num_codebooks(), self.audio_output_proj.audio_vocab_size())
+        (
+            self.audio_output_proj.num_codebooks(),
+            self.audio_output_proj.audio_vocab_size(),
+        )
     }
 
     // Helper methods
+
+    /// Process audio tokens with proper multi-codebook handling
+    fn process_audio_tokens(&self, audio_tokens: &[Option<Tensor>]) -> Result<Option<Tensor>> {
+        if audio_tokens.is_empty() {
+            return Ok(None);
+        }
+
+        let mut codebook_embeddings = Vec::new();
+        let mut max_seq_len = 0;
+        let batch_size = 1; // From current implementation
+
+        // Process each codebook
+        for (codebook_idx, maybe_tokens) in audio_tokens.iter().enumerate() {
+            if let Some(tokens) = maybe_tokens {
+                // Embed tokens for this codebook
+                let embedded = tokens.apply(&self.embed_tokens)?; // Reuse existing embedding
+                max_seq_len = max_seq_len.max(tokens.dim(1)?);
+                codebook_embeddings.push((codebook_idx, embedded));
+            }
+        }
+
+        if codebook_embeddings.is_empty() {
+            return Ok(None);
+        }
+
+        // Combine all codebook embeddings (sum like Mimi decoder)
+        let d_model = self.config.d_model;
+        let mut combined_embedding = Tensor::zeros(
+            (batch_size, max_seq_len, d_model),
+            codebook_embeddings[0].1.dtype(),
+            &self.device,
+        )?;
+
+        for (_idx, embedding) in codebook_embeddings {
+            // Pad/truncate to max_seq_len if needed
+            let seq_len = embedding.dim(1)?;
+            let padded_embedding = if seq_len < max_seq_len {
+                let padding = Tensor::zeros(
+                    (batch_size, max_seq_len - seq_len, d_model),
+                    embedding.dtype(),
+                    &self.device,
+                )?;
+                Tensor::cat(&[&embedding, &padding], 1)?
+            } else if seq_len > max_seq_len {
+                embedding.narrow(1, 0, max_seq_len)?
+            } else {
+                embedding
+            };
+
+            // Sum embeddings (following Mimi decode pattern)
+            combined_embedding = (combined_embedding + padded_embedding)?;
+        }
+
+        Ok(Some(combined_embedding))
+    }
+
+    /// Fuse text and audio representations
+    fn fuse_text_audio_representations(
+        &self,
+        text_hidden: &Tensor,
+        audio_hidden: &Tensor,
+    ) -> Result<Tensor> {
+        // Strategy 1: Addition (current approach)
+        text_hidden.broadcast_add(audio_hidden)
+    }
 
     fn top_k_filter(&self, logits: &Tensor, k: usize) -> Result<Tensor> {
         let vocab_size = logits.dim(1)?;

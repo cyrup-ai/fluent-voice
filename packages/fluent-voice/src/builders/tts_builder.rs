@@ -8,10 +8,10 @@ use candle_core::Device;
 use cyrup_sugars::prelude::{ChunkHandler, MessageChunk};
 use dia::voice::VoicePool;
 use fluent_voice_domain::{
-    AudioChunk, TtsConversation, VoiceError,
     audio_format::AudioFormat,
     language::Language,
     pronunciation_dict::{PronunciationDictId, RequestId},
+    AudioChunk, TtsConversation, VoiceError,
 };
 use futures::Stream;
 use std::sync::Arc;
@@ -507,20 +507,20 @@ where
     }
 
     #[inline]
-    fn additional_params<P>(self, _params: P) -> Self
+    fn additional_params<P>(mut self, params: P) -> Self
     where
         P: Into<std::collections::HashMap<String, String>>,
     {
-        // TODO: Store additional parameters for synthesis
+        self.additional_params = params.into();
         self
     }
 
     #[inline]
-    fn metadata<M>(self, _meta: M) -> Self
+    fn metadata<M>(mut self, meta: M) -> Self
     where
         M: Into<std::collections::HashMap<String, String>>,
     {
-        // TODO: Store metadata for synthesis
+        self.metadata = meta.into();
         self
     }
 

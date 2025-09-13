@@ -1,8 +1,8 @@
 //! Concrete audio isolation builder implementation.
 
 use core::future::Future;
-use fluent_voice_domain::VoiceError;
 use fluent_voice_domain::audio_format::AudioFormat;
+use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 
 /// Builder trait for audio isolation functionality.

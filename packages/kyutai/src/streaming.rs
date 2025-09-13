@@ -77,7 +77,7 @@ impl StreamingTransformer {
     /// Standard forward pass
     pub fn forward(&mut self, input: &Tensor) -> Result<Tensor> {
         // Forward through transformer
-        let output = self.transformer.forward(input)?;
+        let output = self.transformer.forward(input, None)?;
 
         // Update cache for streaming
         self.update_cache(&output)?;

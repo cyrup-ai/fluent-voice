@@ -664,7 +664,12 @@ impl ClientToolParams {
     pub fn with_properties<const N: usize>(mut self, properties: [(&str, &str); N]) -> Self {
         let map = properties
             .into_iter()
-            .map(|(k, _v)| (k.to_string(), Schema::new_string("Default string parameter"))) // Default to String schema
+            .map(|(k, _v)| {
+                (
+                    k.to_string(),
+                    Schema::new_string("Default string parameter"),
+                )
+            }) // Default to String schema
             .collect::<HashMap<String, Schema>>();
         self.properties = Some(map);
         self
@@ -776,7 +781,12 @@ impl Schema {
         if let Schema::Object(obj) = &mut self {
             let map = properties
                 .into_iter()
-                .map(|(k, _v)| (k.to_string(), Schema::new_string("Default string parameter"))) // Default to String schema
+                .map(|(k, _v)| {
+                    (
+                        k.to_string(),
+                        Schema::new_string("Default string parameter"),
+                    )
+                }) // Default to String schema
                 .collect::<HashMap<String, Schema>>();
             obj.properties = Some(map);
         }

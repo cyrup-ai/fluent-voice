@@ -13,6 +13,8 @@ pub use builder::{ModelConfig, WhisperTranscriber};
 #[cfg(feature = "microphone")]
 pub use microphone::{Model, token_id};
 pub use multilingual::detect_language;
+#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
+pub use pcm_decode::pcm_decode;
 pub use stream::WhisperStream;
 pub use transcript::Transcript;
 pub use types::TtsChunk;

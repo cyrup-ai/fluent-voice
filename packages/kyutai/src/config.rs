@@ -19,7 +19,7 @@ pub struct TensorConfig {
     pub dim: usize,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "type")]
 pub enum ConditionerConfig {
     Lut(LutConfig),
@@ -28,7 +28,7 @@ pub enum ConditionerConfig {
 
 pub type ConditionersConfig = HashMap<String, ConditionerConfig>;
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct FuserConfig {
     pub cross_attention_pos_emb: bool,
     pub cross_attention_pos_emb_scale: f32,
@@ -37,7 +37,7 @@ pub struct FuserConfig {
     pub cross: Vec<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct DepFormerConfig {
     pub transformer: TransformerConfig,
     pub num_slices: usize,
@@ -49,7 +49,7 @@ pub struct DepFormerConfig {
     pub weights_per_step_schedule: Option<Vec<usize>>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct LmConfig {
     pub transformer: TransformerConfig,
     pub depformer: Option<DepFormerConfig>,
@@ -831,6 +831,8 @@ pub struct Config {
     pub conditioning: ConditioningConfig,
     /// Streaming configuration
     pub streaming: super::streaming::StreamingConfig,
+    /// Language model configuration
+    pub lm_config: LmConfig,
 }
 
 impl Default for Config {
@@ -846,6 +848,7 @@ impl Default for Config {
             transformer: TransformerConfig::default(),
             conditioning: ConditioningConfig::default(),
             streaming: super::streaming::StreamingConfig::default(),
+            lm_config: LmConfig::v0_1(),
         }
     }
 }
@@ -871,6 +874,16 @@ impl Config {
         if self.vocab_size == 0 {
             return Err(crate::error::MoshiError::Config(
                 "vocab_size must be > 0".to_string(),
+            ));
+        }
+        if self.lm_config.audio_vocab_size == 0 {
+            return Err(crate::error::MoshiError::Config(
+                "audio_vocab_size must be > 0".to_string(),
+            ));
+        }
+        if self.lm_config.audio_codebooks == 0 || self.lm_config.audio_codebooks > 64 {
+            return Err(crate::error::MoshiError::Config(
+                "audio_codebooks must be between 1 and 64".to_string(),
             ));
         }
         Ok(())

@@ -446,7 +446,7 @@ impl WhichModel {
     }
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Run on CPU rather than on GPU.
@@ -500,7 +500,6 @@ struct Args {
     verbose: bool,
 }
 
-#[allow(dead_code)] // Development/testing binary - not used in library
 #[tokio::main]
 async fn main() -> Result<()> {
     use tracing_chrome::ChromeLayerBuilder;
@@ -514,7 +513,7 @@ async fn main() -> Result<()> {
     } else {
         None
     };
-    let _device = device_helper(args.cpu)?;
+    let device = device_helper(args.cpu)?;
     let (default_model, default_revision) = if args.quantized {
         ("lmz/candle-whisper", "main")
     } else {
@@ -522,20 +521,25 @@ async fn main() -> Result<()> {
     };
     let default_model = default_model.to_string();
     let default_revision = default_revision.to_string();
-    let (model_id, _revision) = match (args.model_id, args.revision) {
+    let (model_id, _revision) = match (args.model_id.clone(), args.revision.clone()) {
         (Some(model_id), Some(revision)) => (model_id, revision),
         (Some(model_id), None) => (model_id, "main".to_string()),
         (None, Some(revision)) => (default_model, revision),
         (None, None) => (default_model, default_revision),
     };
 
-    let (config_filename, tokenizer_filename, _weights_filename, _input) = {
+    // Extract values from args before any moves occur to avoid partial move errors
+    let input_file = args.input.clone();
+    let quantized = args.quantized;
+    let model_type = args.model;
+
+    let (config_filename, tokenizer_filename, weights_filename, input) = {
         // Download model using hf-hub
         let api = Api::new()?;
         let repo = api.model(model_id.clone());
         let examples_repo = api.model("Narsil/candle-examples".to_string());
 
-        let sample = if let Some(input) = args.input {
+        let sample = if let Some(ref input) = input_file {
             if let Some(sample) = input.strip_prefix("sample:") {
                 examples_repo.get(&format!("samples_{sample}.wav"))?
             } else {
@@ -546,11 +550,11 @@ async fn main() -> Result<()> {
             examples_repo.get("samples_jfk.wav")?
         };
 
-        let (config, tokenizer, model) = if args.quantized {
-            let ext = match args.model {
+        let (config, tokenizer, model) = if quantized {
+            let ext = match model_type {
                 WhichModel::TinyEn => "tiny-en",
                 WhichModel::Tiny => "tiny",
-                _ => anyhow::bail!("no quantized support for {:?}", args.model),
+                _ => anyhow::bail!("no quantized support for {:?}", model_type),
             };
             (
                 repo.get(&format!("config-{ext}.json"))?,
@@ -567,7 +571,7 @@ async fn main() -> Result<()> {
         (config, tokenizer, model, sample)
     };
     let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
-    let _tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
+    let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
 
     let mel_bytes = match config.num_mel_bins {
         80 => include_bytes!("melfilters.bytes").as_slice(),

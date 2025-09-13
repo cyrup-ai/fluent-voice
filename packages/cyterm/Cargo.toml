@@ -69,6 +69,7 @@ fluent_voice = { path = "../fluent-voice" }
 dirs = "6.0.0"
 progresshub-client-http = { version = "0.1.0", path = "../../../progresshub/packages/client_http" }
 tokio = { version = "1.47.1", features = ["full"] }
+rand_distr = "0.5.1"
 
 [dev-dependencies]
 hound = "3.5.1"

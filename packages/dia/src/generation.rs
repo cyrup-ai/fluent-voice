@@ -324,7 +324,7 @@ impl DiaTts {
                 generated.get_tokens_at(cur - 1, cur)?.unsqueeze(0)?
             };
             let cond_uncond = Tensor::cat(&[&prev; 2], 0)?; // [2,1,C]
-            
+
             // Update cross-attention mask based on current tokens
             dec_state.update_cross_attention_mask(&cond_uncond, &self.cfg, &enc_state)?;
 

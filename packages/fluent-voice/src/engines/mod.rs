@@ -6,6 +6,7 @@
 mod default_stt_engine;
 
 pub use default_stt_engine::{
-    DefaultSTTConversationBuilder, DefaultSTTEngine, DefaultSTTEngineBuilder,
-    DefaultSTTPostChunkBuilder, VadConfig, WakeWordConfig,
+    AudioProcessor, AudioStream, DefaultSTTConversationBuilder, DefaultSTTEngine,
+    DefaultSTTEngineBuilder, DefaultSTTPostChunkBuilder, VadConfig, WakeWordConfig,
+    WakeWordDetection,
 };

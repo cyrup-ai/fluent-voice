@@ -1,6 +1,6 @@
 use crate::{KoffeeCandleDetection, ScoreMode};
 
-pub(crate) trait WakewordDetector: Send {
+pub(crate) trait WakewordDetector: Send + Sync {
     /// New unified getter – returns (coeffs , frames).
     #[allow(dead_code)]
     fn get_kfc_dimensions(&self) -> (u16, usize);

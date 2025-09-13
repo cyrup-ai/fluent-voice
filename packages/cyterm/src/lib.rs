@@ -1,3 +1,5 @@
+#![type_length_limit = "2097152"]
+
 // Removed custom acceleration constraint - following candle's CPU-first philosophy
 // CPU-only builds are fully supported and recommended for cross-platform compatibility
 

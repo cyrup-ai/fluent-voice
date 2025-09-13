@@ -2,8 +2,8 @@
 
 #[cfg(feature = "microphone")]
 use cpal::{
-    Device, Host, SupportedStreamConfig,
     traits::{DeviceTrait, HostTrait},
+    Device, Host, SupportedStreamConfig,
 };
 use fluent_voice_domain::VoiceError;
 use std::fmt;

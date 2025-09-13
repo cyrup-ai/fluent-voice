@@ -274,7 +274,11 @@ impl TransformerLayer {
         })
     }
 
-    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+    pub fn forward(&self, xs: &Tensor, _cross_attention_src: Option<&Tensor>) -> Result<Tensor> {
+        // Note: Cross-attention support not yet implemented in this layer
+        // The _cross_attention_src parameter is accepted for API compatibility
+        // TODO: Implement cross-attention mechanism when cross_attention config is enabled
+
         if self.norm_first {
             let normed = self.norm1.forward(xs)?;
             let attn = self.self_attn.forward(&normed)?;
@@ -310,10 +314,10 @@ impl Transformer {
         Ok(Self { layers, norm })
     }
 
-    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+    pub fn forward(&self, xs: &Tensor, cross_attention_src: Option<&Tensor>) -> Result<Tensor> {
         let mut xs = xs.clone();
         for layer in &self.layers {
-            xs = layer.forward(&xs)?;
+            xs = layer.forward(&xs, cross_attention_src)?;
         }
         self.norm.forward(&xs)
     }

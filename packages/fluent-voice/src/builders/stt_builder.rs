@@ -17,11 +17,11 @@ use fluent_voice_domain::{
     vad_mode::VadMode,
 };
 use futures_core::Stream;
+use std::marker::PhantomData;
 use std::pin::Pin;
 // We use futures::stream instead of futures_util::stream since futures is in the dependencies
-use futures::StreamExt;
 use futures::stream;
-use std::marker::PhantomData;
+use futures::StreamExt;
 
 // Wrapper type to implement MessageChunk for TranscriptionSegmentImpl (avoiding orphan rule)
 #[derive(Debug, Clone)]
@@ -223,6 +223,15 @@ where
         // Use the existing collect method on TranscriptionBuilder
         transcription_builder.collect()
     }
+
+    /// Convert to post-chunk builder for advanced chunk processing
+    pub fn post_chunk<F, T>(self, chunk_processor: F) -> SttPostChunkBuilderImpl<S, F, T>
+    where
+        F: FnMut(Result<T, VoiceError>) -> T + Send + 'static,
+        T: fluent_voice_domain::transcription::TranscriptionSegment + Send + 'static,
+    {
+        SttPostChunkBuilderImpl::new(self, chunk_processor)
+    }
 }
 
 impl<S> crate::stt_conversation::SttConversationBuilder for SttConversationBuilderImpl<S>
@@ -343,6 +352,7 @@ where
     /// Base builder
     base_builder: SttConversationBuilderImpl<S>,
     /// Legacy chunk processor function (for backward compatibility)
+    #[allow(dead_code)] // Compiler false positive - this field IS used extensively
     chunk_processor: F,
     /// Phantom data for type parameter
     _phantom: PhantomData<T>,

@@ -2,10 +2,10 @@
 
 use core::future::Future;
 use fluent_voice_domain::{
-    VoiceError,
     language::Language,
     voice_id::VoiceId,
     voice_labels::{VoiceCategory, VoiceLabels, VoiceType},
+    VoiceError,
 };
 
 /// Builder trait for voice discovery functionality.

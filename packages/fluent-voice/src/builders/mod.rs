@@ -7,15 +7,15 @@
 // Re-export TTS builders
 mod tts_builder;
 pub use tts_builder::{
-    SpeakerLine, SpeakerLineBuilder, TtsConversationBuilderImpl, TtsConversationImpl,
-    builder::tts_conversation_builder,
+    builder::tts_conversation_builder, SpeakerLine, SpeakerLineBuilder, TtsConversationBuilderImpl,
+    TtsConversationImpl,
 };
 
 // Re-export STT builders
 mod stt_builder;
 pub use stt_builder::{
-    MicrophoneBuilderImpl, SttConversationBuilderImpl, SttConversationImpl, TranscriptImpl,
-    TranscriptionBuilderImpl, builder::stt_conversation_builder,
+    builder::stt_conversation_builder, MicrophoneBuilderImpl, SttConversationBuilderImpl,
+    SttConversationImpl, TranscriptImpl, TranscriptionBuilderImpl,
 };
 
 // Re-export ElevenLabs extension builders

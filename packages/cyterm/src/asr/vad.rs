@@ -86,8 +86,14 @@ impl VoiceActivityDetector {
         drop(h_guard);
         drop(c_guard);
 
-        self.h.lock().unwrap().assign(&hn);
-        self.c.lock().unwrap().assign(&cn);
+        {
+            let mut h_guard = self.h.lock().unwrap();
+            h_guard.assign(&hn);
+        }
+        {
+            let mut c_guard = self.c.lock().unwrap();
+            c_guard.assign(&cn);
+        }
 
         // Get the probability of speech.
         let output = outputs[2].try_extract_array::<f32>()?;
@@ -129,8 +135,12 @@ impl From<VoiceActivityDetectorConfig> for Result<VoiceActivityDetector, Error> 
             session,
             chunk_size: value.chunk_size,
             sample_rate: value.sample_rate,
-            h: std::sync::Arc::new(std::sync::Mutex::new(ndarray::Array3::<f32>::zeros((2, 1, 64)))),
-            c: std::sync::Arc::new(std::sync::Mutex::new(ndarray::Array3::<f32>::zeros((2, 1, 64)))),
+            h: std::sync::Arc::new(std::sync::Mutex::new(ndarray::Array3::<f32>::zeros((
+                2, 1, 64,
+            )))),
+            c: std::sync::Arc::new(std::sync::Mutex::new(ndarray::Array3::<f32>::zeros((
+                2, 1, 64,
+            )))),
         })
     }
 }

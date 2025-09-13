@@ -500,39 +500,98 @@ impl TtsConversation for KyutaiTtsConversation {
 
     fn into_stream(self) -> Self::AudioStream {
         use futures_util::stream;
-        // Create a streaming audio generator
-        // Convert speakers to AudioChunk instances
-        let items: Vec<fluent_voice_domain::audio_chunk::AudioChunk> = self
-            .speakers
-            .into_iter()
-            .enumerate()
-            .map(|(i, _speaker)| {
-                fluent_voice_domain::audio_chunk::AudioChunk::with_metadata(
-                    vec![0u8; 1024], // Placeholder audio data
-                    100,
-                    i as u64 * 100,
-                    None,
-                    None,
-                    None,
-                )
-            })
-            .collect();
-        let stream = stream::iter(items);
+        use crate::speech_generator::{SpeechGenerator, GeneratorConfig, VoiceParameters};
+        use crate::config::Config;
+        use candle_core::{DType, Device};
+        
+        // Create real SpeechGenerator with production configuration
+        let device = Device::Cpu; // TODO: Use GPU if available
+        let dtype = DType::F32;
+        let config = Config::default();
+        
+        let generator_config = GeneratorConfig {
+            max_steps: self.max_steps,
+            temperature: self.temperature,
+            top_k: self.top_k,
+            top_p: self.top_p,
+            seed: self.seed,
+            voice_params: VoiceParameters::default(),
+            device: device.clone(),
+            dtype,
+            speaker_pcm: crate::speech_generator::SpeakerPcmConfig::default(),
+            ..GeneratorConfig::default()
+        };
 
+        // For now, use default model paths - in production this should be configurable
+        let lm_model_path = "models/lm_model.safetensors";
+        let mimi_model_path = "models/mimi_model.safetensors";
+        
+        let mut generator = match SpeechGenerator::new(lm_model_path, mimi_model_path, generator_config) {
+            Ok(generator) => generator,
+            Err(e) => {
+                // Return error chunk instead of stub
+                use fluent_voice_domain::audio_chunk::MessageChunk;
+                let error_chunk = fluent_voice_domain::AudioChunk::bad_chunk(
+                    format!("Failed to initialize SpeechGenerator: {}", e)
+                );
+                return Box::pin(stream::iter(vec![error_chunk]));
+            }
+        };
+
+        // Generate real audio for each speaker
+        let mut audio_chunks = Vec::new();
+        let mut cumulative_time_ms = 0u64;
+        
+        for speaker in self.speakers {
+            match generator.generate(&speaker.text) {
+                Ok(audio_samples) => {
+                    // Convert f32 samples to 16-bit PCM bytes
+                    let pcm_bytes = KyutaiTtsConversation::f32_to_pcm16_bytes(&audio_samples);
+                    
+                    // Calculate duration: samples / sample_rate * 1000 (for ms)
+                    let duration_ms = (audio_samples.len() as f64 / 24000.0 * 1000.0) as u64;
+                    
+                    let chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                        pcm_bytes,
+                        duration_ms,
+                        cumulative_time_ms,
+                        Some(speaker.speaker_id.clone()),
+                        Some(speaker.text.clone()),
+                        Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
+                    );
+                    
+                    audio_chunks.push(chunk);
+                    cumulative_time_ms += duration_ms;
+                }
+                Err(e) => {
+                    // Return error chunk for this speaker
+                    use fluent_voice_domain::audio_chunk::MessageChunk;
+                    let error_chunk = fluent_voice_domain::AudioChunk::bad_chunk(
+                        format!("Audio generation failed for speaker '{}': {}", speaker.speaker_id, e)
+                    );
+                    audio_chunks.push(error_chunk);
+                }
+            }
+        }
+
+        let stream = stream::iter(audio_chunks);
         Box::pin(stream)
     }
+
+
 }
 
 /// Zero-allocation speaker line implementation
 #[derive(Debug, Clone)]
 pub struct KyutaiSpeakerLine {
-    text: String,
-    voice_id: Option<VoiceId>,
-    language: Option<Language>,
-    speed_modifier: Option<VocalSpeedMod>,
-    pitch_range: Option<PitchRange>,
+    pub text: String,
+    pub voice_id: Option<VoiceId>,
+    pub language: Option<Language>,
+    pub speed_modifier: Option<VocalSpeedMod>,
+    pub pitch_range: Option<PitchRange>,
+    pub speaker_id: String,
     #[allow(dead_code)]
-    speaker_pcm: Option<Vec<f32>>,
+    pub speaker_pcm: Option<Vec<f32>>,
 }
 
 impl KyutaiSpeakerLine {
@@ -544,6 +603,7 @@ impl KyutaiSpeakerLine {
             language: speaker.language().cloned(),
             speed_modifier: speaker.speed_modifier(),
             pitch_range: speaker.pitch_range().cloned(),
+            speaker_id: speaker.id().to_string(),
             speaker_pcm: None, // Could be populated from voice cloning
         }
     }
@@ -552,7 +612,7 @@ impl KyutaiSpeakerLine {
 impl Speaker for KyutaiSpeakerLine {
     #[inline]
     fn id(&self) -> &str {
-        "kyutai_speaker"
+        &self.speaker_id
     }
 
     #[inline]
@@ -646,8 +706,6 @@ impl SttConversationBuilder for KyutaiSttConversationBuilder {
         self.punctuation = Some(punctuation);
         self
     }
-
-
 
     fn on_result<F>(self, _f: F) -> Self
     where
@@ -962,6 +1020,21 @@ impl fluent_voice::stt_conversation::SttConversation for KyutaiSttConversation {
         // Create a streaming transcript generator
         let stream = stream::empty(); // Placeholder for real implementation
         Box::pin(stream)
+    }
+}
+
+impl KyutaiTtsConversation {
+    /// Convert f32 audio samples to 16-bit PCM bytes
+    fn f32_to_pcm16_bytes(samples: &[f32]) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(samples.len() * 2);
+        for &sample in samples {
+            // Clamp sample to [-1.0, 1.0] and convert to i16
+            let clamped = sample.clamp(-1.0, 1.0);
+            let pcm_sample = (clamped * 32767.0) as i16;
+            // Convert to little-endian bytes
+            bytes.extend_from_slice(&pcm_sample.to_le_bytes());
+        }
+        bytes
     }
 }
 

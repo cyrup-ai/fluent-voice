@@ -128,9 +128,29 @@ impl VideoSource {
                 } {
                     yield frame;
                 }
-                tokio::time::sleep(Duration::from_millis(16)).await; // ~60fps
+                tokio::time::sleep(Duration::from_millis(33)).await; // ~30fps (matches capture rate)
             }
         }
+    }
+
+    /// Get the width of the video source
+    pub fn width(&self) -> u32 {
+        let inner = match self.inner.lock() {
+            Ok(inner) => inner,
+            Err(_) => return 0, // Default to 0 if lock fails
+        };
+        let info = inner.get_info();
+        info.width
+    }
+
+    /// Get the height of the video source
+    pub fn height(&self) -> u32 {
+        let inner = match self.inner.lock() {
+            Ok(inner) => inner,
+            Err(_) => return 0, // Default to 0 if lock fails
+        };
+        let info = inner.get_info();
+        info.height
     }
 }
 

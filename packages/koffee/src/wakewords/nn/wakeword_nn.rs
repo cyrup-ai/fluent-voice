@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-use std::{cell::RefCell, collections::HashMap, io::Cursor};
+use std::{collections::HashMap, io::Cursor, sync::Mutex};
 
 use candle_core::Module; // <-- brings `forward()` into scope
 use candle_core::{DType, Device, Result as CandleResult, Tensor, Var};
@@ -36,9 +36,9 @@ pub enum WakewordError {
 
 pub struct WakewordNN {
     model: Box<dyn ModelImpl>,
-    // tensor reused between calls (avoids realloc); wrapped in `RefCell` to
-    // sidestep &mut / & borrow overlap
-    scratch: RefCell<Tensor>,
+    // tensor reused between calls (avoids realloc); wrapped in `Mutex` to
+    // provide thread safety for concurrent access
+    scratch: Mutex<Tensor>,
     kfc_frames: usize,
     kfc_coeffs: u16,
     labels: Vec<String>,
@@ -64,7 +64,7 @@ impl WakewordNN {
             Some(model),
         )?;
 
-        let scratch = RefCell::new(Tensor::zeros((1, model_size), DType::F32, &Device::Cpu)?);
+        let scratch = Mutex::new(Tensor::zeros((1, model_size), DType::F32, &Device::Cpu)?);
 
         Ok(Self {
             model: net,
@@ -139,7 +139,10 @@ impl WakewordNN {
     #[allow(dead_code)]
     fn predict(&mut self, kfc: Vec<Vec<f32>>) -> Result<Vec<f32>, WakewordError> {
         let flat = self.flatten_frames(kfc);
-        let mut scratch_ref = self.scratch.borrow_mut();
+        let mut scratch_ref = self
+            .scratch
+            .lock()
+            .map_err(|e| WakewordError::TensorData(format!("Mutex lock failed: {}", e)))?;
         self.predict_internal(flat, &mut scratch_ref)
     }
 
@@ -164,8 +167,8 @@ impl WakewordDetector for WakewordNN {
         avg_th: f32,
         th: f32,
     ) -> Option<KoffeeCandleDetection> {
-        // borrow a mutable scratch without aliasing `self`
-        let mut local = self.scratch.borrow_mut();
+        // lock the mutex scratch without aliasing `self`
+        let mut local = self.scratch.lock().ok()?;
         let probs = self.predict_with_scratch(kfc_frames, &mut local).ok()?;
         let (lbl, p_top, p_none) = self.top_label(&probs);
 
@@ -407,7 +410,7 @@ impl_model!(LargeModel, |i, k| {
 /*  Traits & conversions                                                    */
 /* ------------------------------------------------------------------------- */
 
-pub trait ModelImpl: Send {
+pub trait ModelImpl: Send + Sync {
     fn new(vs: VarBuilder, inp: usize, kfc: usize, labels: usize) -> CandleResult<Self>
     where
         Self: Sized;

@@ -117,12 +117,16 @@ async fn llm_loop(
             return Err(anyhow::anyhow!("No tokenizer downloaded"));
         }
     };
-    let tokenizer = Tokenizer::from_file(tokenizer_path)?;
+    let tokenizer = Tokenizer::from_file(tokenizer_path).map_err(|e| anyhow::anyhow!("{}", e))?;
 
     loop {
         // block on a sentence from the ASR pipeline
         let sentence = prompt_rx.recv()?;
-        let mut ids = tokenizer.encode(sentence, true)?.get_ids().to_vec();
+        let mut ids = tokenizer
+            .encode(sentence, true)
+            .map_err(|e| anyhow::anyhow!("{}", e))?
+            .get_ids()
+            .to_vec();
         ids.truncate(cfg.context_tokens);
 
         let mut logits_proc = candle_transformers::generation::LogitsProcessor::new(
@@ -143,7 +147,9 @@ async fn llm_loop(
             let next = logits_proc.sample(&logits)?;
             buf.push(next);
             // stream every token
-            let token = tokenizer.decode(&[next], false)?;
+            let token = tokenizer
+                .decode(&[next], false)
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
             let _ = reply_tx.send(token);
         }
         thread::sleep(Duration::from_millis(10));

@@ -38,7 +38,7 @@ pub struct GainNormalizerFilter {
 impl GainNormalizerFilter {
     // Add constant for default RMS window size based on industry standards
     const DEFAULT_RMS_WINDOW_SIZE: usize = 480; // 30ms at 16kHz (aligns with KFCS frame length)
-    
+
     /// Create a new filter.
     pub fn new(min_gain: f32, max_gain: f32, fixed_rms_level: Option<f32>) -> Self {
         // Use NaN as the default when no fixed RMS level is provided
@@ -156,22 +156,28 @@ impl From<&GainNormalizationConfig> for Option<GainNormalizerFilter> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_default_window_initialization() {
         let filter = GainNormalizerFilter::new(0.1, 1.0, None);
-        assert_eq!(filter.window_size, GainNormalizerFilter::DEFAULT_RMS_WINDOW_SIZE);
-        assert_eq!(filter.window.len(), GainNormalizerFilter::DEFAULT_RMS_WINDOW_SIZE);
+        assert_eq!(
+            filter.window_size,
+            GainNormalizerFilter::DEFAULT_RMS_WINDOW_SIZE
+        );
+        assert_eq!(
+            filter.window.len(),
+            GainNormalizerFilter::DEFAULT_RMS_WINDOW_SIZE
+        );
         assert!(filter.window.iter().all(|&x| x == 0.0));
     }
-    
+
     #[test]
     fn test_window_size_calculation() {
         // Verify 30ms at 16kHz = 480 samples
         const EXPECTED_SIZE: usize = (16000 * 30) / 1000;
         assert_eq!(GainNormalizerFilter::DEFAULT_RMS_WINDOW_SIZE, EXPECTED_SIZE);
     }
-    
+
     #[test]
     fn test_empty_slice_rms() {
         let empty_slice: &[f32] = &[];

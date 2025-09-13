@@ -2,9 +2,21 @@ use anyhow::{Context, Result};
 
 use clap::Parser;
 use fluent_video::{VideoSource, VideoSourceOptions, VideoTrack, VideoTrackView};
+use futures::StreamExt;
 use std::time::Duration;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
+
+// LiveKit imports for video track publishing
+use livekit::{
+    options::{TrackPublishOptions, VideoCodec},
+    track::{LocalTrack, LocalVideoTrack, TrackSource},
+    webrtc::{
+        native::yuv_helper,
+        video_frame::{I420Buffer, VideoFrame, VideoRotation},
+        video_source::{RtcVideoSource, VideoResolution, native::NativeVideoSource},
+    },
+};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -103,6 +115,14 @@ impl ApplicationHandler<CustomEvent> for VideoApp {
     ) {
         if event == WindowEvent::RedrawRequested {
             // Window will be redrawn by sugarloaf
+            return;
+        }
+
+        // Handle other window events
+        if let Some(window) = &self.window {
+            if let Err(e) = self.video_chat.handle_window_event(&event, window) {
+                error!("Error handling window event: {}", e);
+            }
         }
     }
 
@@ -112,10 +132,20 @@ impl ApplicationHandler<CustomEvent> for VideoApp {
 }
 
 struct LiveKitClient {
-    _handle: tokio::task::JoinHandle<()>,
+    handle: tokio::task::JoinHandle<()>,
+    shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
-
+impl Drop for LiveKitClient {
+    fn drop(&mut self) {
+        // Send shutdown signal if sender is still available
+        if let Some(shutdown_tx) = self.shutdown_tx.take() {
+            let _ = shutdown_tx.send(());
+        }
+        // Non-blocking abort - handle cleanup in background
+        self.handle.abort();
+    }
+}
 
 impl VideoChat {
     fn new() -> Result<Self> {
@@ -173,7 +203,6 @@ impl VideoChat {
         Ok(window)
     }
 
-    #[allow(dead_code)]
     async fn connect_livekit(&mut self, args: &Args) -> Result<()> {
         // Skip if URL or token not provided
         let (url, token) = match (&args.url, &args.token) {
@@ -186,13 +215,22 @@ impl VideoChat {
         // let connector = tokio_tungstenite::Connector::Rustls(Arc::new(tls_config));
         let config = livekit::RoomOptions::default();
         // config.connector = Some(connector);
-        let (_room, mut events) = livekit::Room::connect(url, token, config).await?;
+        let (room, mut events) = livekit::Room::connect(url, token, config).await?;
 
-        // Start event handling task - note: room may not be cloneable, using reference instead
+        // Start event handling task with room access for track publishing
         let local_track = self.local_track.clone();
+        let room_clone = room.clone();
+        let args_clone = args.clone();
+        let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel();
+
         let handle = tokio::spawn(async move {
-            while let Some(event) = events.recv().await {
-                match event {
+            loop {
+                tokio::select! {
+                    event = events.recv() => {
+                        match event {
+                            Some(event) => {
+                                // Process the event
+                                match event {
                     livekit::RoomEvent::ParticipantConnected(participant) => {
                         info!("Participant connected: {}", participant.identity());
                     }
@@ -200,7 +238,7 @@ impl VideoChat {
                         info!("Participant disconnected: {}", participant.identity());
                     }
                     livekit::RoomEvent::TrackSubscribed {
-                        track: _,
+                        track,
                         publication,
                         participant,
                     } => {
@@ -209,30 +247,88 @@ impl VideoChat {
                             publication.sid(),
                             participant.identity()
                         );
-                        // Handle receiving remote tracks here
+
+                        // Handle receiving remote video tracks
+                        if let livekit::track::RemoteTrack::Video(remote_video_track) = track {
+                            match VideoTrackView::new_from_remote(remote_video_track) {
+                                Ok(track_view) => {
+                                    // Store remote track view for rendering
+                                    // Note: This would typically be sent to the main thread via a channel
+                                    // For now, we log successful creation
+                                    info!("Created view for remote video track from {}", participant.identity());
+                                }
+                                Err(e) => {
+                                    error!("Failed to create view for remote video track: {}", e);
+                                }
+                            }
+                        }
                     }
                     livekit::RoomEvent::Connected { .. } => {
                         info!("Connected to room");
 
                         // Publish local track if available
-                        if let Some(_track) = &local_track {
-                            // This is a placeholder - actual implementation would convert VideoTrack to livekit::track::LocalTrack
-                            // room_clone.local_participant().publish_track(...).await.ok();
+                        if let Some(video_track) = &local_track {
+                            match create_local_video_track_from_fluent_track(video_track).await {
+                                Ok(local_video_track) => {
+                                    let options = TrackPublishOptions {
+                                        source: if args_clone.screen {
+                                            TrackSource::ScreenShare
+                                        } else {
+                                            TrackSource::Camera
+                                        },
+                                        simulcast: false,
+                                        video_codec: VideoCodec::H264,
+                                        ..Default::default()
+                                    };
+
+                                    match room_clone
+                                        .local_participant()
+                                        .publish_track(
+                                            LocalTrack::Video(local_video_track),
+                                            options
+                                        )
+                                        .await
+                                    {
+                                        Ok(_publication) => {
+                                            info!("Video track published successfully");
+                                        }
+                                        Err(e) => {
+                                            error!("Failed to publish video track: {}", e);
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("Failed to convert VideoTrack to LocalVideoTrack: {}", e);
+                                }
+                            }
                         }
                     }
-                    _ => {}
+                                    _ => {}
+                                }
+                            }
+                            None => {
+                                // Event receiver closed, exit loop
+                                break;
+                            }
+                        }
+                    }
+                    _ = &mut shutdown_rx => {
+                        // Shutdown signal received, exit gracefully
+                        info!("LiveKit client shutting down");
+                        break;
+                    }
                 }
             }
         });
 
         self.livekit_client = Some(LiveKitClient {
-            _handle: handle,
+            handle,
+            shutdown_tx: Some(shutdown_tx),
         });
 
         Ok(())
     }
 
-    #[allow(dead_code)]
     fn handle_window_event(&mut self, event: &WindowEvent, _window: &Window) -> Result<()> {
         match event {
             WindowEvent::Resized(size) => {
@@ -269,6 +365,141 @@ impl VideoChat {
     }
 }
 
+// LiveKit video track conversion functions
+
+/// Convert fluent-voice VideoTrack to LiveKit LocalVideoTrack
+async fn create_local_video_track_from_fluent_track(
+    fluent_track: &VideoTrack,
+) -> Result<LocalVideoTrack> {
+    // Create video source matching track dimensions
+    let width = fluent_track.width();
+    let height = fluent_track.height();
+    let resolution = VideoResolution {
+        width,
+        height,
+        frame_rate: 30.0,
+        aspect_ratio: width as f32 / height as f32,
+    };
+    let rtc_source = NativeVideoSource::new(resolution);
+
+    // Create LiveKit track
+    let local_track = LocalVideoTrack::create_video_track(
+        "fluent_video_track",
+        RtcVideoSource::Native(rtc_source.clone()),
+    );
+
+    // Start frame feeding task with cancellation support
+    let frame_stream = fluent_track.get_frame_stream();
+    let (feed_shutdown_tx, feed_shutdown_rx) = tokio::sync::oneshot::channel();
+    let _feed_handle = tokio::spawn(async move {
+        feed_frames_to_source(rtc_source, frame_stream, feed_shutdown_rx).await;
+    });
+
+    // Note: In a full implementation, we would store feed_shutdown_tx somewhere
+    // accessible to properly shutdown the frame feeding task when needed.
+    // For now, it will be cleaned up when the task naturally completes.
+
+    Ok(local_track)
+}
+
+/// Feed frames from fluent-voice VideoTrack to LiveKit VideoSource
+async fn feed_frames_to_source(
+    rtc_source: NativeVideoSource,
+    mut frame_stream: impl futures::Stream<Item = fluent_video::VideoFrame> + Send + Unpin + 'static,
+    mut shutdown_rx: tokio::sync::oneshot::Receiver<()>,
+) {
+    let mut interval = tokio::time::interval(Duration::from_millis(33)); // ~30fps
+
+    loop {
+        tokio::select! {
+            frame = frame_stream.next() => {
+                match frame {
+                    Some(fluent_frame) => {
+                        interval.tick().await;
+
+                        // Create I420 buffer for LiveKit
+                        let width = fluent_frame.width();
+                        let height = fluent_frame.height();
+
+                        if width == 0 || height == 0 {
+                            continue;
+                        }
+
+                        let mut i420_buffer = I420Buffer::new(width, height);
+
+                        // Convert fluent-voice frame to LiveKit format
+                        if let Err(e) = convert_fluent_frame_to_i420(&fluent_frame, &mut i420_buffer) {
+                            error!("Frame conversion failed: {}", e);
+                            continue;
+                        }
+
+                        // Create LiveKit VideoFrame
+                        let timestamp_us = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_micros() as i64)
+                            .unwrap_or_else(|_| {
+                                // Fallback to monotonic time if system clock is problematic
+                                std::time::Instant::now().elapsed().as_micros() as i64
+                            });
+
+                        let video_frame = VideoFrame {
+                            rotation: VideoRotation::VideoRotation0,
+                            buffer: Box::new(i420_buffer),
+                            timestamp_us,
+                        };
+
+                        // Feed frame to LiveKit source
+                        rtc_source.capture_frame(&video_frame);
+                    }
+                    None => {
+                        // Frame stream ended, exit gracefully
+                        break;
+                    }
+                }
+            }
+            _ = &mut shutdown_rx => {
+                // Shutdown signal received, exit gracefully
+                info!("Frame feeding task shutting down");
+                break;
+            }
+        }
+    }
+}
+
+/// Convert fluent-voice VideoFrame (RGBA) to LiveKit I420 format
+fn convert_fluent_frame_to_i420(
+    fluent_frame: &fluent_video::VideoFrame,
+    i420_buffer: &mut I420Buffer,
+) -> Result<()> {
+    // Get RGBA data from fluent-voice frame using the VideoFrameExtensions trait
+    let rgba_data = fluent_frame
+        .to_rgba_bytes()
+        .map_err(|e| anyhow::anyhow!("Failed to get RGBA data: {}", e))?;
+
+    let width = fluent_frame.width() as i32;
+    let height = fluent_frame.height() as i32;
+
+    // Get I420 buffer pointers
+    let (stride_y, stride_u, stride_v) = i420_buffer.strides();
+    let (data_y, data_u, data_v) = i420_buffer.data_mut();
+
+    // Convert RGBA to I420 using LiveKit's optimized converter
+    yuv_helper::abgr_to_i420(
+        &rgba_data,
+        (width * 4) as u32, // RGBA stride (4 bytes per pixel)
+        data_y,
+        stride_y,
+        data_u,
+        stride_u,
+        data_v,
+        stride_v,
+        width,
+        height,
+    );
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Setup logging
@@ -288,10 +519,15 @@ async fn main() -> Result<()> {
     let mut video_chat = VideoChat::new()?;
 
     // Initialize local video
-    video_chat.init_local_video(args.camera, args.screen).await?;
+    video_chat
+        .init_local_video(args.camera, args.screen)
+        .await?;
+
+    // Connect to LiveKit if credentials provided
+    video_chat.connect_livekit(&args).await?;
 
     // Create app handler
-    let mut app = VideoApp { 
+    let mut app = VideoApp {
         video_chat,
         window: None,
         args: args.clone(),
@@ -310,17 +546,6 @@ async fn main() -> Result<()> {
             }
         }
     });
-
-    // Connect to LiveKit if URL and token are provided
-    if args.url.is_some() && args.token.is_some() {
-        let args_clone = args.clone();
-        // We'll connect in the main event loop instead of spawning a separate task
-        // to avoid borrow checker issues with video_chat
-        println!(
-            "LiveKit connection will be established with {:?}",
-            args_clone.url
-        );
-    }
 
     // Run event loop using new run_app API
     event_loop.run_app(&mut app)?;

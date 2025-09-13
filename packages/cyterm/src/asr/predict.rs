@@ -19,7 +19,10 @@ where
         }
     }
 
-    pub fn try_next(&mut self, sample: T) -> Result<Option<(Vec<T>, f32)>, Box<dyn std::error::Error>> {
+    pub fn try_next(
+        &mut self,
+        sample: T,
+    ) -> Result<Option<(Vec<T>, f32)>, Box<dyn std::error::Error>> {
         self.buffer.push(sample);
         if self.buffer.len() < self.vad.chunk_size() {
             return Ok(None);

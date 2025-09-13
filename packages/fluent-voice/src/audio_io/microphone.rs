@@ -12,12 +12,12 @@ use candle_transformers::models::whisper::{self as m, Config};
 use clap::{Parser, ValueEnum};
 #[cfg(feature = "microphone")]
 use cpal::traits::{DeviceTrait, HostTrait};
-use flate2::{Compression as GzCompression, write::GzEncoder};
+use flate2::{write::GzEncoder, Compression as GzCompression};
 use fluent_voice_domain::VoiceError;
 use futures::stream::Stream;
 // use progresshub::{ProgressHub, ZeroOneOrMany}; // Removed to fix sized_chunks overflow
 use rand::SeedableRng;
-use rand_distr::{Distribution, weighted::WeightedIndex};
+use rand_distr::{weighted::WeightedIndex, Distribution};
 // Resampler imports disabled for compilation compatibility
 // #[cfg(feature = "microphone")]
 // use rubato::{FastFixedIn, PolynomialDegree, Resampler};
@@ -76,6 +76,7 @@ impl Model {
     }
 }
 
+#[allow(dead_code)] // Used when model loading is re-enabled (line 738 early return currently prevents usage)
 #[derive(Debug, Clone)]
 struct DecodingResult {
     tokens: Vec<u32>,
@@ -89,6 +90,7 @@ struct DecodingResult {
 
 // Use canonical domain objects from fluent_voice_domain - no local duplicates
 
+#[allow(dead_code)] // Used when model loading is re-enabled (line 738 early return currently prevents construction)
 struct Decoder {
     model: Model,
     rng: rand::rngs::StdRng,
@@ -106,6 +108,7 @@ struct Decoder {
     language_token: Option<u32>,
 }
 
+#[allow(dead_code)] // Methods used when model loading is re-enabled (line 738 early return currently prevents usage)
 impl Decoder {
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -413,7 +416,7 @@ impl Decoder {
     /// Detect language using the same algorithm as whisper crate but adapted for our Model enum
     #[allow(dead_code)]
     fn detect_language_internal(&mut self, mel: &Tensor) -> candle_core::Result<u32> {
-        use candle_core::{D, IndexOp};
+        use candle_core::{IndexOp, D};
         use candle_nn::ops::softmax;
         use candle_transformers::models::whisper as m;
 
@@ -552,7 +555,7 @@ impl Decoder {
             }
         }
 
-        let language = token_id(&self.tokenizer, &format!("<|{}|>", probs[0].0.0))?;
+        let language = token_id(&self.tokenizer, &format!("<|{}|>", probs[0].0 .0))?;
         Ok(language)
     }
 }
@@ -594,6 +597,7 @@ enum WhichModel {
 }
 
 impl WhichModel {
+    #[allow(dead_code)] // Method used when model loading is re-enabled (line 738 early return currently prevents usage)
     fn is_multilingual(&self) -> bool {
         matches!(
             self,

@@ -19,7 +19,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         for sample in self.iter.by_ref() {
-            if let Some(value) = self.state.try_next(sample) {
+            if let Ok(Some(value)) = self.state.try_next(sample) {
                 return Some(value);
             }
         }

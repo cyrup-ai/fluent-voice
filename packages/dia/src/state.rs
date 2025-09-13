@@ -310,7 +310,7 @@ impl DecoderInferenceState {
     /// Generate decoder attention mask based on current tokens.
     /// Validates tokens against audio special values (pad, bos, eos).
     fn generate_decoder_attention_mask(
-        decoder_tokens: &Tensor, // [2,1,C] or [2,C] 
+        decoder_tokens: &Tensor, // [2,1,C] or [2,C]
         cfg: &DiaConfig,
         device: &Device,
     ) -> CandleResult<Tensor> {
@@ -320,10 +320,10 @@ impl DecoderInferenceState {
         } else {
             1 // [B,C] case - single token
         };
-        
+
         // Create mask based on token validity
         let mut mask_data = vec![0u8; batch_size * seq_len];
-        
+
         for batch_idx in 0..batch_size {
             for seq_idx in 0..seq_len {
                 // Extract token value - handle both [B,C] and [B,T,C] cases
@@ -333,13 +333,13 @@ impl DecoderInferenceState {
                     decoder_tokens.i((batch_idx, 0))? // [B,C] case
                 };
                 let token_value = token_slice.to_scalar::<u32>()?;
-                
+
                 // Token is "real" if it's not padding and is valid
-                let is_real = token_value != cfg.data.audio_pad_value && 
-                             (token_value == cfg.data.audio_bos_value || 
-                              token_value == cfg.data.audio_eos_value ||
-                              token_value < cfg.data.audio_pad_value); // Valid audio tokens
-                
+                let is_real = token_value != cfg.data.audio_pad_value
+                    && (token_value == cfg.data.audio_bos_value
+                        || token_value == cfg.data.audio_eos_value
+                        || token_value < cfg.data.audio_pad_value); // Valid audio tokens
+
                 // For CFG: batch_idx 0 = unconditional (should be padding for most cases)
                 // batch_idx 1 = conditional (use actual token validity)
                 mask_data[batch_idx * seq_len + seq_idx] = if batch_idx == 0 {
@@ -349,7 +349,7 @@ impl DecoderInferenceState {
                 };
             }
         }
-        
+
         Tensor::from_vec(mask_data, (batch_size, seq_len), device)
     }
 
@@ -361,7 +361,8 @@ impl DecoderInferenceState {
         enc_state: &EncoderInferenceState,
     ) -> CandleResult<()> {
         let tgt_pad = Self::generate_decoder_attention_mask(decoder_tokens, cfg, &self.device)?;
-        self.dec_cross_attn_mask = make_mask(&tgt_pad, &enc_state.padding_mask, false)?.unsqueeze(1)?;
+        self.dec_cross_attn_mask =
+            make_mask(&tgt_pad, &enc_state.padding_mask, false)?.unsqueeze(1)?;
         Ok(())
     }
 

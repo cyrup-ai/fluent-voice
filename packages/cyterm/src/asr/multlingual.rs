@@ -35,10 +35,14 @@ pub fn detect_language(
 
     let language_token_ids: Vec<_> = LANGUAGES
         .iter()
-        .map(|(t, _)| token_id(tokenizer, &format!("<|{t}|>")))
-        .collect::<Result<_>>()?;
+        .map(|t| {
+            token_id(tokenizer, &format!("<|{t}|>"))
+                .map_err(|e| candle_core::Error::Msg(e.to_string()))
+        })
+        .collect::<Result<Vec<_>>>()?;
 
-    let sot = token_id(tokenizer, m::SOT_TOKEN)?;
+    let sot =
+        token_id(tokenizer, m::SOT_TOKEN).map_err(|e| candle_core::Error::Msg(e.to_string()))?;
     let audio_features = model.encoder_forward(&mel, true)?;
     let tokens = Tensor::new(&[[sot]], device)?;
     let lang_ids = Tensor::new(language_token_ids.as_slice(), device)?;

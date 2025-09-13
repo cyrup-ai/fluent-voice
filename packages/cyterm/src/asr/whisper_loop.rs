@@ -189,7 +189,9 @@ async fn whisper_loop(
             .argmax(candle_core::D::Minus1)?
             .to_scalar::<i64>()? as u32;
 
-        let text = tokenizer.decode(&[next_id], true)?;
+        let text = tokenizer
+            .decode(&[next_id], true)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
         if text.contains('\n') || text.ends_with(['.', '!', '?', '。', '！', '？']) {
             let _ = text_tx.send(PartialTranscript::Final(text.trim().into()));
             mel_buf.clear(); // reset for next segment

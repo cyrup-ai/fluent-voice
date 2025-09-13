@@ -124,8 +124,8 @@ impl SoftBackend {
         let bbox = self
             .cache
             .get_image(&mut self.font_sys, glyph.cache_key)
-            .unwrap()
             .as_ref()
+            .unwrap()
             .placement;
         self.cw = bbox.width as usize;
         self.ch = bbox.height as usize;

@@ -15,6 +15,7 @@ use crate::endpoints::genai::tts::{
 };
 use crate::shared::query_params::OutputFormat;
 use crate::shared::{DefaultVoice, Model, VoiceSettings as InternalVoiceSettings};
+use crate::timestamp_metadata::{AudioChunkTimestamp, SynthesisMetadata, TimestampMetadata};
 use crate::utils::{play, stream_audio};
 use crate::voice::Voice as VoiceEnum;
 use bytes::Bytes;
@@ -744,9 +745,53 @@ impl AudioStreamWithTimestamps {
             }
         }
 
-        // Save timestamp data as JSON (simplified for now)
-        let timestamps_json = format!("{{\"alignments\": {} }}", all_alignments.len());
-        tokio::fs::write(timestamps_path, timestamps_json).await?;
+        // Create comprehensive timestamp metadata
+        let mut timestamp_metadata = TimestampMetadata::new();
+
+        // Populate with synthesis metadata (extracted from context)
+        timestamp_metadata.synthesis_metadata = SynthesisMetadata {
+            voice_id: "unknown".to_string(), // Context not available in this scope
+            model_id: "unknown".to_string(), // Context not available in this scope
+            text: "unknown".to_string(),     // Context not available in this scope
+            voice_settings: None,            // Context not available in this scope
+            output_format: "unknown".to_string(), // Context not available in this scope
+            language: None,                  // Context not available in this scope
+        };
+
+        // Add all alignment data (preserving rich timing information)
+        for (chunk_idx, alignment) in all_alignments.iter().enumerate() {
+            timestamp_metadata.add_alignment(alignment);
+
+            // Add corresponding audio chunk information
+            let chunk = AudioChunkTimestamp {
+                chunk_id: chunk_idx,
+                start_ms: 0, // Would need to calculate from previous chunks
+                end_ms: 0,   // Would need to calculate from alignment data
+                text_segment: "unknown".to_string(), // Context not available
+                speaker_id: None, // Multi-speaker support
+                format: "unknown".to_string(),
+                size_bytes: 0, // Would need to calculate from audio data
+            };
+            timestamp_metadata.add_chunk(chunk);
+        }
+
+        // Finalize timing calculations
+        timestamp_metadata.finalize()?;
+
+        // Save comprehensive JSON with all timing data preserved
+        let timestamps_json = timestamp_metadata.to_json()?;
+        tokio::fs::write(&timestamps_path, &timestamps_json).await?;
+
+        // Optional: Also save as SRT and VTT formats for subtitle use
+        if let Ok(srt_content) = timestamp_metadata.to_srt() {
+            let srt_path = timestamps_path.as_ref().with_extension("srt");
+            tokio::fs::write(srt_path, srt_content).await?;
+        }
+
+        if let Ok(vtt_content) = timestamp_metadata.to_vtt() {
+            let vtt_path = timestamps_path.as_ref().with_extension("vtt");
+            tokio::fs::write(vtt_path, vtt_content).await?;
+        }
 
         Ok(())
     }
@@ -1013,7 +1058,6 @@ pub struct MicrophoneBuilder {
 impl MicrophoneBuilder {
     /// Start listening using Whisper STT engine for real-time transcription
     pub async fn listen(self) -> Result<TranscriptStream> {
-
         // Create Whisper engine configuration for real-time transcription
         // TODO: Replace with actual whisper implementation when available
         let _whisper_config = format!(

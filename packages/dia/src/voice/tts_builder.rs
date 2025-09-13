@@ -116,45 +116,41 @@ impl DiaTtsConversationBuilder {
         // Extract values for async processing - use simple types only
         let _text = self.text.clone();
         let _speaker = self.speaker.unwrap_or_default();
-        
-        // Spawn async task for voice generation using simple types
+
+        // Spawn async task for voice generation using proper async patterns
         let tx_clone = tx.clone();
-        std::thread::spawn(move || {
-            // Use blocking runtime to avoid sized_chunks issues
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async move {
-                // Simulate voice generation with simple data
-                let sample_rate = 24000u32;
-                let channels = 1u16;
-                let audio_data = vec![0u8; 4096]; // Placeholder audio data
-                
-                // Stream audio in chunks using only simple types
-                const CHUNK_SIZE: usize = 2048;
-                let mut sequence = 0u64;
+        tokio::spawn(async move {
+            // Simulate voice generation with simple data
+            let sample_rate = 24000u32;
+            let channels = 1u16;
+            let audio_data = vec![0u8; 4096]; // Placeholder audio data
 
-                let mut offset = 0;
-                while offset < audio_data.len() {
-                    let end = (offset + CHUNK_SIZE).min(audio_data.len());
-                    let chunk_data = audio_data[offset..end].to_vec();
-                    let is_final = end >= audio_data.len();
+            // Stream audio in chunks using only simple types
+            const CHUNK_SIZE: usize = 2048;
+            let mut sequence = 0u64;
 
-                    let audio_chunk = AudioChunk::new(chunk_data, AudioFormat::Pcm24Khz)
-                        .with_sample_rate(sample_rate)
-                        .with_sequence(sequence)
-                        .with_final(is_final)
-                        .with_metadata("channels", &channels.to_string());
+            let mut offset = 0;
+            while offset < audio_data.len() {
+                let end = (offset + CHUNK_SIZE).min(audio_data.len());
+                let chunk_data = audio_data[offset..end].to_vec();
+                let is_final = end >= audio_data.len();
 
-                    if tx_clone.send(audio_chunk).is_err() {
-                        break;
-                    }
+                let audio_chunk = AudioChunk::new(chunk_data, AudioFormat::Pcm24Khz)
+                    .with_sample_rate(sample_rate)
+                    .with_sequence(sequence)
+                    .with_final(is_final)
+                    .with_metadata("channels", &channels.to_string());
 
-                    sequence += 1;
-                    offset = end;
+                if tx_clone.send(audio_chunk).is_err() {
+                    break;
                 }
 
-                // Send final chunk
-                let _ = tx_clone.send(AudioChunk::final_chunk());
-            });
+                sequence += 1;
+                offset = end;
+            }
+
+            // Send final chunk
+            let _ = tx_clone.send(AudioChunk::final_chunk());
         });
 
         Box::pin(UnboundedReceiverStream::new(rx))

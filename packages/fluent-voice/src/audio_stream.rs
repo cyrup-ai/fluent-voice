@@ -90,7 +90,7 @@ impl AudioStream {
         }
     }
 
-    /// Static version of audio chunk playback for use in spawn_blocking
+    /// Static helper for audio chunk playback in dedicated thread context
     #[inline]
     fn play_audio_chunk_optimized_static(
         sink: &rodio::Sink,
@@ -119,7 +119,7 @@ impl AudioStream {
         Ok(())
     }
 
-    /// Static version of PCM to f32 sample conversion for use in spawn_blocking
+    /// Static helper for PCM conversion in dedicated thread context
     #[inline]
     fn convert_pcm_to_samples_static(
         audio_bytes: &[u8],

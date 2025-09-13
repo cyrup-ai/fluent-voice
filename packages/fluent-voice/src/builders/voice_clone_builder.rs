@@ -3,7 +3,7 @@
 use core::future::Future;
 use dia::voice::global_pool;
 use fluent_voice_domain::{
-    VoiceError, model_id::ModelId, voice_id::VoiceId, voice_labels::VoiceLabels,
+    model_id::ModelId, voice_id::VoiceId, voice_labels::VoiceLabels, VoiceError,
 };
 
 /// Builder trait for voice cloning functionality.

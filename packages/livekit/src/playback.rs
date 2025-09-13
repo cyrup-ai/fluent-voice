@@ -17,6 +17,19 @@ use libwebrtc::native::{apm, audio_mixer, audio_resampler};
 // Platform-specific imports for video and audio handling
 #[cfg(target_os = "macos")]
 use core_video;
+
+// Core Video pixel format constants for format detection
+#[cfg(target_os = "macos")]
+mod pixel_format_constants {
+    use core_foundation::base::OSType;
+
+    pub const kCVPixelFormatType_32BGRA: OSType =
+        b"BGRA".iter().fold(0u32, |acc, &b| (acc << 8) | b as u32);
+    pub const kCVPixelFormatType_32ARGB: OSType = 32u32;
+    pub const kCVPixelFormatType_24RGB: OSType = 24u32;
+    pub const kCVPixelFormatType_420YpCbCr8BiPlanarFullRange: OSType =
+        b"420f".iter().fold(0u32, |acc, &b| (acc << 8) | b as u32);
+}
 use fluent_video::{VideoSource, VideoSourceOptions};
 // Platform-specific CoreAudio types - optimized for lock-free operation
 #[cfg(target_os = "macos")]
@@ -549,26 +562,26 @@ pub async fn capture_local_video_track() -> Result<(
     Box<dyn std::any::Any + Send + 'static>,
 )> {
     use crate::livekit_client::LocalVideoTrack;
-    use libwebrtc::video_source::{VideoResolution, RtcVideoSource};
-    use libwebrtc::video_source::native::NativeVideoSource;
-    use libwebrtc::video_frame::{VideoFrame, I420Buffer, VideoRotation};
+    use futures::StreamExt;
     use libwebrtc::native::yuv_helper;
+    use libwebrtc::video_frame::{I420Buffer, VideoFrame, VideoRotation};
+    use libwebrtc::video_source::native::NativeVideoSource;
+    use libwebrtc::video_source::{RtcVideoSource, VideoResolution};
     use std::time::Duration;
     use tokio::sync::oneshot;
-    use futures::StreamExt;
-    
+
     // Create LibWebRTC video source for LiveKit integration
     let native_video_source = NativeVideoSource::new(VideoResolution {
         width: 1920,
         height: 1080,
     });
-    
+
     // Create LiveKit video track using LibWebRTC patterns
     let livekit_track = livekit::track::LocalVideoTrack::create_video_track(
         "screen_capture",
         RtcVideoSource::Native(native_video_source.clone()),
     );
-    
+
     // Create our VideoSource for screen capture
     let screen_video_source = VideoSource::from_screen(VideoSourceOptions {
         width: Some(1920),
@@ -576,24 +589,25 @@ pub async fn capture_local_video_track() -> Result<(
         fps: Some(30),
     })
     .context("Failed to create screen capture VideoSource")?;
-    
+
     // Start screen capture
-    screen_video_source.start()
+    screen_video_source
+        .start()
         .context("Failed to start screen capture")?;
-    
+
     // Get frame stream from our VideoSource
     let frame_stream = screen_video_source.get_frame_stream();
-    
+
     // Create cleanup channels
     let (stop_tx, mut stop_rx) = oneshot::channel();
-    
+
     // Spawn task to bridge VideoSource frames to LibWebRTC video source
     let bridge_task = tokio::spawn({
         let native_source = native_video_source.clone();
         async move {
             let mut frame_interval = tokio::time::interval(Duration::from_millis(33)); // ~30 fps
             let mut pinned_stream = Box::pin(frame_stream);
-            
+
             loop {
                 tokio::select! {
                     _ = &mut stop_rx => {
@@ -606,14 +620,14 @@ pub async fn capture_local_video_track() -> Result<(
                                 let width = video_frame.width();
                                 let height = video_frame.height();
                                 let timestamp_us = video_frame.timestamp_us();
-                                
+
                                 // Create I420 buffer for LibWebRTC
                                 let mut i420_buffer = I420Buffer::new(width, height);
-                                
+
                                 // Get buffer data pointers
                                 let (stride_y, stride_u, stride_v) = i420_buffer.strides();
                                 let (data_y, data_u, data_v) = i420_buffer.data_mut();
-                                
+
                                 // Convert RGBA to I420 using LibWebRTC yuv helper
                                 yuv_helper::abgr_to_i420(
                                     &rgba_data,
@@ -627,14 +641,14 @@ pub async fn capture_local_video_track() -> Result<(
                                     width as i32,
                                     height as i32,
                                 );
-                                
+
                                 // Create LibWebRTC VideoFrame
                                 let libwebrtc_frame = VideoFrame {
                                     rotation: VideoRotation::VideoRotation0,
                                     buffer: i420_buffer,
                                     timestamp_us,
                                 };
-                                
+
                                 // Feed frame to LibWebRTC source
                                 native_source.capture_frame(&libwebrtc_frame);
                             }
@@ -644,24 +658,21 @@ pub async fn capture_local_video_track() -> Result<(
             }
         }
     });
-    
+
     // Create cleanup handle
     struct ScreenCaptureCleanup {
         _video_source: VideoSource,
         _stop_tx: Option<oneshot::Sender<()>>,
         _bridge_task: tokio::task::JoinHandle<()>,
     }
-    
+
     let cleanup = ScreenCaptureCleanup {
         _video_source: screen_video_source,
         _stop_tx: Some(stop_tx),
         _bridge_task: bridge_task,
     };
-    
-    Ok((
-        LocalVideoTrack(livekit_track),
-        Box::new(cleanup),
-    ))
+
+    Ok((LocalVideoTrack(livekit_track), Box::new(cleanup)))
 }
 
 fn default_device(input: bool) -> Result<(cpal::Device, cpal::SupportedStreamConfig)> {
@@ -784,32 +795,12 @@ pub trait VideoFrameExtensions {
 #[cfg(target_os = "macos")]
 impl VideoFrameExtensions for RemoteVideoFrame {
     fn to_rgba_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        let width = <core_video::pixel_buffer::CVPixelBuffer>::width(self) as usize;
-        let height = <core_video::pixel_buffer::CVPixelBuffer>::height(self) as usize;
-        let mut rgba_data = vec![0u8; width * height * 4];
-
-        // Get the pixel data from the Core Video buffer
-        // Convert from the native format to RGBA
+        // Get the pixel data from the Core Video buffer with automatic format detection
         // SAFETY: get_buffer_data is called with a valid CVPixelBuffer reference.
-        // The function validates the buffer before accessing its data and returns
-        // appropriate errors for invalid buffers. Buffer lifetime is guaranteed
+        // The function validates the buffer, detects pixel format, and returns
+        // properly converted RGBA data. Buffer lifetime is guaranteed
         // by the CVPixelBuffer's reference counting mechanism.
-        let frame_data = unsafe { get_buffer_data(self)? };
-
-        // Simple conversion assuming the source is already in a compatible format
-        // This is a simplified implementation - may need adjustment based on actual format
-        for y in 0..height {
-            for x in 0..width {
-                let src_idx = (y * width + x) * 4;
-                let dst_idx = (y * width + x) * 4;
-
-                // BGRA to RGBA conversion
-                rgba_data[dst_idx] = frame_data[src_idx + 2]; // R <- B
-                rgba_data[dst_idx + 1] = frame_data[src_idx + 1]; // G <- G
-                rgba_data[dst_idx + 2] = frame_data[src_idx]; // B <- R
-                rgba_data[dst_idx + 3] = frame_data[src_idx + 3]; // A <- A
-            }
-        }
+        let rgba_data = unsafe { get_buffer_data(self)? };
 
         Ok(rgba_data)
     }
@@ -828,27 +819,140 @@ impl VideoFrameExtensions for RemoteVideoFrame {
 #[cfg(not(target_os = "macos"))]
 impl VideoFrameExtensions for RemoteVideoFrame {
     fn to_rgba_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        // For non-macOS platforms, convert from the image format
-        let width = self.id.width as usize;
-        let height = self.id.height as usize;
+        // Extract real image data from Arc<gpui::RenderImage>
+        let render_image = self.as_ref();
 
-        // Clone the data to a new buffer
-        let rgba_data = vec![0u8; width * height * 4]; // Placeholder implementation
+        // RenderImage was constructed with SmallVec<Frame<RgbaImage>> during video frame processing
+        // We need to extract the pixel data from the first frame
+        let frames = render_image.frames();
 
-        Ok(rgba_data)
+        let frame = frames
+            .first()
+            .ok_or("VideoFrame contains no image frames - corrupted video data")?;
+
+        // Extract RgbaImage from Frame and get raw pixel data
+        // The frame contains RGBA image data from the video stream
+        let rgba_image = frame.buffer();
+        let (width, height) = rgba_image.dimensions();
+
+        // Validate image dimensions
+        if width == 0 || height == 0 {
+            return Err(format!("Invalid video frame dimensions: {}x{}", width, height).into());
+        }
+
+        // Get raw RGBA pixel data (4 bytes per pixel: R, G, B, A)
+        let raw_data = rgba_image.as_raw().clone();
+
+        // Validate pixel data size matches expected dimensions
+        let expected_size = (width * height * 4) as usize;
+        if raw_data.len() != expected_size {
+            return Err(format!(
+                "Video frame pixel data size mismatch: got {} bytes, expected {} bytes for {}x{} RGBA", 
+                raw_data.len(), expected_size, width, height
+            ).into());
+        }
+
+        Ok(raw_data)
     }
 
     fn width(&self) -> u32 {
-        self.id.width as u32
+        let render_image = self.as_ref();
+        let frames = render_image.frames();
+
+        frames
+            .first()
+            .map(|frame| frame.buffer().width())
+            .unwrap_or_else(|| {
+                tracing::warn!("VideoFrame contains no frames, returning width 0");
+                0
+            })
     }
 
     fn height(&self) -> u32 {
-        self.id.height as u32
+        let render_image = self.as_ref();
+        let frames = render_image.frames();
+
+        frames
+            .first()
+            .map(|frame| frame.buffer().height())
+            .unwrap_or_else(|| {
+                tracing::warn!("VideoFrame contains no frames, returning height 0");
+                0
+            })
     }
 }
 
 // Private helper method for macOS implementation
 //
+// Pixel format conversion functions
+#[cfg(target_os = "macos")]
+fn convert_bgra_to_rgba(
+    data: &[u8],
+    width: usize,
+    height: usize,
+    bytes_per_row: usize,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut rgba_buffer = Vec::with_capacity(width * height * 4);
+
+    // Handle row padding - similar to screenshots-rs pattern
+    for row in data.chunks_exact(bytes_per_row) {
+        let row_data = &row[..width * 4]; // Remove padding
+        rgba_buffer.extend_from_slice(row_data);
+    }
+
+    // BGRA -> RGBA conversion (swap R and B channels)
+    for bgra in rgba_buffer.chunks_exact_mut(4) {
+        bgra.swap(0, 2); // B <-> R
+    }
+
+    Ok(rgba_buffer)
+}
+
+#[cfg(target_os = "macos")]
+fn convert_argb_to_rgba(
+    data: &[u8],
+    width: usize,
+    height: usize,
+    bytes_per_row: usize,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut rgba_buffer = Vec::with_capacity(width * height * 4);
+
+    for row in data.chunks_exact(bytes_per_row) {
+        let row_data = &row[..width * 4];
+        for argb in row_data.chunks_exact(4) {
+            // ARGB -> RGBA reordering: A,R,G,B -> R,G,B,A
+            rgba_buffer.push(argb[1]); // R
+            rgba_buffer.push(argb[2]); // G
+            rgba_buffer.push(argb[3]); // B
+            rgba_buffer.push(argb[0]); // A
+        }
+    }
+
+    Ok(rgba_buffer)
+}
+
+#[cfg(target_os = "macos")]
+fn convert_rgb_to_rgba(
+    data: &[u8],
+    width: usize,
+    height: usize,
+    bytes_per_row: usize,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut rgba_buffer = Vec::with_capacity(width * height * 4);
+
+    for row in data.chunks_exact(bytes_per_row) {
+        let row_data = &row[..width * 3]; // RGB has 3 bytes per pixel
+        for rgb in row_data.chunks_exact(3) {
+            rgba_buffer.push(rgb[0]); // R
+            rgba_buffer.push(rgb[1]); // G
+            rgba_buffer.push(rgb[2]); // B
+            rgba_buffer.push(255); // A (full opacity)
+        }
+    }
+
+    Ok(rgba_buffer)
+}
+
 // SAFETY: This function must only be called with a valid CVPixelBuffer reference.
 // The caller must ensure that:
 // 1. The CVPixelBuffer is properly initialized and not null
@@ -856,16 +960,58 @@ impl VideoFrameExtensions for RemoteVideoFrame {
 // 3. The buffer is locked for reading before calling this function
 // 4. The returned data pointer is not used after the buffer is unlocked
 #[cfg(target_os = "macos")]
-unsafe fn get_buffer_data(
-    _frame: &RemoteVideoFrame,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    // This is a placeholder implementation - needs proper frame buffer access
-    let _width = 1920usize; // Default width
-    let _height = 1080usize; // Default height
-    let bytes_per_row = _width * 4; // Assuming RGBA format
-    let buffer_size = bytes_per_row * _height;
-    let data = vec![0u8; buffer_size]; // Black frame as placeholder
-    Ok(data)
+unsafe fn get_buffer_data(frame: &RemoteVideoFrame) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    use core_video::r#return::kCVReturnSuccess;
+
+    // Lock the CVPixelBuffer for reading
+    if frame.lock_base_address(0) != kCVReturnSuccess {
+        return Err("Failed to lock CVPixelBuffer base address".into());
+    }
+
+    // Create a guard to ensure we unlock the buffer when done
+    struct BufferGuard<'a>(&'a RemoteVideoFrame);
+    impl<'a> Drop for BufferGuard<'a> {
+        fn drop(&mut self) {
+            let _ = self.0.unlock_base_address(0);
+        }
+    }
+    let _guard = BufferGuard(frame);
+
+    // Get buffer dimensions and properties
+    let width = frame.get_width();
+    let height = frame.get_height();
+    let bytes_per_row = frame.get_bytes_per_row();
+
+    // Get the base address of the pixel data
+    let base_address = unsafe { frame.get_base_address() };
+    if base_address.is_null() {
+        return Err("CVPixelBuffer base address is null".into());
+    }
+
+    // Detect pixel format for proper conversion
+    let pixel_format = frame.pixel_format_type();
+
+    // Calculate actual buffer size and copy data
+    let buffer_size = bytes_per_row * height;
+    let slice = unsafe { std::slice::from_raw_parts(base_address as *const u8, buffer_size) };
+
+    // Convert based on detected pixel format
+    use pixel_format_constants::*;
+    match pixel_format {
+        kCVPixelFormatType_32BGRA => {
+            convert_bgra_to_rgba(slice, width as usize, height as usize, bytes_per_row)
+        }
+        kCVPixelFormatType_32ARGB => {
+            convert_argb_to_rgba(slice, width as usize, height as usize, bytes_per_row)
+        }
+        kCVPixelFormatType_24RGB => {
+            convert_rgb_to_rgba(slice, width as usize, height as usize, bytes_per_row)
+        }
+        _ => {
+            // Default to BGRA conversion if format is unknown/unsupported
+            convert_bgra_to_rgba(slice, width as usize, height as usize, bytes_per_row)
+        }
+    }
 }
 
 #[cfg(target_os = "macos")]
