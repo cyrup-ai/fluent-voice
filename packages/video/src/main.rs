@@ -371,10 +371,7 @@ async fn create_local_video_track_from_fluent_track(
     // Create video source matching track dimensions
     let width = fluent_track.width();
     let height = fluent_track.height();
-    let resolution = VideoResolution {
-        width,
-        height,
-    };
+    let resolution = VideoResolution { width, height };
     let rtc_source = NativeVideoSource::new(resolution);
 
     // Create LiveKit track
@@ -400,7 +397,9 @@ async fn create_local_video_track_from_fluent_track(
 /// Feed frames from fluent-voice VideoTrack to LiveKit VideoSource
 async fn feed_frames_to_source(
     rtc_source: NativeVideoSource,
-    mut frame_stream: std::pin::Pin<Box<dyn futures::Stream<Item = fluent_video::VideoFrame> + Send + 'static>>,
+    mut frame_stream: std::pin::Pin<
+        Box<dyn futures::Stream<Item = fluent_video::VideoFrame> + Send + 'static>,
+    >,
     mut shutdown_rx: tokio::sync::oneshot::Receiver<()>,
 ) {
     let mut interval = tokio::time::interval(Duration::from_millis(33)); // ~30fps

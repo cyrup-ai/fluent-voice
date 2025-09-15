@@ -57,5 +57,8 @@ mod fluent_api;
 // Public modules
 pub mod voice;
 
+// Re-export timestamp configuration types for domain integration
+pub use timestamp_metadata::{TimestampConfiguration, TimestampMetadata};
+
 // Re-export ONLY FluentVoice entry point - hide raw engine bypasses
 pub use fluent_api::{FluentVoice, Result};

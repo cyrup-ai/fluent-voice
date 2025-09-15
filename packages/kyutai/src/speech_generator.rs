@@ -191,8 +191,8 @@ impl VoiceParameters {
     /// Apply voice parameters to audio samples
     #[inline]
     pub fn apply_to_samples(&self, samples: &mut [f32]) {
-        use rustfft::{FftPlanner, num_complex::Complex};
         use realfft::RealFftPlanner;
+        use rustfft::{FftPlanner, num_complex::Complex};
         use std::f32::consts::PI;
 
         // Apply volume adjustment
@@ -208,7 +208,7 @@ impl VoiceParameters {
             samples.clear();
             samples.extend_from_slice(&stretched);
         }
-        
+
         // Apply pitch shifting (frequency domain)
         if self.pitch.abs() > f32::EPSILON {
             // Convert semitones to frequency ratio: 2^(semitones/12)
@@ -217,7 +217,7 @@ impl VoiceParameters {
             samples.clear();
             samples.extend_from_slice(&shifted);
         }
-        
+
         // Apply emotion processing (spectral filtering)
         if (self.emotion - 0.5).abs() > f32::EPSILON {
             let filtered = self.apply_emotion_spectral_filter(samples, self.emotion);
@@ -243,7 +243,7 @@ impl VoiceParameters {
                 }
             }
         }
-        
+
         // Note: pause_duration is handled at generation level, not sample level
     }
 
@@ -254,26 +254,29 @@ impl VoiceParameters {
 
         const FRAME_SIZE: usize = 1024;
         const HOP_SIZE: usize = 256;
-        
+
         let input_hop = (HOP_SIZE as f32 / speed_factor) as usize;
         let output_hop = HOP_SIZE;
-        
+
         // Hanning window
         let window: Vec<f32> = (0..FRAME_SIZE)
-            .map(|i| 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (FRAME_SIZE - 1) as f32).cos()))
+            .map(|i| {
+                0.5 * (1.0
+                    - (2.0 * std::f32::consts::PI * i as f32 / (FRAME_SIZE - 1) as f32).cos())
+            })
             .collect();
-        
+
         let mut output = vec![0.0f32; (samples.len() as f32 * speed_factor) as usize + FRAME_SIZE];
         let mut phase_accumulator = vec![0.0f32; FRAME_SIZE / 2 + 1];
         let mut last_phase = vec![0.0f32; FRAME_SIZE / 2 + 1];
-        
+
         let mut planner = realfft::RealFftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(FRAME_SIZE);
         let ifft = planner.plan_fft_inverse(FRAME_SIZE);
-        
+
         let mut input_pos = 0;
         let mut output_pos = 0;
-        
+
         while input_pos + FRAME_SIZE <= samples.len() {
             // Extract and window frame
             let mut frame: Vec<f32> = samples[input_pos..input_pos + FRAME_SIZE]
@@ -281,37 +284,41 @@ impl VoiceParameters {
                 .zip(&window)
                 .map(|(&s, &w)| s * w)
                 .collect();
-            
+
             // Forward FFT
             let mut spectrum = fft.make_output_vec();
             if fft.process(&mut frame, &mut spectrum).is_err() {
                 break;
             }
-            
+
             // Phase vocoder processing
             for (i, bin) in spectrum.iter_mut().enumerate() {
                 let magnitude = bin.norm();
                 let phase = bin.arg();
-                
+
                 // Calculate phase difference
                 let mut phase_diff = phase - last_phase[i];
                 last_phase[i] = phase;
-                
+
                 // Unwrap phase
-                while phase_diff > std::f32::consts::PI { phase_diff -= 2.0 * std::f32::consts::PI; }
-                while phase_diff < -std::f32::consts::PI { phase_diff += 2.0 * std::f32::consts::PI; }
-                
+                while phase_diff > std::f32::consts::PI {
+                    phase_diff -= 2.0 * std::f32::consts::PI;
+                }
+                while phase_diff < -std::f32::consts::PI {
+                    phase_diff += 2.0 * std::f32::consts::PI;
+                }
+
                 // Calculate true frequency
                 let bin_freq = 2.0 * std::f32::consts::PI * i as f32 / FRAME_SIZE as f32;
                 let true_freq = bin_freq + phase_diff / input_hop as f32;
-                
+
                 // Update phase accumulator
                 phase_accumulator[i] += true_freq * output_hop as f32;
-                
+
                 // Reconstruct bin
                 *bin = rustfft::num_complex::Complex::from_polar(magnitude, phase_accumulator[i]);
             }
-            
+
             // Inverse FFT
             let mut output_frame = ifft.make_input_vec();
             output_frame.copy_from_slice(&spectrum);
@@ -319,7 +326,7 @@ impl VoiceParameters {
             if ifft.process(&mut output_frame, &mut time_frame).is_err() {
                 break;
             }
-            
+
             // Overlap-add with window
             for (i, &sample) in time_frame.iter().enumerate() {
                 let windowed = sample * window[i];
@@ -327,11 +334,11 @@ impl VoiceParameters {
                     output[output_pos + i] += windowed;
                 }
             }
-            
+
             input_pos += input_hop;
             output_pos += output_hop;
         }
-        
+
         output.truncate((samples.len() as f32 * speed_factor) as usize);
         output
     }
@@ -343,20 +350,23 @@ impl VoiceParameters {
 
         const FRAME_SIZE: usize = 2048;
         const HOP_SIZE: usize = 512;
-        
+
         // Hanning window
         let window: Vec<f32> = (0..FRAME_SIZE)
-            .map(|i| 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (FRAME_SIZE - 1) as f32).cos()))
+            .map(|i| {
+                0.5 * (1.0
+                    - (2.0 * std::f32::consts::PI * i as f32 / (FRAME_SIZE - 1) as f32).cos())
+            })
             .collect();
-        
+
         let mut output = vec![0.0f32; samples.len() + FRAME_SIZE];
-        
+
         let mut planner = realfft::RealFftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(FRAME_SIZE);
         let ifft = planner.plan_fft_inverse(FRAME_SIZE);
-        
+
         let mut pos = 0;
-        
+
         while pos + FRAME_SIZE <= samples.len() {
             // Extract and window frame
             let mut frame: Vec<f32> = samples[pos..pos + FRAME_SIZE]
@@ -364,29 +374,33 @@ impl VoiceParameters {
                 .zip(&window)
                 .map(|(&s, &w)| s * w)
                 .collect();
-            
+
             // Forward FFT
             let mut spectrum = fft.make_output_vec();
             if fft.process(&mut frame, &mut spectrum).is_err() {
                 break;
             }
-            
+
             // Pitch shift by frequency domain shifting
-            let mut shifted_spectrum = vec![rustfft::num_complex::Complex::new(0.0, 0.0); spectrum.len()];
-            
+            let mut shifted_spectrum =
+                vec![rustfft::num_complex::Complex::new(0.0, 0.0); spectrum.len()];
+
             for i in 0..spectrum.len() {
                 let shifted_bin = (i as f32 * pitch_ratio) as usize;
                 if shifted_bin < shifted_spectrum.len() {
                     shifted_spectrum[shifted_bin] = spectrum[i];
                 }
             }
-            
+
             // Inverse FFT
             let mut time_frame = vec![0.0f32; FRAME_SIZE];
-            if ifft.process(&mut shifted_spectrum, &mut time_frame).is_err() {
+            if ifft
+                .process(&mut shifted_spectrum, &mut time_frame)
+                .is_err()
+            {
                 break;
             }
-            
+
             // Overlap-add with window
             for (i, &sample) in time_frame.iter().enumerate() {
                 let windowed = sample * window[i];
@@ -394,10 +408,10 @@ impl VoiceParameters {
                     output[pos + i] += windowed;
                 }
             }
-            
+
             pos += HOP_SIZE;
         }
-        
+
         output.truncate(samples.len());
         output
     }
@@ -409,25 +423,28 @@ impl VoiceParameters {
 
         const FRAME_SIZE: usize = 1024;
         const HOP_SIZE: usize = 256;
-        
+
         // Hanning window
         let window: Vec<f32> = (0..FRAME_SIZE)
-            .map(|i| 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (FRAME_SIZE - 1) as f32).cos()))
+            .map(|i| {
+                0.5 * (1.0
+                    - (2.0 * std::f32::consts::PI * i as f32 / (FRAME_SIZE - 1) as f32).cos())
+            })
             .collect();
-        
+
         let mut output = vec![0.0f32; samples.len() + FRAME_SIZE];
-        
+
         let mut planner = realfft::RealFftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(FRAME_SIZE);
         let ifft = planner.plan_fft_inverse(FRAME_SIZE);
-        
+
         // Emotion-based spectral filtering
         // 0.0 = sad (low-pass, reduced high frequencies)
-        // 0.5 = neutral (no change)  
+        // 0.5 = neutral (no change)
         // 1.0 = happy (enhanced harmonics, brighter)
-        let filter_curve: Vec<f32> = (0..FRAME_SIZE/2 + 1)
+        let filter_curve: Vec<f32> = (0..FRAME_SIZE / 2 + 1)
             .map(|i| {
-                let freq_ratio = i as f32 / (FRAME_SIZE/2) as f32;
+                let freq_ratio = i as f32 / (FRAME_SIZE / 2) as f32;
                 if emotion < 0.5 {
                     // Sad: low-pass filter
                     let cutoff = 0.3 + 0.4 * emotion * 2.0; // 0.3 to 0.7
@@ -443,9 +460,9 @@ impl VoiceParameters {
                 }
             })
             .collect();
-        
+
         let mut pos = 0;
-        
+
         while pos + FRAME_SIZE <= samples.len() {
             // Extract and window frame
             let mut frame: Vec<f32> = samples[pos..pos + FRAME_SIZE]
@@ -453,24 +470,24 @@ impl VoiceParameters {
                 .zip(&window)
                 .map(|(&s, &w)| s * w)
                 .collect();
-            
+
             // Forward FFT
             let mut spectrum = fft.make_output_vec();
             if fft.process(&mut frame, &mut spectrum).is_err() {
                 break;
             }
-            
+
             // Apply emotional spectral filter
             for (i, bin) in spectrum.iter_mut().enumerate() {
                 *bin *= filter_curve[i];
             }
-            
+
             // Inverse FFT
             let mut time_frame = vec![0.0f32; FRAME_SIZE];
             if ifft.process(&mut spectrum, &mut time_frame).is_err() {
                 break;
             }
-            
+
             // Overlap-add with window
             for (i, &sample) in time_frame.iter().enumerate() {
                 let windowed = sample * window[i];
@@ -478,10 +495,10 @@ impl VoiceParameters {
                     output[pos + i] += windowed;
                 }
             }
-            
+
             pos += HOP_SIZE;
         }
-        
+
         output.truncate(samples.len());
         output
     }
@@ -1414,7 +1431,7 @@ impl SpeechGenerator {
         )
         .map_err(|e| {
             SpeechGenerationError::TensorOperation(format!(
-                "Failed to create tensor on device {:?}: {}", 
+                "Failed to create tensor on device {:?}: {}",
                 self.config.device, e
             ))
         })?;

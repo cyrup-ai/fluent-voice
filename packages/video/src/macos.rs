@@ -1,5 +1,5 @@
 //! macOS-specific video source implementation
-//! 
+//!
 //! This module contains platform-specific code for macOS video capture and processing.
 //! It requires unsafe code for several legitimate reasons:
 //! - Integration with Objective-C AVFoundation APIs through objc2 bindings
@@ -7,19 +7,19 @@
 //! - Implementation of Objective-C protocol traits (AVCaptureVideoDataOutputSampleBufferDelegate)
 //! - Thread safety markers (Send/Sync) for Apple framework types
 //! - Memory-mapped access to video frame data from system APIs
-//! 
+//!
 //! All unsafe code is carefully reviewed and necessary for system integration.
 
 #![allow(unsafe_code)]
 
 use anyhow::Result;
 
-use core_video::image_buffer::CVImageBuffer;
+// Remove conflicting import - use full path where needed
 
 // FFmpeg imports for file video reading
 use ffmpeg_next as ffmpeg;
 use std::sync::{Arc, RwLock};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 
 #[cfg(target_os = "macos")]
 use objc2_core_foundation::{CGPoint, CGRect, CGSize};
@@ -65,12 +65,6 @@ enum FFmpegCommand {
         height: u32,
         fps: f64,
     },
-    #[allow(dead_code)] // Used in worker thread pattern matching, command sent by stop() method
-    Stop,
-    #[allow(dead_code)] // Used in worker thread pattern matching, command sent by get_current_frame() method
-    GetFrame {
-        response: oneshot::Sender<Option<VideoFrame>>,
-    },
 }
 
 /// Thread-safe FFmpeg video source using channel-based architecture
@@ -85,7 +79,6 @@ impl ThreadSafeFFmpegSource {
         let (command_tx, mut command_rx) = mpsc::unbounded_channel::<FFmpegCommand>();
 
         let worker_handle = tokio::spawn(async move {
-            let mut current_frame: Option<VideoFrame> = None;
             let mut ffmpeg_initialized = false;
 
             while let Some(command) = command_rx.recv().await {
@@ -117,14 +110,6 @@ impl ThreadSafeFFmpegSource {
                                 tracing::error!("FFmpeg file reading error: {}", e);
                             }
                         });
-
-                        current_frame = None;
-                    }
-                    FFmpegCommand::Stop => {
-                        current_frame = None;
-                    }
-                    FFmpegCommand::GetFrame { response } => {
-                        let _ = response.send(current_frame.clone());
                     }
                 }
             }
@@ -281,28 +266,6 @@ impl ThreadSafeFFmpegSource {
             .map_err(|_| anyhow::anyhow!("FFmpeg worker thread disconnected"))?;
         Ok(())
     }
-
-    #[allow(dead_code)] // FFmpeg stop functionality reserved for future file input support
-    fn stop(&self) -> Result<()> {
-        self.command_tx
-            .send(FFmpegCommand::Stop)
-            .map_err(|_| anyhow::anyhow!("FFmpeg worker thread disconnected"))?;
-        Ok(())
-    }
-
-    #[allow(dead_code)] // FFmpeg get frame functionality reserved for future file input support
-    async fn get_current_frame(&self) -> Option<VideoFrame> {
-        let (tx, rx) = oneshot::channel();
-        if self
-            .command_tx
-            .send(FFmpegCommand::GetFrame { response: tx })
-            .is_ok()
-        {
-            rx.await.unwrap_or(None)
-        } else {
-            None
-        }
-    }
 }
 
 /// Thread-safe wrapper for CVImageBuffer that implements Send + Sync
@@ -311,15 +274,15 @@ impl ThreadSafeFFmpegSource {
 /// when properly retained/released through the Core Foundation reference counting.
 #[derive(Clone)]
 pub struct ThreadSafeCVImageBuffer {
-    inner: CVImageBuffer,
+    inner: core_video::image_buffer::CVImageBuffer,
 }
 
 impl ThreadSafeCVImageBuffer {
-    pub fn new(buffer: CVImageBuffer) -> Self {
+    pub fn new(buffer: core_video::image_buffer::CVImageBuffer) -> Self {
         Self { inner: buffer }
     }
 
-    fn get(&self) -> &CVImageBuffer {
+    fn get(&self) -> &core_video::image_buffer::CVImageBuffer {
         &self.inner
     }
 }
@@ -371,7 +334,10 @@ impl MacOSVideoFrame {
     }
 
     /// Create a new MacOSVideoFrame from a CVImageBuffer with real Core Video dimensions
-    pub fn from_cv_buffer(buffer: CVImageBuffer, timestamp_us: i64) -> Self {
+    pub fn from_cv_buffer(
+        buffer: core_video::image_buffer::CVImageBuffer,
+        timestamp_us: i64,
+    ) -> Self {
         // Extract real dimensions from CVImageBuffer using Core Video API
         let display_size = buffer.get_display_size();
         let width = display_size.width as u32;
@@ -387,7 +353,7 @@ impl MacOSVideoFrame {
     }
 
     /// Get the underlying CVImageBuffer
-    pub fn cv_buffer(&self) -> Option<&CVImageBuffer> {
+    pub fn cv_buffer(&self) -> Option<&core_video::image_buffer::CVImageBuffer> {
         self.buffer.as_ref().map(|b| b.get())
     }
 
@@ -612,8 +578,23 @@ unsafe impl AVCaptureVideoDataOutputSampleBufferDelegate for CameraFrameDelegate
             let width = encoded_size.width as u32;
             let height = encoded_size.height as u32;
 
-            // For now, create a placeholder frame - proper CV buffer conversion would be implemented here
-            let rgba_data = vec![0u8; (width * height * 4) as usize];
+            // Convert CVImageBuffer to RGBA - fix type mismatch by using the correct type conversion
+            // Create MacOSVideoFrame directly with the CVImageBuffer from get_image_buffer()
+            let thread_safe_buffer = ThreadSafeCVImageBuffer::new(image_buffer);
+            let macos_frame = MacOSVideoFrame {
+                native: None,
+                buffer: Some(thread_safe_buffer),
+                width,
+                height,
+                timestamp_us,
+            };
+            let rgba_data = match macos_frame.to_rgba_bytes() {
+                Ok(data) => data,
+                Err(e) => {
+                    tracing::error!("Failed to convert camera frame to RGBA: {}", e);
+                    return; // Exit early on conversion failure - don't create placeholder frames
+                }
+            };
             let native_frame = NativeVideoFrame::create_video_frame(
                 rgba_data,
                 width,
@@ -817,34 +798,6 @@ impl MacOSVideoSource {
             camera_delegate: None,
             ffmpeg_source: Some(ThreadSafeFFmpegSource::new()),
         })
-    }
-
-    /// Get the capture session identifier
-    #[allow(dead_code)] // Reserved for future Core Video integration
-    pub fn capture_session_id(&self) -> Option<&str> {
-        self.capture_session_id.as_deref()
-    }
-
-    /// Get the capture device identifier  
-    #[allow(dead_code)] // Reserved for future Core Video integration
-    pub fn capture_device_id(&self) -> Option<&str> {
-        self.capture_device_id.as_deref()
-    }
-
-    /// Start file reading using thread-safe FFmpeg source
-    #[allow(dead_code)] // FFmpeg file reading functionality reserved for future file input support
-    fn start_file_reading(&mut self, file_path: String) -> Result<()> {
-        if let Some(ffmpeg_source) = &self.ffmpeg_source {
-            ffmpeg_source.start_file(
-                file_path,
-                self.info.width,
-                self.info.height,
-                self.info.fps,
-            )?;
-        } else {
-            return Err(anyhow::anyhow!("FFmpeg source not initialized"));
-        }
-        Ok(())
     }
 
     /// Start screen capture using Core Graphics

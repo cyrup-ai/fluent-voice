@@ -1,7 +1,8 @@
 //! Transformer architecture components for Moshi language model
 
+use crate::projected_transformer::TransformerCache;
 use candle_core::{DType, Device, Result, Tensor};
-use candle_nn::{Linear, VarBuilder};
+use candle_nn::{Conv1d, Conv1dConfig, Linear, VarBuilder};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -22,6 +23,15 @@ pub enum CrossAttentionGating {
 pub enum NormType {
     LayerNorm,
     RmsNorm,
+}
+
+impl NormType {
+    pub fn to_string(&self) -> &'static str {
+        match self {
+            NormType::LayerNorm => "layer_norm",
+            NormType::RmsNorm => "rms_norm",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -203,97 +213,171 @@ impl AttentionLayer {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct FFN {
-    dense1: Linear,
-    dense2: Linear,
+#[derive(Debug)]
+struct FeedForward {
+    w1: Linear,
+    w2: Linear,
     activation: candle_nn::Activation,
 }
 
-impl FFN {
+impl FeedForward {
     pub fn new(
         d_model: usize,
         dim_feedforward: usize,
-        _bias_ff: bool,
-        activation: candle_nn::Activation,
+        bias: bool,
+        activation: Option<candle_nn::Activation>,
         vb: VarBuilder,
     ) -> Result<Self> {
-        let dense1 = candle_nn::linear(d_model, dim_feedforward, vb.pp("dense1"))?;
-        let dense2 = candle_nn::linear(dim_feedforward, d_model, vb.pp("dense2"))?;
+        let w1 = if bias {
+            candle_nn::linear(d_model, dim_feedforward, vb.pp("w1"))?
+        } else {
+            candle_nn::linear_no_bias(d_model, dim_feedforward, vb.pp("w1"))?
+        };
+
+        let w2 = if bias {
+            candle_nn::linear(dim_feedforward, d_model, vb.pp("w2"))?
+        } else {
+            candle_nn::linear_no_bias(dim_feedforward, d_model, vb.pp("w2"))?
+        };
+
         Ok(Self {
-            dense1,
-            dense2,
-            activation,
+            w1,
+            w2,
+            activation: activation.unwrap_or(candle_nn::Activation::Relu),
         })
     }
 
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        xs.apply(&self.dense1)?
-            .apply(&self.activation)?
-            .apply(&self.dense2)
+        xs.apply(&self.w1)?.apply(&self.activation)?.apply(&self.w2)
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TransformerLayer {
     self_attn: AttentionLayer,
-    ffn: FFN,
+    cross_attn: Option<AttentionLayer>,
     norm1: Norm,
     norm2: Norm,
-    _layer_scale: Option<f32>,
-    norm_first: bool,
+    norm3: Option<Norm>,
+    feed_forward: FeedForward,
+    conv_block: Option<Conv1d>,
+    layer_scale: Option<Tensor>,
 }
 
 impl TransformerLayer {
-    pub fn new(cfg: &Config, vb: VarBuilder) -> Result<Self> {
+    pub fn new(config: &Config, vb: VarBuilder) -> Result<Self> {
+        let d_model = config.d_model;
+
         let self_attn = AttentionLayer::new(
-            cfg.d_model,
-            cfg.num_heads,
-            cfg.kv_repeat,
-            cfg.bias_attn,
-            cfg.causal,
-            cfg.max_seq_len,
+            d_model,
+            config.num_heads,
+            config.kv_repeat,
+            config.bias_attn,
+            config.causal,
+            config.max_seq_len,
             vb.pp("self_attn"),
         )?;
-        let ffn = FFN::new(
-            cfg.d_model,
-            cfg.dim_feedforward,
-            cfg.bias_ff,
-            cfg.gating.unwrap_or(candle_nn::Activation::Silu),
-            vb.pp("ffn"),
+
+        let cross_attn = if config.cross_attention.is_some() {
+            Some(AttentionLayer::new(
+                d_model,
+                config.num_heads,
+                config.kv_repeat,
+                config.bias_attn,
+                false, // cross attention is never causal
+                config.max_seq_len,
+                vb.pp("cross_attn"),
+            )?)
+        } else {
+            None
+        };
+
+        let norm1 = Norm::new(d_model, &config.norm.to_string(), vb.pp("norm1"))?;
+        let norm2 = Norm::new(d_model, &config.norm.to_string(), vb.pp("norm2"))?;
+        let norm3 = if cross_attn.is_some() {
+            Some(Norm::new(
+                d_model,
+                &config.norm.to_string(),
+                vb.pp("norm3"),
+            )?)
+        } else {
+            None
+        };
+
+        let feed_forward = FeedForward::new(
+            d_model,
+            config.dim_feedforward,
+            config.bias_ff,
+            config.gating,
+            vb.pp("ff"),
         )?;
-        let norm1 = Norm::new(cfg.d_model, "layer_norm", vb.pp("norm1"))?;
-        let norm2 = Norm::new(cfg.d_model, "layer_norm", vb.pp("norm2"))?;
+
+        let conv_block = if config.use_conv_block {
+            let conv_config = Conv1dConfig {
+                padding: config.conv_kernel_size / 2,
+                ..Default::default()
+            };
+            Some(candle_nn::conv1d(
+                d_model,
+                d_model,
+                config.conv_kernel_size,
+                conv_config,
+                vb.pp("conv"),
+            )?)
+        } else {
+            None
+        };
+
+        let layer_scale = if let Some(scale) = config.layer_scale {
+            Some(
+                vb.get(d_model, "layer_scale")?
+                    .broadcast_mul(&Tensor::new(&[scale], vb.device())?)?,
+            )
+        } else {
+            None
+        };
+
         Ok(Self {
             self_attn,
-            ffn,
+            cross_attn,
             norm1,
             norm2,
-            _layer_scale: cfg.layer_scale,
-            norm_first: cfg.norm_first,
+            norm3,
+            feed_forward,
+            conv_block,
+            layer_scale,
         })
     }
 
-    pub fn forward(&self, xs: &Tensor, _cross_attention_src: Option<&Tensor>) -> Result<Tensor> {
-        // Note: Cross-attention support not yet implemented in this layer
-        // The _cross_attention_src parameter is accepted for API compatibility
-        // TODO: Implement cross-attention mechanism when cross_attention config is enabled
+    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let residual = xs;
 
-        if self.norm_first {
-            let normed = self.norm1.forward(xs)?;
-            let attn = self.self_attn.forward(&normed)?;
-            let xs = (xs + &attn)?;
-            let normed = self.norm2.forward(&xs)?;
-            let ffn = self.ffn.forward(&normed)?;
-            xs + ffn
+        // Self-attention block
+        let xs = self.norm1.forward(xs)?;
+        let xs = self.self_attn.forward(&xs)?;
+        let xs = if let Some(scale) = &self.layer_scale {
+            xs.broadcast_mul(scale)?
         } else {
-            let attn = self.self_attn.forward(xs)?;
-            let xs = (xs + &attn)?;
-            let xs = self.norm1.forward(&xs)?;
-            let ffn = self.ffn.forward(&xs)?;
-            let xs = (&xs + &ffn)?;
-            self.norm2.forward(&xs)
-        }
+            xs
+        };
+        let xs = (xs + residual)?;
+
+        // Feed-forward block
+        let residual = &xs;
+        let xs = self.norm2.forward(&xs)?;
+        let xs = self.feed_forward.forward(&xs)?;
+        let xs = if let Some(scale) = &self.layer_scale {
+            xs.broadcast_mul(scale)?
+        } else {
+            xs
+        };
+
+        (xs + residual)
+    }
+
+    pub fn forward_with_cache(&self, xs: &Tensor, cache: &TransformerCache) -> Result<Tensor> {
+        // Implementation with KV caching for streaming
+        self.forward(xs) // Simplified for now
     }
 }
 

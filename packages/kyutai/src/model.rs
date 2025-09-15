@@ -504,10 +504,35 @@ impl LmModel {
             return Ok(logits.clone());
         }
 
-        // Alternative implementation without topk - use argmax for sampling
-        // For now, return original logits (this maintains functionality while compiling)
-        // TODO: Implement proper top-k sampling when Candle API is available
-        Ok(logits.clone())
+        // Implement proper top-k sampling using Candle operations
+        let batch_size = logits.dim(0)?;
+        let mut filtered_logits = Vec::new();
+
+        for batch_idx in 0..batch_size {
+            let batch_logits = logits.get(batch_idx)?;
+
+            // Get the top-k values and indices
+            let (top_values, top_indices) = batch_logits.topk(k)?;
+
+            // Create a mask tensor filled with negative infinity
+            let neg_inf = f32::NEG_INFINITY;
+            let mut mask = vec![neg_inf; vocab_size];
+
+            // Set the top-k positions to their original values
+            let top_indices_vec = top_indices.to_vec1::<u32>()?;
+            let top_values_vec = top_values.to_vec1::<f32>()?;
+
+            for (idx, &token_idx) in top_indices_vec.iter().enumerate() {
+                mask[token_idx as usize] = top_values_vec[idx];
+            }
+
+            // Convert back to tensor
+            let filtered_batch = Tensor::from_vec(mask, (vocab_size,), logits.device())?;
+            filtered_logits.push(filtered_batch);
+        }
+
+        // Stack the filtered logits back into a batch
+        Tensor::stack(&filtered_logits, 0)
     }
 
     /// Sample from logits using advanced sampling strategies with repetition penalty

@@ -1,15 +1,81 @@
 use std::sync::Arc;
 use egui::{Color32, Pos2, Rect, Stroke, Vec2};
 use livekit::webrtc::prelude::*;
+use fluent_voice_livekit::{Room, RemoteAudioTrack, RoomEvent, RemoteTrack};
+use futures::StreamExt;
 use tokio::runtime::Runtime;
 use crate::AudioVisualizer;
 
+// Replace mock function with real LiveKit connection
+async fn create_livekit_audio_track(
+    room_url: &str,
+    access_token: &str,
+) -> Result<livekit::webrtc::prelude::RtcAudioTrack, Box<dyn std::error::Error>> {
+    // Connect to LiveKit room
+    let (room, mut events) = Room::connect(
+        room_url.to_string(),
+        access_token.to_string(),
+    ).await?;
+    
+    // Wait for first audio track from any participant
+    while let Some(event) = events.next().await {
+        match event {
+            RoomEvent::TrackSubscribed { 
+                track: RemoteTrack::Audio(audio_track),
+                publication,
+                participant,
+            } => {
+                tracing::info!(
+                    participant = %participant.identity().0,
+                    track_sid = %audio_track.sid(),
+                    "Connected to remote audio track"
+                );
+                
+                // Enable the track
+                publication.set_enabled(true);
+                
+                // Return the underlying RTC track for AudioVisualizer
+                return Ok(audio_track.0.clone());
+            }
+            RoomEvent::Connected { participants_with_tracks } => {
+                // Check existing participants for audio tracks
+                for (participant, publications) in participants_with_tracks {
+                    for publication in publications {
+                        if publication.is_audio() {
+                            if let Some(RemoteTrack::Audio(track)) = publication.track() {
+                                tracing::info!(
+                                    participant = %participant.identity().0,
+                                    "Found existing audio track"
+                                );
+                                publication.set_enabled(true);
+                                return Ok(track.0.clone());
+                            }
+                        }
+                    }
+                }
+            }
+            _ => continue,
+        }
+    }
+    
+    Err("No audio track found in room".into())
+}
+
+// Update the example runner to handle async and connection params
 pub fn run_amplitude_waveform_example() -> Result<(), Box<dyn std::error::Error>> {
-    // Create a minimal runtime for the example
+    // Get connection details from environment or config
+    let room_url = std::env::var("LIVEKIT_URL")
+        .unwrap_or_else(|_| "wss://your-livekit-server.com".to_string());
+    let access_token = std::env::var("LIVEKIT_TOKEN")
+        .ok_or("LIVEKIT_TOKEN environment variable required")?;
+    
+    // Create tokio runtime for async operations
     let runtime = Runtime::new()?;
     
-    // Create a mock audio track for demonstration
-    let audio_track = create_mock_audio_track();
+    // Connect to LiveKit and get audio track
+    let audio_track = runtime.block_on(async {
+        create_livekit_audio_track(&room_url, &access_token).await
+    })?;
     
     // Create the audio visualizer
     let visualizer = AudioVisualizer::new(runtime.handle(), audio_track);
@@ -111,15 +177,4 @@ impl eframe::App for AmplitudeVisApp {
         // Request continuous redraw to update the visualization
         ctx.request_repaint();
     }
-}
-
-// Helper function to create a mock audio track for this example
-fn create_mock_audio_track() -> RtcAudioTrack {
-    // In a real application, you would get this from a LiveKit room
-    // For this example, we create a mock that simulates audio data
-    
-    // This is a simplified mock implementation - in a real application,
-    // you would use actual LiveKit tracks
-    let track_info = TrackInfo::new("mock_audio_track".to_string(), TrackType::Audio);
-    RtcAudioTrack::new(Arc::new(track_info))
 }

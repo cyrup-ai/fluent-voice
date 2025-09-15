@@ -14,8 +14,8 @@ use crate::stt_conversation::{
     MicrophoneBuilder, SttConversation, SttConversationBuilder, SttEngine, SttPostChunkBuilder,
     TranscriptionBuilder,
 };
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use anyhow::Result;
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cyrup_sugars::prelude::{ChunkHandler, MessageChunk};
 use fluent_voice_domain::{
     AudioFormat, Diarization, Language, NoiseReduction, Punctuation, SpeechSource,
@@ -912,8 +912,7 @@ pub struct DefaultSTTConversation {
     _cpal_stream: Option<cpal::Stream>,
 }
 
-// Explicit Send implementation to identify non-Send fields
-unsafe impl Send for DefaultSTTConversation {}
+// All fields are Send-compatible - automatic Send derivation works correctly
 
 impl DefaultSTTConversation {
     fn new(
@@ -954,7 +953,7 @@ impl SttConversation for DefaultSTTConversation {
         // Ensure the struct is Send for async stream
         fn assert_send<T: Send>(_t: &T) {}
         assert_send(&self);
-        
+
         // Initialize audio components BEFORE creating async stream (CPAL pattern)
         let audio_processor = match AudioProcessor::new() {
             Ok(processor) => processor,
@@ -983,17 +982,15 @@ impl SttConversation for DefaultSTTConversation {
         let host = cpal::default_host();
         let device = if let Some(ref speech_source) = self.speech_source {
             match speech_source {
-                SpeechSource::Microphone { backend, .. } => {
-                    match backend {
-                        fluent_voice_domain::MicBackend::Default => host.default_input_device(),
-                        fluent_voice_domain::MicBackend::Device(name) => {
-                            host.input_devices().ok().and_then(|mut devices| {
-                                devices.find(|d| d.name().ok().as_ref() == Some(name))
-                            })
-                        }
+                SpeechSource::Microphone { backend, .. } => match backend {
+                    fluent_voice_domain::MicBackend::Default => host.default_input_device(),
+                    fluent_voice_domain::MicBackend::Device(name) => {
+                        host.input_devices().ok().and_then(|mut devices| {
+                            devices.find(|d| d.name().ok().as_ref() == Some(name))
+                        })
                     }
-                }
-                _ => host.default_input_device()
+                },
+                _ => host.default_input_device(),
             }
         } else {
             host.default_input_device()
@@ -1023,7 +1020,7 @@ impl SttConversation for DefaultSTTConversation {
         let AudioStream { producer, consumer } = audio_stream;
         let audio_producer = std::sync::Arc::new(std::sync::Mutex::new(producer));
         let producer_clone = audio_producer.clone();
-        
+
         let stream = match device.build_input_stream(
             &config.into(),
             move |data: &[f32], _: &cpal::InputCallbackInfo| {
@@ -1412,6 +1409,12 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
             vad_config: self.inner.vad_config,
             wake_word_config: self.inner.wake_word_config,
             prediction_processor: self.inner.prediction_processor,
+            language_hint: None,
+            diarization: None,
+            word_timestamps: None,
+            timestamps_granularity: None,
+            punctuation: None,
+            progress_template: None,
         }
     }
 
@@ -1425,10 +1428,10 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
         let conversation_result = DefaultSTTConversation::new(
             self.inner.vad_config,
             self.inner.wake_word_config,
-            None, // TODO: Fix handler lifetime mismatches - all handlers need + 'static
-            None, // TODO: Fix handler lifetime mismatches
-            None, // TODO: Fix handler lifetime mismatches
-            None, // TODO: Fix handler lifetime mismatches
+            self.inner.error_handler,
+            self.inner.wake_handler,
+            self.inner.turn_handler,
+            self.inner.prediction_processor,
             Some(Box::new(move |result| chunk_processor(result))), // Use the stored chunk processor
         );
 
@@ -1503,23 +1506,23 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
                 VoiceError::ProcessingError(_) => {
                     tracing::error!("Processing error occurred");
                     "Processing error occurred".to_string()
-                },
+                }
                 VoiceError::Configuration(_) => {
                     tracing::error!("Configuration error occurred");
                     "Configuration error occurred".to_string()
-                },
+                }
                 VoiceError::Tts(_) => {
                     tracing::error!("TTS error occurred");
                     "TTS error occurred".to_string()
-                },
+                }
                 VoiceError::Stt(_) => {
                     tracing::error!("STT error occurred");
                     "STT error occurred".to_string()
-                },
+                }
                 VoiceError::Synthesis(_) => {
                     tracing::error!("Synthesis error occurred");
                     "Synthesis error occurred".to_string()
-                },
+                }
                 VoiceError::NotSynthesizable(_) => {
                     tracing::error!("Not synthesizable error occurred");
                     "Not synthesizable error occurred".to_string()
@@ -1527,7 +1530,7 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
                 VoiceError::Transcription(_) => {
                     tracing::error!("Transcription error occurred");
                     "Transcription error occurred".to_string()
-                },
+                }
             })),
             Some(Box::new(|wake_word| {
                 tracing::info!(wake_word = %wake_word, "Wake word detected");
@@ -1567,6 +1570,12 @@ pub struct DefaultTranscriptionBuilder {
     vad_config: VadConfig,
     wake_word_config: WakeWordConfig,
     prediction_processor: Option<Box<dyn FnMut(String, String) + Send + 'static>>,
+    language_hint: Option<Language>,
+    diarization: Option<Diarization>,
+    word_timestamps: Option<WordTimestamps>,
+    timestamps_granularity: Option<TimestampsGranularity>,
+    punctuation: Option<Punctuation>,
+    progress_template: Option<String>,
 }
 
 impl TranscriptionBuilder for DefaultTranscriptionBuilder {
@@ -1613,18 +1622,62 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
 
                 // For file transcription, process the file synchronously
                 // Read the audio file and create transcript segments
-                match std::fs::read(&self.path) {
-                    Ok(_audio_data) => {
-                        // Process audio data synchronously and create transcript
-                        // This is a simplified implementation that would need actual audio processing
-                        let transcript = format!("Transcribed content from file: {}", self.path);
-                        Ok(transcript)
+                // Use REAL WhisperTranscriber with stored configuration
+                tokio::task::spawn_blocking({
+                    let path = self.path.clone();
+                    let language_hint = self.language_hint;
+                    let word_timestamps = self.word_timestamps;
+                    let punctuation = self.punctuation;
+                    move || -> Result<String, VoiceError> {
+                        // Build ModelConfig from stored configuration
+                        let config = fluent_voice_whisper::ModelConfig {
+                            language: language_hint.map(|l| l.to_string()),
+                            timestamps: word_timestamps.unwrap_or(false),
+                            verbose: false,
+                            temperature: 0.0,
+                            task: None,
+                            quantized: false,
+                            cpu: false,
+                            ..Default::default()
+                        };
+
+                        // Create WhisperTranscriber with proper configuration
+                        let mut whisper = fluent_voice_whisper::WhisperTranscriber::with_config(
+                            config,
+                        )
+                        .map_err(|e| {
+                            VoiceError::Configuration(format!("Whisper init failed: {}", e))
+                        })?;
+
+                        // Create SpeechSource from file path
+                        let speech_source = fluent_voice_domain::SpeechSource::File {
+                            path: path.clone(),
+                            format: fluent_voice_domain::AudioFormat::Pcm48Khz,
+                        };
+
+                        // Use REAL WhisperTranscriber for file transcription
+                        let runtime = tokio::runtime::Handle::current();
+                        let transcript = runtime
+                            .block_on(async { whisper.transcribe(speech_source).await })
+                            .map_err(|e| {
+                                VoiceError::ProcessingError(format!("Transcription failed: {}", e))
+                            })?;
+
+                        // Extract text from all transcript chunks
+                        let transcribed_text = transcript
+                            .chunks()
+                            .iter()
+                            .map(|chunk| chunk.text())
+                            .collect::<Vec<_>>()
+                            .join(" ");
+
+                        Ok(transcribed_text)
                     }
-                    Err(e) => Err(VoiceError::ProcessingError(format!(
-                        "Failed to read audio file {}: {}",
-                        self.path, e
-                    ))),
-                }
+                })
+                .await
+                .map_err(|e| {
+                    VoiceError::ProcessingError(format!("Transcription task failed: {}", e))
+                })?
             }
             Err(e) => Err(e.into()),
         };
@@ -1633,43 +1686,71 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
         matcher(transcript_result)
     }
 
-    fn vad_mode(self, _mode: VadMode) -> Self {
-        // TODO: Configure VAD mode in vad_config
+    fn vad_mode(mut self, mode: VadMode) -> Self {
+        // Apply VAD configuration (same as SttConversationBuilder line 772)
+        match mode {
+            VadMode::Off => self.vad_config.sensitivity = 0.0,
+            VadMode::Fast => self.vad_config.sensitivity = 0.3,
+            VadMode::Accurate => self.vad_config.sensitivity = 0.8,
+        }
         self
     }
 
-    fn noise_reduction(self, _level: NoiseReduction) -> Self {
-        // TODO: Configure noise reduction
+    fn noise_reduction(mut self, level: NoiseReduction) -> Self {
+        // Apply noise reduction configuration (same as SttConversationBuilder line 784)
+        match level {
+            NoiseReduction::Off => {
+                self.wake_word_config.filters_enabled = false;
+                self.wake_word_config.band_pass_enabled = false;
+                self.wake_word_config.gain_normalizer_enabled = false;
+            }
+            NoiseReduction::Low => {
+                self.wake_word_config.filters_enabled = true;
+                self.wake_word_config.band_pass_enabled = true;
+                self.wake_word_config.band_pass_low_cutoff = 200.0;
+                self.wake_word_config.band_pass_high_cutoff = 4000.0;
+                self.wake_word_config.gain_normalizer_enabled = true;
+                self.wake_word_config.gain_normalizer_max_gain = 1.5;
+            }
+            NoiseReduction::High => {
+                self.wake_word_config.filters_enabled = true;
+                self.wake_word_config.band_pass_enabled = true;
+                self.wake_word_config.band_pass_low_cutoff = 300.0;
+                self.wake_word_config.band_pass_high_cutoff = 3400.0;
+                self.wake_word_config.gain_normalizer_enabled = true;
+                self.wake_word_config.gain_normalizer_max_gain = 3.0;
+            }
+        }
         self
     }
 
-    fn language_hint(self, _lang: Language) -> Self {
-        // TODO: Configure language hint for Whisper
+    fn language_hint(mut self, lang: Language) -> Self {
+        self.language_hint = Some(lang);
         self
     }
 
-    fn diarization(self, _d: Diarization) -> Self {
-        // TODO: Configure speaker diarization
+    fn diarization(mut self, d: Diarization) -> Self {
+        self.diarization = Some(d);
         self
     }
 
-    fn word_timestamps(self, _w: WordTimestamps) -> Self {
-        // TODO: Configure word-level timestamps
+    fn word_timestamps(mut self, w: WordTimestamps) -> Self {
+        self.word_timestamps = Some(w);
         self
     }
 
-    fn timestamps_granularity(self, _g: TimestampsGranularity) -> Self {
-        // TODO: Configure timestamp granularity
+    fn timestamps_granularity(mut self, g: TimestampsGranularity) -> Self {
+        self.timestamps_granularity = Some(g);
         self
     }
 
-    fn punctuation(self, _p: Punctuation) -> Self {
-        // TODO: Configure automatic punctuation
+    fn punctuation(mut self, p: Punctuation) -> Self {
+        self.punctuation = Some(p);
         self
     }
 
-    fn with_progress<S: Into<String>>(self, _template: S) -> Self {
-        // TODO: Store progress template
+    fn with_progress<S: Into<String>>(mut self, template: S) -> Self {
+        self.progress_template = Some(template.into());
         self
     }
 
@@ -1684,23 +1765,23 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
                 VoiceError::ProcessingError(_) => {
                     tracing::error!("Processing error occurred");
                     "Processing error occurred".to_string()
-                },
+                }
                 VoiceError::Configuration(_) => {
                     tracing::error!("Configuration error occurred");
                     "Configuration error occurred".to_string()
-                },
+                }
                 VoiceError::Tts(_) => {
                     tracing::error!("TTS error occurred");
                     "TTS error occurred".to_string()
-                },
+                }
                 VoiceError::Stt(_) => {
                     tracing::error!("STT error occurred");
                     "STT error occurred".to_string()
-                },
+                }
                 VoiceError::Synthesis(_) => {
                     tracing::error!("Synthesis error occurred");
                     "Synthesis error occurred".to_string()
-                },
+                }
                 VoiceError::NotSynthesizable(_) => {
                     tracing::error!("Not synthesizable error occurred");
                     "Not synthesizable error occurred".to_string()
@@ -1708,7 +1789,7 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
                 VoiceError::Transcription(_) => {
                     tracing::error!("Transcription error occurred");
                     "Transcription error occurred".to_string()
-                },
+                }
             })),
             Some(Box::new(|wake_word| {
                 tracing::info!(wake_word = %wake_word, "Wake word detected");
@@ -1763,31 +1844,31 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
                     VoiceError::ProcessingError(_) => {
                         tracing::error!("[PROCESSING_ERROR]");
                         "[PROCESSING_ERROR]".to_string()
-                    },
+                    }
                     VoiceError::Configuration(_) => {
                         tracing::error!("[CONFIG_ERROR]");
                         "[CONFIG_ERROR]".to_string()
-                    },
+                    }
                     VoiceError::Tts(_) => {
                         tracing::error!("[TTS_ERROR]");
                         "[TTS_ERROR]".to_string()
-                    },
+                    }
                     VoiceError::Stt(_) => {
                         tracing::error!("[STT_ERROR]");
                         "[STT_ERROR]".to_string()
-                    },
+                    }
                     VoiceError::Synthesis(_) => {
                         tracing::error!("[SYNTHESIS_ERROR]");
                         "[SYNTHESIS_ERROR]".to_string()
-                    },
+                    }
                     VoiceError::NotSynthesizable(_) => {
                         tracing::error!("[NOT_SYNTHESIZABLE]");
                         "[NOT_SYNTHESIZABLE]".to_string()
-                    },
+                    }
                     VoiceError::Transcription(_) => {
                         tracing::error!("[TRANSCRIPTION_ERROR]");
                         "[TRANSCRIPTION_ERROR]".to_string()
-                    },
+                    }
                 })),
                 Some(Box::new(|wake_word| {
                     tracing::info!(wake_word = %wake_word, "Wake word detected");

@@ -159,8 +159,8 @@ impl<S: Speaker> Conversation<S> {
         // Pre-fill with audio prompt if available
         if let Some(ap) = &audio_prompt_codes {
             // Apply temporal delays before prefilling decoder
-            let ap_delayed = channel_delay::delayed_view(ap, cfg.data.audio_pad_value)
-                .map_err(|e| {
+            let ap_delayed =
+                channel_delay::delayed_view(ap, cfg.data.audio_pad_value).map_err(|e| {
                     VoiceError::GenerationError(format!("Channel delay adjustment failed: {e}"))
                 })?;
 
@@ -211,9 +211,10 @@ impl<S: Speaker> Conversation<S> {
             };
 
             // Apply temporal delays before model sees the tokens
-            let toks = channel_delay::delayed_view(&toks, cfg.data.audio_pad_value).map_err(|e| {
-                VoiceError::GenerationError(format!("Channel delay adjustment failed: {e}"))
-            })?;
+            let toks =
+                channel_delay::delayed_view(&toks, cfg.data.audio_pad_value).map_err(|e| {
+                    VoiceError::GenerationError(format!("Channel delay adjustment failed: {e}"))
+                })?;
 
             let logits = dia
                 .decode_step(&toks, &mut dec_state)
@@ -247,9 +248,10 @@ impl<S: Speaker> Conversation<S> {
                 })?;
 
         // Remove temporal delays before EnCodec decoding
-        let codes_t = channel_delay::undelayed_view(&codes_t, cfg.data.audio_pad_value).map_err(|e| {
-            VoiceError::GenerationError(format!("Channel delay adjustment failed: {e}"))
-        })?;
+        let codes_t =
+            channel_delay::undelayed_view(&codes_t, cfg.data.audio_pad_value).map_err(|e| {
+                VoiceError::GenerationError(format!("Channel delay adjustment failed: {e}"))
+            })?;
 
         let pcm = dia
             .decode_audio_codes(&codes_t)

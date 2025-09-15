@@ -13,6 +13,7 @@ categories = ["multimedia::audio", "visualization", "graphics"]
 [dependencies]
 # fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 
+fluent_voice_livekit = { path = "../livekit" }
 parking_lot = "0.12.4"
 livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", features = [
     "native-tls",

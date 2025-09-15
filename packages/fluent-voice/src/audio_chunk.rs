@@ -215,6 +215,48 @@ impl AudioChunk {
 
         Self::new(audio_data, format)
     }
+
+    /// Attach timestamp metadata to this chunk
+    pub fn with_timestamp_metadata(
+        mut self,
+        metadata: fluent_voice_elevenlabs::TimestampMetadata,
+    ) -> Self {
+        self.metadata.insert(
+            "timestamp_metadata".to_string(),
+            serde_json::to_value(&metadata).unwrap_or(serde_json::Value::Null),
+        );
+        self
+    }
+
+    /// Retrieve timestamp metadata from this chunk
+    pub fn timestamp_metadata(&self) -> Option<fluent_voice_elevenlabs::TimestampMetadata> {
+        self.metadata
+            .get("timestamp_metadata")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+    }
+
+    /// Check if this chunk contains timestamp information
+    pub fn has_timestamps(&self) -> bool {
+        self.metadata.contains_key("timestamp_metadata")
+    }
+
+    /// Export timestamps as SRT format
+    pub fn export_srt(&self) -> Option<Result<String, VoiceError>> {
+        self.timestamp_metadata().map(|metadata| {
+            metadata
+                .to_srt()
+                .map_err(|e| VoiceError::Configuration(e.to_string()))
+        })
+    }
+
+    /// Export timestamps as WebVTT format  
+    pub fn export_vtt(&self) -> Option<Result<String, VoiceError>> {
+        self.timestamp_metadata().map(|metadata| {
+            metadata
+                .to_vtt()
+                .map_err(|e| VoiceError::Configuration(e.to_string()))
+        })
+    }
 }
 
 impl SynthesisChunk {

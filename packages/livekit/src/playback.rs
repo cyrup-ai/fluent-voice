@@ -27,7 +27,7 @@ mod pixel_format_constants {
     // FourCC codes for pixel formats (computed at compile time with const evaluation)
     pub const K_CVPIXEL_FORMAT_TYPE_32_BGRA: OSType = 0x42475241; // 'BGRA'
     pub const K_CVPIXEL_FORMAT_TYPE_32_ARGB: OSType = 0x32000000; // 32-bit ARGB
-    pub const K_CVPIXEL_FORMAT_TYPE_24_RGB: OSType = 0x18000000;  // 24-bit RGB
+    pub const K_CVPIXEL_FORMAT_TYPE_24_RGB: OSType = 0x18000000; // 24-bit RGB
     #[allow(dead_code)] // Reserved for future YUV format support
     pub const K_CVPIXEL_FORMAT_TYPE_420_YP_CB_CR8_BI_PLANAR_FULL_RANGE: OSType = 0x34323066; // '420f'
 }

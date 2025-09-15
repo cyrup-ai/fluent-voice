@@ -154,17 +154,155 @@ impl SynthesisContext {
     }
 }
 
+/// Validate that all alignment arrays have consistent lengths
+fn validate_alignment_consistency(
+    alignment: &Alignment,
+) -> Result<(), crate::engine::FluentVoiceError> {
+    let char_count = alignment.characters.len();
+    let start_count = alignment.character_start_times_seconds.len();
+    let end_count = alignment.character_end_times_seconds.len();
+
+    if char_count != start_count || char_count != end_count {
+        return Err(crate::engine::FluentVoiceError::AlignmentValidationError(
+            format!(
+                "Alignment array length mismatch: {} characters, {} start times, {} end times",
+                char_count, start_count, end_count
+            ),
+        ));
+    }
+
+    if char_count == 0 {
+        return Err(crate::engine::FluentVoiceError::AlignmentValidationError(
+            "Empty alignment data received from ElevenLabs API".into(),
+        ));
+    }
+
+    Ok(())
+}
+
+/// Validate timing values are logical and well-formed
+fn validate_timing_logic(alignment: &Alignment) -> Result<(), crate::engine::FluentVoiceError> {
+    for (i, (&start, &end)) in alignment
+        .character_start_times_seconds
+        .iter()
+        .zip(&alignment.character_end_times_seconds)
+        .enumerate()
+    {
+        // Check for negative timing values
+        if start < 0.0 || end < 0.0 {
+            return Err(crate::engine::FluentVoiceError::AlignmentValidationError(
+                format!(
+                    "Negative timing values at character {}: start={:.3}s, end={:.3}s",
+                    i, start, end
+                ),
+            ));
+        }
+
+        // Check for invalid timing order
+        if start >= end {
+            return Err(crate::engine::FluentVoiceError::AlignmentValidationError(
+                format!(
+                    "Invalid timing order at character {}: start={:.3}s >= end={:.3}s",
+                    i, start, end
+                ),
+            ));
+        }
+
+        // Check for unreasonable timing values (> 1 hour)
+        if end > 3600.0 {
+            return Err(crate::engine::FluentVoiceError::AlignmentValidationError(
+                format!(
+                    "Unreasonable timing value at character {}: end={:.3}s (> 1 hour)",
+                    i, end
+                ),
+            ));
+        }
+    }
+
+    // Validate timing sequence is monotonic
+    let mut prev_end = 0.0;
+    for (i, &start) in alignment.character_start_times_seconds.iter().enumerate() {
+        if start < prev_end {
+            return Err(crate::engine::FluentVoiceError::AlignmentValidationError(
+                format!(
+                    "Non-monotonic timing sequence at character {}: start={:.3}s < previous_end={:.3}s",
+                    i, start, prev_end
+                ),
+            ));
+        }
+        prev_end = alignment.character_end_times_seconds[i];
+    }
+
+    Ok(())
+}
+
+/// Validate character data integrity and format
+fn validate_character_data(alignment: &Alignment) -> Result<(), crate::engine::FluentVoiceError> {
+    for (i, character) in alignment.characters.iter().enumerate() {
+        // Check for empty characters
+        if character.is_empty() {
+            return Err(crate::engine::FluentVoiceError::AlignmentValidationError(
+                format!("Empty character string at position {}", i),
+            ));
+        }
+
+        // Check for valid UTF-8 (should be guaranteed by String type, but explicit check)
+        if !character.is_ascii() {
+            // Log warning for non-ASCII characters but don't fail
+            tracing::warn!("Non-ASCII character at position {}: '{}'", i, character);
+        }
+
+        // Check for reasonable character length (prevent extremely long strings)
+        if character.len() > 10 {
+            return Err(crate::engine::FluentVoiceError::AlignmentValidationError(
+                format!(
+                    "Unusually long character string at position {}: '{}' ({} bytes)",
+                    i,
+                    character,
+                    character.len()
+                ),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// Comprehensive validation for ElevenLabs alignment data
+pub fn validate_alignment(alignment: &Alignment) -> Result<(), crate::engine::FluentVoiceError> {
+    validate_alignment_consistency(alignment)?;
+    validate_timing_logic(alignment)?;
+    validate_character_data(alignment)?;
+
+    tracing::debug!(
+        "Alignment validation passed: {} characters, {:.3}s duration",
+        alignment.characters.len(),
+        alignment.character_end_times_seconds.last().unwrap_or(&0.0)
+    );
+
+    Ok(())
+}
+
 /// Convert ElevenLabs Alignment to CharacterTimestamp vector
 impl From<&Alignment> for Vec<CharacterTimestamp> {
     fn from(alignment: &Alignment) -> Self {
+        // ✅ ADD VALIDATION HERE
+        if let Err(e) = validate_alignment(alignment) {
+            tracing::error!("Alignment validation failed: {}", e);
+            // Return empty vec or handle error appropriately
+            return Vec::new();
+        }
+
+        // Existing implementation with enhanced bounds checking
         alignment
             .characters
             .iter()
             .enumerate()
             .filter_map(|(i, character)| {
-                // Ensure array bounds are valid before accessing
-                if i < alignment.character_start_times_seconds.len() 
-                    && i < alignment.character_end_times_seconds.len() {
+                // Enhanced bounds checking (already exists)
+                if i < alignment.character_start_times_seconds.len()
+                    && i < alignment.character_end_times_seconds.len()
+                {
                     Some(CharacterTimestamp {
                         character: character.clone(),
                         start_seconds: alignment.character_start_times_seconds[i],
@@ -172,10 +310,31 @@ impl From<&Alignment> for Vec<CharacterTimestamp> {
                         text_position: i,
                     })
                 } else {
+                    tracing::warn!("Array bounds mismatch at character {}", i);
                     None
                 }
             })
             .collect()
+    }
+}
+
+/// Configuration context for timestamp generation
+#[derive(Debug, Clone)]
+pub struct TimestampConfiguration {
+    pub granularity: fluent_voice_domain::timestamps::TimestampsGranularity,
+    pub word_timestamps: fluent_voice_domain::timestamps::WordTimestamps,
+    pub diarization: fluent_voice_domain::timestamps::Diarization,
+    pub punctuation: fluent_voice_domain::timestamps::Punctuation,
+}
+
+impl Default for TimestampConfiguration {
+    fn default() -> Self {
+        Self {
+            granularity: fluent_voice_domain::timestamps::TimestampsGranularity::Word,
+            word_timestamps: fluent_voice_domain::timestamps::WordTimestamps::On,
+            diarization: fluent_voice_domain::timestamps::Diarization::Off,
+            punctuation: fluent_voice_domain::timestamps::Punctuation::On,
+        }
     }
 }
 
@@ -191,6 +350,60 @@ impl TimestampMetadata {
             total_duration_ms: None,
             processing_time_ms: None,
             synthesis_metadata: SynthesisMetadata::default(),
+        }
+    }
+
+    /// Filter timestamp data based on domain granularity setting
+    pub fn filter_by_granularity(
+        &mut self,
+        granularity: fluent_voice_domain::timestamps::TimestampsGranularity,
+    ) {
+        use fluent_voice_domain::timestamps::TimestampsGranularity;
+        match granularity {
+            TimestampsGranularity::None => {
+                self.character_alignments.clear();
+                self.word_alignments = None;
+            }
+            TimestampsGranularity::Word => {
+                self.character_alignments.clear(); // Keep only word-level
+            }
+            TimestampsGranularity::Character => {
+                // Keep all data - most detailed level
+            }
+        }
+    }
+
+    /// Filter word timestamps based on domain setting
+    pub fn filter_by_word_timestamps(
+        &mut self,
+        setting: fluent_voice_domain::timestamps::WordTimestamps,
+    ) {
+        use fluent_voice_domain::timestamps::WordTimestamps;
+        match setting {
+            WordTimestamps::Off => {
+                self.word_alignments = None;
+            }
+            WordTimestamps::On => {
+                if self.word_alignments.is_none() && !self.character_alignments.is_empty() {
+                    self.generate_word_alignments();
+                }
+            }
+        }
+    }
+
+    /// Filter speaker information based on diarization setting
+    pub fn filter_by_diarization(&mut self, setting: fluent_voice_domain::timestamps::Diarization) {
+        use fluent_voice_domain::timestamps::Diarization;
+        match setting {
+            Diarization::Off => {
+                // Clear speaker IDs from audio chunks
+                for chunk in &mut self.audio_chunks {
+                    chunk.speaker_id = None;
+                }
+            }
+            Diarization::On => {
+                // Preserve existing speaker information
+            }
         }
     }
 

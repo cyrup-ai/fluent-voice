@@ -19,9 +19,10 @@ pub mod mimi;
 pub mod model;
 pub mod models;
 pub mod nn;
+pub mod projected_transformer;
 pub mod quantization;
 pub mod sampling_config;
-// pub mod seanet; // TODO: implement missing module
+pub mod seanet;
 pub mod speech_generator;
 // pub mod stream_both; // TODO: implement missing module
 pub mod streaming;

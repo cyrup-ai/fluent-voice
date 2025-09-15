@@ -42,9 +42,7 @@ pub struct GenerationConfig {
 
 // Import optimizations for GPU acceleration
 #[cfg(any(feature = "cuda", feature = "metal"))]
-use crate::optimizations::{
-    GpuConfig, get_compute_dtype, get_optimal_config,
-};
+use crate::optimizations::{GpuConfig, get_compute_dtype, get_optimal_config};
 
 /// Convenience: extremely small ε to replace `-inf` when we build masks.
 const NEG_INF: f32 = -1e30;
@@ -331,7 +329,8 @@ impl DiaTts {
         }
 
         // Remove channel delays before returning tokens for decoding
-        let final_tokens = undelayed_view(&generated.generated_tokens, self.cfg.data.audio_pad_value)?;
+        let final_tokens =
+            undelayed_view(&generated.generated_tokens, self.cfg.data.audio_pad_value)?;
 
         Ok(final_tokens)
     }

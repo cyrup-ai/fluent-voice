@@ -1,7 +1,8 @@
-use super::transformer;
+use super::{projected_transformer::ProjectedTransformer, seanet, transformer};
+use crate::conv::{ConvDownsample1d, ConvTrUpsample1d};
+use crate::quantization::SplitResidualVectorQuantizer;
 use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::VarBuilder;
-use candle_transformers::models::mimi::{Config as MimiConfig, Model as MimiModel};
 use std::sync::Arc;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -17,7 +18,7 @@ pub struct Config {
     pub frame_rate: f64,
     pub renormalize: bool,
     pub resample_method: ResampleMethod,
-    // pub seanet: seanet::Config, // TODO: uncomment when seanet module is implemented
+    pub seanet: seanet::Config,
     pub transformer: transformer::Config,
     pub quantizer_n_q: usize,
     pub quantizer_bins: usize,
@@ -25,9 +26,6 @@ pub struct Config {
 }
 
 impl Config {
-    // TODO: implement v0_1 method when seanet and conv modules are available
-    /*
-    // /lustre/scwpod02/client/kyutai/alex/mimi_exp/xps/b7d2bd5a/.hydra/config.yaml
     pub fn v0_1(num_codebooks: Option<usize>) -> Self {
         let seanet_cfg = seanet::Config {
             dimension: 512,
@@ -35,17 +33,12 @@ impl Config {
             causal: true,
             n_filters: 64,
             n_residual_layers: 1,
-            activation: candle_nn::Activation::Elu(1.),
             compress: 2,
             dilation_base: 2,
             disable_norm_outer_blocks: 0,
-            final_activation: None,
             kernel_size: 7,
             residual_kernel_size: 3,
             last_kernel_size: 3,
-            lstm: 0,
-            norm: conv::Norm::WeightNorm,
-            pad_mode: conv::PadMode::Constant,
             ratios: vec![8, 6, 5, 4],
             true_skip: true,
         };
@@ -65,13 +58,12 @@ impl Config {
             cross_attention: None,
             max_period: 10000,
             gating: None,
-            norm: NormType::LayerNorm,
-            positional_embedding: transformer::PositionalEmbedding::Rope,
-
+            norm: crate::transformer::NormType::LayerNorm,
+            positional_embedding: crate::transformer::PositionalEmbedding::Rope,
             dim_feedforward: 2048,
             kv_repeat: 1,
-            conv_layout: true, // see builders.py
-            max_seq_len: 8192, // the transformer works at 25hz so this is ~5 mins.
+            conv_layout: true,
+            max_seq_len: 8192,
             shared_cross_attn: false,
         };
         Config {
@@ -87,121 +79,228 @@ impl Config {
             quantizer_dim: 256,
         }
     }
-    */
 }
 
-/// Production-quality Mimi neural audio codec implementation
-///
-/// This wraps the proven candle-transformers Mimi implementation to provide
-/// a streaming neural audio codec with proper encode/decode functionality.
+/// Production Mimi neural audio codec with SEANet
 #[derive(Debug)]
 pub struct Mimi {
     config: Config,
     device: Device,
-    model: Arc<std::sync::Mutex<MimiModel>>,
+
+    // Core SEANet components
+    seanet: Arc<seanet::SeanetModule>,
+
+    // Transformer processing
+    encoder_transformer: Arc<ProjectedTransformer>,
+    decoder_transformer: Arc<ProjectedTransformer>,
+
+    // Quantization
+    quantizer: Arc<SplitResidualVectorQuantizer>,
+
+    // Resampling for frame rate conversion
+    downsample: Arc<ConvDownsample1d>,
+    upsample: Arc<ConvTrUpsample1d>,
+
+    // Derived parameters
     frame_size: usize,
+    downsample_stride: usize,
 }
 
-/// Production-quality Mimi implementation using candle-transformers
 impl Mimi {
     pub fn new(cfg: Config, vb: VarBuilder) -> Result<Self> {
         let device = vb.device().clone();
+        let dim = cfg.seanet.dimension;
 
-        // Convert our config to candle-transformers MimiConfig
-        let mimi_config = MimiConfig::v0_1(Some(cfg.quantizer_n_q));
-
-        // Create the actual Mimi model using candle-transformers
-        let model = MimiModel::new(mimi_config, vb)?;
-
-        // Calculate frame size based on sample rate and frame rate
-        // Mimi uses 1920 samples per frame at 24kHz for 12.5Hz frame rate
+        // Calculate frame rates
+        let encoder_frame_rate =
+            cfg.sample_rate / cfg.seanet.ratios.iter().product::<usize>() as f64;
+        let downsample_stride = (encoder_frame_rate / cfg.frame_rate) as usize;
         let frame_size = (cfg.sample_rate / cfg.frame_rate) as usize;
+
+        // Build SEANet encoder/decoder
+        let seanet = Arc::new(seanet::SeanetModule::new(
+            cfg.seanet.clone(),
+            vb.pp("seanet"),
+        )?);
+
+        // Build transformers with projections
+        let encoder_transformer = Arc::new(ProjectedTransformer::new(
+            cfg.transformer.clone(),
+            dim,
+            vec![dim],
+            vb.pp("encoder_transformer"),
+        )?);
+
+        let decoder_transformer = Arc::new(ProjectedTransformer::new(
+            cfg.transformer.clone(),
+            dim,
+            vec![dim],
+            vb.pp("decoder_transformer"),
+        )?);
+
+        // Build quantizer
+        let quantizer = Arc::new(SplitResidualVectorQuantizer::new(
+            cfg.quantizer_dim,
+            Some(dim),
+            Some(dim),
+            cfg.quantizer_n_q,
+            cfg.quantizer_bins,
+            vb.pp("quantizer"),
+        )?);
+
+        // Build resampling layers
+        let downsample = Arc::new(ConvDownsample1d::new(
+            downsample_stride,
+            dim,
+            true,  // causal
+            false, // not learnt
+            vb.pp("downsample"),
+        )?);
+
+        let upsample = Arc::new(ConvTrUpsample1d::new(
+            downsample_stride,
+            dim,
+            true,  // causal
+            false, // not learnt
+            vb.pp("upsample"),
+        )?);
 
         Ok(Self {
             config: cfg,
             device,
-            model: Arc::new(std::sync::Mutex::new(model)),
+            seanet,
+            encoder_transformer,
+            decoder_transformer,
+            quantizer,
+            downsample,
+            upsample,
             frame_size,
+            downsample_stride,
         })
+    }
+
+    /// Full encoding pipeline: audio -> codes
+    pub fn encode(&self, xs: &Tensor) -> Result<Tensor> {
+        // Ensure correct input shape [batch, channels, time]
+        let xs = if xs.dims().len() == 1 {
+            xs.unsqueeze(0)?.unsqueeze(0)?
+        } else if xs.dims().len() == 2 {
+            xs.unsqueeze(0)?
+        } else {
+            xs.clone()
+        };
+
+        // Encode with SEANet
+        let encoded = self.seanet.encode(&xs)?;
+
+        // Process with transformer
+        let transformed = self.encoder_transformer.forward(&encoded, false)?;
+        let encoded = &transformed[0];
+
+        // Downsample to target frame rate
+        let downsampled = self
+            .downsample
+            .step(&crate::streaming::StreamTensor::from_tensor(
+                encoded.clone(),
+            ))?;
+        let downsampled = downsampled
+            .as_option()
+            .ok_or_else(|| candle_core::Error::Msg("Downsample failed".to_string()))?;
+
+        // Quantize to discrete codes
+        self.quantizer.encode(downsampled)
+    }
+
+    /// Full decoding pipeline: codes -> audio
+    pub fn decode(&self, codes: &Tensor) -> Result<Tensor> {
+        // Dequantize codes
+        let quantized = self.quantizer.decode(codes)?;
+
+        // Upsample to encoder frame rate
+        let upsampled = self
+            .upsample
+            .step(&crate::streaming::StreamTensor::from_tensor(quantized))?;
+        let upsampled = upsampled
+            .as_option()
+            .ok_or_else(|| candle_core::Error::Msg("Upsample failed".to_string()))?;
+
+        // Process with transformer
+        let transformed = self.decoder_transformer.forward(upsampled, false)?;
+        let decoded = &transformed[0];
+
+        // Decode with SEANet
+        self.seanet.decode(decoded)
+    }
+
+    /// Streaming encode step
+    pub fn encode_step(&self, xs: &Tensor) -> Result<Option<Tensor>> {
+        // Convert to StreamTensor
+        let stream_xs = crate::streaming::StreamTensor::from_tensor(xs.clone());
+
+        // Encode with SEANet
+        let encoded = self.seanet.encode_step(&stream_xs)?;
+
+        if let Some(encoded_tensor) = encoded.as_option() {
+            // Process with transformer
+            let transformed = self.encoder_transformer.forward(encoded_tensor, true)?;
+            let encoded = &transformed[0];
+
+            // Downsample
+            let downsampled =
+                self.downsample
+                    .step(&crate::streaming::StreamTensor::from_tensor(
+                        encoded.clone(),
+                    ))?;
+
+            if let Some(downsampled_tensor) = downsampled.as_option() {
+                // Quantize
+                let codes = self.quantizer.encode(downsampled_tensor)?;
+                Ok(Some(codes))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Streaming decode step
+    pub fn decode_step(&self, codes: &Tensor) -> Result<Option<Tensor>> {
+        // Dequantize
+        let quantized = self.quantizer.decode(codes)?;
+
+        // Upsample
+        let upsampled = self
+            .upsample
+            .step(&crate::streaming::StreamTensor::from_tensor(quantized))?;
+
+        if let Some(upsampled_tensor) = upsampled.as_option() {
+            // Process with transformer
+            let transformed = self.decoder_transformer.forward(upsampled_tensor, true)?;
+            let decoded = &transformed[0];
+
+            // Decode with SEANet
+            let stream_decoded =
+                self.seanet
+                    .decode_step(&crate::streaming::StreamTensor::from_tensor(
+                        decoded.clone(),
+                    ))?;
+            Ok(stream_decoded.as_option().cloned())
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Reset all streaming state
+    pub fn reset_state(&mut self) {
+        self.encoder_transformer.reset_cache();
+        self.decoder_transformer.reset_cache();
+        self.downsample.reset_state();
+        self.upsample.reset_state();
     }
 
     pub fn config(&self) -> &Config {
         &self.config
-    }
-
-    /// Encode audio tensor to discrete codes
-    pub fn encode(&self, xs: &Tensor) -> Result<Tensor> {
-        let mut model = self
-            .model
-            .lock()
-            .map_err(|_| candle_core::Error::Msg("Failed to acquire model lock".to_string()))?;
-
-        // Ensure input is in the correct format [batch, channels, time]
-        let xs = if xs.dims().len() == 1 {
-            xs.unsqueeze(0)?.unsqueeze(0)?
-        } else if xs.dims().len() == 2 {
-            xs.unsqueeze(0)?
-        } else {
-            xs.clone()
-        };
-
-        model.encode(&xs)
-    }
-
-    /// Decode discrete codes back to audio tensor
-    pub fn decode(&self, codes: &Tensor) -> Result<Tensor> {
-        let mut model = self
-            .model
-            .lock()
-            .map_err(|_| candle_core::Error::Msg("Failed to acquire model lock".to_string()))?;
-
-        model.decode(codes)
-    }
-
-    /// Reset the streaming state of the model
-    pub fn reset_state(&self) {
-        if let Ok(mut model) = self.model.lock() {
-            model.reset_state();
-        }
-    }
-
-    /// Decode a single streaming step
-    pub fn decode_step(&self, codes: &Tensor) -> Result<Option<Tensor>> {
-        let mut model = self
-            .model
-            .lock()
-            .map_err(|_| candle_core::Error::Msg("Failed to acquire model lock".to_string()))?;
-
-        // Convert tensor to StreamTensor for streaming decode
-        let stream_codes = candle_core::StreamTensor::from_tensor(codes.clone());
-        let result = model.decode_step(&stream_codes)?;
-
-        // Convert StreamTensor result back to Option<Tensor>
-        Ok(result.as_option().cloned())
-    }
-
-    /// Encode a single streaming step
-    pub fn encode_step(&self, xs: &Tensor) -> Result<Option<Tensor>> {
-        let mut model = self
-            .model
-            .lock()
-            .map_err(|_| candle_core::Error::Msg("Failed to acquire model lock".to_string()))?;
-
-        // Ensure input is in the correct format [batch, channels, time]
-        let xs = if xs.dims().len() == 1 {
-            xs.unsqueeze(0)?.unsqueeze(0)?
-        } else if xs.dims().len() == 2 {
-            xs.unsqueeze(0)?
-        } else {
-            xs.clone()
-        };
-
-        // Convert tensor to StreamTensor for streaming encode
-        let stream_xs = candle_core::StreamTensor::from_tensor(xs);
-        let result = model.encode_step(&stream_xs)?;
-
-        // Convert StreamTensor result back to Option<Tensor>
-        Ok(result.as_option().cloned())
     }
 
     /// Get the frame size for streaming (1920 samples for 24kHz at 12.5Hz frame rate)
@@ -211,7 +310,6 @@ impl Mimi {
 
     /// Flush any pending streaming state
     pub fn flush(&mut self) -> Result<()> {
-        // The candle-transformers implementation handles state internally
         self.reset_state();
         Ok(())
     }
@@ -235,17 +333,7 @@ pub fn load(model_file: &str, num_codebooks: Option<usize>, dev: &Device) -> Res
     };
 
     // Create configuration matching the loaded model
-    let cfg = Config {
-        channels: 1,
-        sample_rate: 24_000.0,
-        frame_rate: 12.5,
-        renormalize: true,
-        resample_method: ResampleMethod::Conv,
-        transformer: transformer::Config::default(),
-        quantizer_n_q: num_codebooks.unwrap_or(16),
-        quantizer_bins: 2048,
-        quantizer_dim: 256,
-    };
+    let cfg = Config::v0_1(num_codebooks);
 
     // Create the Mimi instance with loaded weights
     Mimi::new(cfg, vb)

@@ -5,9 +5,34 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use env_logger::Env;
 use log::{error, info};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 mod cli;
-use cli::{Cli, Commands};
+use cli::{Cli, Commands, ModelType};
+
+// Import koffee modules for wake word functionality
+use koffee::Kfc;
+use koffee::trainer;
+use koffee::wakewords::{WakewordLoad, WakewordModel};
+
+// Import cpal for audio device management
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+
+// Error handling
+#[derive(Debug, thiserror::Error)]
+pub enum WakeWordCliError {
+    #[error("Training failed: {0}")]
+    Training(String),
+    #[error("Model loading failed: {0}")]
+    ModelLoad(String),
+    #[error("Audio device error: {0}")]
+    Audio(#[from] cpal::BuildStreamError),
+    #[error("Feature extraction failed: {0}")]
+    FeatureExtraction(String),
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -46,22 +71,120 @@ async fn main() -> Result<()> {
 
 async fn train_model(cmd: cli::TrainCommand) -> Result<()> {
     info!("Training model with config: {cmd:?}");
-    // TODO: Implement model training
-    error!("Model training not yet implemented");
+
+    // Convert CLI ModelType to u8 for trainer
+    let model_type = match cmd.model_type {
+        ModelType::Tiny => 0,
+        ModelType::Small => 1,
+        ModelType::Medium => 2,
+        ModelType::Large => 3,
+    };
+
+    // Use existing trainer::train_dir function
+    trainer::train_dir(
+        cmd.data_dir.to_str().unwrap(),
+        cmd.output.to_str().unwrap(),
+        koffee::ModelType::from(model_type),
+    )
+    .map_err(|e| anyhow::anyhow!("Training failed: {}", e))?;
+
+    info!("Model trained and saved to: {:?}", cmd.output);
     Ok(())
 }
 
 async fn detect_wake_words(cmd: cli::DetectCommand) -> Result<()> {
     info!("Detecting wake words with config: {cmd:?}");
-    // TODO: Implement wake word detection
-    error!("Wake word detection not yet implemented");
+
+    // Create Kfc detector with default config
+    let kfc_config = koffee::config::KoffeeCandleConfig::default();
+    let detector =
+        Kfc::new(&kfc_config).map_err(|e| anyhow::anyhow!("Failed to create detector: {}", e))?;
+
+    // Get audio host and device
+    let host = cpal::default_host();
+    let device = if let Some(device_name) = &cmd.device {
+        // Find device by name
+        host.input_devices()
+            .map_err(|e| anyhow::anyhow!("Failed to enumerate devices: {}", e))?
+            .find(|d| d.name().unwrap_or_default() == *device_name)
+            .ok_or_else(|| anyhow::anyhow!("Device '{}' not found", device_name))?
+    } else {
+        // Use default input device
+        host.default_input_device()
+            .ok_or_else(|| anyhow::anyhow!("No default input device available"))?
+    };
+
+    // Get supported config
+    let config = device
+        .default_input_config()
+        .map_err(|e| anyhow::anyhow!("Failed to get device config: {}", e))?;
+
+    info!(
+        "Using audio device: {}",
+        device.name().unwrap_or("Unknown".to_string())
+    );
+    info!("Audio config: {:?}", config);
+
+    // Build input stream for real-time detection
+    let detector_arc = Arc::new(Mutex::new(detector));
+    let detector_clone = detector_arc.clone();
+    let stream = device.build_input_stream(
+        &config.into(),
+        move |data: &[f32], _: &cpal::InputCallbackInfo| {
+            if let Ok(mut detector_guard) = detector_clone.lock() {
+                if let Some(detection) = detector_guard.process_samples(data) {
+                    info!(
+                        "Wake word detected: {} (score: {:.3})",
+                        detection.name, detection.score
+                    );
+                }
+            }
+        },
+        |err| error!("Audio stream error: {}", err),
+        None,
+    )?;
+
+    // Start the stream
+    stream.play()?;
+    info!("Listening for wake words... Press Ctrl+C to stop.");
+
+    // Keep running until interrupted
+    tokio::signal::ctrl_c().await?;
+    info!("Stopping wake word detection.");
+
     Ok(())
 }
 
 async fn list_audio_devices() -> Result<()> {
     info!("Listing available audio devices...");
-    // TODO: Implement device listing
-    error!("Audio device listing not yet implemented");
+
+    // Use existing examples/list_audio_devices.rs logic
+    let host = cpal::default_host();
+
+    println!("Available input devices:");
+    for device in host.input_devices()? {
+        let name = device.name()?;
+        println!("  - {}", name);
+
+        // Show supported configurations
+        if let Ok(config) = device.default_input_config() {
+            println!("    Default: {:?}", config);
+        }
+
+        // Show supported input configs
+        match device.supported_input_configs() {
+            Ok(configs) => {
+                for (i, config) in configs.enumerate() {
+                    if i < 3 {
+                        // Limit to first 3 configs to avoid spam
+                        println!("    Config {}: {:?}", i + 1, config);
+                    }
+                }
+            }
+            Err(_) => println!("    No supported configs available"),
+        }
+    }
+
     Ok(())
 }
 
@@ -74,8 +197,34 @@ async fn record_samples(cmd: cli::RecordCommand) -> Result<()> {
 
 async fn inspect_model(cmd: cli::InspectCommand) -> Result<()> {
     info!("Inspecting model: {:?}", cmd.model_path);
-    // TODO: Implement model inspection
-    error!("Model inspection not yet implemented");
+
+    // Load model using WakewordLoad trait
+    let model = WakewordModel::load_from_file(&cmd.model_path)
+        .map_err(|e| anyhow::anyhow!("Failed to load model: {}", e))?;
+
+    // Display model metadata
+    println!("Model Information:");
+    println!("  Labels: {:?}", model.labels);
+
+    // Display tensor information
+    println!("  Weights:");
+    match &model.weights {
+        koffee::wakewords::ModelWeights::Map(tensors) => {
+            for (name, tensor_data) in tensors {
+                println!(
+                    "    {}: dims {:?}, dtype {}, {} bytes",
+                    name,
+                    tensor_data.dims,
+                    tensor_data.d_type,
+                    tensor_data.bytes.len()
+                );
+            }
+        }
+        koffee::wakewords::ModelWeights::Raw(bytes) => {
+            println!("    Raw weights: {} bytes", bytes.len());
+        }
+    }
+
     Ok(())
 }
 

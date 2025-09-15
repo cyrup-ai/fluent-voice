@@ -70,6 +70,8 @@ pub struct SpeakerLine {
     pub language: Option<fluent_voice_domain::Language>,
     pub speed_modifier: Option<fluent_voice_domain::VocalSpeedMod>,
     pub pitch_range: Option<fluent_voice_domain::PitchRange>,
+    pub metadata: hashbrown::HashMap<String, String>,
+    pub vocal_settings: hashbrown::HashMap<String, String>,
 }
 
 impl SpeakerLine {
@@ -121,6 +123,8 @@ pub struct SpeakerLineBuilder {
     language: Option<fluent_voice_domain::Language>,
     speed_modifier: Option<fluent_voice_domain::VocalSpeedMod>,
     pitch_range: Option<fluent_voice_domain::PitchRange>,
+    metadata: hashbrown::HashMap<String, String>,
+    vocal_settings: hashbrown::HashMap<String, String>,
 }
 
 impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
@@ -135,6 +139,8 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
             language: None,
             speed_modifier: None,
             pitch_range: None,
+            metadata: hashbrown::HashMap::new(),
+            vocal_settings: hashbrown::HashMap::new(),
         }
     }
 
@@ -210,6 +216,8 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
             language: self.language,
             speed_modifier: self.speed_modifier,
             pitch_range: self.pitch_range,
+            metadata: self.metadata,
+            vocal_settings: self.vocal_settings,
         }
     }
 }
@@ -218,20 +226,26 @@ impl SpeakerLineBuilder {
     /// Zero-allocation metadata configuration
     #[inline]
     pub fn metadata(
-        self,
+        mut self,
         config: impl Into<hashbrown::HashMap<&'static str, &'static str>>,
     ) -> Self {
-        let _ = config.into();
+        let config_map = config.into();
+        for (k, v) in config_map {
+            self.metadata.insert(k.to_string(), v.to_string());
+        }
         self
     }
 
     /// Zero-allocation vocal settings configuration
     #[inline]
     pub fn vocal_settings(
-        self,
+        mut self,
         config: impl Into<hashbrown::HashMap<&'static str, &'static str>>,
     ) -> Self {
-        let _ = config.into();
+        let config_map = config.into();
+        for (k, v) in config_map {
+            self.vocal_settings.insert(k.to_string(), v.to_string());
+        }
         self
     }
 }
@@ -253,6 +267,7 @@ pub struct TtsConversationImpl<AudioStream> {
     pub next_text: Option<String>,
     pub previous_request_ids: Vec<RequestId>,
     pub next_request_ids: Vec<RequestId>,
+    pub voice_clone_path: Option<std::path::PathBuf>,
     synth_fn: Box<dyn FnOnce(&[SpeakerLine], Option<&Language>) -> AudioStream + Send>,
 }
 
@@ -269,7 +284,7 @@ impl<AudioStream> TtsConversationImpl<AudioStream> {
 
     #[inline]
     pub fn sample_rate_hz(&self) -> usize {
-        16000
+        24000 // Match the 24kHz used throughout synthesis calculations
     }
 }
 
@@ -304,15 +319,114 @@ pub struct TtsConversationBuilderImpl<AudioStream> {
     next_request_ids: Vec<RequestId>,
     additional_params: std::collections::HashMap<String, String>,
     metadata: std::collections::HashMap<String, String>,
+    voice_clone_path: Option<std::path::PathBuf>,
     chunk_handler:
         Option<Box<dyn Fn(Result<AudioChunk, VoiceError>) -> AudioChunk + Send + Sync + 'static>>,
     synth_fn: Option<Box<dyn FnOnce(&[SpeakerLine], Option<&Language>) -> AudioStream + Send>>,
+    prelude: Option<Box<dyn Fn() -> Vec<u8> + Send + 'static>>,
+    postlude: Option<Box<dyn Fn() -> Vec<u8> + Send + 'static>>,
+    engine_config: Option<hashbrown::HashMap<String, String>>,
+    result_handler: Option<
+        Box<dyn Fn(Result<&TtsConversationImpl<AudioStream>, VoiceError>) + Send + Sync + 'static>,
+    >,
 }
 
 impl<AudioStream> TtsConversationBuilderImpl<AudioStream>
 where
     AudioStream: Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
 {
+    /// Create a default TTS builder with working dia neural synthesis
+    #[inline]
+    pub fn default() -> TtsConversationBuilderImpl<
+        crate::audio_stream::AudioStream<
+            std::pin::Pin<
+                Box<dyn futures_core::Stream<Item = fluent_voice_domain::AudioChunk> + Send>,
+            >,
+        >,
+    >
+    where
+        AudioStream: Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
+    {
+        use candle_core::Device;
+        use dia::voice::VoicePool;
+        use futures::StreamExt;
+        use std::sync::Arc;
+        use tokio::sync::mpsc;
+        use tokio_stream::wrappers::UnboundedReceiverStream;
+
+        let synth_fn = |lines: &[SpeakerLine], _global_language: Option<&Language>| {
+            let lines = lines.to_vec();
+            let (tx, rx) = mpsc::unbounded_channel::<fluent_voice_domain::AudioChunk>();
+
+            tokio::spawn(async move {
+                let cache_dir = std::env::temp_dir().join("fluent_voice_cache");
+                let pool = match VoicePool::new_with_config(cache_dir, Device::Cpu) {
+                    Ok(pool) => Arc::new(pool),
+                    Err(e) => {
+                        let error_chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                            Vec::new(),
+                            0,
+                            0,
+                            None,
+                            Some(format!("[ERROR] Failed to create voice pool: {}", e)),
+                            None,
+                        );
+                        let _ = tx.send(error_chunk);
+                        return;
+                    }
+                };
+
+                let mut cumulative_time_ms = 0u64;
+                for (chunk_index, line) in lines.into_iter().enumerate() {
+                    match synthesize_speech_internal(&pool, &line.id, &line.text, None).await {
+                        Ok(audio_bytes) => {
+                            let duration_ms = if audio_bytes.is_empty() {
+                                0
+                            } else {
+                                let samples = audio_bytes.len() / 2;
+                                let duration_secs = samples as f64 / 24000.0;
+                                (duration_secs * 1000.0) as u64
+                            };
+
+                            let start_ms = cumulative_time_ms;
+                            cumulative_time_ms += duration_ms;
+                            let chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                                audio_bytes,
+                                duration_ms,
+                                start_ms,
+                                Some(line.id.clone()),
+                                Some(line.text.clone()),
+                                Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
+                            );
+
+                            if tx.send(chunk).is_err() {
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            let error_chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                                Vec::new(),
+                                0,
+                                0,
+                                None,
+                                Some(format!("[ERROR] {}", e)),
+                                None,
+                            );
+                            if tx.send(error_chunk).is_err() {
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+
+            let stream = UnboundedReceiverStream::new(rx);
+            crate::audio_stream::AudioStream::new(Box::pin(stream))
+        };
+
+        TtsConversationBuilderImpl::new(synth_fn)
+    }
+
     #[inline]
     pub fn new<F>(synth_fn: F) -> Self
     where
@@ -336,8 +450,13 @@ where
             next_request_ids: Vec::new(),
             additional_params: std::collections::HashMap::new(),
             metadata: std::collections::HashMap::new(),
+            voice_clone_path: None,
             chunk_handler: None,
             synth_fn: Some(Box::new(synth_fn)),
+            prelude: None,
+            postlude: None,
+            engine_config: None,
+            result_handler: None,
         }
     }
 
@@ -348,12 +467,14 @@ where
     }
 
     #[inline]
-    pub fn with_prelude(self, _prelude: impl Fn() -> Vec<u8> + Send + 'static) -> Self {
+    pub fn with_prelude(mut self, prelude: impl Fn() -> Vec<u8> + Send + 'static) -> Self {
+        self.prelude = Some(Box::new(prelude));
         self
     }
 
     #[inline]
-    pub fn with_postlude(self, _postlude: impl Fn() -> Vec<u8> + Send + 'static) -> Self {
+    pub fn with_postlude(mut self, postlude: impl Fn() -> Vec<u8> + Send + 'static) -> Self {
+        self.postlude = Some(Box::new(postlude));
         self
     }
 
@@ -365,36 +486,61 @@ where
 
     #[inline]
     pub fn engine_config(
-        self,
-        _config: impl Into<hashbrown::HashMap<&'static str, &'static str>>,
+        mut self,
+        config: impl Into<hashbrown::HashMap<&'static str, &'static str>>,
     ) -> Self {
+        let config_map = config.into();
+        let mut string_config = hashbrown::HashMap::new();
+        for (k, v) in config_map {
+            string_config.insert(k.to_string(), v.to_string());
+        }
+        self.engine_config = Some(string_config);
         self
     }
 
     #[inline]
     pub async fn finish_conversation(self) -> Result<TtsConversationImpl<AudioStream>, VoiceError> {
         match self.synth_fn {
-            Some(synth_fn) => Ok(TtsConversationImpl {
-                lines: self.lines,
-                global_language: self.global_language,
-                global_speed: self.global_speed,
-                model: self.model,
-                stability: self.stability,
-                similarity: self.similarity,
-                speaker_boost: self.speaker_boost,
-                style_exaggeration: self.style_exaggeration,
-                output_format: self.output_format,
-                pronunciation_dictionaries: self.pronunciation_dictionaries,
-                seed: self.seed,
-                previous_text: self.previous_text,
-                next_text: self.next_text,
-                previous_request_ids: self.previous_request_ids,
-                next_request_ids: self.next_request_ids,
-                synth_fn,
-            }),
-            None => Err(VoiceError::NotSynthesizable(
-                "A synthesis function must be provided".to_string(),
-            )),
+            Some(synth_fn) => {
+                let conversation = TtsConversationImpl {
+                    lines: self.lines,
+                    global_language: self.global_language,
+                    global_speed: self.global_speed,
+                    model: self.model,
+                    stability: self.stability,
+                    similarity: self.similarity,
+                    speaker_boost: self.speaker_boost,
+                    style_exaggeration: self.style_exaggeration,
+                    output_format: self.output_format,
+                    pronunciation_dictionaries: self.pronunciation_dictionaries,
+                    seed: self.seed,
+                    previous_text: self.previous_text,
+                    next_text: self.next_text,
+                    previous_request_ids: self.previous_request_ids,
+                    next_request_ids: self.next_request_ids,
+                    voice_clone_path: self.voice_clone_path,
+                    synth_fn,
+                };
+
+                // Execute result handler if present
+                if let Some(ref handler) = self.result_handler {
+                    handler(Ok(&conversation));
+                }
+
+                Ok(conversation)
+            }
+            None => {
+                let error = Err(VoiceError::NotSynthesizable(
+                    "A synthesis function must be provided".to_string(),
+                ));
+
+                // Execute result handler with error if present
+                if let Some(ref handler) = self.result_handler {
+                    handler(error.as_ref().map_err(|e| e.clone()));
+                }
+
+                error
+            }
         }
     }
 }
@@ -501,8 +647,8 @@ where
     }
 
     #[inline]
-    fn with_voice_clone_path(self, _path: std::path::PathBuf) -> Self {
-        // TODO: Store voice clone path for synthesis
+    fn with_voice_clone_path(mut self, path: std::path::PathBuf) -> Self {
+        self.voice_clone_path = Some(path);
         self
     }
 
@@ -527,10 +673,11 @@ where
     // on_chunk method removed - not part of TtsConversationBuilder trait
 
     #[inline]
-    fn on_result<F>(self, _f: F) -> Self
+    fn on_result<F>(mut self, f: F) -> Self
     where
-        F: FnOnce(Result<Self::Conversation, VoiceError>) + Send + 'static,
+        F: Fn(Result<&Self::Conversation, VoiceError>) + Send + Sync + 'static,
     {
+        self.result_handler = Some(Box::new(f));
         self
     }
 
@@ -557,6 +704,7 @@ where
                 next_text: self.next_text,
                 previous_request_ids: self.previous_request_ids,
                 next_request_ids: self.next_request_ids,
+                voice_clone_path: self.voice_clone_path,
                 synth_fn,
             }),
             None => Err(VoiceError::NotSynthesizable(
@@ -564,9 +712,61 @@ where
             )),
         };
 
+        // Apply result handler if present
+        if let Some(ref handler) = self.result_handler {
+            handler(conversation_result.as_ref().map_err(|e| e.clone()));
+        }
+
         // Apply the matcher closure to the conversation result
         // The matcher contains the JSON syntax transformed by synthesize! macro
         matcher(conversation_result)
+    }
+}
+
+impl<AudioStream> TtsConversationBuilderImpl<AudioStream>
+where
+    AudioStream: Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
+{
+    /// Configure timestamp granularity using domain types
+    pub fn timestamp_granularity(
+        mut self,
+        granularity: fluent_voice_domain::timestamps::TimestampsGranularity,
+    ) -> Self {
+        self.metadata.insert(
+            "timestamp_granularity".to_string(),
+            serde_json::to_string(&granularity).unwrap_or_default(),
+        );
+        self
+    }
+
+    /// Configure word timestamp inclusion using domain types
+    pub fn word_timestamps(
+        mut self,
+        enabled: fluent_voice_domain::timestamps::WordTimestamps,
+    ) -> Self {
+        self.metadata.insert(
+            "word_timestamps".to_string(),
+            serde_json::to_string(&enabled).unwrap_or_default(),
+        );
+        self
+    }
+
+    /// Configure speaker diarization using domain types
+    pub fn diarization(mut self, enabled: fluent_voice_domain::timestamps::Diarization) -> Self {
+        self.metadata.insert(
+            "diarization".to_string(),
+            serde_json::to_string(&enabled).unwrap_or_default(),
+        );
+        self
+    }
+
+    /// Configure punctuation insertion using domain types
+    pub fn punctuation(mut self, enabled: fluent_voice_domain::timestamps::Punctuation) -> Self {
+        self.metadata.insert(
+            "punctuation".to_string(),
+            serde_json::to_string(&enabled).unwrap_or_default(),
+        );
+        self
     }
 }
 
@@ -576,6 +776,7 @@ async fn synthesize_speech_internal(
     pool: &Arc<VoicePool>,
     speaker_id: &str,
     text: &str,
+    voice_clone_path: Option<&std::path::Path>,
 ) -> Result<Vec<u8>, VoiceError> {
     // Use dia-voice engine for real TTS synthesis
     use dia::voice::{Conversation, DiaSpeaker, VoiceClone};
@@ -585,14 +786,29 @@ async fn synthesize_speech_internal(
     use dia::voice::codec::VoiceData;
     use std::path::PathBuf;
 
-    let device = Device::Cpu;
-    let codes = Tensor::zeros((1, 1), candle_core::DType::F32, &device)
-        .map_err(|e| VoiceError::Configuration(format!("Failed to create tensor: {}", e)))?;
-    let voice_data = Arc::new(VoiceData {
-        codes,
-        sample_rate: 24000,
-        source_path: PathBuf::from("temp_voice.wav"),
-    });
+    // Load voice data from clone path if available, otherwise use default
+    let voice_data = if let Some(clone_path) = voice_clone_path {
+        // Load real voice data from the provided path
+        match pool.load_voice(speaker_id, clone_path.to_string_lossy()) {
+            Ok(loaded_data) => loaded_data,
+            Err(e) => {
+                return Err(VoiceError::Configuration(format!(
+                    "Failed to load voice clone from path {:?}: {}",
+                    clone_path, e
+                )));
+            }
+        }
+    } else {
+        // Fallback to default voice data creation
+        let device = Device::Cpu;
+        let codes = Tensor::zeros((1, 1), candle_core::DType::F32, &device)
+            .map_err(|e| VoiceError::Configuration(format!("Failed to create tensor: {}", e)))?;
+        Arc::new(VoiceData {
+            codes,
+            sample_rate: 24000,
+            source_path: PathBuf::from("default_voice.wav"),
+        })
+    };
 
     // Create voice clone and speaker
     let voice_clone = VoiceClone::new(speaker_id.to_string(), voice_data);
@@ -637,6 +853,10 @@ where
     ) -> impl futures_core::Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin {
         let lines = self.lines;
         let chunk_handler = self.chunk_handler;
+        let voice_clone_path = self.voice_clone_path;
+        let prelude = self.prelude;
+        let postlude = self.postlude;
+        let engine_config = self.engine_config;
 
         // Create stream using tokio_stream for proper async handling
         use tokio::sync::mpsc;
@@ -647,9 +867,29 @@ where
 
         // Spawn async task to generate audio using dia-voice
         tokio::spawn(async move {
-            // Initialize voice pool once for all speakers (zero allocation optimization)
+            // Initialize voice pool with engine config if provided
             let cache_dir = std::env::temp_dir().join("fluent_voice_cache");
-            let pool = match VoicePool::new_with_config(cache_dir, Device::Cpu) {
+            let device = if let Some(ref config) = engine_config {
+                // Apply engine configuration to device selection
+                match config.get("device").map(|s| s.as_str()) {
+                    Some("cuda") => Device::Cuda(0),
+                    Some("metal") => match candle_core::MetalDevice::new(0) {
+                        Ok(metal_device) => Device::Metal(metal_device),
+                        Err(e) => {
+                            tracing::warn!(
+                                "Failed to create Metal device, falling back to CPU: {}",
+                                e
+                            );
+                            Device::Cpu
+                        }
+                    },
+                    _ => Device::Cpu,
+                }
+            } else {
+                Device::Cpu
+            };
+
+            let pool = match VoicePool::new_with_config(cache_dir, device) {
                 Ok(pool) => Arc::new(pool),
                 Err(e) => {
                     // Send error result for pool creation failure
@@ -661,38 +901,118 @@ where
                 }
             };
 
+            // Execute prelude function if provided
+            if let Some(prelude_fn) = prelude {
+                let prelude_audio = prelude_fn();
+
+                if !prelude_audio.is_empty() {
+                    // Calculate duration for prelude audio
+                    let samples = prelude_audio.len() / 2; // 16-bit PCM
+                    let duration_ms = (samples as f64 / 24000.0 * 1000.0) as u64;
+
+                    let prelude_chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                        prelude_audio,
+                        duration_ms,
+                        0, // start time
+                        Some("prelude".to_string()),
+                        Some("Prelude audio".to_string()),
+                        Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
+                    );
+                    let _ = tx.send(Ok(prelude_chunk));
+                }
+            }
+
             // Process each speaker line with real dia-voice TTS synthesis
+            let mut cumulative_time_ms = 0u64;
             for (chunk_index, line) in lines.into_iter().enumerate() {
                 // Generate real TTS audio directly from text using dia-voice
-                let result = synthesize_speech_internal(&pool, &line.id, &line.text)
-                    .await
-                    .map(|audio_bytes| {
-                        // Create AudioChunk from generated audio bytes
-                        let duration_ms = if audio_bytes.is_empty() {
-                            0
-                        } else {
-                            // Calculate duration based on audio data size and sample rate
-                            // Assuming 16-bit PCM at 24kHz sample rate
-                            let samples = audio_bytes.len() / 2; // 2 bytes per sample for 16-bit
-                            let duration_secs = samples as f64 / 24000.0; // 24kHz sample rate
-                            (duration_secs * 1000.0) as u64
-                        };
+                let result = synthesize_speech_internal(
+                    &pool,
+                    &line.id,
+                    &line.text,
+                    voice_clone_path.as_deref(),
+                )
+                .await
+                .map(|audio_bytes| {
+                    // Create AudioChunk from generated audio bytes
+                    let duration_ms = if audio_bytes.is_empty() {
+                        0
+                    } else {
+                        // Calculate duration based on audio data size and sample rate
+                        // Assuming 16-bit PCM at 24kHz sample rate
+                        let samples = audio_bytes.len() / 2; // 2 bytes per sample for 16-bit
+                        let duration_secs = samples as f64 / 24000.0; // 24kHz sample rate
+                        (duration_secs * 1000.0) as u64
+                    };
 
-                        let start_ms = chunk_index as u64 * duration_ms; // Cumulative timing
+                    let start_ms = cumulative_time_ms;
+                    cumulative_time_ms += duration_ms;
 
-                        fluent_voice_domain::AudioChunk::with_metadata(
-                            audio_bytes,
-                            duration_ms,
-                            start_ms,
-                            Some(line.id.clone()),
-                            Some(line.text.clone()),
-                            Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
-                        )
-                    });
+                    // Create comprehensive timestamp metadata for this chunk
+                    let mut timestamp_metadata = fluent_voice_elevenlabs::TimestampMetadata::new();
+                    timestamp_metadata.synthesis_metadata.voice_id = line.id.clone();
+                    timestamp_metadata.synthesis_metadata.text = line.text.clone();
+                    timestamp_metadata.synthesis_metadata.output_format = "Pcm24Khz".to_string();
+
+                    // Add audio chunk timing information
+                    let audio_chunk_timestamp = fluent_voice_elevenlabs::AudioChunkTimestamp {
+                        chunk_id: chunk_index,
+                        start_ms,
+                        end_ms: start_ms + duration_ms,
+                        text_segment: line.text.clone(),
+                        speaker_id: Some(line.id.clone()),
+                        format: "Pcm24Khz".to_string(),
+                        size_bytes: audio_bytes.len(),
+                    };
+                    timestamp_metadata.add_chunk(audio_chunk_timestamp);
+
+                    // Finalize metadata
+                    if let Err(_) = timestamp_metadata.finalize() {
+                        // Log error but continue - timestamp data is optional
+                        tracing::warn!(
+                            "Failed to finalize timestamp metadata for chunk {}",
+                            chunk_index
+                        );
+                    }
+
+                    // Attach timestamp metadata to audio chunk in the stream
+                    fluent_voice_domain::AudioChunk::with_metadata(
+                        audio_bytes,
+                        duration_ms,
+                        start_ms,
+                        Some(line.id.clone()),
+                        Some(line.text.clone()),
+                        Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
+                    )
+                    .with_timestamp_metadata(timestamp_metadata)
+                    .with_metadata("synthesis_time", serde_json::json!(duration_ms))
+                    .with_metadata("chunk_sequence", serde_json::json!(chunk_index))
+                });
 
                 // Send Result through channel
                 if tx.send(result).is_err() {
                     break; // Receiver dropped, stop processing
+                }
+            }
+
+            // Execute postlude function if provided
+            if let Some(postlude_fn) = postlude {
+                let postlude_audio = postlude_fn();
+
+                if !postlude_audio.is_empty() {
+                    // Calculate duration for postlude audio
+                    let samples = postlude_audio.len() / 2; // 16-bit PCM
+                    let duration_ms = (samples as f64 / 24000.0 * 1000.0) as u64;
+
+                    let postlude_chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                        postlude_audio,
+                        duration_ms,
+                        cumulative_time_ms, // Use proper cumulative timing
+                        Some("postlude".to_string()),
+                        Some("Postlude audio".to_string()),
+                        Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
+                    );
+                    let _ = tx.send(Ok(postlude_chunk));
                 }
             }
         });

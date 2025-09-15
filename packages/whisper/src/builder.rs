@@ -19,6 +19,8 @@ use hf_hub::api::sync::Api;
 use std::path::PathBuf;
 use tokenizers::Tokenizer;
 
+use rubato;
+
 /// Configuration for Whisper model loading and transcription
 #[derive(Debug, Clone)]
 pub struct ModelConfig {
@@ -329,8 +331,55 @@ impl WhisperTranscriber {
         Ok((model, tokenizer, device, mel_filters))
     }
 
-    async fn load_audio_file(&self, _path: &str) -> Result<Vec<f32>, VoiceError> {
-        Ok(vec![0.0; 16000])
+    async fn load_audio_file(&self, path: &str) -> Result<Vec<f32>, VoiceError> {
+        use hound::WavReader;
+
+        let mut reader = WavReader::open(path).map_err(|e| {
+            VoiceError::ProcessingError(format!("Failed to open audio file {}: {}", path, e))
+        })?;
+
+        let spec = reader.spec();
+        let sample_rate = spec.sample_rate;
+        let channels = spec.channels;
+
+        // Read samples and convert to f32
+        let samples: Result<Vec<f32>, _> = match spec.sample_format {
+            hound::SampleFormat::Float => reader.samples::<f32>().collect(),
+            hound::SampleFormat::Int => reader
+                .samples::<i32>()
+                .map(|s| s.map(|sample| sample as f32 / i32::MAX as f32))
+                .collect(),
+        };
+
+        let mut audio_data = samples.map_err(|e| {
+            VoiceError::ProcessingError(format!("Failed to read audio samples: {}", e))
+        })?;
+
+        // Convert stereo to mono if needed
+        if channels == 2 {
+            audio_data = audio_data
+                .chunks_exact(2)
+                .map(|chunk| (chunk[0] + chunk[1]) / 2.0)
+                .collect();
+        }
+
+        // Resample to 16kHz if needed
+        if sample_rate != 16000 {
+            use rubato::{FastFixedIn, PolynomialDegree, Resampler};
+            let resample_ratio = 16000.0 / sample_rate as f64;
+            let mut resampler =
+                FastFixedIn::<f32>::new(resample_ratio, 10.0, PolynomialDegree::Septic, 1024, 1)
+                    .map_err(|e| {
+                        VoiceError::ProcessingError(format!("Resampler init failed: {}", e))
+                    })?;
+
+            let output = resampler
+                .process(&[&audio_data], None)
+                .map_err(|e| VoiceError::ProcessingError(format!("Resampling failed: {}", e)))?;
+            audio_data = output[0].clone();
+        }
+
+        Ok(audio_data)
     }
 
     async fn samples_to_mel(

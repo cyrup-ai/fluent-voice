@@ -88,7 +88,7 @@ impl Model {
                     }
                 }
                 super::conditioner::Config { conditions }
-            })
+            }),
         };
         let lm = LmModel::new(&lm_config, lm_vb)?;
         // Create default mimi config based on mimi_num_codebooks
@@ -114,7 +114,9 @@ impl Model {
                         tracing::warn!("Failed to load Kyutai tokenizer, trying GPT-2 fallback");
                         KyutaiTokenizer::from_pretrained("gpt2")
                     })
-                    .map_err(|e| candle_core::Error::Msg(format!("Failed to initialize tokenizer: {}", e)))?
+                    .map_err(|e| {
+                        candle_core::Error::Msg(format!("Failed to initialize tokenizer: {}", e))
+                    })?
             }
             #[cfg(not(feature = "http"))]
             {
@@ -292,19 +294,23 @@ impl Model {
                 text_idx += 1;
             } else {
                 // Generate new tokens with custom sampling including repetition penalty
-                text_token = if repetition_penalty.is_some() || (top_k > 0 && top_k < self.config.lm.text_out_vocab_size) {
+                text_token = if repetition_penalty.is_some()
+                    || (top_k > 0 && top_k < self.config.lm.text_out_vocab_size)
+                {
                     // Get raw logits for custom sampling
-                    let mut raw_logits = self.lm.get_raw_logits(text_token, &audio_codes, Some(&conditions))?;
-                    
+                    let mut raw_logits =
+                        self.lm
+                            .get_raw_logits(text_token, &audio_codes, Some(&conditions))?;
+
                     // Apply repetition penalty if specified
                     if let Some((context_len, penalty)) = repetition_penalty {
                         let context_start = generated_tokens.len().saturating_sub(context_len);
                         let context = &generated_tokens[context_start..];
-                        
+
                         // Apply repetition penalty by reducing logits for repeated tokens
                         let logits_vec = raw_logits.to_vec1::<f32>()?;
                         let mut modified_logits = logits_vec;
-                        
+
                         for &repeated_token in context {
                             if (repeated_token as usize) < modified_logits.len() {
                                 // Reduce logit value for repeated tokens (penalty > 1.0 reduces probability)
@@ -313,18 +319,23 @@ impl Model {
                                 }
                             }
                         }
-                        
+
                         // Recreate tensor with modified logits
-                        raw_logits = Tensor::from_vec(modified_logits, raw_logits.shape(), raw_logits.device())?;
+                        raw_logits = Tensor::from_vec(
+                            modified_logits,
+                            raw_logits.shape(),
+                            raw_logits.device(),
+                        )?;
                     }
-                    
+
                     // Apply top-k filtering if specified
-                    let filtered_logits = if top_k > 0 && top_k < self.config.lm.text_out_vocab_size {
+                    let filtered_logits = if top_k > 0 && top_k < self.config.lm.text_out_vocab_size
+                    {
                         self.apply_top_k_filter(&raw_logits, top_k)?
                     } else {
                         raw_logits
                     };
-                    
+
                     // Sample from the processed logits
                     let probs = candle_nn::ops::softmax_last_dim(&filtered_logits)?;
                     let sampled_token = if temp > 0.0 {

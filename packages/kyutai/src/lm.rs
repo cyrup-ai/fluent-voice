@@ -268,12 +268,29 @@ impl LmModel {
     pub fn forward(
         &self,
         input_ids: Option<Tensor>,
-        _conditions: Vec<Tensor>,
+        audio_tokens: Vec<Option<Tensor>>,
     ) -> Result<(Tensor, Option<Tensor>)> {
         match input_ids {
             Some(ids) => {
-                let embeddings = ids.apply(&self.text_in_embeddings)?;
-                let transformer_output = self.transformer.forward(&embeddings, None)?;
+                let text_embeddings = ids.apply(&self.text_in_embeddings)?;
+
+                // Process audio tokens if provided
+                let mut all_embeddings = vec![text_embeddings];
+                for audio_token in audio_tokens {
+                    if let Some(token) = audio_token {
+                        let audio_emb = token.apply(&self.audio_in_embeddings)?;
+                        all_embeddings.push(audio_emb);
+                    }
+                }
+
+                // Concatenate all embeddings
+                let combined_embeddings = if all_embeddings.len() > 1 {
+                    Tensor::cat(&all_embeddings, 1)?
+                } else {
+                    all_embeddings.into_iter().next().unwrap()
+                };
+
+                let transformer_output = self.transformer.forward(&combined_embeddings, None)?;
                 let logits = transformer_output.apply(&self.text_out_head)?;
                 Ok((logits, Some(transformer_output)))
             }
@@ -305,6 +322,17 @@ impl LmModel {
     pub fn audio_eos_token(&self) -> u32 {
         // Audio EOS token is the second-to-last token in the audio vocabulary (Moshi standard)
         (self.audio_vocab_size - 2) as u32
+    }
+
+    /// Get the text start token ID for this model
+    pub fn text_start_token(&self) -> u32 {
+        // Text start token is typically 1 in Moshi tokenization (0 is usually padding/eos)
+        1
+    }
+
+    /// Get the number of input audio codebooks for this model
+    pub fn in_audio_codebooks(&self) -> usize {
+        self.audio_out_heads.len()
     }
 
     /// Get the condition provider for this model

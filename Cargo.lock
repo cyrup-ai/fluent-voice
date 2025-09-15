@@ -5953,6 +5953,7 @@ dependencies = [
  "crossterm",
  "cudarc 0.17.3",
  "fluent-voice-workspace-hack",
+ "fluent_voice_livekit",
  "half",
  "image",
  "intel-mkl-src",
@@ -11480,7 +11481,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "flume",
+ "hex",
  "serde",
+ "sha1",
 ]
 
 [[package]]

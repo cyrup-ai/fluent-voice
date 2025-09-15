@@ -2,9 +2,9 @@
 //!
 //! Provides real-time speech recognition capabilities with word-level timing information.
 
+use crate::mimi::Mimi;
 use crate::model::LmModel;
-// use crate::mimi::Mimi; // TODO: uncomment when Mimi is implemented
-// use candle::{IndexOp, Result, Tensor}; // TODO: uncomment when Mimi is implemented
+use candle_core::{IndexOp, Result, Tensor};
 use candle_transformers::generation::LogitsProcessor;
 
 /// Word structure containing tokens and timing information
@@ -25,7 +25,7 @@ pub struct State {
     /// Current text token
     _text_token: u32,
     /// Audio tokenizer for encoding PCM data
-    // _audio_tokenizer: Mimi, // TODO: uncomment when Mimi is implemented
+    _audio_tokenizer: Mimi,
     /// Language model for text generation
     _lm: LmModel,
     /// Processing device
@@ -40,48 +40,46 @@ pub struct State {
     _lp: LogitsProcessor,
 }
 
-// TODO: implement State methods when Mimi is available
-/*
 impl State {
     /// Create a new ASR state
     pub fn new(asr_delay_in_tokens: usize, audio_tokenizer: Mimi, lm: LmModel) -> Result<Self> {
         let text_token = lm.text_start_token();
         let device = lm.device().clone();
         let mut s = Self {
-            asr_delay_in_tokens,
-            lm,
-            audio_tokenizer,
-            device,
-            text_token,
-            word_tokens: Vec::with_capacity(128), // Pre-allocate for typical word length
-            step_idx: 0,
-            last_stop_time: 0.0,
-            lp: LogitsProcessor::new(42, None, None),
+            _asr_delay_in_tokens: asr_delay_in_tokens,
+            _lm: lm,
+            _audio_tokenizer: audio_tokenizer,
+            _device: device,
+            _text_token: text_token,
+            _word_tokens: Vec::with_capacity(128), // Pre-allocate for typical word length
+            _step_idx: 0,
+            _last_stop_time: 0.0,
+            _lp: LogitsProcessor::new(42, None, None),
         };
         s.reset()?;
         Ok(s)
     }
 
     /// Get the processing device
-    pub fn device(&self) -> &candle::Device {
-        &self.device
+    pub fn device(&self) -> &candle_core::Device {
+        &self._device
     }
 
     /// Reset the ASR state
     pub fn reset(&mut self) -> Result<()> {
-        self.step_idx = 0;
-        self.lm.reset_state();
-        self.audio_tokenizer.reset_state();
-        self.word_tokens.clear();
-        let text_start_token = self.lm.text_start_token();
-        let audio_pad_token = self.lm.audio_pad_token();
-        let text = Tensor::from_vec(vec![text_start_token], (1, 1), &self.device)?;
-        let audio_token = Tensor::from_vec(vec![audio_pad_token], (1, 1), &self.device)?;
-        let mut audio_tokens = Vec::with_capacity(self.lm.in_audio_codebooks());
-        for _ in 0..self.lm.in_audio_codebooks() {
+        self._step_idx = 0;
+        self._lm.reset_state();
+        self._audio_tokenizer.reset_state();
+        self._word_tokens.clear();
+        let text_start_token = self._lm.text_start_token();
+        let audio_pad_token = self._lm.audio_pad_token();
+        let text = Tensor::from_vec(vec![text_start_token], (1, 1), &self._device)?;
+        let audio_token = Tensor::from_vec(vec![audio_pad_token], (1, 1), &self._device)?;
+        let mut audio_tokens = Vec::with_capacity(self._lm.in_audio_codebooks());
+        for _ in 0..self._lm.in_audio_codebooks() {
             audio_tokens.push(Some(audio_token.clone()));
         }
-        let (_, _) = self.lm.forward(Some(text), audio_tokens)?;
+        let (_, _) = self._lm.forward(Some(text), audio_tokens)?;
         Ok(())
     }
 
@@ -90,9 +88,9 @@ impl State {
     where
         F: Fn(u32, Tensor) -> Result<()>,
     {
-        let audio_tokens = self.audio_tokenizer.encode_step(&pcm.into())?;
-        if let Some(audio_tokens) = audio_tokens.as_option() {
-            self.step_tokens(audio_tokens, f)
+        let audio_tokens = self._audio_tokenizer.encode_step(&pcm)?;
+        if let Some(audio_tokens) = audio_tokens {
+            self.step_tokens(&audio_tokens, f)
         } else {
             Ok(Vec::with_capacity(0))
         }
@@ -109,7 +107,7 @@ impl State {
 
         for step in 0..steps {
             let step_audio = audio_tokens.narrow(2, step, 1)?;
-            f(self.text_token, step_audio)?;
+            f(self._text_token, step_audio)?;
 
             audio_token_vec.clear();
             for idx in 0..codebooks {
@@ -117,39 +115,42 @@ impl State {
                 audio_token_vec.push(Some(token));
             }
 
-            let text = if self.step_idx >= self.asr_delay_in_tokens {
-                Some(Tensor::from_vec(vec![self.text_token], (1, 1), &self.device)?)
+            let text = if self._step_idx >= self._asr_delay_in_tokens {
+                Some(Tensor::from_vec(
+                    vec![self._text_token],
+                    (1, 1),
+                    &self._device,
+                )?)
             } else {
                 None
             };
 
-            let (text_logits, _) = self.lm.forward(text, audio_token_vec.clone())?;
-            self.step_idx += 1;
+            let (text_logits, _) = self._lm.forward(text, audio_token_vec.clone())?;
+            self._step_idx += 1;
             let text_logits = text_logits.i((0, 0))?;
-            self.text_token = self.lp.sample(&text_logits)?;
+            self._text_token = self._lp.sample(&text_logits)?;
 
-            if self.step_idx >= self.asr_delay_in_tokens {
-                if self.text_token == 0 {
+            if self._step_idx >= self._asr_delay_in_tokens {
+                if self._text_token == 0 {
                     // End of word token - flush current word
-                    let mut tokens = Vec::with_capacity(self.word_tokens.len());
-                    tokens.append(&mut self.word_tokens);
-                    let stop_time = (self.step_idx - self.asr_delay_in_tokens) as f64 / 12.5;
+                    let mut tokens = Vec::with_capacity(self._word_tokens.len());
+                    tokens.append(&mut self._word_tokens);
+                    let stop_time = (self._step_idx - self._asr_delay_in_tokens) as f64 / 12.5;
                     words.push(Word {
                         tokens,
-                        start_time: self.last_stop_time,
+                        start_time: self._last_stop_time,
                         stop_time,
                     });
-                    self.last_stop_time = stop_time;
-                } else if self.text_token != 3 {
+                    self._last_stop_time = stop_time;
+                } else if self._text_token != 3 {
                     // Regular token (not padding) - add to current word
-                    self.word_tokens.push(self.text_token);
+                    self._word_tokens.push(self._text_token);
                 }
             }
         }
         Ok(words)
     }
 }
-*/
 
 /// Builder for creating ASR state
 #[derive(Debug)]
@@ -171,11 +172,10 @@ impl StateBuilder {
         self
     }
 
-    // TODO: uncomment when Mimi is available
-    // /// Build the ASR state
-    // pub fn build(self, audio_tokenizer: Mimi, lm: LmModel) -> Result<State> {
-    //     State::new(self.asr_delay_in_tokens, audio_tokenizer, lm)
-    // }
+    /// Build the ASR state
+    pub fn build(self, audio_tokenizer: Mimi, lm: LmModel) -> Result<State> {
+        State::new(self.asr_delay_in_tokens, audio_tokenizer, lm)
+    }
 }
 
 impl Default for StateBuilder {
