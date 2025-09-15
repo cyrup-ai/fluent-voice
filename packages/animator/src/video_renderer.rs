@@ -99,7 +99,10 @@ impl VideoRenderer {
 }
 
 impl RendererInternal {
-    fn process_frame(&mut self, frame: livekit::webrtc::video_frame::VideoFrame) -> Result<(), Box<dyn std::error::Error>> {
+    fn process_frame(
+        &mut self,
+        frame: livekit::webrtc::video_frame::VideoFrame,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let buf = frame.buffer.to_i420();
         let (w, h) = (buf.width(), buf.height());
 
@@ -206,13 +209,11 @@ impl RendererInternal {
                         egui_id,
                     );
             } else {
-                self.egui_tex = Some(
-                    self.render_state.renderer.write().register_native_texture(
-                        &self.render_state.device,
-                        texture_view,
-                        egui_wgpu::wgpu::FilterMode::Linear,
-                    )
-                );
+                self.egui_tex = Some(self.render_state.renderer.write().register_native_texture(
+                    &self.render_state.device,
+                    texture_view,
+                    egui_wgpu::wgpu::FilterMode::Linear,
+                ));
             }
         }
 

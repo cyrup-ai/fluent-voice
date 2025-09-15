@@ -31,6 +31,12 @@ ratatui = { git = "https://github.com/ratatui/ratatui", branch = "main", feature
 clap = { version = "4.5", features = ["derive"] }
 thiserror = "2"
 anyhow = "1.0"
+tracing = "0.1"
+futures = "0.3"
+tokio = { version = "1.0", features = ["full"] }
+eframe = "0.28"
+egui = "0.28"
+egui-wgpu = "0.28"
 
 # Candle ML dependencies
 candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
@@ -108,6 +114,10 @@ accelerate-src = { version = "0.3", optional = true }
 [[bin]]
 path = "src/main.rs"
 name = "anima"
+
+[[example]]
+name = "full_room_visualizer"
+path = "examples/full_room_visualizer.rs"
 
 [lib]
 path = "src/lib.rs"

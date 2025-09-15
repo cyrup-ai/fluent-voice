@@ -1,11 +1,7 @@
-#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::core::audio::{AudioBufferRef, Signal};
-#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
-#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 use symphonia::core::conv::FromSample;
 
-#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 #[allow(dead_code)] // Function used conditionally based on features
 fn conv_stereo_to_mono<T>(
     samples: &mut Vec<f32>,
@@ -28,7 +24,6 @@ fn conv_stereo_to_mono<T>(
     }
 }
 
-#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
 pub fn pcm_decode<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<(Vec<f32>, u32)> {
     // Open the media source.
     let src = std::fs::File::open(path)?;
@@ -105,9 +100,3 @@ pub fn pcm_decode<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<(Vec<f32
     Ok((pcm_data, sample_rate))
 }
 
-#[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
-pub fn pcm_decode<P: AsRef<std::path::Path>>(_path: P) -> anyhow::Result<(Vec<f32>, u32)> {
-    Err(anyhow::anyhow!(
-        "PCM decode requires encodec, mimi, or snac features"
-    ))
-}

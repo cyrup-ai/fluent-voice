@@ -3,7 +3,8 @@
 //! Provides the `.on_chunk()` functionality for processing synthesis chunks
 //! using cyrup_sugars streaming patterns.
 
-use crate::audio_chunk::{AudioChunk, SynthesisChunk};
+use fluent_voice_domain::AudioChunk;
+use cyrup_sugars::prelude::MessageChunk;
 use cyrup_sugars::{AsyncStream, StreamExt as CyrupStreamExt};
 use fluent_voice_domain::VoiceError;
 
@@ -14,7 +15,7 @@ use fluent_voice_domain::VoiceError;
 pub fn default_audio_chunk_error_handler(result: Result<AudioChunk, VoiceError>) -> AudioChunk {
     match result {
         Ok(chunk) => chunk,
-        Err(e) => AudioChunk::bad_chunk(e.to_string()),
+        Err(e) => MessageChunk::bad_chunk(e.to_string()),
     }
 }
 

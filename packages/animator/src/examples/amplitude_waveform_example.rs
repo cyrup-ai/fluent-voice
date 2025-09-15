@@ -1,26 +1,33 @@
-use std::sync::Arc;
-use egui::{Color32, Pos2, Rect, Stroke, Vec2};
-use livekit::webrtc::prelude::*;
-use fluent_voice_livekit::{Room, RemoteAudioTrack, RoomEvent, RemoteTrack};
-use futures::StreamExt;
-use tokio::runtime::Runtime;
 use crate::AudioVisualizer;
+use egui::{Color32, Pos2, Rect, Stroke, Vec2};
+use fluent_voice_livekit::{RemoteAudioTrack, RemoteTrack, Room, RoomEvent};
+use futures::StreamExt;
+use livekit::webrtc::prelude::*;
+use livekit_api::access_token;
+use std::{env, sync::Arc, time::Duration};
+use tokio::runtime::Runtime;
 
 // Replace mock function with real LiveKit connection
 async fn create_livekit_audio_track(
     room_url: &str,
     access_token: &str,
 ) -> Result<livekit::webrtc::prelude::RtcAudioTrack, Box<dyn std::error::Error>> {
-    // Connect to LiveKit room
-    let (room, mut events) = Room::connect(
-        room_url.to_string(),
-        access_token.to_string(),
-    ).await?;
+    // Connect to LiveKit room with timeout
+    let (room, mut events) = tokio::time::timeout(
+        Duration::from_secs(10),
+        Room::connect(room_url.to_string(), access_token.to_string())
+    ).await??;
+
+    // Wait for first audio track from any participant with timeout
+    let timeout_duration = Duration::from_secs(30);
+    let start_time = std::time::Instant::now();
     
-    // Wait for first audio track from any participant
     while let Some(event) = events.next().await {
+        if start_time.elapsed() > timeout_duration {
+            return Err("Timeout waiting for audio track".into());
+        }
         match event {
-            RoomEvent::TrackSubscribed { 
+            RoomEvent::TrackSubscribed {
                 track: RemoteTrack::Audio(audio_track),
                 publication,
                 participant,
@@ -30,14 +37,16 @@ async fn create_livekit_audio_track(
                     track_sid = %audio_track.sid(),
                     "Connected to remote audio track"
                 );
-                
+
                 // Enable the track
                 publication.set_enabled(true);
-                
+
                 // Return the underlying RTC track for AudioVisualizer
                 return Ok(audio_track.0.clone());
             }
-            RoomEvent::Connected { participants_with_tracks } => {
+            RoomEvent::Connected {
+                participants_with_tracks,
+            } => {
                 // Check existing participants for audio tracks
                 for (participant, publications) in participants_with_tracks {
                     for publication in publications {
@@ -57,41 +66,61 @@ async fn create_livekit_audio_track(
             _ => continue,
         }
     }
-    
+
     Err("No audio track found in room".into())
 }
 
 // Update the example runner to handle async and connection params
 pub fn run_amplitude_waveform_example() -> Result<(), Box<dyn std::error::Error>> {
-    // Get connection details from environment or config
-    let room_url = std::env::var("LIVEKIT_URL")
-        .unwrap_or_else(|_| "wss://your-livekit-server.com".to_string());
-    let access_token = std::env::var("LIVEKIT_TOKEN")
-        .ok_or("LIVEKIT_TOKEN environment variable required")?;
-    
+    // Get connection details from environment variables
+    let room_url = env::var("LIVEKIT_URL")
+        .or_else(|_| env::var("LEAP_LIVEKIT_WSS"))
+        .map_err(|_| "LIVEKIT_URL or LEAP_LIVEKIT_WSS environment variable is required")?;
+    let api_key = env::var("LIVEKIT_API_KEY")
+        .or_else(|_| env::var("LEAP_LIVEKIT_API_KEY"))
+        .map_err(|_| "LIVEKIT_API_KEY or LEAP_LIVEKIT_API_KEY environment variable is required")?;
+    let api_secret = env::var("LIVEKIT_API_SECRET")
+        .or_else(|_| env::var("LEAP_LIVEKIT_SECRET_KEY"))
+        .map_err(|_| "LIVEKIT_API_SECRET or LEAP_LIVEKIT_SECRET_KEY environment variable is required")?;
+    let room_name = env::var("LIVEKIT_ROOM")
+        .unwrap_or_else(|_| "audio-room".to_string());
+    let participant_identity = env::var("LIVEKIT_IDENTITY")
+        .unwrap_or_else(|_| "rust-audio-visualizer".to_string());
+
+    // Generate access token using API key and secret
+    let access_token = access_token::AccessToken::with_api_key(&api_key, &api_secret)
+        .with_identity(&participant_identity)
+        .with_name(&participant_identity)
+        .with_grants(access_token::VideoGrants {
+            room_join: true,
+            room: room_name.clone(),
+            ..Default::default()
+        })
+        .to_jwt()?;
+
     // Create tokio runtime for async operations
     let runtime = Runtime::new()?;
-    
+
     // Connect to LiveKit and get audio track
-    let audio_track = runtime.block_on(async {
-        create_livekit_audio_track(&room_url, &access_token).await
+    let audio_track = runtime.block_on(async { 
+        create_livekit_audio_track(&room_url, &access_token).await 
     })?;
-    
+
     // Create the audio visualizer
     let visualizer = AudioVisualizer::new(runtime.handle(), audio_track);
-    
+
     // Create a simple egui application to display the visualization
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(Vec2::new(800.0, 400.0)),
         ..Default::default()
     };
-    
+
     eframe::run_native(
         "Audio Amplitude Visualization Example",
         native_options,
         Box::new(|_cc| Box::new(AmplitudeVisApp { visualizer })),
     )?;
-    
+
     Ok(())
 }
 
@@ -104,10 +133,9 @@ impl eframe::App for AmplitudeVisApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Audio Amplitude Waveform");
             ui.add_space(20.0);
-            
             // Get the latest amplitude data
             let amplitudes = self.visualizer.get_amplitudes();
-            
+
             // Create a waveform visualization
             let available_width = ui.available_width();
             let height = 200.0;
@@ -173,7 +201,7 @@ impl eframe::App for AmplitudeVisApp {
             ui.label("The visualization shows the audio amplitude over time, with the most recent values on the right.");
             ui.label("The blue area represents the envelope of the audio signal.");
         });
-        
+
         // Request continuous redraw to update the visualization
         ctx.request_repaint();
     }

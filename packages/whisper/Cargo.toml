@@ -18,10 +18,7 @@ authors      = ["David Maple <david@cyrup.ai>"]
 keywords = ["whisper", "stt", "speech-recognition", "openai", "candle"]
 categories = ["multimedia::audio", "science", "algorithms"]
 
-# Binary targets
-[[bin]]
-name = "whisper"
-path = "src/whisper.rs"
+# Binary target will use default src/main.rs
 
 # ------------------------------------------------
 #  Dependencies
@@ -68,7 +65,7 @@ ciborium       = "0.2.2"
 
 # — optional parallelism (desktop only) —
 rayon          = { version = "1", optional = true }
-symphonia = { version = "0.5.4", optional = true }
+symphonia = { version = "0.5.4" }
 anyhow = "1"
 clap = { version = "4.5", features = ["derive"] }
 tokio = { version = "1", features = ["rt", "sync", "macros"] }
@@ -116,7 +113,7 @@ fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 # ------------------------------------------------
 [features]
 # ───────────── default: desktop, release-ready ─────────────
-default = ["desktop"]
+default = ["desktop", "snac"]
 
 # --- Core build flavours -----------------------------------
 desktop = ["rayon"]          # native build – includes SIMD & Rayon
@@ -141,9 +138,9 @@ record = []                  # WAV recording of detection windows
 display = []                 # SVG / terminal visualisations
 audio   = []                 # gate any OS-specific audio I/O that may be added
 microphone = ["dep:cpal"]
-encodec = ["dep:cpal", "dep:symphonia"]
-mimi = ["dep:cpal", "dep:symphonia"]
-snac = ["dep:cpal", "dep:symphonia"]
+encodec = ["dep:cpal"]
+mimi = ["dep:cpal"]
+snac = ["dep:cpal"]
 depth_anything_v2 = ["dep:palette", "dep:enterpolation"]
 
 # Ensure mutually-exclusive defaults:

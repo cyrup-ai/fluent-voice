@@ -1,8 +1,9 @@
 //! Simplified wake word detection implementation using the Koffee crate.
 
 use crate::wake_word::{
-    DefaultWakeWordConfig, WakeWordBuilder, WakeWordDetector, WakeWordResult, WakeWordStream,
+    DefaultWakeWordConfig, WakeWordBuilder, WakeWordDetector, WakeWordStream,
 };
+use fluent_voice_domain::WakeWordDetectionResult;
 use fluent_voice_domain::VoiceError;
 use futures_core::Stream;
 use std::{
@@ -57,7 +58,7 @@ impl KoffeeWakeWordStream {
 }
 
 impl Stream for KoffeeWakeWordStream {
-    type Item = WakeWordResult;
+    type Item = WakeWordDetectionResult;
 
     fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if self.active {
@@ -67,7 +68,7 @@ impl Stream for KoffeeWakeWordStream {
             let _model_file = &self.config.model_file;
 
             // For now, just return a successful no-detection result using config parameters
-            Poll::Ready(Some(WakeWordResult::not_detected()))
+            Poll::Ready(Some(WakeWordDetectionResult::not_detected()))
         } else {
             Poll::Ready(None)
         }

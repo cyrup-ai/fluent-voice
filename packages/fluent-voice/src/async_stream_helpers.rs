@@ -152,7 +152,7 @@ where
 /// by batching the audio samples into chunks of a suitable size.
 pub fn audio_stream_to_chunk_stream<S>(
     audio_stream: S,
-) -> AsyncStream<crate::audio_chunk::AudioChunk>
+) -> AsyncStream<fluent_voice_domain::AudioChunk>
 where
     S: Stream<Item = i16> + Send + 'static,
 {
@@ -172,7 +172,7 @@ where
                         .into_iter()
                         .flat_map(|sample| sample.to_le_bytes())
                         .collect();
-                    let chunk = crate::audio_chunk::AudioChunk::new(
+                    let chunk = fluent_voice_domain::AudioChunk::new_with_format(
                         audio_bytes,
                         fluent_voice_domain::AudioFormat::Pcm16Khz,
                     );
@@ -188,7 +188,7 @@ where
                     .into_iter()
                     .flat_map(|sample| sample.to_le_bytes())
                     .collect();
-                let chunk = crate::audio_chunk::AudioChunk::new(
+                let chunk = fluent_voice_domain::AudioChunk::new_with_format(
                     audio_bytes,
                     fluent_voice_domain::AudioFormat::Pcm16Khz,
                 );
@@ -214,7 +214,7 @@ where
                         .into_iter()
                         .flat_map(|sample| sample.to_le_bytes())
                         .collect();
-                    let chunk = crate::audio_chunk::AudioChunk::new(
+                    let chunk = fluent_voice_domain::AudioChunk::new_with_format(
                         audio_bytes,
                         fluent_voice_domain::AudioFormat::Pcm16Khz,
                     );
@@ -230,7 +230,7 @@ where
                     .into_iter()
                     .flat_map(|sample| sample.to_le_bytes())
                     .collect();
-                let chunk = crate::audio_chunk::AudioChunk::new(
+                let chunk = fluent_voice_domain::AudioChunk::new_with_format(
                     audio_bytes,
                     fluent_voice_domain::AudioFormat::Pcm16Khz,
                 );

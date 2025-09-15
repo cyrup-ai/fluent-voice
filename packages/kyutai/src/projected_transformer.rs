@@ -133,4 +133,22 @@ impl TransformerCache {
         self.value_cache = None;
         self.conv_state = None;
     }
+
+    pub fn update_cache(&mut self, keys: Tensor, values: Tensor) -> Result<()> {
+        self.key_cache = Some(match &self.key_cache {
+            None => keys,
+            Some(cached_keys) => Tensor::cat(&[cached_keys, &keys], 1)?,
+        });
+
+        self.value_cache = Some(match &self.value_cache {
+            None => values,
+            Some(cached_values) => Tensor::cat(&[cached_values, &values], 1)?,
+        });
+
+        Ok(())
+    }
+
+    pub fn get_cached_kv(&self) -> (Option<&Tensor>, Option<&Tensor>) {
+        (self.key_cache.as_ref(), self.value_cache.as_ref())
+    }
 }

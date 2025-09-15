@@ -1,8 +1,8 @@
 use futures::StreamExt;
 use livekit::webrtc::{audio_stream::native::NativeAudioStream, prelude::*};
 use parking_lot::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
 /// Configuration for the audio visualizer
@@ -237,6 +237,86 @@ impl AudioVisualizer {
         if let Some(handle) = self.thread_handle.take() {
             let _ = handle.join();
         }
+    }
+
+    /// Paint audio waveform visualization using egui graphics
+    pub fn paint_waveform(&self, painter: &egui::Painter, rect: egui::Rect) {
+        // Get current amplitude data
+        let amplitudes = self.get_amplitudes();
+        if amplitudes.is_empty() {
+            return;
+        }
+
+        // Calculate drawing parameters
+        let amplitude_count = amplitudes.len();
+        let center_y = rect.center().y;
+        let max_amplitude_height = rect.height() * 0.4; // Use 40% of height for amplitude range
+        let step_x = rect.width() / amplitude_count.max(1) as f32;
+
+        // Create waveform points
+        let mut points = Vec::with_capacity(amplitude_count);
+        for (i, &amplitude) in amplitudes.iter().enumerate() {
+            let x = rect.left() + (i as f32 * step_x);
+            let y = center_y - (amplitude * max_amplitude_height);
+            points.push(egui::Pos2::new(x, y));
+        }
+
+        // Draw waveform as connected line segments
+        let stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(0, 255, 100)); // Green waveform
+        for window in points.windows(2) {
+            painter.line_segment([window[0], window[1]], stroke);
+        }
+
+        // Draw center line for reference
+        let center_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(100));
+        painter.line_segment(
+            [
+                egui::Pos2::new(rect.left(), center_y),
+                egui::Pos2::new(rect.right(), center_y),
+            ],
+            center_stroke,
+        );
+
+        // Draw current amplitude indicator (right side)
+        if let Some(current_amplitude) = self.get_current_amplitude() {
+            let indicator_x = rect.right() - 20.0;
+            let indicator_y = center_y - (current_amplitude * max_amplitude_height);
+            
+            painter.circle_filled(
+                egui::Pos2::new(indicator_x, indicator_y),
+                4.0,
+                egui::Color32::from_rgb(255, 255, 0), // Yellow indicator
+            );
+        }
+
+        // Draw amplitude statistics text
+        let stats = self.get_stats();
+        let text_color = egui::Color32::WHITE;
+        let font_id = egui::FontId::monospace(10.0);
+        
+        painter.text(
+            egui::Pos2::new(rect.left() + 5.0, rect.top() + 5.0),
+            egui::Align2::LEFT_TOP,
+            format!("Cur: {:.3}", stats.current_amplitude),
+            font_id.clone(),
+            text_color,
+        );
+        
+        painter.text(
+            egui::Pos2::new(rect.left() + 5.0, rect.top() + 20.0),
+            egui::Align2::LEFT_TOP,
+            format!("Peak: {:.3}", stats.peak_amplitude),
+            font_id.clone(),
+            text_color,
+        );
+        
+        painter.text(
+            egui::Pos2::new(rect.left() + 5.0, rect.top() + 35.0),
+            egui::Align2::LEFT_TOP,
+            format!("Avg: {:.3}", stats.average_amplitude),
+            font_id,
+            text_color,
+        );
     }
 }
 

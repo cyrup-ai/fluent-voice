@@ -561,6 +561,8 @@ where
             language: speaker.language().cloned(),
             speed_modifier: speaker.speed_modifier(),
             pitch_range: speaker.pitch_range().cloned(),
+            metadata: hashbrown::HashMap::new(),
+            vocal_settings: hashbrown::HashMap::new(),
         });
         self
     }
@@ -902,6 +904,7 @@ where
             };
 
             // Execute prelude function if provided
+            let mut cumulative_time_ms = 0u64;
             if let Some(prelude_fn) = prelude {
                 let prelude_audio = prelude_fn();
 
@@ -919,11 +922,14 @@ where
                         Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
                     );
                     let _ = tx.send(Ok(prelude_chunk));
+
+                    // Start main synthesis AFTER prelude ends
+                    cumulative_time_ms = duration_ms;
                 }
             }
 
             // Process each speaker line with real dia-voice TTS synthesis
-            let mut cumulative_time_ms = 0u64;
+            // cumulative_time_ms now properly starts after prelude
             for (chunk_index, line) in lines.into_iter().enumerate() {
                 // Generate real TTS audio directly from text using dia-voice
                 let result = synthesize_speech_internal(
@@ -949,13 +955,13 @@ where
                     cumulative_time_ms += duration_ms;
 
                     // Create comprehensive timestamp metadata for this chunk
-                    let mut timestamp_metadata = fluent_voice_elevenlabs::TimestampMetadata::new();
+                    let mut timestamp_metadata = fluent_voice_domain::TimestampMetadata::new();
                     timestamp_metadata.synthesis_metadata.voice_id = line.id.clone();
                     timestamp_metadata.synthesis_metadata.text = line.text.clone();
                     timestamp_metadata.synthesis_metadata.output_format = "Pcm24Khz".to_string();
 
                     // Add audio chunk timing information
-                    let audio_chunk_timestamp = fluent_voice_elevenlabs::AudioChunkTimestamp {
+                    let audio_chunk_timestamp = fluent_voice_domain::AudioChunkTimestamp {
                         chunk_id: chunk_index,
                         start_ms,
                         end_ms: start_ms + duration_ms,
@@ -985,8 +991,8 @@ where
                         Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
                     )
                     .with_timestamp_metadata(timestamp_metadata)
-                    .with_metadata("synthesis_time", serde_json::json!(duration_ms))
-                    .with_metadata("chunk_sequence", serde_json::json!(chunk_index))
+                    .add_metadata("synthesis_time", serde_json::json!(duration_ms))
+                    .add_metadata("chunk_sequence", serde_json::json!(chunk_index))
                 });
 
                 // Send Result through channel

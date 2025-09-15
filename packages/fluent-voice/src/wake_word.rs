@@ -1,7 +1,7 @@
 //! Wake word detection traits and types.
 
 use core::future::Future;
-use fluent_voice_domain::VoiceError;
+use fluent_voice_domain::{VoiceError, WakeWordDetectionResult};
 use futures_core::Stream;
 use std::time::Duration;
 
@@ -82,46 +82,10 @@ pub trait WakeWordDetector: Send {
     fn start_detection(self) -> Self::Stream;
 }
 
-/// Event type for wake word detection results.
-#[derive(Debug, Clone)]
-pub struct WakeWordEvent {
-    /// The detected wake word.
-    pub word: String,
-    /// Confidence score (0.0 to 1.0).
-    pub confidence: f32,
-    /// Detection timestamp in milliseconds since epoch.
-    pub timestamp_ms: u64,
-}
 
-/// Result type for wake word detection operations.
-#[derive(Debug, Clone)]
-pub struct WakeWordResult {
-    /// Whether a wake word was detected.
-    pub detected: bool,
-    /// The event details if detected.
-    pub event: Option<WakeWordEvent>,
-}
-
-impl WakeWordResult {
-    /// Create a new positive detection result.
-    pub fn detected(event: WakeWordEvent) -> Self {
-        Self {
-            detected: true,
-            event: Some(event),
-        }
-    }
-
-    /// Create a new negative detection result.
-    pub fn not_detected() -> Self {
-        Self {
-            detected: false,
-            event: None,
-        }
-    }
-}
 
 /// Stream trait for wake word detection events.
-pub trait WakeWordStream: Stream<Item = WakeWordResult> + Send + Unpin {
+pub trait WakeWordStream: Stream<Item = WakeWordDetectionResult> + Send + Unpin {
     /// Stop the detection stream.
     fn stop(&mut self);
 

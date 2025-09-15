@@ -58,15 +58,20 @@ impl ConvDownsample1d {
 
             // Apply learnt adjustments if enabled
             if self.learnt {
-                // For learnt convolution, we could apply additional learned transformations
-                // This is a placeholder for more sophisticated learnt behavior
-                out = ((&out * 0.9)? + (&out * 0.1)?)?; // Simple example of learnt scaling
+                // Learnt convolution uses trainable parameters loaded from model
+                // No additional processing needed - conv weights are already learned
+                // This is the identity case: learned parameters are in the conv layer itself
             }
 
             Ok(StreamTensor::from_tensor(out))
         } else {
             Ok(StreamTensor::empty())
         }
+    }
+
+    pub fn reset_state(&mut self) {
+        // Convolution layers are stateless for basic operations
+        // No internal state to reset for downsampling
     }
 }
 
@@ -115,9 +120,9 @@ impl ConvTrUpsample1d {
 
             // Apply learnt adjustments if enabled
             if self.learnt {
-                // For learnt transpose convolution, apply additional learned transformations
-                // This is a placeholder for more sophisticated learnt behavior
-                out = ((&out * 0.9)? + (&out * 0.1)?)?; // Simple example of learnt scaling
+                // Learnt transpose convolution uses trainable parameters from model
+                // Additional normalization would be applied here if needed
+                // For Moshi models, the learned weights handle this internally
             }
 
             Ok(StreamTensor::from_tensor(out))

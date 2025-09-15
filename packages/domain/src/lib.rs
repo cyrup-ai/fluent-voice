@@ -55,7 +55,10 @@ pub use speaker::Speaker;
 // SpeakerBuilder moved to fluent-voice package
 pub use speech_source::SpeechSource;
 pub use stt_conversation::{SttConfig, SttConversation, SttConversationImpl};
-pub use timestamps::{Diarization, Punctuation, TimestampsGranularity, WordTimestamps};
+pub use timestamps::{
+    AudioChunkTimestamp, CharacterTimestamp, Diarization, Punctuation, SynthesisMetadata, 
+    TimestampConfiguration, TimestampMetadata, TimestampsGranularity, WordTimestamp, WordTimestamps,
+};
 pub use transcription::{TranscriptionSegment, TranscriptionSegmentImpl, TranscriptionStream};
 pub use tts_conversation::TtsConversation;
 // All builder traits moved to fluent-voice package
@@ -64,6 +67,7 @@ pub use vad_mode::VadMode;
 pub use vocal_speed::VocalSpeedMod;
 pub use voice_error::VoiceError;
 pub use voice_id::VoiceId;
+pub use wake_word::{WakeWordEvent, WakeWordDetectionResult};
 
 // Re-export value types only (builder traits moved to fluent-voice package)
 pub use pitch_range::*;
@@ -79,8 +83,9 @@ pub use voice_labels::*;
 /// Prelude module containing commonly used types.
 pub mod prelude {
     pub use crate::{
-        AudioChunk, AudioChunkResult, AudioFormat, Diarization, Language, MicBackend, ModelId,
-        Punctuation, SpeechSource, TimestampsGranularity, TranscriptionSegment, VadMode,
-        VocalSpeedMod, VoiceError, VoiceId, WordTimestamps,
+        AudioChunk, AudioChunkResult, AudioChunkTimestamp, AudioFormat, CharacterTimestamp, 
+        Diarization, Language, MicBackend, ModelId, Punctuation, SpeechSource, SynthesisMetadata,
+        TimestampConfiguration, TimestampMetadata, TimestampsGranularity, TranscriptionSegment, 
+        VadMode, VocalSpeedMod, VoiceError, VoiceId, WordTimestamp, WordTimestamps,
     };
 }

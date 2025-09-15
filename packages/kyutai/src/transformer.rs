@@ -349,7 +349,7 @@ impl TransformerLayer {
         })
     }
 
-    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+    pub fn forward(&self, xs: &Tensor, _cross_attention_src: Option<&Tensor>) -> Result<Tensor> {
         let residual = xs;
 
         // Self-attention block
@@ -376,8 +376,53 @@ impl TransformerLayer {
     }
 
     pub fn forward_with_cache(&self, xs: &Tensor, cache: &TransformerCache) -> Result<Tensor> {
-        // Implementation with KV caching for streaming
-        self.forward(xs) // Simplified for now
+        let residual = xs;
+
+        // Self-attention block - normalized input
+        let xs = self.norm1.forward(xs)?;
+        let xs = self.self_attn.forward(&xs)?;
+        let xs = if let Some(scale) = &self.layer_scale {
+            xs.broadcast_mul(scale)?
+        } else {
+            xs
+        };
+        let xs = (xs + residual)?;
+
+        // Cross-attention block (if configured)
+        let xs = if let Some(cross_attn) = &self.cross_attn {
+            if let Some(norm3) = &self.norm3 {
+                let residual = &xs;
+                let xs_norm = xs.apply(norm3)?;
+                let cross_out = cross_attn.forward(&xs_norm)?;
+                (residual + cross_out)?
+            } else {
+                xs
+            }
+        } else {
+            xs
+        };
+
+        // Conv block (if configured)
+        let xs = if let Some(conv_block) = &self.conv_block {
+            let residual = &xs;
+            // Conv1d expects (batch, channels, sequence) layout
+            let xs_conv = xs.transpose(1, 2)?.apply(conv_block)?.transpose(1, 2)?;
+            (residual + xs_conv)?
+        } else {
+            xs
+        };
+
+        // Feed-forward block
+        let residual = &xs;
+        let xs = self.norm2.forward(&xs)?;
+        let xs = self.feed_forward.forward(&xs)?;
+        let xs = if let Some(scale) = &self.layer_scale {
+            xs.broadcast_mul(scale)?
+        } else {
+            xs
+        };
+
+        (xs + residual)
     }
 }
 

@@ -110,10 +110,7 @@ impl SpeechAnimator {
                 let size = self.video_renderer.resolution();
                 let aspect_ratio = size.0 as f32 / size.1 as f32;
                 let available_width = ui.available_width();
-                let display_size = egui::Vec2::new(
-                    available_width,
-                    available_width / aspect_ratio,
-                );
+                let display_size = egui::Vec2::new(available_width, available_width / aspect_ratio);
 
                 ui.image(SizedTexture::new(texture_id, display_size));
             }

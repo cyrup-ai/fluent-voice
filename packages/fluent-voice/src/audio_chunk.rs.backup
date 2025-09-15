@@ -4,13 +4,13 @@
 //! and are designed to work with the cyrup_sugars NotResult constraint.
 
 use cyrup_sugars::prelude::MessageChunk;
-use fluent_voice_domain::{AudioFormat, VoiceError};
+use fluent_voice_domain::{AudioChunk, AudioFormat, VoiceError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Chunk of synthesized audio for streaming TTS operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AudioChunk {
+pub struct TtsAudioChunk {
     /// Raw audio data (typically PCM samples)
     pub audio_data: Vec<u8>,
 
@@ -40,7 +40,7 @@ pub struct AudioChunk {
 #[derive(Debug, Clone)]
 pub struct SynthesisChunk {
     /// The audio chunk data
-    pub chunk: AudioChunk,
+    pub chunk: TtsAudioChunk,
     /// Whether this represents a successful synthesis
     pub success: bool,
     /// Optional error message if synthesis failed
@@ -219,7 +219,7 @@ impl AudioChunk {
     /// Attach timestamp metadata to this chunk
     pub fn with_timestamp_metadata(
         mut self,
-        metadata: fluent_voice_elevenlabs::TimestampMetadata,
+        metadata: fluent_voice_domain::TimestampMetadata,
     ) -> Self {
         self.metadata.insert(
             "timestamp_metadata".to_string(),
@@ -229,7 +229,7 @@ impl AudioChunk {
     }
 
     /// Retrieve timestamp metadata from this chunk
-    pub fn timestamp_metadata(&self) -> Option<fluent_voice_elevenlabs::TimestampMetadata> {
+    pub fn timestamp_metadata(&self) -> Option<fluent_voice_domain::TimestampMetadata> {
         self.metadata
             .get("timestamp_metadata")
             .and_then(|v| serde_json::from_value(v.clone()).ok())

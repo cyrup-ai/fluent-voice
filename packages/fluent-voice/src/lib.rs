@@ -71,7 +71,6 @@ compile_error!("At least one audio feature must be enabled: microphone, encodec,
 /* ───── shared fundamentals ───── */
 pub mod arrow_syntax;
 pub mod async_stream_helpers;
-pub mod audio_chunk;
 pub mod audio_device_manager;
 pub mod json_syntax_transform;
 pub mod stream_ext;
@@ -127,7 +126,6 @@ pub mod prelude {
 
     /* Fluent-voice specific implementations */
     pub use crate::{
-        audio_chunk::{AudioChunk, SynthesisChunk},
         stream_ext::TtsStreamExt,
         tts_settings::{Similarity, SpeakerBoost, Stability, StyleExaggeration},
     };

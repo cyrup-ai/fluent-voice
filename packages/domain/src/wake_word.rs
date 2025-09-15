@@ -11,9 +11,39 @@ pub type WakeWordResult<T> = Result<T, VoiceError>;
 /// Wake word detection event with timestamp
 #[derive(Debug, Clone)]
 pub struct WakeWordEvent {
-    pub wake_word: String,
+    /// The detected wake word.
+    pub word: String,
+    /// Confidence score (0.0 to 1.0).
     pub confidence: f32,
+    /// Detection timestamp in milliseconds since epoch.
     pub timestamp_ms: u64,
+}
+
+/// Result type for wake word detection operations.
+#[derive(Debug, Clone)]
+pub struct WakeWordDetectionResult {
+    /// Whether a wake word was detected.
+    pub detected: bool,
+    /// The event details if detected.
+    pub event: Option<WakeWordEvent>,
+}
+
+impl WakeWordDetectionResult {
+    /// Create a new positive detection result.
+    pub fn detected(event: WakeWordEvent) -> Self {
+        Self {
+            detected: true,
+            event: Some(event),
+        }
+    }
+
+    /// Create a new negative detection result.
+    pub fn not_detected() -> Self {
+        Self {
+            detected: false,
+            event: None,
+        }
+    }
 }
 
 /// Wake word detector trait - core detection functionality

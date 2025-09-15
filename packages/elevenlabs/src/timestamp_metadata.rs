@@ -283,8 +283,8 @@ pub fn validate_alignment(alignment: &Alignment) -> Result<(), crate::engine::Fl
     Ok(())
 }
 
-/// Convert ElevenLabs Alignment to CharacterTimestamp vector
-impl From<&Alignment> for Vec<CharacterTimestamp> {
+/// Convert ElevenLabs Alignment to domain CharacterTimestamp vector
+impl From<&Alignment> for Vec<fluent_voice_domain::CharacterTimestamp> {
     fn from(alignment: &Alignment) -> Self {
         // ✅ ADD VALIDATION HERE
         if let Err(e) = validate_alignment(alignment) {
@@ -293,7 +293,7 @@ impl From<&Alignment> for Vec<CharacterTimestamp> {
             return Vec::new();
         }
 
-        // Existing implementation with enhanced bounds checking
+        // Convert to domain types with enhanced bounds checking
         alignment
             .characters
             .iter()
@@ -303,7 +303,7 @@ impl From<&Alignment> for Vec<CharacterTimestamp> {
                 if i < alignment.character_start_times_seconds.len()
                     && i < alignment.character_end_times_seconds.len()
                 {
-                    Some(CharacterTimestamp {
+                    Some(fluent_voice_domain::CharacterTimestamp {
                         character: character.clone(),
                         start_seconds: alignment.character_start_times_seconds[i],
                         end_seconds: alignment.character_end_times_seconds[i],
@@ -315,6 +315,96 @@ impl From<&Alignment> for Vec<CharacterTimestamp> {
                 }
             })
             .collect()
+    }
+}
+
+/// Convert ElevenLabs alignment to domain TimestampMetadata
+impl From<&Alignment> for fluent_voice_domain::TimestampMetadata {
+    fn from(alignment: &Alignment) -> Self {
+        let mut metadata = fluent_voice_domain::TimestampMetadata::new();
+        metadata.character_alignments = Vec::<fluent_voice_domain::CharacterTimestamp>::from(alignment);
+        metadata.generate_word_alignments();
+        metadata
+    }
+}
+
+/// Convert ElevenLabs internal types to domain types
+impl From<TimestampMetadata> for fluent_voice_domain::TimestampMetadata {
+    fn from(internal: TimestampMetadata) -> Self {
+        fluent_voice_domain::TimestampMetadata {
+            synthesis_start: internal.synthesis_start,
+            synthesis_end: internal.synthesis_end,
+            audio_chunks: internal.audio_chunks.into_iter().map(|chunk| {
+                fluent_voice_domain::AudioChunkTimestamp {
+                    chunk_id: chunk.chunk_id,
+                    start_ms: chunk.start_ms,
+                    end_ms: chunk.end_ms,
+                    text_segment: chunk.text_segment,
+                    speaker_id: chunk.speaker_id,
+                    format: chunk.format,
+                    size_bytes: chunk.size_bytes,
+                }
+            }).collect(),
+            character_alignments: internal.character_alignments.into_iter().map(|char_ts| {
+                fluent_voice_domain::CharacterTimestamp {
+                    character: char_ts.character,
+                    start_seconds: char_ts.start_seconds,
+                    end_seconds: char_ts.end_seconds,
+                    text_position: char_ts.text_position,
+                }
+            }).collect(),
+            word_alignments: internal.word_alignments.map(|words| {
+                words.into_iter().map(|word| {
+                    fluent_voice_domain::WordTimestamp {
+                        word: word.word,
+                        start_seconds: word.start_seconds,
+                        end_seconds: word.end_seconds,
+                        word_position: word.word_position,
+                        character_range: word.character_range,
+                    }
+                }).collect()
+            }),
+            total_duration_ms: internal.total_duration_ms,
+            processing_time_ms: internal.processing_time_ms,
+            synthesis_metadata: fluent_voice_domain::SynthesisMetadata {
+                voice_id: internal.synthesis_metadata.voice_id,
+                model_id: internal.synthesis_metadata.model_id,
+                text: internal.synthesis_metadata.text,
+                voice_settings: internal.synthesis_metadata.voice_settings.map(|vs| {
+                    serde_json::json!({
+                        "stability": vs.stability,
+                        "similarity_boost": vs.similarity_boost,
+                        "style": vs.style,
+                        "use_speaker_boost": vs.use_speaker_boost,
+                        "speed": vs.speed,
+                    })
+                }),
+                output_format: internal.synthesis_metadata.output_format,
+                language: internal.synthesis_metadata.language,
+            },
+        }
+    }
+}
+
+/// Convert SynthesisContext to domain SynthesisMetadata
+impl From<SynthesisContext> for fluent_voice_domain::SynthesisMetadata {
+    fn from(context: SynthesisContext) -> Self {
+        fluent_voice_domain::SynthesisMetadata {
+            voice_id: context.voice_id,
+            model_id: context.model_id,
+            text: context.text,
+            voice_settings: context.voice_settings.map(|vs| {
+                serde_json::json!({
+                    "stability": vs.stability,
+                    "similarity_boost": vs.similarity_boost,
+                    "style": vs.style,
+                    "use_speaker_boost": vs.use_speaker_boost,
+                    "speed": vs.speed,
+                })
+            }),
+            output_format: context.output_format,
+            language: context.language,
+        }
     }
 }
 

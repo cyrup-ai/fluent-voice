@@ -229,6 +229,8 @@ pub struct KyutaiTtsConversationBuilder {
     repetition_penalty: Option<(usize, f32)>,
     cfg_alpha: Option<f64>,
     seed: u64,
+    // TTS model integration
+    tts_model: Option<std::sync::Arc<crate::tts::Model>>,
 }
 
 impl KyutaiTtsConversationBuilder {
@@ -245,6 +247,7 @@ impl KyutaiTtsConversationBuilder {
             repetition_penalty: None,
             cfg_alpha: Some(3.0),
             seed: 42,
+            tts_model: None,
         }
     }
 
@@ -744,11 +747,11 @@ impl SttConversationBuilder for KyutaiSttConversationBuilder {
         self
     }
 
-    fn on_prediction<F>(self, _f: F) -> Self
+    fn on_prediction<F>(mut self, f: F) -> Self
     where
         F: FnMut(String, String) + Send + 'static,
     {
-        // Store prediction callback for real-time transcription
+        self.prediction_handler = Some(Box::new(f));
         self
     }
 }

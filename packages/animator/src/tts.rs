@@ -32,7 +32,7 @@ impl CykoTTS {
             .enable_all()
             .build()
             .map_err(|_| TtsError::RuntimeInitializationFailed)?;
-            
+
         Ok(Self {
             operations: Arc::new(Mutex::new(Vec::new())),
             runtime,
@@ -225,6 +225,6 @@ pub async fn example_usage() -> Result<(), TtsError> {
     // tts.update_animation();
     // let mut ui = egui::Ui::new(...);
     // tts.render(&mut ui);
-    
+
     Ok(())
 }

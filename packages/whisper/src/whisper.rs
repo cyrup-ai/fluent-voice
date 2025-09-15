@@ -1,6 +1,7 @@
 // https://github.com/openai/whisper/blob/main/whisper/model.py/rgs
 // Production Whisper implementation with batch processing and advanced token filtering
 
+
 #[cfg(feature = "accelerate")]
 extern crate accelerate_src;
 
@@ -10,8 +11,7 @@ extern crate intel_mkl_src;
 use anyhow::{Error as E, Result};
 use candle_core::{Device, IndexOp, Tensor};
 use candle_nn::{VarBuilder, ops::softmax};
-use clap::{Parser, ValueEnum};
-use hf_hub::api::sync::Api;
+use clap::ValueEnum;
 use rand::SeedableRng;
 use rand::distr::Distribution;
 use rand::distr::weighted::WeightedIndex;
@@ -222,6 +222,10 @@ impl Decoder {
 
             let audio_features_item = audio_features.i(batch_idx)?;
 
+            // Extract fields before mutable borrowing in the loop
+            let timestamps = self.timestamps;
+            let no_timestamps_token = self.no_timestamps_token;
+
             for i in 0..sample_len {
                 let tokens_t = Tensor::new(tokens.as_slice(), mels[0].device())?;
                 let tokens_t = tokens_t.unsqueeze(0)?;
@@ -243,8 +247,8 @@ impl Decoder {
                     .i(0)?
                     .i(0)?;
 
-                // Apply timestamp rules and token filtering
-                let logits = self.apply_token_filters(&logits, &tokens, i)?;
+                // Apply token filters including SuppressBlanks and ApplyTimestampRules
+                let logits = Self::apply_token_filters_static(&logits, &tokens, i, timestamps, no_timestamps_token)?;
 
                 let next_token = if t > 0f64 {
                     let prs = softmax(&(&logits / t)?, 0)?;
@@ -291,16 +295,22 @@ impl Decoder {
     }
 
     /// Apply token filters including SuppressBlanks and ApplyTimestampRules
-    fn apply_token_filters(&self, logits: &Tensor, tokens: &[u32], step: usize) -> Result<Tensor> {
-        let mut filtered_logits = logits.broadcast_add(&self.suppress_tokens)?;
+    fn apply_token_filters_static(
+        logits: &Tensor,
+        tokens: &[u32],
+        step: usize,
+        timestamps: bool,
+        no_timestamps_token: u32,
+    ) -> Result<Tensor> {
+        let mut filtered_logits = logits.clone();
 
         // Apply timestamp rules when in timestamp mode
-        if self.timestamps {
+        if timestamps {
             filtered_logits = Self::apply_timestamp_rules_static(
                 &filtered_logits,
                 tokens,
                 step,
-                self.no_timestamps_token,
+                no_timestamps_token,
             )?;
         }
 
@@ -412,6 +422,11 @@ impl Decoder {
         if !self.timestamps {
             tokens.push(self.no_timestamps_token);
         }
+
+        // Extract fields before mutable borrowing in the loop
+        let timestamps = self.timestamps;
+        let no_timestamps_token = self.no_timestamps_token;
+
         for i in 0..sample_len {
             let tokens_t = Tensor::new(tokens.as_slice(), mel.device())?;
 
@@ -436,7 +451,7 @@ impl Decoder {
                 .i(0)?;
 
             // Apply token filters including SuppressBlanks and ApplyTimestampRules
-            let logits = self.apply_token_filters(&logits, &tokens, i)?;
+            let logits = Self::apply_token_filters_static(&logits, &tokens, i, timestamps, no_timestamps_token)?;
 
             let next_token = if t > 0f64 {
                 let prs = softmax(&(&logits / t)?, 0)?;
@@ -658,216 +673,5 @@ impl WhichModel {
     }
 }
 
-#[derive(Parser, Debug, Clone)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// Run on CPU rather than on GPU.
-    #[arg(long)]
-    cpu: bool,
 
-    #[arg(long)]
-    model_id: Option<String>,
 
-    /// The model to use, check out available models:
-    /// https://huggingface.co/models?search=whisper
-    #[arg(long)]
-    revision: Option<String>,
-
-    /// The model to be used, can be tiny, small, medium.
-    #[arg(long, default_value = "tiny.en")]
-    model: WhichModel,
-
-    /// The input to be processed, in wav format, will default to `jfk.wav`. Alternatively
-    /// this can be set to sample:jfk, sample:gb1, ... to fetch a sample from the following
-    /// repo: https://huggingface.co/datasets/Narsil/candle_demo/
-    #[arg(long)]
-    input: Option<String>,
-
-    /// The seed to use when generating random samples.
-    #[arg(long, default_value_t = 299792458)]
-    seed: u64,
-
-    /// Enable tracing (generates a trace-timestamp.json file).
-    #[arg(long)]
-    tracing: bool,
-
-    #[arg(long)]
-    quantized: bool,
-
-    /// Language.
-    #[arg(long)]
-    language: Option<String>,
-
-    /// Task, when no task is specified, the input tokens contain only the sot token which can
-    /// improve things when in no-timestamp mode.
-    #[arg(long)]
-    task: Option<Task>,
-
-    /// Timestamps mode, this is not fully implemented yet.
-    #[arg(long)]
-    timestamps: bool,
-
-    /// Print the full DecodingResult structure rather than just the text.
-    #[arg(long)]
-    verbose: bool,
-}
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    use tracing_chrome::ChromeLayerBuilder;
-    use tracing_subscriber::prelude::*;
-
-    let args = Args::parse();
-    let _guard = if args.tracing {
-        let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
-        tracing_subscriber::registry().with(chrome_layer).init();
-        Some(guard)
-    } else {
-        None
-    };
-    let device = device_helper(args.cpu)?;
-    let (default_model, default_revision) = if args.quantized {
-        ("lmz/candle-whisper", "main")
-    } else {
-        args.model.model_and_revision()
-    };
-    let default_model = default_model.to_string();
-    let default_revision = default_revision.to_string();
-    let (model_id, _revision) = match (args.model_id.clone(), args.revision.clone()) {
-        (Some(model_id), Some(revision)) => (model_id, revision),
-        (Some(model_id), None) => (model_id, "main".to_string()),
-        (None, Some(revision)) => (default_model, revision),
-        (None, None) => (default_model, default_revision),
-    };
-
-    // Extract values from args before any moves occur to avoid partial move errors
-    let input_file = args.input.clone();
-    let quantized = args.quantized;
-    let model_type = args.model;
-
-    let (config_filename, tokenizer_filename, weights_filename, input) = {
-        // Download model using hf-hub
-        let api = Api::new()?;
-        let repo = api.model(model_id.clone());
-        let examples_repo = api.model("Narsil/candle-examples".to_string());
-
-        let sample = if let Some(ref input) = input_file {
-            if let Some(sample) = input.strip_prefix("sample:") {
-                examples_repo.get(&format!("samples_{sample}.wav"))?
-            } else {
-                std::path::PathBuf::from(input)
-            }
-        } else {
-            println!("No audio file submitted: Using downloaded samples_jfk.wav");
-            examples_repo.get("samples_jfk.wav")?
-        };
-
-        let (config, tokenizer, model) = if quantized {
-            let ext = match model_type {
-                WhichModel::TinyEn => "tiny-en",
-                WhichModel::Tiny => "tiny",
-                _ => anyhow::bail!("no quantized support for {:?}", model_type),
-            };
-            (
-                repo.get(&format!("config-{ext}.json"))?,
-                repo.get(&format!("tokenizer-{ext}.json"))?,
-                repo.get(&format!("model-{ext}-q80.gguf"))?,
-            )
-        } else {
-            (
-                repo.get("config.json")?,
-                repo.get("tokenizer.json")?,
-                repo.get("model.safetensors")?,
-            )
-        };
-        (config, tokenizer, model, sample)
-    };
-    let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
-    let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
-
-    let mel_bytes = match config.num_mel_bins {
-        80 => include_bytes!("melfilters.bytes").as_slice(),
-        128 => include_bytes!("melfilters128.bytes").as_slice(),
-        nmel => anyhow::bail!("unexpected num_mel_bins {nmel}"),
-    };
-    let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
-    <byteorder::LittleEndian as byteorder::ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
-
-    #[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
-    {
-        let (pcm_data, sample_rate) = crate::pcm_decode::pcm_decode(input)?;
-        if sample_rate != m::SAMPLE_RATE as u32 {
-            anyhow::bail!("input file must have a {} sampling rate", m::SAMPLE_RATE)
-        }
-        println!("pcm data loaded {}", pcm_data.len());
-        let mel = audio::pcm_to_mel(&config, &pcm_data, &mel_filters);
-        let mel_len = mel.len();
-        let mel = Tensor::from_vec(
-            mel,
-            (1, config.num_mel_bins, mel_len / config.num_mel_bins),
-            &device,
-        )?;
-        println!("loaded mel: {:?}", mel.dims());
-
-        process_audio(args, config, device, weights_filename, tokenizer, mel)
-    }
-
-    #[cfg(not(any(feature = "encodec", feature = "mimi", feature = "snac")))]
-    {
-        Err(anyhow::anyhow!(
-            "Audio decoding requires one of: encodec, mimi, or snac features"
-        ))
-    }
-}
-
-#[allow(dead_code)] // Development/testing function
-fn process_audio(
-    args: Args,
-    config: Config,
-    device: Device,
-    weights_filename: std::path::PathBuf,
-    tokenizer: Tokenizer,
-    mel: Tensor,
-) -> Result<()> {
-    let mut model = if args.quantized {
-        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(
-            &weights_filename,
-            &device,
-        )?;
-        Model::Quantized(m::quantized_model::Whisper::load(&vb, config)?)
-    } else {
-        let vb =
-            unsafe { VarBuilder::from_mmaped_safetensors(&[weights_filename], m::DTYPE, &device)? };
-        Model::Normal(m::model::Whisper::load(&vb, config)?)
-    };
-
-    let language_token = match (args.model.is_multilingual(), args.language) {
-        (true, None) => {
-            // Simple language detection fallback - use English token
-            match token_id(&tokenizer, "<|en|>") {
-                Ok(token_id) => Some(token_id),
-                Err(_) => None,
-            }
-        }
-        (false, None) => None,
-        (true, Some(language)) => match token_id(&tokenizer, &format!("<|{language}|>")) {
-            Ok(token_id) => Some(token_id),
-            Err(_) => anyhow::bail!("language {language} is not supported"),
-        },
-        (false, Some(_)) => {
-            anyhow::bail!("a language cannot be set for non-multilingual models")
-        }
-    };
-    let mut dc = Decoder::new(
-        model,
-        tokenizer,
-        args.seed,
-        &device,
-        language_token,
-        args.task,
-        args.timestamps,
-        args.verbose,
-    )?;
-    dc.run(&mel)?;
-    Ok(())
-}

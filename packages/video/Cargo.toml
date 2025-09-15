@@ -140,12 +140,12 @@ objc2-core-foundation = "0.3.1"
 objc2-foundation = { version = "0.2", features = ["NSArray", "NSDictionary", "NSEnumerator", "NSError", "NSRange", "NSString", "NSValue"] }
 accelerate-src = { version = "0.3", optional = true }
 # AVFoundation for camera capture
-av-foundation = { path = "../../tmp/core-video/av-foundation" }
-core-media = { path = "../../tmp/core-video/core-media" }
+av-foundation = "0.5.2"
+core-media = "0.5.1"
 dispatch2 = "0.1"
 block2 = "0.5"
 # Screen capture kit for modern screen capture
-screen-capture-kit = { path = "../../tmp/core-video/screen-capture-kit" }
+screen-capture-kit = "0.3.1"
 # FFmpeg for video file reading - temporarily disabled due to build issues
 ffmpeg-next = "8.0.0"
 
