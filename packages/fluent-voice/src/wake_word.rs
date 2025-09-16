@@ -82,8 +82,6 @@ pub trait WakeWordDetector: Send {
     fn start_detection(self) -> Self::Stream;
 }
 
-
-
 /// Stream trait for wake word detection events.
 pub trait WakeWordStream: Stream<Item = WakeWordDetectionResult> + Send + Unpin {
     /// Stop the detection stream.

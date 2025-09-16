@@ -1,11 +1,12 @@
 use futures::StreamExt;
 use livekit::webrtc::{audio_stream::native::NativeAudioStream, prelude::*};
-use parking_lot::Mutex;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread::JoinHandle;
+use tokio::task::JoinHandle;
 
 /// Configuration for the audio visualizer
+#[derive(Clone)]
 pub struct AudioVisualizerConfig {
     /// Size of the amplitude history buffer
     pub buffer_size: usize,
@@ -109,6 +110,21 @@ pub struct AudioVisualizer {
     running: Arc<AtomicBool>,
     thread_handle: Option<JoinHandle<()>>,
     _rtc_track: RtcAudioTrack,
+    volume_multiplier: Arc<Mutex<f32>>,
+}
+
+impl Clone for AudioVisualizer {
+    fn clone(&self) -> Self {
+        Self {
+            amplitude: self.amplitude.clone(),
+            stats: self.stats.clone(),
+            config: self.config.clone(),
+            running: self.running.clone(),
+            thread_handle: None, // JoinHandle cannot be cloned
+            _rtc_track: self._rtc_track.clone(),
+            volume_multiplier: self.volume_multiplier.clone(),
+        }
+    }
 }
 
 impl AudioVisualizer {
@@ -124,12 +140,14 @@ impl AudioVisualizer {
         let amplitude = Arc::new(Mutex::new(RingBuffer::new(config.buffer_size)));
         let stats = Arc::new(Mutex::new(AudioStats::default()));
         let running = Arc::new(AtomicBool::new(true));
+        let volume_multiplier = Arc::new(Mutex::new(1.0f32));
 
         let amplitude_clone = amplitude.clone();
         let stats_clone = stats.clone();
         let running_clone = running.clone();
+        let volume_clone = volume_multiplier.clone();
         let mut audio_stream =
-            NativeAudioStream::new(rtc_track.clone(), config.sample_rate, config.num_channels);
+            NativeAudioStream::new(rtc_track.clone(), config.sample_rate as i32, config.num_channels as i32);
         let handle = rt_handle.clone();
         let smoothing = config.smoothing_factor;
 
@@ -139,17 +157,33 @@ impl AudioVisualizer {
             while running_clone.load(Ordering::Relaxed) {
                 match audio_stream.next().await {
                     Some(frame) => {
-                        if let Ok(rms) = Self::calculate_rms(&frame.data) {
+                        if let Ok(rms) = Self::calculate_rms_from_samples(&frame.data) {
+                            // Apply volume multiplier
+                            let volume = volume_clone.lock().unwrap_or_else(|poisoned| {
+                                tracing::warn!(
+                                    "Volume mutex was poisoned in audio stream, recovering"
+                                );
+                                poisoned.into_inner()
+                            });
+                            let volume_adjusted_rms = rms * *volume;
+                            drop(volume);
+
                             // Apply smoothing
-                            smoothed_amplitude =
-                                smoothed_amplitude * smoothing + rms * (1.0 - smoothing);
+                            smoothed_amplitude = smoothed_amplitude * smoothing
+                                + volume_adjusted_rms * (1.0 - smoothing);
 
                             // Update ring buffer
-                            let mut ring = amplitude_clone.lock();
+                            let mut ring = amplitude_clone.lock().unwrap_or_else(|poisoned| {
+                                tracing::warn!("Ring buffer mutex was poisoned, recovering");
+                                poisoned.into_inner()
+                            });
                             ring.push(smoothed_amplitude);
 
                             // Update statistics
-                            let mut stats = stats_clone.lock();
+                            let mut stats = stats_clone.lock().unwrap_or_else(|poisoned| {
+                                tracing::warn!("Stats mutex was poisoned, recovering");
+                                poisoned.into_inner()
+                            });
                             stats.current_amplitude = smoothed_amplitude;
                             stats.peak_amplitude = stats.peak_amplitude.max(smoothed_amplitude);
 
@@ -176,10 +210,11 @@ impl AudioVisualizer {
             running,
             thread_handle: Some(thread_handle),
             _rtc_track: rtc_track,
+            volume_multiplier,
         }
     }
 
-    /// Calculate RMS amplitude from audio frame data
+    /// Calculate RMS amplitude from audio frame data (bytes)
     fn calculate_rms(data: &[u8]) -> Result<f32, &'static str> {
         if data.len() % 2 != 0 {
             return Err("Invalid audio data length");
@@ -203,26 +238,56 @@ impl AudioVisualizer {
         }
     }
 
+    /// Calculate RMS amplitude from i16 samples (used with NativeAudioStream)
+    fn calculate_rms_from_samples(samples: &[i16]) -> Result<f32, &'static str> {
+        if samples.is_empty() {
+            return Ok(0.0);
+        }
+
+        let mut sum_sqr = 0.0;
+        for &sample in samples {
+            let val_f = sample as f32 / 32768.0;
+            sum_sqr += val_f * val_f;
+        }
+
+        Ok((sum_sqr / samples.len() as f32).sqrt())
+    }
+
     /// Get the current amplitude history
     pub fn get_amplitudes(&self) -> Vec<f32> {
-        let ring = self.amplitude.lock();
+        let ring = self.amplitude.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!("Ring buffer mutex was poisoned during get_amplitudes, recovering");
+            poisoned.into_inner()
+        });
         ring.as_vec()
     }
 
     /// Get the latest amplitude value
     pub fn get_current_amplitude(&self) -> Option<f32> {
-        let ring = self.amplitude.lock();
+        let ring = self.amplitude.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "Ring buffer mutex was poisoned during get_current_amplitude, recovering"
+            );
+            poisoned.into_inner()
+        });
         ring.latest()
     }
 
     /// Get current audio statistics
     pub fn get_stats(&self) -> AudioStats {
-        *self.stats.lock()
+        let stats = self.stats.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!("Stats mutex was poisoned during get_stats, recovering");
+            poisoned.into_inner()
+        });
+        *stats
     }
 
     /// Reset peak amplitude tracking
     pub fn reset_peak(&self) {
-        let mut stats = self.stats.lock();
+        let mut stats = self.stats.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!("Stats mutex was poisoned during reset_peak, recovering");
+            poisoned.into_inner()
+        });
         stats.peak_amplitude = stats.current_amplitude;
     }
 
@@ -235,7 +300,7 @@ impl AudioVisualizer {
     pub fn stop(&mut self) {
         self.running.store(false, Ordering::Relaxed);
         if let Some(handle) = self.thread_handle.take() {
-            let _ = handle.join();
+            handle.abort();
         }
     }
 
@@ -281,7 +346,7 @@ impl AudioVisualizer {
         if let Some(current_amplitude) = self.get_current_amplitude() {
             let indicator_x = rect.right() - 20.0;
             let indicator_y = center_y - (current_amplitude * max_amplitude_height);
-            
+
             painter.circle_filled(
                 egui::Pos2::new(indicator_x, indicator_y),
                 4.0,
@@ -293,7 +358,7 @@ impl AudioVisualizer {
         let stats = self.get_stats();
         let text_color = egui::Color32::WHITE;
         let font_id = egui::FontId::monospace(10.0);
-        
+
         painter.text(
             egui::Pos2::new(rect.left() + 5.0, rect.top() + 5.0),
             egui::Align2::LEFT_TOP,
@@ -301,7 +366,7 @@ impl AudioVisualizer {
             font_id.clone(),
             text_color,
         );
-        
+
         painter.text(
             egui::Pos2::new(rect.left() + 5.0, rect.top() + 20.0),
             egui::Align2::LEFT_TOP,
@@ -309,7 +374,7 @@ impl AudioVisualizer {
             font_id.clone(),
             text_color,
         );
-        
+
         painter.text(
             egui::Pos2::new(rect.left() + 5.0, rect.top() + 35.0),
             egui::Align2::LEFT_TOP,
@@ -317,6 +382,41 @@ impl AudioVisualizer {
             font_id,
             text_color,
         );
+    }
+
+    /// Set volume multiplier for visualization amplitude (0.0 to 2.0)
+    /// Based on TODO1.md requirements
+    pub fn set_volume(&self, volume: f32) -> Result<(), &'static str> {
+        let clamped = volume.clamp(0.0, 2.0);
+        match self.volume_multiplier.lock() {
+            Ok(mut vol) => {
+                *vol = clamped;
+                tracing::debug!("AudioVisualizer volume set to: {:.2}", clamped);
+                Ok(())
+            }
+            Err(_) => Err("Failed to acquire volume lock"),
+        }
+    }
+
+    /// Get current volume multiplier
+    pub fn get_volume(&self) -> f32 {
+        self.volume_multiplier
+            .lock()
+            .unwrap_or_else(|poisoned| {
+                tracing::warn!("Volume mutex was poisoned, recovering");
+                poisoned.into_inner()
+            })
+            .clone()
+    }
+
+    /// Mute visualization (set volume to 0)
+    pub fn mute(&self) -> Result<(), &'static str> {
+        self.set_volume(0.0)
+    }
+
+    /// Unmute visualization (restore to 100% volume)
+    pub fn unmute(&self) -> Result<(), &'static str> {
+        self.set_volume(1.0)
     }
 }
 

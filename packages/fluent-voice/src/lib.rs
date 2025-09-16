@@ -92,6 +92,9 @@ pub mod tts_settings;
 pub mod audio_io;
 pub use audio_io::AudioInput;
 
+/* ───── audio stream manager ───── */
+mod audio_stream_manager;
+
 /* ───── internal matcher macro ───── */
 mod macros;
 

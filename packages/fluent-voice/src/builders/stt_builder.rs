@@ -3,7 +3,7 @@
 //! This module provides a non-macro implementation of the STT conversation builders
 //! that can be used as a base for engine-specific implementations.
 
-// Note: transcript_stream_to_string_stream was moved to domain or removed
+use crate::stream_ext::transcript_stream_to_string_stream;
 use crate::stt_conversation::TranscriptionBuilder;
 use core::future::Future;
 use cyrup_sugars::prelude::{ChunkHandler, MessageChunk};

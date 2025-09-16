@@ -28,6 +28,7 @@ pub mod speech_to_speech;
 pub mod stability;
 pub mod stt_conversation;
 pub mod style_exaggeration;
+pub mod synthesis_chunk;
 pub mod timestamps;
 pub mod transcription;
 pub mod tts_conversation;
@@ -56,18 +57,20 @@ pub use speaker::Speaker;
 pub use speech_source::SpeechSource;
 pub use stt_conversation::{SttConfig, SttConversation, SttConversationImpl};
 pub use timestamps::{
-    AudioChunkTimestamp, CharacterTimestamp, Diarization, Punctuation, SynthesisMetadata, 
-    TimestampConfiguration, TimestampMetadata, TimestampsGranularity, WordTimestamp, WordTimestamps,
+    AudioChunkTimestamp, CharacterTimestamp, Diarization, Punctuation, SynthesisMetadata,
+    TimestampConfiguration, TimestampMetadata, TimestampsGranularity, WordTimestamp,
+    WordTimestamps,
 };
 pub use transcription::{TranscriptionSegment, TranscriptionSegmentImpl, TranscriptionStream};
 pub use tts_conversation::TtsConversation;
 // All builder traits moved to fluent-voice package
 // TtsEngine moved to fluent-voice package
+pub use synthesis_chunk::SynthesisChunk;
 pub use vad_mode::VadMode;
 pub use vocal_speed::VocalSpeedMod;
 pub use voice_error::VoiceError;
 pub use voice_id::VoiceId;
-pub use wake_word::{WakeWordEvent, WakeWordDetectionResult};
+pub use wake_word::{WakeWordDetectionResult, WakeWordEvent};
 
 // Re-export value types only (builder traits moved to fluent-voice package)
 pub use pitch_range::*;
@@ -83,9 +86,10 @@ pub use voice_labels::*;
 /// Prelude module containing commonly used types.
 pub mod prelude {
     pub use crate::{
-        AudioChunk, AudioChunkResult, AudioChunkTimestamp, AudioFormat, CharacterTimestamp, 
-        Diarization, Language, MicBackend, ModelId, Punctuation, SpeechSource, SynthesisMetadata,
-        TimestampConfiguration, TimestampMetadata, TimestampsGranularity, TranscriptionSegment, 
-        VadMode, VocalSpeedMod, VoiceError, VoiceId, WordTimestamp, WordTimestamps,
+        AudioChunk, AudioChunkResult, AudioChunkTimestamp, AudioFormat, CharacterTimestamp,
+        Diarization, Language, MicBackend, ModelId, Punctuation, SpeechSource, SynthesisChunk,
+        SynthesisMetadata, TimestampConfiguration, TimestampMetadata, TimestampsGranularity,
+        TranscriptionSegment, VadMode, VocalSpeedMod, VoiceError, VoiceId, WordTimestamp,
+        WordTimestamps,
     };
 }

@@ -16,8 +16,8 @@ use std::{
 };
 
 use crate::{
+    audioio::{DataSource, Matrix},
     display::{oscillator::Oscillator, spectroscope::Spectrograph},
-    input::{DataSource, Matrix},
     oscillator::{
         Dimension, DisplayMode, GraphConfig, update_value_f, update_value_i, vector::Vector,
     },

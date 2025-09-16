@@ -4,7 +4,7 @@ use crate::nn::{MaybeQuantizedEmbedding, MaybeQuantizedLinear, MaybeQuantizedVar
 use crate::transformer::NormType;
 use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::Module;
-use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
 
 thread_local! {
     pub static VERBOSE: bool = {
@@ -159,7 +159,7 @@ pub struct LmModel {
     conditioner: Option<conditioner::Conditioner>,
     device: Device,
     dtype: DType,
-    last_audio_tokens_state: RefCell<Option<Vec<u32>>>,
+    last_audio_tokens_state: Arc<Mutex<Option<Vec<u32>>>>,
     audio_vocab_size: usize,
 }
 
@@ -250,7 +250,7 @@ impl LmModel {
             conditioner,
             device,
             dtype,
-            last_audio_tokens_state: RefCell::new(None),
+            last_audio_tokens_state: Arc::new(Mutex::new(None)),
             audio_vocab_size: cfg.audio_vocab_size,
         })
     }
@@ -309,7 +309,7 @@ impl LmModel {
     /// Reset internal state for streaming
     pub fn reset_state(&self) {
         // Clear the stored audio tokens state
-        *self.last_audio_tokens_state.borrow_mut() = None;
+        *self.last_audio_tokens_state.lock().unwrap() = None;
     }
 
     /// Get the audio pad token ID for this model
@@ -405,7 +405,7 @@ impl LmModel {
         }
 
         // Store the generated audio tokens for later retrieval
-        *self.last_audio_tokens_state.borrow_mut() = Some(audio_tokens);
+        *self.last_audio_tokens_state.lock().unwrap() = Some(audio_tokens);
 
         Ok(token_id)
     }
@@ -525,7 +525,7 @@ impl LmModel {
         }
 
         // Store the generated audio tokens for later retrieval
-        *self.last_audio_tokens_state.borrow_mut() = Some(audio_tokens);
+        *self.last_audio_tokens_state.lock().unwrap() = Some(audio_tokens);
 
         Ok(token_id)
     }
@@ -636,7 +636,7 @@ impl LmModel {
             let audio_token = audio_last_logits.argmax(1)?.to_scalar::<u32>()?;
             audio_tokens.push(audio_token);
         }
-        *self.last_audio_tokens_state.borrow_mut() = Some(audio_tokens);
+        *self.last_audio_tokens_state.lock().unwrap() = Some(audio_tokens);
 
         Ok(last_logits)
     }
@@ -644,7 +644,7 @@ impl LmModel {
     /// Get the last generated audio tokens from the model state
     /// Returns None if no audio tokens were generated in the last step
     pub fn last_audio_tokens(&self) -> Option<Vec<u32>> {
-        self.last_audio_tokens_state.borrow().clone()
+        self.last_audio_tokens_state.lock().unwrap().clone()
     }
 }
 

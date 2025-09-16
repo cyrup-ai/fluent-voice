@@ -3,7 +3,7 @@ use crate::lm::LmModel;
 use crate::mimi::Mimi;
 use candle_core::{Device, Tensor};
 use candle_transformers::generation::LogitsProcessor;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// Generator trait for Moshi models.
 pub trait Generator: std::fmt::Debug {
@@ -13,8 +13,8 @@ pub trait Generator: std::fmt::Debug {
 
 /// Basic generator implementation.
 pub struct BasicGenerator {
-    model: Arc<LmModel>,
-    mimi: Arc<Mimi>,
+    model: Arc<Mutex<LmModel>>,
+    mimi: Arc<Mutex<Mimi>>,
     device: Device,
     logits_processor: LogitsProcessor,
 }
@@ -31,7 +31,7 @@ impl std::fmt::Debug for BasicGenerator {
 }
 
 impl BasicGenerator {
-    pub fn new(model: Arc<LmModel>, mimi: Arc<Mimi>, device: Device, seed: u64) -> Self {
+    pub fn new(model: Arc<Mutex<LmModel>>, mimi: Arc<Mutex<Mimi>>, device: Device, seed: u64) -> Self {
         let logits_processor = LogitsProcessor::new(seed, None, None);
         Self {
             model,
@@ -47,7 +47,7 @@ impl Generator for BasicGenerator {
         let mut generated = prompt.clone();
 
         for _ in 0..max_length {
-            let logits = self.model.forward(Some(generated.clone()), vec![])?.0;
+            let logits = self.model.lock().unwrap().forward(Some(generated.clone()), vec![])?.0;
             // Get the last token's logits from the sequence
             let last_token_logits = logits.narrow(1, logits.dim(1)? - 1, 1)?.squeeze(1)?;
             let token_id = self
@@ -64,7 +64,7 @@ impl Generator for BasicGenerator {
     }
 
     fn reset(&mut self) {
-        self.model.reset_state();
-        self.mimi.reset_state();
+        self.model.lock().unwrap().reset_state();
+        self.mimi.lock().unwrap().reset_state();
     }
 }

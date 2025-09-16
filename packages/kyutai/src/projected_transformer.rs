@@ -81,7 +81,7 @@ impl ProjectedTransformer {
             hidden = if use_cache {
                 layer.forward_with_cache(&hidden, cache)?
             } else {
-                layer.forward(&hidden)?
+                layer.forward(&hidden, None)?
             };
         }
 

@@ -12,6 +12,7 @@ use progresshub::{ProgressHub, ZeroOneOrMany};
 use rand::{SeedableRng, distr::Distribution};
 use tokenizers::Tokenizer;
 
+use crate::token_filtering;
 use candle_transformers::models::whisper::{self as m, Config, audio};
 
 #[cfg(feature = "microphone")]
@@ -192,14 +193,17 @@ impl Decoder {
                 .decoder_final_linear(&ys.i((..1, seq_len - 1..))?)?
                 .i(0)?
                 .i(0)?;
-            // TODO: Besides suppress tokens, we should apply the heuristics from
-            // ApplyTimestampRules, i.e.:
-            // - Timestamps come in pairs, except before EOT.
-            // - Timestamps should be non-decreasing.
-            // - If the sum of the probabilities of timestamps is higher than any other tokens,
-            //   only consider timestamps when sampling.
-            // https://github.com/openai/whisper/blob/e8622f9afc4eba139bf796c210f5c01081000472/whisper/decoding.py#L439
+            // Apply basic token suppression
             let logits = logits.broadcast_add(&self.suppress_tokens)?;
+
+            // Apply advanced timestamp rules and blank suppression (matching whisper.rs functionality)
+            let logits = token_filtering::apply_token_filters_static(
+                &logits,
+                &tokens,
+                i,
+                self.timestamps,
+                self.no_timestamps_token,
+            )?;
             let next_token = if t > 0f64 {
                 let prs = softmax(&(&logits / t)?, 0)?;
                 let logits_v: Vec<f32> = prs.to_vec1()?;
@@ -447,11 +451,10 @@ struct Args {
 
     /// The model to use, check out available models:
     /// https://huggingface.co/models?search=whisper
-    #[arg(long)]
-    revision: Option<String>,
+    /// Pass direct HuggingFace model ID like 'openai/whisper-base'
 
     /// The model to be used, can be tiny, small, medium.
-    #[arg(long, default_value = "tiny.en")]
+    #[arg(long, default_value = "large-v3-turbo")]
     model: WhichModel,
 
     /// The seed to use when generating random samples.
@@ -541,125 +544,95 @@ fn extract_model_files(
 
 #[cfg(feature = "microphone")]
 pub async fn record() -> Result<()> {
-    // Updated to new progresshub API
-    {
-        use tracing_chrome::ChromeLayerBuilder;
-        use tracing_subscriber::prelude::*;
+    use tracing_chrome::ChromeLayerBuilder;
+    use tracing_subscriber::prelude::*;
 
-        let args = Args::parse();
-        let _guard = if args.tracing {
-            let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
-            tracing_subscriber::registry().with(chrome_layer).init();
-            Some(guard)
+    let args = Args::parse();
+    let _guard = if args.tracing {
+        let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
+        tracing_subscriber::registry().with(chrome_layer).init();
+        Some(guard)
+    } else {
+        None
+    };
+    let device = if args.cpu {
+        Device::Cpu
+    } else {
+        Device::new_metal(0).unwrap_or(Device::Cpu)
+    };
+    let model_id = args.model_id.unwrap_or_else(|| {
+        if args.quantized {
+            "lmz/candle-whisper".to_string()
         } else {
-            None
-        };
-        let device = if args.cpu {
-            Device::Cpu
-        } else {
-            Device::new_metal(0).unwrap_or(Device::Cpu)
-        };
-        let (default_model, default_revision) = if args.quantized {
-            ("lmz/candle-whisper", "main")
-        } else {
-            args.model.model_and_revision()
-        };
-        let default_model = default_model.to_string();
-        let default_revision = default_revision.to_string();
-        let (model_id, revision) = match (args.model_id, args.revision) {
-            (Some(model_id), Some(revision)) => (model_id, revision),
-            (Some(model_id), None) => (model_id, "main".to_string()),
-            (None, Some(revision)) => (default_model, revision),
-            (None, None) => (default_model, default_revision),
-        };
+            let (model_id, _) = args.model.model_and_revision();
+            model_id.to_string()
+        }
+    });
 
-        // Download model using ProgressHub
-        let model_download = ProgressHub::builder()
-            .model(&model_id)
-            .with_cli_progress()
-            .download()
-            .await?;
+    // Download model using ProgressHub
+    let model_download = ProgressHub::builder()
+        .model(&model_id)
+        .with_cli_progress()
+        .download()
+        .await?;
 
-        // Extract first download result
-        let download_result = model_download
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("No download results returned"))?;
+    // Extract first download result
+    let download_result = model_download
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("No download results returned"))?;
 
-        let model_result = match download_result.models {
-            ZeroOneOrMany::Zero => anyhow::bail!("No models downloaded"),
-            ZeroOneOrMany::One(model) => model,
-            ZeroOneOrMany::Many(mut models) => models
-                .pop()
-                .ok_or_else(|| anyhow::anyhow!("No models in result"))?,
+    let model_result = match download_result.models {
+        ZeroOneOrMany::Zero => anyhow::bail!("No models downloaded"),
+        ZeroOneOrMany::One(model) => model,
+        ZeroOneOrMany::Many(mut models) => models
+            .pop()
+            .ok_or_else(|| anyhow::anyhow!("No models in result"))?,
+    };
+
+    let (config_filename, tokenizer_filename, weights_filename) = if args.quantized {
+        let ext = match args.model {
+            WhichModel::TinyEn => "tiny-en",
+            WhichModel::Tiny => "tiny",
+            _ => anyhow::bail!("no quantized support for {:?}", args.model),
         };
-
-        let (config, tokenizer, model) = if args.quantized {
-            let ext = match args.model {
-                WhichModel::TinyEn => "tiny-en",
-                WhichModel::Tiny => "tiny",
-                _ => anyhow::bail!("no quantized support for {:?}", args.model),
-            };
-            (
-                model_result
-                    .files
-                    .iter()
-                    .find(|f| {
-                        f.path.file_name().and_then(|n| n.to_str())
-                            == Some(&format!("config-{ext}.json"))
-                    })
-                    .ok_or_else(|| anyhow::anyhow!("config-{ext}.json not found"))?
-                    .path
-                    .clone(),
-                model_result
-                    .files
-                    .iter()
-                    .find(|f| {
-                        f.path.file_name().and_then(|n| n.to_str())
-                            == Some(&format!("tokenizer-{ext}.json"))
-                    })
-                    .ok_or_else(|| anyhow::anyhow!("tokenizer-{ext}.json not found"))?
-                    .path
-                    .clone(),
-                model_result
-                    .files
-                    .iter()
-                    .find(|f| {
-                        f.path.file_name().and_then(|n| n.to_str())
-                            == Some(&format!("model-{ext}-q80.gguf"))
-                    })
-                    .ok_or_else(|| anyhow::anyhow!("model-{ext}-q80.gguf not found"))?
-                    .path
-                    .clone(),
-            )
-        } else {
-            (
-                model_result
-                    .files
-                    .iter()
-                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("config.json"))
-                    .ok_or_else(|| anyhow::anyhow!("config.json not found"))?
-                    .path
-                    .clone(),
-                model_result
-                    .files
-                    .iter()
-                    .find(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("tokenizer.json"))
-                    .ok_or_else(|| anyhow::anyhow!("tokenizer.json not found"))?
-                    .path
-                    .clone(),
-                model_result
-                    .files
-                    .iter()
-                    .find(|f| {
-                        f.path.file_name().and_then(|n| n.to_str()) == Some("model.safetensors")
-                    })
-                    .ok_or_else(|| anyhow::anyhow!("model.safetensors not found"))?
-                    .path
-                    .clone(),
-            )
-        };
-        (config, tokenizer, model)
+        (
+            model_result
+                .files
+                .iter()
+                .find(|f| {
+                    f.path.file_name().and_then(|n| n.to_str())
+                        == Some(&format!("config-{ext}.json"))
+                })
+                .ok_or_else(|| anyhow::anyhow!("config-{ext}.json not found"))?
+                .path
+                .to_string_lossy()
+                .to_string(),
+            model_result
+                .files
+                .iter()
+                .find(|f| {
+                    f.path.file_name().and_then(|n| n.to_str())
+                        == Some(&format!("tokenizer-{ext}.json"))
+                })
+                .ok_or_else(|| anyhow::anyhow!("tokenizer-{ext}.json not found"))?
+                .path
+                .to_string_lossy()
+                .to_string(),
+            model_result
+                .files
+                .iter()
+                .find(|f| {
+                    f.path.file_name().and_then(|n| n.to_str())
+                        == Some(&format!("model-{ext}-q80.gguf"))
+                })
+                .ok_or_else(|| anyhow::anyhow!("model-{ext}-q80.gguf not found"))?
+                .path
+                .to_string_lossy()
+                .to_string(),
+        )
+    } else {
+        extract_model_files(&model_result)?
     };
     let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
     let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;

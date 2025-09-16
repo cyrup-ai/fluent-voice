@@ -48,7 +48,7 @@ impl SpeechAnimator {
         let video_renderer = VideoRenderer::new(rt_handle, render_state, video_track);
         let lip_sync_state = Arc::new(Mutex::new(LipSyncState::default()));
 
-        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        let (shutdown_tx, mut shutdown_rx) = oneshot::channel();
         let lip_sync_state_clone = lip_sync_state.clone();
         let audio_visualizer_clone = audio_visualizer.clone();
 

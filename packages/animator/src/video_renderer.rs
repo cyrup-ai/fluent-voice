@@ -1,4 +1,4 @@
-use egui_wgpu::RenderState;
+use egui_wgpu::{RenderState, wgpu};
 use futures::StreamExt;
 use livekit::webrtc::{
     native::yuv_helper as yuv, prelude::*, video_stream::native::NativeVideoStream,
@@ -24,6 +24,8 @@ struct RendererInternal {
     frame_count: u64,
     last_frame_time: Instant,
     dropped_frames: u64,
+    blend_factor: f32,
+    mouth_openness: f32,
 }
 
 impl VideoRenderer {
@@ -43,6 +45,8 @@ impl VideoRenderer {
             frame_count: 0,
             last_frame_time: Instant::now(),
             dropped_frames: 0,
+            blend_factor: 1.0, // Fully opaque by default
+            mouth_openness: 0.0, // Mouth closed by default
         }));
 
         let mut sink = NativeVideoStream::new(rtc_track.clone());
@@ -66,7 +70,7 @@ impl VideoRenderer {
                 };
 
                 if let Err(e) = result {
-                    log::error!("Failed to process video frame: {:?}", e);
+                    tracing::error!("Failed to process video frame: {:?}", e);
                 }
             }
         });
@@ -96,12 +100,30 @@ impl VideoRenderer {
         };
         (internal.frame_count, internal.dropped_frames, fps)
     }
+
+    /// Set the blend factor for video opacity (0.0 = transparent, 1.0 = opaque)
+    pub fn set_blend_factor(&self, factor: f32) {
+        let mut internal = self.internal.lock();
+        internal.blend_factor = factor.clamp(0.0, 1.0);
+    }
+
+    /// Set the mouth openness for lip-sync animation (0.0 = closed, 1.0 = fully open)
+    pub fn set_mouth_openness(&self, openness: f32) {
+        let mut internal = self.internal.lock();
+        internal.mouth_openness = openness.clamp(0.0, 1.0);
+    }
+
+    /// Get current blend factor and mouth openness for external rendering
+    pub fn get_render_state(&self) -> (f32, f32) {
+        let internal = self.internal.lock();
+        (internal.blend_factor, internal.mouth_openness)
+    }
 }
 
 impl RendererInternal {
     fn process_frame(
         &mut self,
-        frame: livekit::webrtc::video_frame::VideoFrame,
+        frame: livekit::webrtc::video_frame::VideoFrame<Box<dyn livekit::webrtc::video_frame::VideoBuffer>>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let buf = frame.buffer.to_i420();
         let (w, h) = (buf.width(), buf.height());
@@ -133,14 +155,15 @@ impl RendererInternal {
 
         if let Some(texture) = &self.texture {
             self.render_state.queue.write_texture(
-                egui_wgpu::wgpu::TexelCopyTextureInfo {
+                wgpu::ImageCopyTexture {
                     texture,
                     mip_level: 0,
-                    origin: egui_wgpu::wgpu::Origin3d::default(),
-                    aspect: egui_wgpu::wgpu::TextureAspect::default(),
+                    origin: wgpu::Origin3d::default(),
+                    aspect: wgpu::TextureAspect::default(),
                 },
                 &self.rgba_data[..required_size],
-                egui_wgpu::wgpu::TexelCopyBufferLayout {
+                wgpu::ImageDataLayout {
+                    offset: 0,
                     bytes_per_row: Some(stride_rgba),
                     rows_per_image: None,
                 },

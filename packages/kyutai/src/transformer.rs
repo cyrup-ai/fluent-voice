@@ -121,6 +121,12 @@ impl Norm {
     }
 }
 
+impl candle_nn::Module for Norm {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.forward(xs)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AttentionLayer {
     q_proj: Linear,

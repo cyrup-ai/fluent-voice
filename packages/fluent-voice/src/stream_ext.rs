@@ -3,10 +3,11 @@
 //! Provides the `.on_chunk()` functionality for processing synthesis chunks
 //! using cyrup_sugars streaming patterns.
 
-use fluent_voice_domain::AudioChunk;
 use cyrup_sugars::prelude::MessageChunk;
 use cyrup_sugars::{AsyncStream, StreamExt as CyrupStreamExt};
 use fluent_voice_domain::VoiceError;
+use fluent_voice_domain::{AudioChunk, SynthesisChunk};
+use futures_core::Stream;
 
 /// Default error handler for audio streams
 ///
@@ -414,4 +415,26 @@ macro_rules! on_chunk {
             }
         }
     };
+}
+
+/// Helper function to convert TranscriptStream to Stream<String>
+///
+/// This function converts a transcript stream (which yields Result<TranscriptionSegment, VoiceError>)
+/// to a stream of strings for direct consumption.
+pub fn transcript_stream_to_string_stream<S, T>(
+    stream: S,
+) -> impl Stream<Item = String> + Send + Unpin
+where
+    S: Stream<Item = Result<T, VoiceError>> + Send + Unpin + 'static,
+    T: fluent_voice_domain::transcription::TranscriptionSegment,
+{
+    use futures_util::StreamExt;
+
+    stream.map(|result| match result {
+        Ok(segment) => segment.text().to_string(),
+        Err(e) => {
+            log::error!("Transcript error: {}", e);
+            String::new()
+        }
+    })
 }

@@ -190,7 +190,7 @@ impl VoiceParameters {
 
     /// Apply voice parameters to audio samples
     #[inline]
-    pub fn apply_to_samples(&self, samples: &mut [f32]) {
+    pub fn apply_to_samples(&self, samples: &mut Vec<f32>) {
         use realfft::RealFftPlanner;
         use rustfft::{FftPlanner, num_complex::Complex};
         use std::f32::consts::PI;

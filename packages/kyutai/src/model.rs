@@ -511,16 +511,24 @@ impl LmModel {
         for batch_idx in 0..batch_size {
             let batch_logits = logits.get(batch_idx)?;
 
-            // Get the top-k values and indices
-            let (top_values, top_indices) = batch_logits.topk(k)?;
+            // Get the top-k values and indices using Candle operations
+            // First convert to vec, then sort to find top-k
+            let logits_vec = batch_logits.to_vec1::<f32>()?;
+            let mut indexed_logits: Vec<(usize, f32)> = logits_vec.iter().enumerate().map(|(i, &v)| (i, v)).collect();
+            
+            // Sort by logits value in descending order
+            indexed_logits.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            
+            // Take top-k
+            let top_k_pairs: Vec<(usize, f32)> = indexed_logits.into_iter().take(k).collect();
+            let top_indices_vec: Vec<u32> = top_k_pairs.iter().map(|(i, _)| *i as u32).collect();
+            let top_values_vec: Vec<f32> = top_k_pairs.iter().map(|(_, v)| *v).collect();
 
             // Create a mask tensor filled with negative infinity
             let neg_inf = f32::NEG_INFINITY;
             let mut mask = vec![neg_inf; vocab_size];
 
             // Set the top-k positions to their original values
-            let top_indices_vec = top_indices.to_vec1::<u32>()?;
-            let top_values_vec = top_values.to_vec1::<f32>()?;
 
             for (idx, &token_idx) in top_indices_vec.iter().enumerate() {
                 mask[token_idx as usize] = top_values_vec[idx];

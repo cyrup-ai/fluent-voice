@@ -1,10 +1,8 @@
 //! Simplified wake word detection implementation using the Koffee crate.
 
-use crate::wake_word::{
-    DefaultWakeWordConfig, WakeWordBuilder, WakeWordDetector, WakeWordStream,
-};
-use fluent_voice_domain::WakeWordDetectionResult;
+use crate::wake_word::{DefaultWakeWordConfig, WakeWordBuilder, WakeWordDetector, WakeWordStream};
 use fluent_voice_domain::VoiceError;
+use fluent_voice_domain::WakeWordDetectionResult;
 use futures_core::Stream;
 use std::{
     future::Future,

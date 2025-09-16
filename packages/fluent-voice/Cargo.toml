@@ -20,7 +20,7 @@ simd = []
 
 # --- Candle backend features (required for all candle crates) -----
 cuda = [
-    "dep:cudarc",
+    "cudarc",
     "dep:bindgen_cuda",
     "candle-core/cuda",
     "candle-nn/cuda",
@@ -109,6 +109,7 @@ tokenizers = "0.21.4"
 flate2 = "1.1.2"
 crossbeam-channel = "0.5.15"
 crossbeam-utils = "0.8.21"
+dashmap = "6.0"
 ringbuf = "0.4.8"
 ndarray = "0.16.1"
 memmap2 = "0.9.7"

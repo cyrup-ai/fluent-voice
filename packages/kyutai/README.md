@@ -1,8 +1,8 @@
-# fluent-voice-kyutai
+# Kyutai Voice via Fluent Voice Interface
 
-[github](https://github.com/kyutai-labs/delayed-streams-modeling)
-[Huggingfaces TTS Model](https://huggingface.co/kyutai/tts-voices)
-[Moshi](https://github.com/kyutai-labs/moshi)
+- [github](https://github.com/kyutai-labs/delayed-streams-modeling)
+- [Huggingfaces TTS Model](https://huggingface.co/kyutai/tts-voices)
+- [Moshi](https://github.com/kyutai-labs/moshi)
 
 ## Features
 

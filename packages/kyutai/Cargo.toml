@@ -41,6 +41,10 @@ futures-util = "0.3"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 
+# Async runtime dependencies
+tokio = { version = "1.47", features = ["macros", "rt-multi-thread", "time", "sync"] }
+tokio-stream = "0.1"
+
 # Core dependencies
 serde = { version = "1.0.219", features = ["derive"] }
 anyhow = "1"
@@ -70,7 +74,7 @@ default = ["metal"]
 http = ["tokenizers/http"]
 
 # --- Candle backend features (required for all candle crates) -----
-cuda = ["dep:cudarc", "dep:bindgen_cuda", "dep:candle-kernels", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+cuda = ["cudarc", "dep:bindgen_cuda", "dep:candle-kernels", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 cudnn = ["cuda", "cudarc/cudnn"]
 metal = ["dep:metal", "dep:candle-metal-kernels", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
 accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]

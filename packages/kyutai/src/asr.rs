@@ -79,7 +79,7 @@ impl State {
         for _ in 0..self._lm.in_audio_codebooks() {
             audio_tokens.push(Some(audio_token.clone()));
         }
-        let (_, _) = self._lm.forward(Some(text), audio_tokens)?;
+        let (_, _) = self._lm.forward_asr_multi_codebook(Some(text), audio_tokens)?;
         Ok(())
     }
 
@@ -125,7 +125,7 @@ impl State {
                 None
             };
 
-            let (text_logits, _) = self._lm.forward(text, audio_token_vec.clone())?;
+            let (text_logits, _) = self._lm.forward_asr_multi_codebook(text, audio_token_vec.clone())?;
             self._step_idx += 1;
             let text_logits = text_logits.i((0, 0))?;
             self._text_token = self._lp.sample(&text_logits)?;

@@ -3,8 +3,8 @@
 //! This module defines the structured audio chunk types that are used
 //! in TTS streaming operations, providing rich metadata and audio data.
 
-use crate::voice_error::VoiceError;
 use crate::timestamps::TimestampMetadata;
+use crate::voice_error::VoiceError;
 use std::collections::HashMap;
 
 use cyrup_sugars::prelude::MessageChunk;
@@ -284,9 +284,9 @@ impl AudioChunk {
 
     /// Get error message from metadata if present (fluent-voice compatibility)
     pub fn error_message(&self) -> Option<&str> {
-        self.error.as_deref().or_else(|| {
-            self.metadata.get("error").and_then(|v| v.as_str())
-        })
+        self.error
+            .as_deref()
+            .or_else(|| self.metadata.get("error").and_then(|v| v.as_str()))
     }
 
     /// Export timestamps as SRT format

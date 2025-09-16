@@ -47,7 +47,7 @@ tokio-stream = "0.1.17"
 default = ["ort"]
 
 # --- Candle backend features (required for all candle crates) -----
-cuda = ["dep:cudarc", "dep:bindgen_cuda", "dep:candle-kernels", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+cuda = ["cudarc", "dep:bindgen_cuda", "dep:candle-kernels", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 cudnn = ["cuda", "cudarc/cudnn"]
 metal = ["dep:metal", "dep:candle-metal-kernels", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
 accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]

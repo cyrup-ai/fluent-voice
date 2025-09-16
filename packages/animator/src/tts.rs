@@ -4,13 +4,9 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-mod audio_visualizer;
-mod speech_animator;
-mod video_renderer;
-
-pub use audio_visualizer::AudioVisualizer;
-pub use speech_animator::SpeechAnimator;
-pub use video_renderer::VideoRenderer;
+use crate::audio_visualizer::AudioVisualizer;
+use crate::speech_animator::SpeechAnimator;
+use crate::video_renderer::VideoRenderer;
 
 use egui_wgpu::RenderState;
 

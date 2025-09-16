@@ -15,10 +15,6 @@ use fluent_voice::stt_conversation::{
 use fluent_voice_domain::pronunciation_dict::PronunciationDictId;
 use fluent_voice_domain::voice_labels::{VoiceCategory, VoiceDetails, VoiceLabels, VoiceType};
 
-use fluent_voice::wake_word::{
-    WakeWordBuilder, WakeWordConfig as WakeWordConfigTrait, WakeWordDetector,
-    WakeWordResult as FluentWakeWordResult, WakeWordStream,
-};
 use fluent_voice::{
     builders::{
         AudioIsolationBuilder, SoundEffectsBuilder, SpeechToSpeechBuilder, VoiceCloneBuilder,
@@ -33,6 +29,7 @@ use fluent_voice_domain::{
     StyleExaggeration, TimestampsGranularity, TranscriptionSegment, TtsConversation, VadMode,
     VocalSpeedMod, VoiceError, VoiceId, WordTimestamps,
 };
+use fluent_voice_domain::transcription::MessageChunk;
 use futures_core::Stream;
 use futures_util::stream;
 use std::future::Future;
@@ -184,11 +181,6 @@ impl FluentVoice for KyutaiEngine {
     #[inline]
     fn stt() -> SttEntry {
         SttEntry::new()
-    }
-
-    #[inline]
-    fn wake_word() -> impl WakeWordBuilder {
-        KyutaiWakeWordBuilder::new()
     }
 
     #[inline]
@@ -516,10 +508,14 @@ impl TtsConversation for KyutaiTtsConversation {
             let model_paths = match download_kyutai_models().await {
                 Ok(paths) => paths,
                 Err(e) => {
-                    let error_chunk = fluent_voice_domain::AudioChunk::bad_chunk(format!(
-                        "Failed to download Kyutai models: {}",
-                        e
-                    ));
+                    let error_chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                        Vec::new(),
+                        0,
+                        0,
+                        None,
+                        Some(format!("[ERROR] Failed to download Kyutai models: {}", e)),
+                        None,
+                    );
                     let _ = tx.send(error_chunk);
                     return;
                 }
@@ -534,10 +530,14 @@ impl TtsConversation for KyutaiTtsConversation {
             ) {
                 Ok(model) => model,
                 Err(e) => {
-                    let error_chunk = fluent_voice_domain::AudioChunk::bad_chunk(format!(
-                        "Failed to load Kyutai model: {}",
-                        e
-                    ));
+                    let error_chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                        Vec::new(),
+                        0,
+                        0,
+                        None,
+                        Some(format!("[ERROR] Failed to load Kyutai model: {}", e)),
+                        None,
+                    );
                     let _ = tx.send(error_chunk);
                     return;
                 }
@@ -568,7 +568,7 @@ impl TtsConversation for KyutaiTtsConversation {
                             Self::f32_to_pcm16_bytes(&audio_data),
                             0, // duration calculation needed
                             0, // timing calculation needed
-                            Some(line.voice_id.map(|v| v.to_string()).unwrap_or_default()),
+                            Some(line.voice_id.map(|v| v.id().to_string()).unwrap_or_default()),
                             Some(line.text.clone()),
                             Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
                         );
@@ -577,10 +577,14 @@ impl TtsConversation for KyutaiTtsConversation {
                         }
                     }
                     Err(e) => {
-                        let error_chunk = fluent_voice_domain::AudioChunk::bad_chunk(format!(
-                            "Synthesis failed: {}",
-                            e
-                        ));
+                        let error_chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                            Vec::new(),
+                            0,
+                            0,
+                            None,
+                            Some(format!("[ERROR] Synthesis failed: {}", e)),
+                            None,
+                        );
                         let _ = tx.send(error_chunk);
                         break;
                     }
@@ -653,7 +657,6 @@ impl Speaker for KyutaiSpeakerLine {
 }
 
 /// STT conversation builder
-#[derive(Debug)]
 pub struct KyutaiSttConversationBuilder {
     source: Option<SpeechSource>,
     vad_mode: Option<VadMode>,
@@ -668,6 +671,45 @@ pub struct KyutaiSttConversationBuilder {
     wake_handler: Option<Box<dyn FnMut(String) + Send + 'static>>,
     turn_detected_handler: Option<Box<dyn FnMut(Option<String>, String) + Send + 'static>>,
     prediction_handler: Option<Box<dyn FnMut(String, String) + Send + 'static>>,
+}
+
+impl std::fmt::Debug for KyutaiSttConversationBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KyutaiSttConversationBuilder")
+            .field("source", &self.source)
+            .field("vad_mode", &self.vad_mode)
+            .field("noise_reduction", &self.noise_reduction)
+            .field("language", &self.language)
+            .field("diarization", &self.diarization)
+            .field("word_timestamps", &self.word_timestamps)
+            .field("timestamps_granularity", &self.timestamps_granularity)
+            .field("punctuation", &self.punctuation)
+            .field("result_handler", &"<function>")
+            .field("wake_handler", &"<function>")
+            .field("turn_detected_handler", &"<function>")
+            .field("prediction_handler", &"<function>")
+            .finish()
+    }
+}
+
+impl Clone for KyutaiSttConversationBuilder {
+    fn clone(&self) -> Self {
+        Self {
+            source: self.source.clone(),
+            vad_mode: self.vad_mode.clone(),
+            noise_reduction: self.noise_reduction.clone(),
+            language: self.language.clone(),
+            diarization: self.diarization.clone(),
+            word_timestamps: self.word_timestamps.clone(),
+            timestamps_granularity: self.timestamps_granularity.clone(),
+            punctuation: self.punctuation.clone(),
+            // Note: Closures cannot be cloned, so we reset them to None
+            result_handler: None,
+            wake_handler: None,
+            turn_detected_handler: None,
+            prediction_handler: None,
+        }
+    }
 }
 
 impl KyutaiSttConversationBuilder {}
@@ -1058,7 +1100,15 @@ impl fluent_voice::stt_conversation::SttConversation for KyutaiSttConversation {
 
             // Load Kyutai models - this is where we'd load real model weights
             // For now, create placeholder models that will be replaced with real loading
-            let tts_model = match TtsModel::load(&device, None) {
+            // TODO: Replace with proper model paths from KyutaiModelManager integration (TASK4)
+            let placeholder_lm_path = "placeholder_lm_path";
+            let placeholder_mimi_path = "placeholder_mimi_path";
+            let tts_model = match TtsModel::load(
+                placeholder_lm_path,
+                placeholder_mimi_path,
+                candle_core::DType::F32,
+                &device
+            ) {
                 Ok(model) => model,
                 Err(e) => {
                     yield Err(VoiceError::Configuration(format!("Failed to load TTS model: {}", e)));
@@ -1067,7 +1117,7 @@ impl fluent_voice::stt_conversation::SttConversation for KyutaiSttConversation {
             };
 
             // Extract LM model from TTS model for ASR
-            let lm_model = tts_model.lm_model().clone();
+            let lm_model = tts_model.lm().clone();
 
             // Create Mimi codec for audio processing
             let mimi = match Mimi::new(&device) {
@@ -1079,7 +1129,7 @@ impl fluent_voice::stt_conversation::SttConversation for KyutaiSttConversation {
             };
 
             // Create ASR state using the enabled ASR module with configurable parameters
-            let asr_delay = self.config.text_audio_delay_in_tokens.min(16); // Use config value, capped at 16
+            let asr_delay = 6; // Default ASR delay, can be made configurable later
             let mut asr_state = match StateBuilder::new()
                 .asr_delay_in_tokens(asr_delay)
                 .build(mimi, lm_model) {
@@ -1227,140 +1277,6 @@ impl TranscriptionSegment for KyutaiTranscriptSegment {
     #[inline]
     fn speaker_id(&self) -> Option<&str> {
         self.speaker_id.as_deref()
-    }
-}
-
-/// Simple wake word configuration
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct WakeWordConfig {
-    pub confidence_threshold: f32,
-    pub timeout_ms: u64,
-    pub debug: bool,
-}
-
-impl WakeWordConfigTrait for WakeWordConfig {
-    fn confidence_threshold(&self) -> f32 {
-        self.confidence_threshold
-    }
-
-    fn timeout(&self) -> Duration {
-        Duration::from_millis(self.timeout_ms)
-    }
-
-    fn model_file(&self) -> Option<&str> {
-        None // No model file in this implementation
-    }
-}
-
-/// Wake word detection builder
-#[derive(Debug, Clone)]
-pub struct KyutaiWakeWordBuilder {
-    config: WakeWordConfig,
-}
-
-impl KyutaiWakeWordBuilder {
-    #[inline]
-    fn new() -> Self {
-        Self {
-            config: WakeWordConfig::default(),
-        }
-    }
-}
-
-impl WakeWordBuilder for KyutaiWakeWordBuilder {
-    type Config = WakeWordConfig;
-    type Detector = KyutaiWakeWordDetector;
-
-    #[inline]
-    fn model_file(self, _path: impl Into<String>) -> Self {
-        // Model file path is not used in this implementation
-        self
-    }
-
-    #[inline]
-    fn confidence_threshold(mut self, threshold: f32) -> Self {
-        self.config.confidence_threshold = threshold.clamp(0.0, 1.0);
-        self
-    }
-
-    #[inline]
-    fn timeout(mut self, timeout: Duration) -> Self {
-        self.config.timeout_ms = timeout.as_millis() as u64;
-        self
-    }
-
-    fn detect<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
-    where
-        F: FnOnce(Result<Self::Detector, VoiceError>) -> R + Send + 'static,
-    {
-        async move {
-            let detector = KyutaiWakeWordDetector::new(self.config);
-            matcher(Ok(detector))
-        }
-    }
-}
-
-/// Wake word detector implementation
-#[derive(Debug)]
-pub struct KyutaiWakeWordDetector {
-    config: WakeWordConfig,
-}
-
-impl KyutaiWakeWordDetector {
-    #[inline]
-    fn new(config: WakeWordConfig) -> Self {
-        Self { config }
-    }
-}
-
-impl WakeWordDetector for KyutaiWakeWordDetector {
-    type Stream = KyutaiWakeWordStream;
-
-    #[inline]
-    fn start_detection(self) -> Self::Stream {
-        // Return a stream for wake word detection
-        KyutaiWakeWordStream::new(self.config)
-    }
-}
-
-/// Wake word detection stream implementation
-pub struct KyutaiWakeWordStream {
-    _config: WakeWordConfig,
-    active: bool,
-}
-
-impl KyutaiWakeWordStream {
-    #[inline]
-    fn new(config: WakeWordConfig) -> Self {
-        Self {
-            _config: config,
-            active: true,
-        }
-    }
-}
-
-impl Stream for KyutaiWakeWordStream {
-    type Item = FluentWakeWordResult;
-
-    fn poll_next(
-        self: Pin<&mut Self>,
-        _cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        // For now, return None (no wake words detected)
-        // In a real implementation, this would poll audio input
-        std::task::Poll::Ready(None)
-    }
-}
-
-impl WakeWordStream for KyutaiWakeWordStream {
-    #[inline]
-    fn stop(&mut self) {
-        self.active = false;
-    }
-
-    #[inline]
-    fn is_active(&self) -> bool {
-        self.active
     }
 }
 

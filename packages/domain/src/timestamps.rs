@@ -342,12 +342,12 @@ impl TimestampMetadata {
     /// Convert to SRT subtitle format
     pub fn to_srt(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let mut srt = String::new();
-        
+
         if let Some(words) = &self.word_alignments {
             for (i, word) in words.iter().enumerate() {
                 let start_ms = (word.start_seconds * 1000.0) as u64;
                 let end_ms = (word.end_seconds * 1000.0) as u64;
-                
+
                 srt.push_str(&format!("{}\n", i + 1));
                 srt.push_str(&format!(
                     "{:02}:{:02}:{:02},{:03} --> {:02}:{:02}:{:02},{:03}\n",
@@ -363,19 +363,19 @@ impl TimestampMetadata {
                 srt.push_str(&format!("{}\n\n", word.word));
             }
         }
-        
+
         Ok(srt)
     }
 
     /// Convert to WebVTT subtitle format
     pub fn to_vtt(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let mut vtt = String::from("WEBVTT\n\n");
-        
+
         if let Some(words) = &self.word_alignments {
             for word in words {
                 let start_ms = (word.start_seconds * 1000.0) as u64;
                 let end_ms = (word.end_seconds * 1000.0) as u64;
-                
+
                 vtt.push_str(&format!(
                     "{:02}:{:02}:{:02}.{:03} --> {:02}:{:02}:{:02}.{:03}\n",
                     start_ms / 3600000,
@@ -390,7 +390,7 @@ impl TimestampMetadata {
                 vtt.push_str(&format!("{}\n\n", word.word));
             }
         }
-        
+
         Ok(vtt)
     }
 }

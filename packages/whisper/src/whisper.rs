@@ -1,7 +1,6 @@
 // https://github.com/openai/whisper/blob/main/whisper/model.py/rgs
 // Production Whisper implementation with batch processing and advanced token filtering
 
-
 #[cfg(feature = "accelerate")]
 extern crate accelerate_src;
 
@@ -10,7 +9,7 @@ extern crate intel_mkl_src;
 
 use anyhow::{Error as E, Result};
 use candle_core::{Device, IndexOp, Tensor};
-use candle_nn::{VarBuilder, ops::softmax};
+use candle_nn::ops::softmax;
 use clap::ValueEnum;
 use rand::SeedableRng;
 use rand::distr::Distribution;
@@ -19,10 +18,11 @@ use tokenizers::Tokenizer;
 
 #[cfg(feature = "microphone")]
 use crate::microphone::Model;
-use candle_transformers::models::whisper::{self as m, Config};
 
-#[cfg(any(feature = "encodec", feature = "mimi", feature = "snac"))]
-use candle_transformers::models::whisper::audio;
+#[cfg(not(feature = "microphone"))]
+use candle_transformers::models::whisper::{self as m, Config};
+#[cfg(feature = "microphone")]
+use candle_transformers::models::whisper::{self as m};
 
 #[cfg(not(feature = "microphone"))]
 pub enum Model {
@@ -248,7 +248,13 @@ impl Decoder {
                     .i(0)?;
 
                 // Apply token filters including SuppressBlanks and ApplyTimestampRules
-                let logits = Self::apply_token_filters_static(&logits, &tokens, i, timestamps, no_timestamps_token)?;
+                let logits = Self::apply_token_filters_static(
+                    &logits,
+                    &tokens,
+                    i,
+                    timestamps,
+                    no_timestamps_token,
+                )?;
 
                 let next_token = if t > 0f64 {
                     let prs = softmax(&(&logits / t)?, 0)?;
@@ -451,7 +457,13 @@ impl Decoder {
                 .i(0)?;
 
             // Apply token filters including SuppressBlanks and ApplyTimestampRules
-            let logits = Self::apply_token_filters_static(&logits, &tokens, i, timestamps, no_timestamps_token)?;
+            let logits = Self::apply_token_filters_static(
+                &logits,
+                &tokens,
+                i,
+                timestamps,
+                no_timestamps_token,
+            )?;
 
             let next_token = if t > 0f64 {
                 let prs = softmax(&(&logits / t)?, 0)?;
@@ -672,6 +684,3 @@ impl WhichModel {
         }
     }
 }
-
-
-

@@ -15,11 +15,13 @@ publish = false
 
 ### BEGIN HAKARI SECTION
 [dependencies]
-ahash = { version = "0.8", features = ["serde"] }
+ahash = { version = "0.8", features = ["no-rng", "serde"] }
 aho-corasick = { version = "1" }
 anyhow = { version = "1", features = ["backtrace"] }
 approx = { version = "0.5" }
 base64ct = { version = "1", default-features = false, features = ["std"] }
+bit-set = { version = "0.5" }
+bit-vec = { version = "0.6" }
 bitflags = { version = "2", default-features = false, features = ["serde", "std"] }
 bytemuck = { version = "1", default-features = false, features = ["aarch64_simd", "derive", "extern_crate_alloc", "min_const_generics"] }
 bytes = { version = "1", features = ["serde"] }
@@ -41,12 +43,11 @@ crossterm = { version = "0.29", features = ["event-stream", "serde"] }
 crypto-common = { version = "0.1", default-features = false, features = ["getrandom", "std"] }
 der = { version = "0.7", default-features = false, features = ["derive", "flagset", "oid", "pem", "real", "std"] }
 derive_more = { version = "2", features = ["full"] }
-digest-1a2f0c40a6a361f5 = { package = "digest", version = "0.11.0-rc.0", features = ["alloc", "mac", "oid"] }
 digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["mac", "oid", "std"] }
+digest-94c7a1bc8198b372 = { package = "digest", version = "0.11.0-rc.1", features = ["alloc", "mac", "oid"] }
 either = { version = "1", features = ["use_std"] }
 esaxx-rs = { version = "0.1", default-features = false, features = ["cpp"] }
 flate2 = { version = "1", features = ["zlib-rs"] }
-float8 = { git = "https://github.com/zackangelo/float8", branch = "cudarc_0_16", features = ["cuda", "num-traits", "rand_distr"] }
 form_urlencoded = { version = "1" }
 futures-channel = { version = "0.3", features = ["sink"] }
 futures-core = { version = "0.3" }
@@ -59,6 +60,7 @@ getrandom-468e82937335b1c9 = { package = "getrandom", version = "0.3", default-f
 getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["js", "rdrand", "std"] }
 hashbrown-3575ec1268b04181 = { package = "hashbrown", version = "0.15", features = ["serde"] }
 hashbrown-582f2526e08bb6a0 = { package = "hashbrown", version = "0.14", default-features = false, features = ["raw"] }
+hf-hub = { version = "0.4" }
 http = { version = "1" }
 httparse = { version = "1" }
 image = { version = "0.25" }
@@ -94,6 +96,7 @@ regex-automata = { version = "0.4", default-features = false, features = ["dfa",
 regex-syntax = { version = "0.8" }
 reqwest-5ef9efb8ec2df382 = { package = "reqwest", version = "0.12", features = ["http3", "json", "macos-system-configuration", "multipart", "rustls-tls", "stream"] }
 reqwest-a6292c17cd707f01 = { package = "reqwest", version = "0.11", default-features = false, features = ["json", "native-tls", "rustls-tls"] }
+rustc-hash = { version = "1" }
 rustls = { version = "0.23", features = ["ring"] }
 rustls-pemfile = { version = "2" }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
@@ -102,7 +105,7 @@ semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["alloc", "derive", "rc"] }
 serde_json = { version = "1", features = ["unbounded_depth"] }
 sha1 = { version = "0.10", features = ["compress"] }
-sha2 = { version = "0.11.0-rc.0" }
+sha2 = { version = "0.11.0-rc.2" }
 simd-adler32 = { version = "0.3" }
 simdutf8 = { version = "0.1", features = ["aarch64_neon", "public_imp"] }
 slotmap = { version = "1", features = ["serde"] }
@@ -117,7 +120,8 @@ symphonia-bundle-mp3 = { version = "0.5", default-features = false, features = [
 symphonia-format-riff = { version = "0.5", default-features = false, features = ["aiff", "wav"] }
 target-lexicon = { version = "0.13", features = ["std"] }
 time = { version = "0.3", features = ["formatting", "local-offset", "macros", "parsing"] }
-tokenizers = { version = "0.21" }
+tokenizers-3c51e837cfc5589a = { package = "tokenizers", version = "0.22", features = ["http"] }
+tokenizers-647d43efb71741da = { package = "tokenizers", version = "0.21" }
 tokio = { version = "1", features = ["full", "test-util"] }
 toml_datetime-3b31131e45eafb45 = { package = "toml_datetime", version = "0.6", default-features = false, features = ["serde"] }
 toml_datetime-ca01ad9e24f5d932 = { package = "toml_datetime", version = "0.7", features = ["serde"] }
@@ -131,7 +135,6 @@ twox-hash = { version = "2" }
 typenum = { version = "1", default-features = false, features = ["const-generics"] }
 ureq-7b89eefb6aaa9bf3 = { package = "ureq", version = "3", default-features = false, features = ["native-tls", "rustls", "socks-proxy"] }
 ureq-f595c2ba2a3f28df = { package = "ureq", version = "2", features = ["json", "native-tls", "socks-proxy"] }
-url = { version = "2", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 wasm-bindgen = { version = "0.2" }
 web-sys = { version = "0.3", features = ["AudioContext", "MediaDevices", "MediaStream", "Window", "console"] }
@@ -155,8 +158,8 @@ crossbeam-utils = { version = "0.8" }
 crypto-common = { version = "0.1", default-features = false, features = ["getrandom", "std"] }
 der = { version = "0.7", default-features = false, features = ["derive", "flagset", "oid", "pem", "real", "std"] }
 derive_more-impl = { version = "2", features = ["add", "add_assign", "as_ref", "constructor", "debug", "deref", "deref_mut", "display", "error", "from", "from_str", "index", "index_mut", "into", "into_iterator", "is_variant", "mul", "mul_assign", "not", "sum", "try_from", "try_into", "try_unwrap", "unwrap"] }
-digest-1a2f0c40a6a361f5 = { package = "digest", version = "0.11.0-rc.0", features = ["alloc", "mac", "oid"] }
 digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["mac", "oid", "std"] }
+digest-94c7a1bc8198b372 = { package = "digest", version = "0.11.0-rc.1", features = ["alloc", "mac", "oid"] }
 displaydoc = { version = "0.2" }
 either = { version = "1", features = ["use_std"] }
 flate2 = { version = "1", features = ["zlib-rs"] }
@@ -199,7 +202,7 @@ scopeguard = { version = "1" }
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["alloc", "derive", "rc"] }
 serde_json = { version = "1", features = ["unbounded_depth"] }
-sha2 = { version = "0.11.0-rc.0" }
+sha2 = { version = "0.11.0-rc.2" }
 simd-adler32 = { version = "0.3" }
 smallvec-dff4ba8e3ae991db = { package = "smallvec", version = "1", default-features = false, features = ["const_new", "union"] }
 stable_deref_trait = { version = "1" }
@@ -214,7 +217,6 @@ toml_edit = { version = "0.22", features = ["serde"] }
 typenum = { version = "1", default-features = false, features = ["const-generics"] }
 ureq-7b89eefb6aaa9bf3 = { package = "ureq", version = "3", default-features = false, features = ["native-tls", "rustls", "socks-proxy"] }
 ureq-f595c2ba2a3f28df = { package = "ureq", version = "2", features = ["json", "native-tls", "socks-proxy"] }
-url = { version = "2", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 winnow = { version = "0.7" }
 zeroize = { version = "1", features = ["zeroize_derive"] }

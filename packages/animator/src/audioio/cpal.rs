@@ -30,15 +30,15 @@ pub enum AudioDeviceErrors {
 
 impl DefaultAudioDeviceWithCPAL {
     pub fn instantiate(
-        device: Option<&str>,
-        opts: &crate::cfg::SourceOptions,
+        device: Option<String>,
+        opts: crate::cfg::SourceOptions,
         timeout_secs: u64,
     ) -> Result<Box<impl super::DataSource<f64>>, AudioDeviceErrors> {
         let host = cpal::default_host();
         let device = match device {
             Some(name) => host
                 .input_devices()?
-                .find(|x| x.name().as_deref().unwrap_or("") == name)
+                .find(|x| x.name().as_deref().unwrap_or("") == name.as_str())
                 .ok_or(AudioDeviceErrors::NotFound)?,
             None => host
                 .default_input_device()

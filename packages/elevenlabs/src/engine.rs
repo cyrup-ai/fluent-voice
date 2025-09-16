@@ -24,12 +24,7 @@ use bytes::Bytes;
 use futures_util::{Stream, StreamExt};
 use std::pin::Pin;
 
-// Import DefaultSTTEngine for microphone STT delegation
-use fluent_voice::engines::DefaultSTTEngineBuilder;
-use fluent_voice::stt_conversation::{SttConversationBuilder, SttEngine};
-
-// Import domain types for transcription
-use fluent_voice_domain::{NoiseReduction, VadMode};
+use fluent_voice::stt_conversation::SttConversationBuilder;  // ✅ Only what's needed
 
 // Remove fluent-voice trait integration - ElevenLabs uses its own builder API
 use std::task::{Context, Poll};
@@ -1046,13 +1041,17 @@ impl SttBuilder {
     pub fn microphone(
         self,
         device: impl Into<String>,
-    ) -> impl fluent_voice::stt_conversation::MicrophoneBuilder {
+    ) -> impl fluent_voice::stt_conversation::SttConversationBuilder {
         use fluent_voice::prelude::*;
 
         // Delegate directly to fluent-voice STT API
         FluentVoice::stt()
             .conversation()
-            .with_microphone(device.into())
+            .with_source(SpeechSource::Microphone {
+                backend: MicBackend::Device(device.into()),
+                format: AudioFormat::Pcm16Khz,
+                sample_rate: 16_000,
+            })
     }
 
     /// Collect the transcription

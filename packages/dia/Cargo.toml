@@ -98,7 +98,7 @@ default = ["microphone", "metal"]
 
 # --- Candle backend features (required for all candle crates) -----
 cuda = [
-    "dep:cudarc",
+    "cudarc",
     "dep:bindgen_cuda",
     "dep:candle-kernels",
     "candle-core/cuda",

@@ -4,14 +4,23 @@ use super::tts::Model;
 use crate::conditioner::Condition;
 use crate::error::MoshiError;
 use crate::streaming::StreamingModule;
-use candle_core::{Result, Tensor};
+use candle_core::{DType, Result, Tensor};
+use candle_nn::VarBuilder;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct StreamingModel {
     inner: Arc<Mutex<Model>>,
     state: StreamingState,
+    voice_config: Option<VoiceConfig>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VoiceConfig {
+    pub voice_embedding_path: PathBuf,
+    pub voice_embedding: Option<Tensor>,
 }
 
 #[derive(Debug, Clone)]
@@ -36,7 +45,91 @@ impl StreamingModel {
                 audio_codes: vec![audio_pad_token; audio_codebooks],
                 pcm_buffer: vec![],
             },
+            voice_config: None,
         }
+    }
+
+    /// Configure voice conditioning with voice name from progresshub-downloaded voices
+    pub fn with_voice(mut self, voice_name: &str, tts_voices_path: &std::path::Path) -> Self {
+        // Build path to specific voice file in progresshub cache
+        let voice_path = tts_voices_path.join(format!("{}.safetensors", voice_name));
+
+        self.voice_config = Some(VoiceConfig {
+            voice_embedding_path: voice_path,
+            voice_embedding: None,
+        });
+        self
+    }
+
+    /// Configure voice conditioning with full path to voice embedding file
+    pub fn with_voice_path<P: Into<PathBuf>>(mut self, voice_path: P) -> Self {
+        self.voice_config = Some(VoiceConfig {
+            voice_embedding_path: voice_path.into(),
+            voice_embedding: None,
+        });
+        self
+    }
+
+    /// Load voice embedding from safetensors file
+    fn load_voice_embedding(&mut self) -> Result<()> {
+        if let Some(ref mut config) = self.voice_config {
+            if config.voice_embedding.is_none() {
+                let model = self
+                    .inner
+                    .lock()
+                    .map_err(|_| MoshiError::Custom("Lock failed".into()))?;
+                let device = model.lm().device().clone();
+                drop(model);
+
+                // Load voice embedding using existing safetensors infrastructure
+                let voice_vb = unsafe {
+                    VarBuilder::from_mmaped_safetensors(
+                        &[&config.voice_embedding_path],
+                        DType::F32,
+                        device,
+                    )
+                    .map_err(|e| {
+                        MoshiError::Custom(format!("Failed to load voice embedding: {}", e))
+                    })?
+                };
+
+                // Load the voice embedding tensor - standard key used in Kyutai voice files
+                let voice_embedding = voice_vb
+                    .get((1, 512), "embedding")
+                    .or_else(|_| voice_vb.get((512,), "embedding"))
+                    .or_else(|_| voice_vb.get((1, 1, 512), "voice_embedding"))
+                    .map_err(|e| {
+                        MoshiError::Custom(format!("Voice embedding not found in file: {}", e))
+                    })?;
+
+                config.voice_embedding = Some(voice_embedding);
+            }
+        }
+        Ok(())
+    }
+
+    /// Build streaming conditions with voice embedding
+    fn build_streaming_conditions(
+        &mut self,
+        device: &candle_core::Device,
+    ) -> Result<HashMap<String, Condition>> {
+        let mut conditions = HashMap::new();
+
+        // Load voice embedding if configured
+        if self.voice_config.is_some() {
+            self.load_voice_embedding()?;
+
+            if let Some(ref config) = self.voice_config {
+                if let Some(ref voice_embedding) = config.voice_embedding {
+                    conditions.insert(
+                        "voice".to_string(),
+                        Condition::Tensor(voice_embedding.clone()),
+                    );
+                }
+            }
+        }
+
+        Ok(conditions)
     }
 
     pub fn step(
@@ -158,7 +251,9 @@ impl StreamingModule for StreamingModel {
     fn forward_streaming(&mut self, input: &Tensor) -> Result<Tensor> {
         // For TTS streaming, input is text tokens, output is audio chunk
         let text_tokens = input.to_vec1::<u32>()?;
-        let conditions = HashMap::new(); // Placeholder - would need actual conditioning
+
+        // Build actual voice conditions using loaded embeddings
+        let conditions = self.build_streaming_conditions(input.device())?;
 
         // Process single token from input
         if let Some(&token) = text_tokens.first() {

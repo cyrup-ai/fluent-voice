@@ -318,11 +318,45 @@ impl From<&Alignment> for Vec<fluent_voice_domain::CharacterTimestamp> {
     }
 }
 
+/// Convert ElevenLabs Alignment to local CharacterTimestamp vector
+impl From<&Alignment> for Vec<CharacterTimestamp> {
+    fn from(alignment: &Alignment) -> Self {
+        // Validate array lengths match
+        let len = alignment.characters.len();
+        if alignment.character_start_times_seconds.len() != len 
+            || alignment.character_end_times_seconds.len() != len {
+            tracing::warn!("Alignment array length mismatch: chars={}, starts={}, ends={}", 
+                len, 
+                alignment.character_start_times_seconds.len(),
+                alignment.character_end_times_seconds.len()
+            );
+            return Vec::new();
+        }
+
+        // Convert with bounds checking
+        alignment.characters
+            .iter()
+            .zip(alignment.character_start_times_seconds.iter())
+            .zip(alignment.character_end_times_seconds.iter())
+            .enumerate()
+            .map(|(idx, ((character, &start), &end))| {
+                CharacterTimestamp {
+                    character: character.clone(),
+                    start_seconds: start,
+                    end_seconds: end,
+                    text_position: idx,
+                }
+            })
+            .collect()
+    }
+}
+
 /// Convert ElevenLabs alignment to domain TimestampMetadata
 impl From<&Alignment> for fluent_voice_domain::TimestampMetadata {
     fn from(alignment: &Alignment) -> Self {
         let mut metadata = fluent_voice_domain::TimestampMetadata::new();
-        metadata.character_alignments = Vec::<fluent_voice_domain::CharacterTimestamp>::from(alignment);
+        metadata.character_alignments =
+            Vec::<fluent_voice_domain::CharacterTimestamp>::from(alignment);
         metadata.generate_word_alignments();
         metadata
     }
@@ -334,8 +368,10 @@ impl From<TimestampMetadata> for fluent_voice_domain::TimestampMetadata {
         fluent_voice_domain::TimestampMetadata {
             synthesis_start: internal.synthesis_start,
             synthesis_end: internal.synthesis_end,
-            audio_chunks: internal.audio_chunks.into_iter().map(|chunk| {
-                fluent_voice_domain::AudioChunkTimestamp {
+            audio_chunks: internal
+                .audio_chunks
+                .into_iter()
+                .map(|chunk| fluent_voice_domain::AudioChunkTimestamp {
                     chunk_id: chunk.chunk_id,
                     start_ms: chunk.start_ms,
                     end_ms: chunk.end_ms,
@@ -343,26 +379,29 @@ impl From<TimestampMetadata> for fluent_voice_domain::TimestampMetadata {
                     speaker_id: chunk.speaker_id,
                     format: chunk.format,
                     size_bytes: chunk.size_bytes,
-                }
-            }).collect(),
-            character_alignments: internal.character_alignments.into_iter().map(|char_ts| {
-                fluent_voice_domain::CharacterTimestamp {
+                })
+                .collect(),
+            character_alignments: internal
+                .character_alignments
+                .into_iter()
+                .map(|char_ts| fluent_voice_domain::CharacterTimestamp {
                     character: char_ts.character,
                     start_seconds: char_ts.start_seconds,
                     end_seconds: char_ts.end_seconds,
                     text_position: char_ts.text_position,
-                }
-            }).collect(),
+                })
+                .collect(),
             word_alignments: internal.word_alignments.map(|words| {
-                words.into_iter().map(|word| {
-                    fluent_voice_domain::WordTimestamp {
+                words
+                    .into_iter()
+                    .map(|word| fluent_voice_domain::WordTimestamp {
                         word: word.word,
                         start_seconds: word.start_seconds,
                         end_seconds: word.end_seconds,
                         word_position: word.word_position,
                         character_range: word.character_range,
-                    }
-                }).collect()
+                    })
+                    .collect()
             }),
             total_duration_ms: internal.total_duration_ms,
             processing_time_ms: internal.processing_time_ms,

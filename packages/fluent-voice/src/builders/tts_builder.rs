@@ -327,7 +327,7 @@ pub struct TtsConversationBuilderImpl<AudioStream> {
     postlude: Option<Box<dyn Fn() -> Vec<u8> + Send + 'static>>,
     engine_config: Option<hashbrown::HashMap<String, String>>,
     result_handler: Option<
-        Box<dyn Fn(Result<&TtsConversationImpl<AudioStream>, VoiceError>) + Send + Sync + 'static>,
+        Box<dyn FnOnce(Result<TtsConversationImpl<AudioStream>, VoiceError>) + Send + 'static>,
     >,
 }
 
@@ -338,11 +338,7 @@ where
     /// Create a default TTS builder with working dia neural synthesis
     #[inline]
     pub fn default() -> TtsConversationBuilderImpl<
-        crate::audio_stream::AudioStream<
-            std::pin::Pin<
-                Box<dyn futures_core::Stream<Item = fluent_voice_domain::AudioChunk> + Send>,
-            >,
-        >,
+        crate::audio_stream::AudioStream,
     >
     where
         AudioStream: Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin + 'static,
@@ -522,25 +518,11 @@ where
                     synth_fn,
                 };
 
-                // Execute result handler if present
-                if let Some(ref handler) = self.result_handler {
-                    handler(Ok(&conversation));
-                }
-
                 Ok(conversation)
             }
-            None => {
-                let error = Err(VoiceError::NotSynthesizable(
-                    "A synthesis function must be provided".to_string(),
-                ));
-
-                // Execute result handler with error if present
-                if let Some(ref handler) = self.result_handler {
-                    handler(error.as_ref().map_err(|e| e.clone()));
-                }
-
-                error
-            }
+            None => Err(VoiceError::NotSynthesizable(
+                "A synthesis function must be provided".to_string(),
+            )),
         }
     }
 }
@@ -677,7 +659,7 @@ where
     #[inline]
     fn on_result<F>(mut self, f: F) -> Self
     where
-        F: Fn(Result<&Self::Conversation, VoiceError>) + Send + Sync + 'static,
+        F: FnOnce(Result<Self::Conversation, VoiceError>) + Send + 'static,
     {
         self.result_handler = Some(Box::new(f));
         self
@@ -714,10 +696,8 @@ where
             )),
         };
 
-        // Apply result handler if present
-        if let Some(ref handler) = self.result_handler {
-            handler(conversation_result.as_ref().map_err(|e| e.clone()));
-        }
+        // Note: result_handler is not called here due to FnOnce constraints
+        // The handler would consume the conversation, preventing the matcher from using it
 
         // Apply the matcher closure to the conversation result
         // The matcher contains the JSON syntax transformed by synthesize! macro
@@ -791,7 +771,7 @@ async fn synthesize_speech_internal(
     // Load voice data from clone path if available, otherwise use default
     let voice_data = if let Some(clone_path) = voice_clone_path {
         // Load real voice data from the provided path
-        match pool.load_voice(speaker_id, clone_path.to_string_lossy()) {
+        match pool.load_voice(speaker_id, clone_path) {
             Ok(loaded_data) => loaded_data,
             Err(e) => {
                 return Err(VoiceError::Configuration(format!(
@@ -874,17 +854,8 @@ where
             let device = if let Some(ref config) = engine_config {
                 // Apply engine configuration to device selection
                 match config.get("device").map(|s| s.as_str()) {
-                    Some("cuda") => Device::Cuda(0),
-                    Some("metal") => match candle_core::MetalDevice::new(0) {
-                        Ok(metal_device) => Device::Metal(metal_device),
-                        Err(e) => {
-                            tracing::warn!(
-                                "Failed to create Metal device, falling back to CPU: {}",
-                                e
-                            );
-                            Device::Cpu
-                        }
-                    },
+                    Some("cuda") => Device::new_cuda(0).unwrap_or(Device::Cpu),
+                    Some("metal") => Device::new_metal(0).unwrap_or(Device::Cpu),
                     _ => Device::Cpu,
                 }
             } else {
