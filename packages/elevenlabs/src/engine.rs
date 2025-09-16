@@ -24,7 +24,7 @@ use bytes::Bytes;
 use futures_util::{Stream, StreamExt};
 use std::pin::Pin;
 
-use fluent_voice::stt_conversation::SttConversationBuilder;  // ✅ Only what's needed
+use fluent_voice::stt_conversation::SttConversationBuilder;
 
 // Remove fluent-voice trait integration - ElevenLabs uses its own builder API
 use std::task::{Context, Poll};

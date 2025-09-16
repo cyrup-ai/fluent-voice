@@ -3,7 +3,7 @@ use crate::conv::{ConvDownsample1d, ConvTrUpsample1d};
 use crate::quantization::SplitResidualVectorQuantizer;
 use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::VarBuilder;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ResampleMethod {
@@ -91,15 +91,15 @@ pub struct Mimi {
     seanet: Arc<seanet::SeanetModule>,
 
     // Transformer processing
-    encoder_transformer: Arc<Mutex<ProjectedTransformer>>,
-    decoder_transformer: Arc<Mutex<ProjectedTransformer>>,
+    encoder_transformer: ProjectedTransformer,
+    decoder_transformer: ProjectedTransformer,
 
     // Quantization
-    quantizer: Arc<Mutex<SplitResidualVectorQuantizer>>,
+    quantizer: SplitResidualVectorQuantizer,
 
     // Resampling for frame rate conversion
-    downsample: Arc<Mutex<ConvDownsample1d>>,
-    upsample: Arc<Mutex<ConvTrUpsample1d>>,
+    downsample: ConvDownsample1d,
+    upsample: ConvTrUpsample1d,
 
     // Derived parameters
     frame_size: usize,
@@ -124,46 +124,46 @@ impl Mimi {
         )?);
 
         // Build transformers with projections
-        let encoder_transformer = Arc::new(Mutex::new(ProjectedTransformer::new(
+        let encoder_transformer = ProjectedTransformer::new(
             cfg.transformer.clone(),
             dim,
             vec![dim],
             vb.pp("encoder_transformer"),
-        )?));
+        )?;
 
-        let decoder_transformer = Arc::new(Mutex::new(ProjectedTransformer::new(
+        let decoder_transformer = ProjectedTransformer::new(
             cfg.transformer.clone(),
             dim,
             vec![dim],
             vb.pp("decoder_transformer"),
-        )?));
+        )?;
 
         // Build quantizer
-        let quantizer = Arc::new(Mutex::new(SplitResidualVectorQuantizer::new(
+        let quantizer = SplitResidualVectorQuantizer::new(
             cfg.quantizer_dim,
             Some(dim),
             Some(dim),
             cfg.quantizer_n_q,
             cfg.quantizer_bins,
             vb.pp("quantizer"),
-        )?));
+        )?;
 
         // Build resampling layers
-        let downsample = Arc::new(Mutex::new(ConvDownsample1d::new(
+        let downsample = ConvDownsample1d::new(
             downsample_stride,
             dim,
             true,  // causal
             false, // not learnt
             vb.pp("downsample"),
-        )?));
+        )?;
 
-        let upsample = Arc::new(Mutex::new(ConvTrUpsample1d::new(
+        let upsample = ConvTrUpsample1d::new(
             downsample_stride,
             dim,
             true,  // causal
             false, // not learnt
             vb.pp("upsample"),
-        )?));
+        )?;
 
         Ok(Self {
             config: cfg,
@@ -293,10 +293,10 @@ impl Mimi {
 
     /// Reset all streaming state
     pub fn reset_state(&mut self) {
-        self.encoder_transformer.lock().unwrap().reset_cache();
-        self.decoder_transformer.lock().unwrap().reset_cache();
-        self.downsample.lock().unwrap().reset_state();
-        self.upsample.lock().unwrap().reset_state();
+        self.encoder_transformer.reset_cache();
+        self.decoder_transformer.reset_cache();
+        self.downsample.reset_state();
+        self.upsample.reset_state();
     }
 
     pub fn config(&self) -> &Config {

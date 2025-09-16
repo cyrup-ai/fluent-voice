@@ -191,9 +191,7 @@ impl VoiceParameters {
     /// Apply voice parameters to audio samples
     #[inline]
     pub fn apply_to_samples(&self, samples: &mut Vec<f32>) {
-        use realfft::RealFftPlanner;
-        use rustfft::{FftPlanner, num_complex::Complex};
-        use std::f32::consts::PI;
+        // FFT imports removed - not used in current implementation
 
         // Apply volume adjustment
         if self.volume != 1.0 {
@@ -820,7 +818,9 @@ impl<'a> AudioStream<'a> {
         output[..samples_to_process].copy_from_slice(&self.data[..samples_to_process]);
 
         // Apply voice parameters
-        params.apply_to_samples(&mut output[..samples_to_process]);
+        let mut temp_vec = output[..samples_to_process].to_vec();
+        params.apply_to_samples(&mut temp_vec);
+        output[..samples_to_process].copy_from_slice(&temp_vec);
 
         Ok(samples_to_process)
     }
@@ -1421,7 +1421,7 @@ impl SpeechGenerator {
         samples: &[f32],
         config: &SpeakerPcmConfig,
     ) -> Result<candle_core::Tensor, SpeechGenerationError> {
-        use candle_core::{DType, Device, Tensor};
+        use candle_core::{DType, Tensor};
 
         // Create tensor with shape [batch_size=1, channels, samples]
         let tensor = Tensor::from_vec(

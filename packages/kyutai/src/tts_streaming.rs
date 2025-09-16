@@ -86,7 +86,7 @@ impl StreamingModel {
                     VarBuilder::from_mmaped_safetensors(
                         &[&config.voice_embedding_path],
                         DType::F32,
-                        device,
+                        &device,
                     )
                     .map_err(|e| {
                         MoshiError::Custom(format!("Failed to load voice embedding: {}", e))

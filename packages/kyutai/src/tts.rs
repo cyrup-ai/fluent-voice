@@ -90,7 +90,7 @@ impl Model {
                 super::conditioner::Config { conditions }
             }),
         };
-        let lm = LmModel::new(&lm_config, lm_vb)?;
+        let _lm = LmModel::new(&lm_config, lm_vb)?;
         // Create default mimi config based on mimi_num_codebooks
         let mimi_config = super::mimi::Config {
             channels: 1,
@@ -118,30 +118,25 @@ impl Model {
             quantizer_bins: 2048,
             quantizer_dim: 1024,
         };
-        let mimi = Mimi::new(mimi_config, mimi_vb)?;
+        let _mimi = Mimi::new(mimi_config, mimi_vb)?;
 
         // Create tokenizer - try pretrained first if http feature is available
-        let tokenizer = {
-            #[cfg(feature = "http")]
-            {
-                KyutaiTokenizer::from_pretrained("kyutai/moshika-pytorch-bf16")
-                    .or_else(|_| {
-                        tracing::warn!("Failed to load Kyutai tokenizer, trying GPT-2 fallback");
-                        KyutaiTokenizer::from_pretrained("gpt2")
-                    })
-                    .map_err(|e| {
-                        candle_core::Error::Msg(format!("Failed to initialize tokenizer: {}", e))
-                    })?
-            }
-            #[cfg(not(feature = "http"))]
-            {
-                // Without http feature, return an error - tokenizer file must be provided
-                return Err(candle_core::Error::Msg(
-                    "Tokenizer initialization requires either 'http' feature for pretrained models or use load_with_tokenizer() with a tokenizer file".to_string()
-                ));
-            }
-        };
+        #[cfg(feature = "http")]
+        let tokenizer = KyutaiTokenizer::from_pretrained("kyutai/moshika-pytorch-bf16")
+            .or_else(|_| {
+                tracing::warn!("Failed to load Kyutai tokenizer, trying GPT-2 fallback");
+                KyutaiTokenizer::from_pretrained("gpt2")
+            })
+            .map_err(|e| {
+                candle_core::Error::Msg(format!("Failed to initialize tokenizer: {}", e))
+            })?;
 
+        #[cfg(not(feature = "http"))]
+        return Err(candle_core::Error::Msg(
+            "Tokenizer initialization requires either 'http' feature for pretrained models or use load_with_tokenizer() with a tokenizer file".to_string()
+        ));
+
+        #[cfg(feature = "http")]
         Ok(Self {
             lm,
             mimi,

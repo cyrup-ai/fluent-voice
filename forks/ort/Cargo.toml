@@ -59,8 +59,8 @@ ort-sys = { path = "ort-sys", default-features = false }
 smallvec = "2.0.0-alpha.11"
 ndarray = { version = "0.16.1", default-features = false, optional = true }
 libloading = { version = "0.8.8", optional = true }
-ureq = { version = "3.0.12", optional = true, default-features = false, features = [ "rustls" ] }
-sha2 = { version = "0.11.0-rc.0", optional = true }
+ureq = { version = "3.1.2", optional = true, default-features = false, features = [ "rustls" ] }
+sha2 = { version = "0.11.0-rc.2", optional = true }
 tracing = { version = "0.1.41", optional = true, default-features = false }
 half = { version = "2.6.0", default-features = false, optional = true }
 num-complex = { version = "0.4.6", default-features = false, optional = true }
@@ -68,7 +68,7 @@ fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 
 [dev-dependencies]
 anyhow = "1"
-ureq = { version = "3.0.12", default-features = false, features = [ "native-tls" ] }
-image = "0.25.6"
-tracing-subscriber = { version = "0.3.19", default-features = false, features = [ "env-filter", "fmt" ] }
+ureq = { version = "3.1.2", default-features = false, features = [ "native-tls" ] }
+image = "0.25.8"
+tracing-subscriber = { version = "0.3.20", default-features = false, features = [ "env-filter", "fmt" ] }
 tokio = { version = "1.47", features = [ "test-util" ] }

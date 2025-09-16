@@ -135,10 +135,11 @@ impl DisplayMode for Spectrograph {
             if self.window {
                 chunk = hann_window(chunk.as_slice());
             }
-            let mut max_val = *chunk
+            let mut max_val = chunk
                 .iter()
                 .max_by(|a, b| a.total_cmp(b))
-                .expect("empty dataset?");
+                .copied()
+                .unwrap_or(1.0);
             if max_val < 1. {
                 max_val = 1.;
             }

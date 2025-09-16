@@ -378,10 +378,10 @@ impl TransformerLayer {
             xs
         };
 
-        (xs + residual)
+        xs + residual
     }
 
-    pub fn forward_with_cache(&self, xs: &Tensor, cache: &TransformerCache) -> Result<Tensor> {
+    pub fn forward_with_cache(&self, xs: &Tensor, _cache: &TransformerCache) -> Result<Tensor> {
         let residual = xs;
 
         // Self-attention block - normalized input
@@ -428,11 +428,11 @@ impl TransformerLayer {
             xs
         };
 
-        (xs + residual)
+        xs + residual
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Transformer {
     layers: Vec<TransformerLayer>,
     norm: Norm,

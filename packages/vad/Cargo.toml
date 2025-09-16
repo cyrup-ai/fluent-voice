@@ -18,7 +18,7 @@ futures = "0.3.31"
 ort = { path = "../../forks/ort", optional = true, features = ["ndarray"] }
 pin-project = "1.1.10"
 thiserror = "2"
-typed-builder = "0.21"
+typed-builder = "0.22"
 ndarray = "0.16.1"
 
 # Candle ML dependencies

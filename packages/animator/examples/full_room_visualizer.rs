@@ -211,9 +211,23 @@ impl Default for FullRoomVisualizerApp {
     }
 }
 
+impl FullRoomVisualizerApp {
+    /// Create a new app with proper WGPU render state from eframe CreationContext
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let mut app = Self::default();
+        
+        // Extract render state from eframe CreationContext for GPU rendering
+        if let Some(wgpu_render_state) = cc.wgpu_render_state.as_ref() {
+            app.render_state = Some(wgpu_render_state.clone());
+        }
+        
+        app
+    }
+}
+
 impl eframe::App for FullRoomVisualizerApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        // Render state will be None - this example will run without wgpu rendering for now
+        // Render state properly initialized from eframe CreationContext for GPU rendering
 
         // Auto-recovery check for disconnected rooms
         if self.room.is_none() && self.recovery_manager.should_attempt_recovery() {
@@ -369,13 +383,15 @@ impl FullRoomVisualizerApp {
     }
 
     fn calculate_real_quality(&self, participant_id: &ParticipantIdentity) -> ConnectionQuality {
-        // Use real LiveKit participant connection quality API
-        if let Some(room) = &self.room {
-            for participant in room.remote_participants().values() {
-                if participant.identity() == *participant_id {
-                    return ConnectionQuality::Excellent; // Placeholder since connection_quality() method may not exist
-                }
-            }
+        // Use audio-based quality calculation from existing audio visualizer
+        if let Some(audio_viz) = self.audio_visualizers.get(participant_id) {
+            let stats = audio_viz.get_stats();
+            return ConnectionQuality::from_audio_stats(
+                stats.current_amplitude,
+                stats.average_amplitude,
+                stats.peak_amplitude,
+                stats.is_muted,
+            );
         }
         ConnectionQuality::Unknown
     }
@@ -1217,8 +1233,8 @@ fn main() {
     if let Err(e) = eframe::run_native(
         "LiveKit Full Room Visualizer",
         options,
-        Box::new(|_cc| {
-            let app = FullRoomVisualizerApp::default();
+        Box::new(|cc| {
+            let app = FullRoomVisualizerApp::new(cc);
             Ok(Box::new(app))
         }),
     ) {

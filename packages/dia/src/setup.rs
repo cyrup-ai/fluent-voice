@@ -53,28 +53,16 @@ pub async fn setup() -> Result<ModelPaths, String> {
     let weights_path = dia_model_result
         .files
         .iter()
-        .find(|f| {
-            f.path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.contains("model") && s.ends_with(".safetensors"))
-                .unwrap_or(false)
-        })
-        .ok_or_else(|| "model weights file not found in download result".to_string())?
+        .find(|f| f.filename == "dia-v0_1.pth")
+        .ok_or_else(|| "dia-v0_1.pth file not found in download result".to_string())?
         .path
         .clone();
 
     let tokenizer_path = dia_model_result
         .files
         .iter()
-        .find(|f| {
-            f.path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.contains("tokenizer") && (s.ends_with(".json") || s.contains("config")))
-                .unwrap_or(false)
-        })
-        .ok_or_else(|| "tokenizer config file not found in download result".to_string())?
+        .find(|f| f.filename == "dia-v0_1")
+        .ok_or_else(|| "dia-v0_1 file not found in download result".to_string())?
         .path
         .clone();
 
@@ -107,14 +95,8 @@ pub async fn setup() -> Result<ModelPaths, String> {
     let encodec_weights_path = encodec_model_result
         .files
         .iter()
-        .find(|f| {
-            f.path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.contains("model") && s.ends_with(".safetensors"))
-                .unwrap_or(false)
-        })
-        .ok_or_else(|| "EnCodec weights file not found in download result".to_string())?
+        .find(|f| f.filename == "model.safetensors")
+        .ok_or_else(|| "EnCodec model.safetensors file not found in download result".to_string())?
         .path
         .clone();
 

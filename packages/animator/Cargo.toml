@@ -13,19 +13,21 @@ categories = ["multimedia::audio", "visualization", "graphics"]
 [dependencies]
 # fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 
+fluent_voice = { path = "../fluent-voice" }
 fluent_voice_livekit = { path = "../livekit" }
+dia = { path = "../dia" }
 parking_lot = "0.12.4"
 livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", features = [
     "native-tls",
 ] }
-livekit-api = { version = "0.4.5", features = [
+livekit-api = { version = "0.4.6", features = [
     "native-tls",
 ] } # in workspace-hack
 rustfft = "6.4.0"
 cpal = "0.16.0"
-rodio = "0.18"
+rodio = "0.21"
 crossterm = "0.29.0"
-image = "0.25.6"
+image = "0.25.8"
 ratatui = { git = "https://github.com/ratatui/ratatui", branch = "main", features = [
     "crossterm",
 ] }
@@ -35,10 +37,10 @@ anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 futures = "0.3"
-tokio = { version = "1.0", features = ["full"] }
-eframe = "0.28"
-egui = "0.28"
-egui-wgpu = "0.28"
+tokio = { version = "1.47", features = ["full"] }
+eframe = "0.32"
+egui = "0.32"
+egui-wgpu = "0.32"
 
 # Candle ML dependencies
 candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }

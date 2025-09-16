@@ -5,7 +5,7 @@
 
 use crate::error::MoshiError;
 use anyhow::Result;
-use progresshub::{DownloadResult, ModelResult, ProgressHub};
+use progresshub::{DownloadResult, ProgressHub};
 use std::path::PathBuf;
 use tracing::{error, info, warn};
 

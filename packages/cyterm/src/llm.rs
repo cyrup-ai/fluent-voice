@@ -39,14 +39,19 @@ pub fn spawn_llm(
     let (prompt_tx, prompt_rx) = channel::<String>();
     let (reply_tx, reply_rx) = channel::<String>();
 
-    tokio::spawn(async move {
-        if let Err(e) = llm_loop(cfg, device, prompt_rx, reply_tx).await {
-            eprintln!("llm thread crashed: {e:?}");
-        }
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            if let Err(e) = llm_loop(cfg, device, prompt_rx, reply_tx).await {
+                eprintln!("llm thread crashed: {e:?}");
+            }
+        })
     });
 
     Ok((prompt_tx, reply_rx))
 }
+
+
 
 async fn llm_loop(
     cfg: LlmConfig,

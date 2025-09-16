@@ -42,7 +42,7 @@ impl VoiceActivityDetector {
     }
 
     /// Gets the chunks size
-    pub(crate) fn chunk_size(&self) -> usize {
+    pub fn chunk_size(&self) -> usize {
         self.chunk_size
     }
 

@@ -1,29 +1,28 @@
 #![warn(missing_docs)]
 #![doc = include_str!("../../README.md")]
 
-mod audio;
-mod decoder;
 mod error;
 mod iterator;
 mod label;
-mod model;
-mod multlingual;
 mod predict;
 mod sample;
-mod whisper_loop;
 
 #[cfg(feature = "async")]
 mod stream;
-mod vad;
+// Remove local vad module - using external vad crate instead
 
 // use error; // Note: already imported by mod error above
 pub use error::Error;
 pub use iterator::{IteratorExt, LabelIterator, PredictIterator};
 pub use label::LabeledAudio;
-pub use sample::Sample;
+// Use Sample trait from working VAD implementation
+pub use fluent_voice_vad::Sample;
 
-pub use decoder::WhisperDecoder;
-pub use vad::{VoiceActivityDetector, VoiceActivityDetectorBuilder};
+// Re-export whisper types from the working implementation
+pub use fluent_voice_whisper::{ModelConfig, WhisperTranscriber, WhisperStream, Transcript};
+pub use fluent_voice_whisper::{Decoder as WhisperDecoder, DecodingResult, Segment, Task, WhichModel};
+// Re-export VAD types from the working implementation
+pub use fluent_voice_vad::{VoiceActivityDetector, VoiceActivityDetectorBuilder};
 
 #[cfg(feature = "async")]
 pub use stream::{LabelStream, PredictStream, StreamExt};

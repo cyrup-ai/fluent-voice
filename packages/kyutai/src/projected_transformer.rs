@@ -2,7 +2,7 @@
 
 use crate::transformer::{Config as TransformerConfig, TransformerLayer};
 use candle_core::{Result, Tensor};
-use candle_nn::{Linear, Module, VarBuilder};
+use candle_nn::{Linear, VarBuilder};
 
 /// Transformer with learnable input/output projections
 #[derive(Debug)]

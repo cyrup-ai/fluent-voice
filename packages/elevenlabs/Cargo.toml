@@ -90,8 +90,8 @@ webpki-roots = "1.0.2"
 rustls = "0.23"
 cpal = "0.16.0"
 hound = "3.5.1"
-chrono = { version = "0.4.41", features = ["serde"] }
-tempfile = "3.20"
+chrono = { version = "0.4.42", features = ["serde"] }
+tempfile = "3.22"
 futures = "0.3.31"
 tracing = "0.1"
 

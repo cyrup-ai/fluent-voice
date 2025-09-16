@@ -80,5 +80,13 @@ impl From<Box<dyn std::error::Error>> for WakeWordError {
     }
 }
 
+impl From<fluent_voice_vad::Error> for WakeWordError {
+    fn from(err: fluent_voice_vad::Error) -> Self {
+        WakeWordError::VadFailed {
+            reason: err.to_string(),
+        }
+    }
+}
+
 /// Result type for wake word operations.
 pub type Result<T> = std::result::Result<T, WakeWordError>;

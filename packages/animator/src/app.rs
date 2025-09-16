@@ -241,7 +241,7 @@ fn make_header<'a>(
         vec![Row::new(vec![
             Cell::from(format!("{kind_o_scope}::scope-tui")).style(
                 Style::default()
-                    .fg(*cfg.palette.first().expect("empty palette?"))
+                    .fg(*cfg.palette.first().unwrap_or(&ratatui::style::Color::White))
                     .add_modifier(Modifier::BOLD),
             ),
             Cell::from(module_header),

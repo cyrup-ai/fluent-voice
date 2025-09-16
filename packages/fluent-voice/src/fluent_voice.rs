@@ -1,7 +1,7 @@
 //! Unified entry point trait for TTS and STT operations.
 
 // Import only what exists in domain crate - just core value types and TtsConversation trait
-use fluent_voice_domain::{TtsConversation, VoiceError};
+use fluent_voice_domain::{TtsConversation, VoiceError, SpeechSource, VadMode};
 // Use local STT builders instead of domain ones
 use crate::stt_conversation::{SttConversationBuilder, SttConversationExt, SttPostChunkBuilder};
 // Import TTS and wake word conversation extension traits
@@ -345,6 +345,24 @@ impl SttEntry {
     /// Create a new STT conversation builder
     pub fn conversation(self) -> impl SttConversationBuilder {
         crate::engines::DefaultSTTConversationBuilder::new()
+    }
+
+    /// Delegate method for with_source - forwards to conversation builder
+    pub fn with_source(self, src: SpeechSource) -> impl SttConversationBuilder {
+        self.conversation().with_source(src)
+    }
+
+    /// Delegate method for vad_mode - forwards to conversation builder
+    pub fn vad_mode(self, mode: VadMode) -> impl SttConversationBuilder {
+        self.conversation().vad_mode(mode)
+    }
+
+    /// Delegate method for on_prediction - forwards to conversation builder
+    pub fn on_prediction<F>(self, f: F) -> impl SttConversationBuilder
+    where
+        F: FnMut(String, String) + Send + 'static,
+    {
+        self.conversation().on_prediction(f)
     }
 }
 
