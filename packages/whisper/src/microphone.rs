@@ -494,16 +494,19 @@ struct Args {
 fn extract_model_files(
     model_result: &progresshub::ModelResult,
 ) -> Result<(String, String, String)> {
+    // Debug: Print all available files
+    println!("DEBUG: Available files from progresshub:");
+    for file in &model_result.files {
+        println!("DEBUG:   filename='{}', path='{}', exists={}", 
+                 file.filename, 
+                 file.path.display(),
+                 file.path.exists());
+    }
+    
     let config_path = model_result
         .files
         .iter()
-        .find(|f| {
-            f.path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.contains("config") && s.ends_with(".json"))
-                .unwrap_or(false)
-        })
+        .find(|f| f.filename == "config.json")
         .ok_or_else(|| anyhow::anyhow!("Config file not found"))?
         .path
         .to_string_lossy()
@@ -512,13 +515,7 @@ fn extract_model_files(
     let tokenizer_path = model_result
         .files
         .iter()
-        .find(|f| {
-            f.path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.contains("tokenizer"))
-                .unwrap_or(false)
-        })
+        .find(|f| f.filename == "tokenizer.json")
         .ok_or_else(|| anyhow::anyhow!("Tokenizer file not found"))?
         .path
         .to_string_lossy()
@@ -527,17 +524,16 @@ fn extract_model_files(
     let weights_path = model_result
         .files
         .iter()
-        .find(|f| {
-            f.path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.ends_with(".safetensors") || s.ends_with(".bin"))
-                .unwrap_or(false)
-        })
+        .find(|f| f.filename.ends_with(".safetensors") || f.filename.ends_with(".bin"))
         .ok_or_else(|| anyhow::anyhow!("Weights file not found"))?
         .path
         .to_string_lossy()
         .to_string();
+
+    println!("DEBUG: Selected paths:");
+    println!("DEBUG:   config: {}", config_path);
+    println!("DEBUG:   tokenizer: {}", tokenizer_path);
+    println!("DEBUG:   weights: {}", weights_path);
 
     Ok((config_path, tokenizer_path, weights_path))
 }
