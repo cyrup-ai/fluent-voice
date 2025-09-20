@@ -223,8 +223,20 @@ fn get_available_memory() -> Result<u64, String> {
 
     #[cfg(target_os = "windows")]
     {
-        // For Windows, assume 8GB available as a reasonable default
-        // In production, you'd use Windows APIs like GlobalMemoryStatusEx
-        Ok(8 * 1024 * 1024 * 1024)
+        use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+        use std::mem;
+
+        unsafe {
+            let mut mem_status: MEMORYSTATUSEX = mem::zeroed();
+            mem_status.dwLength = mem::size_of::<MEMORYSTATUSEX>() as u32;
+            
+            if GlobalMemoryStatusEx(&mut mem_status) != 0 {
+                // Return available physical memory in bytes
+                Ok(mem_status.ullAvailPhys)
+            } else {
+                // Fallback to 8GB if API call fails
+                Ok(8 * 1024 * 1024 * 1024)
+            }
+        }
     }
 }

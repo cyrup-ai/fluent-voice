@@ -139,7 +139,10 @@ impl VoiceCloneBuilder for VoiceCloneBuilderImpl {
             let voice_name = self.name.unwrap_or_else(|| "Cloned Voice".to_string());
 
             // Load voice data through dia's voice pool system
-            let pool = global_pool();
+            let pool = match global_pool() {
+                Ok(pool) => pool,
+                Err(e) => return matcher(Err(VoiceError::Configuration(format!("Failed to access voice pool: {}", e)))),
+            };
             match pool.load_voice(&voice_name, first_sample) {
                 Ok(_voice_data) => {
                     // Voice data is now loaded and cached in the pool

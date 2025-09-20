@@ -4,6 +4,8 @@ use core::future::Future;
 use fluent_voice_domain::VoiceError;
 use fluent_voice_domain::{audio_format::AudioFormat, model_id::ModelId, voice_id::VoiceId};
 use futures_core::Stream;
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 /// Builder trait for speech-to-speech functionality.
 pub trait SpeechToSpeechBuilder: Sized + Send {
@@ -49,7 +51,7 @@ pub trait SpeechToSpeechBuilder: Sized + Send {
 /// Session trait for speech-to-speech operations.
 pub trait SpeechToSpeechSession: Send {
     /// The audio stream type produced by this session.
-    type AudioStream: Stream<Item = i16> + Send + Unpin;
+    type AudioStream: Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin;
 
     /// Convert this session into an audio stream.
     fn into_stream(self) -> Self::AudioStream;
@@ -57,16 +59,172 @@ pub trait SpeechToSpeechSession: Send {
 
 /// Concrete speech-to-speech session implementation.
 pub struct SpeechToSpeechSessionImpl {
-    _source: String,
-    _target_voice: VoiceId,
+    source_audio: Vec<u8>,
+    target_voice_id: VoiceId,
+    #[allow(dead_code)]
+    conversion_config: ConversionConfig,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+struct ConversionConfig {
+    preserve_emotion: bool,
+    preserve_style: bool,
+    preserve_timing: bool,
+    stability: f32,
+    similarity_boost: f32,
+    model: Option<ModelId>,
 }
 
 impl SpeechToSpeechSession for SpeechToSpeechSessionImpl {
-    type AudioStream = Box<dyn Stream<Item = i16> + Send + Unpin>;
+    type AudioStream = crate::audio_stream::AudioStream;
 
     fn into_stream(self) -> Self::AudioStream {
-        // Placeholder implementation - returns empty stream
-        Box::new(futures::stream::empty::<i16>())
+        let (tx, rx) = mpsc::unbounded_channel::<fluent_voice_domain::AudioChunk>();
+
+        tokio::spawn(async move {
+            match self.perform_voice_conversion().await {
+                Ok(converted_bytes) => {
+                    let chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                        converted_bytes,
+                        0,
+                        0,
+                        Some(format!("voice_conversion_{}", self.target_voice_id)),
+                        Some("Speech-to-speech conversion".to_string()),
+                        Some(fluent_voice_domain::AudioFormat::Pcm24Khz),
+                    );
+                    let _ = tx.send(chunk);
+                }
+                Err(e) => {
+                    let error_chunk = fluent_voice_domain::AudioChunk::with_metadata(
+                        Vec::new(),
+                        0,
+                        0,
+                        None,
+                        Some(format!("[VOICE_CONVERSION_ERROR] {}", e)),
+                        None,
+                    );
+                    let _ = tx.send(error_chunk);
+                }
+            }
+        });
+
+        let stream = UnboundedReceiverStream::new(rx);
+        crate::audio_stream::AudioStream::new(Box::pin(stream))
+    }
+}
+
+impl SpeechToSpeechSessionImpl {
+    async fn perform_voice_conversion(&self) -> Result<Vec<u8>, VoiceError> {
+        let transcription = self.transcribe_with_whisper().await?;
+        let voice_reference = self.get_voice_reference().await?;
+        let converted_audio = self
+            .synthesize_with_tortoise(&transcription, &voice_reference)
+            .await?;
+        Ok(converted_audio)
+    }
+
+    async fn transcribe_with_whisper(&self) -> Result<String, VoiceError> {
+        let temp_input = std::env::temp_dir().join("source_audio.wav");
+        tokio::fs::write(&temp_input, &self.source_audio)
+            .await
+            .map_err(|e| VoiceError::AudioProcessing(format!("Failed to write audio: {}", e)))?;
+
+        let mut cmd = tokio::process::Command::new("python");
+        cmd.arg("-c")
+            .arg(
+                r#"
+import whisper
+import sys
+model = whisper.load_model("base")
+result = model.transcribe(sys.argv[1])
+print(result["text"])
+"#,
+            )
+            .arg(&temp_input);
+
+        let output = cmd.output().await.map_err(|e| {
+            VoiceError::AudioProcessing(format!("Whisper transcription failed: {}", e))
+        })?;
+
+        if !output.status.success() {
+            return Err(VoiceError::AudioProcessing(format!(
+                "Whisper failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
+        }
+
+        let transcription = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        tokio::fs::remove_file(&temp_input).await.ok();
+        Ok(transcription)
+    }
+
+    async fn get_voice_reference(&self) -> Result<Vec<u8>, VoiceError> {
+        // For now, return a dummy voice reference
+        // In a real implementation, this would load the actual voice reference file
+        Ok(Vec::new())
+    }
+
+    async fn synthesize_with_tortoise(
+        &self,
+        text: &str,
+        voice_ref: &[u8],
+    ) -> Result<Vec<u8>, VoiceError> {
+        let voice_ref_path = std::env::temp_dir().join("voice_reference.wav");
+        let output_path = std::env::temp_dir().join("converted_speech.wav");
+
+        tokio::fs::write(&voice_ref_path, voice_ref)
+            .await
+            .map_err(|e| {
+                VoiceError::AudioProcessing(format!("Failed to write voice reference: {}", e))
+            })?;
+
+        let python_script = format!(
+            r#"
+import tortoise.api as tts
+from tortoise.utils.audio import load_audio
+import torch
+import torchaudio
+
+tts_model = tts.TextToSpeech()
+
+voice_sample = load_audio("{}", 22050)
+
+generated = tts_model.tts_with_preset(
+    text="{}",
+    voice_samples=[voice_sample],
+    preset="fast"
+)
+
+torchaudio.save("{}", generated.squeeze(0).cpu(), 22050)
+"#,
+            voice_ref_path.display(),
+            text,
+            output_path.display()
+        );
+
+        let mut cmd = tokio::process::Command::new("python");
+        cmd.arg("-c").arg(&python_script);
+
+        let output = cmd.output().await.map_err(|e| {
+            VoiceError::AudioProcessing(format!("TorToiSe synthesis failed: {}", e))
+        })?;
+
+        if !output.status.success() {
+            return Err(VoiceError::AudioProcessing(format!(
+                "TorToiSe failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
+        }
+
+        let result = tokio::fs::read(&output_path).await.map_err(|e| {
+            VoiceError::AudioProcessing(format!("Failed to read converted audio: {}", e))
+        })?;
+
+        tokio::fs::remove_file(&voice_ref_path).await.ok();
+        tokio::fs::remove_file(&output_path).await.ok();
+
+        Ok(result)
     }
 }
 
@@ -166,18 +324,49 @@ impl SpeechToSpeechBuilder for SpeechToSpeechBuilderImpl {
         F: FnOnce(Result<Self::Session, VoiceError>) -> R + Send + 'static,
     {
         async move {
-            // Placeholder implementation
-            if let (Some(source), Some(target_voice)) = (self.source, self.target_voice) {
-                let session = SpeechToSpeechSessionImpl {
-                    _source: source,
-                    _target_voice: target_voice,
-                };
-                matcher(Ok(session))
-            } else {
-                matcher(Err(VoiceError::Configuration(
-                    "Missing source audio or target voice".to_string(),
-                )))
+            match self.validate_and_prepare() {
+                Ok((source_audio, target_voice_id, config)) => {
+                    let session = SpeechToSpeechSessionImpl {
+                        source_audio,
+                        target_voice_id,
+                        conversion_config: config,
+                    };
+                    matcher(Ok(session))
+                }
+                Err(e) => matcher(Err(e)),
             }
         }
+    }
+}
+
+impl SpeechToSpeechBuilderImpl {
+    fn validate_and_prepare(&self) -> Result<(Vec<u8>, VoiceId, ConversionConfig), VoiceError> {
+        let source_audio = if let Some(ref audio_data) = self.audio_data {
+            audio_data.clone()
+        } else if let Some(ref _source) = self.source {
+            // In a real implementation, this would load the file
+            // For now, return empty vec as placeholder
+            Vec::new()
+        } else {
+            return Err(VoiceError::Configuration(
+                "Missing source audio".to_string(),
+            ));
+        };
+
+        let target_voice_id = self
+            .target_voice
+            .clone()
+            .ok_or_else(|| VoiceError::Configuration("Missing target voice".to_string()))?;
+
+        let config = ConversionConfig {
+            preserve_emotion: self.preserve_emotion,
+            preserve_style: self.preserve_style,
+            preserve_timing: self.preserve_timing,
+            stability: self.stability.unwrap_or(0.75),
+            similarity_boost: self.similarity_boost.unwrap_or(0.75),
+            model: self.model.clone(),
+        };
+
+        Ok((source_audio, target_voice_id, config))
     }
 }

@@ -52,7 +52,9 @@ impl LmGenerate {
     }
 
     pub fn reset(&mut self) -> Result<()> {
-        self.generator.reset();
+        self.generator.reset().map_err(|e| {
+            crate::error::MoshiError::Custom(format!("Generator reset failed: {}", e))
+        })?;
         Ok(())
     }
 }

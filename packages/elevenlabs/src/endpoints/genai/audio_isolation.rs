@@ -50,7 +50,7 @@ impl AudioIsolationBody {
             file_format: None,
         }
     }
-    
+
     pub fn with_file_format(mut self, file_format: impl Into<String>) -> Self {
         self.file_format = Some(file_format.into());
         self
@@ -68,7 +68,7 @@ impl From<&str> for AudioIsolationBody {
 
 impl From<String> for AudioIsolationBody {
     fn from(audio_file: String) -> Self {
-        Self { 
+        Self {
             audio_file,
             file_format: None,
         }
@@ -155,12 +155,12 @@ impl TryFrom<&AudioIsolationBody> for RequestBody {
             .ok_or(Box::new(Error::FileExtensionNotValidUTF8))?;
         let mime = format!("audio/{}", mime_subtype);
         part = part.mime_str(&mime)?;
-        
+
         let mut form = Form::new().part("audio", part);
         if let Some(file_format) = &body.file_format {
             form = form.text("file_format", file_format.clone());
         }
-        
+
         Ok(RequestBody::Multipart(form))
     }
 }

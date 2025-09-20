@@ -11,9 +11,9 @@ fn test_audio_output_projection_creation() -> Result<()> {
     let audio_vocab_size = 2049;
     let num_codebooks = 8;
 
-    // Create a dummy VarBuilder for testing
-    let dummy_tensors = std::collections::HashMap::new();
-    let vb = VarBuilder::from_tensors(dummy_tensors, candle_core::DType::F32, &device);
+    // Create test VarBuilder for unit testing AudioOutputProjection
+    let test_tensors = std::collections::HashMap::new();
+    let vb = VarBuilder::from_tensors(test_tensors, candle_core::DType::F32, &device);
 
     let projection = AudioOutputProjection::new(d_model, audio_vocab_size, num_codebooks, vb)?;
 

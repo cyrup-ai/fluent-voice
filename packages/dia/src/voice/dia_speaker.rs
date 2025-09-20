@@ -254,7 +254,7 @@ impl DiaSpeaker {
             .ok_or_else(|| anyhow::anyhow!("Audio path required for voice cloning"))?;
 
         // Load voice data through the pool
-        let voice_data = global_pool().load_voice(&builder.name, &audio_path)?;
+        let voice_data = global_pool()?.load_voice(&builder.name, &audio_path)?;
 
         // Create voice clone
         let mut voice_clone = VoiceClone::new(builder.name, voice_data);
@@ -278,7 +278,15 @@ impl DiaSpeaker {
 
 impl Default for DiaSpeaker {
     fn default() -> Self {
-        // Create a default voice clone with minimal configuration
+        Self::try_default().unwrap_or_else(|_| {
+            panic!("Failed to create default DiaSpeaker - CPU tensor creation failed")
+        })
+    }
+}
+
+impl DiaSpeaker {
+    /// Try to create a default DiaSpeaker, returning an error if tensor creation fails
+    pub fn try_default() -> anyhow::Result<Self> {
         use super::{VoiceClone, VoiceData};
         use candle_core::{Device, Tensor};
         use std::path::PathBuf;
@@ -286,14 +294,14 @@ impl Default for DiaSpeaker {
 
         // Create empty tensor for default voice data
         let device = Device::Cpu;
-        let codes = Tensor::zeros((1, 1), candle_core::DType::U32, &device).unwrap();
+        let codes = Tensor::zeros((1, 1), candle_core::DType::U32, &device)?;
         let voice_data = Arc::new(VoiceData {
             codes,
             sample_rate: 24000,
             source_path: PathBuf::from("default"),
         });
         let voice_clone = VoiceClone::new("default".to_string(), voice_data);
-        Self { voice_clone }
+        Ok(Self { voice_clone })
     }
 }
 

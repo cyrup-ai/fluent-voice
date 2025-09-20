@@ -31,14 +31,23 @@ struct StreamingState {
 }
 
 impl StreamingModel {
-    pub fn new(model: Arc<Mutex<crate::tts::Model>>) -> Self {
-        let model_ref = model.lock().unwrap();
-        let text_start_token = model_ref.config().tts.text_start_token;
-        let audio_pad_token = model_ref.lm().audio_pad_token();
-        let audio_codebooks = model_ref.config().lm.audio_codebooks;
-        drop(model_ref);
+    pub fn new(
+        model: Arc<Mutex<crate::tts::Model>>,
+    ) -> std::result::Result<Self, crate::error::MoshiError> {
+        let (text_start_token, audio_pad_token, audio_codebooks) = {
+            let model_ref = model.lock().map_err(|e| {
+                crate::error::MoshiError::MutexPoisoned(format!(
+                    "TTS model mutex poisoned during initialization: {}",
+                    e
+                ))
+            })?;
+            let text_start_token = model_ref.config().tts.text_start_token;
+            let audio_pad_token = model_ref.lm().audio_pad_token();
+            let audio_codebooks = model_ref.config().lm.audio_codebooks;
+            (text_start_token, audio_pad_token, audio_codebooks)
+        };
 
-        Self {
+        Ok(Self {
             inner: model,
             state: StreamingState {
                 text_token: text_start_token,
@@ -46,7 +55,7 @@ impl StreamingModel {
                 pcm_buffer: vec![],
             },
             voice_config: None,
-        }
+        })
     }
 
     /// Configure voice conditioning with voice name from progresshub-downloaded voices
@@ -111,7 +120,7 @@ impl StreamingModel {
     /// Build streaming conditions with voice embedding
     fn build_streaming_conditions(
         &mut self,
-        device: &candle_core::Device,
+        _device: &candle_core::Device,
     ) -> Result<HashMap<String, Condition>> {
         let mut conditions = HashMap::new();
 
@@ -170,7 +179,9 @@ impl StreamingModel {
             Some(&tensor_conditions),
         )?;
 
-        if let Some(codes) = model.lm().last_audio_tokens() {
+        if let Some(codes) = model.lm().last_audio_tokens().map_err(|e| {
+            crate::error::MoshiError::Custom(format!("Failed to get last audio tokens: {}", e))
+        })? {
             let codes_tensor = Tensor::from_vec(
                 codes.clone(),
                 (1, 1, model.config().mimi_num_codebooks),
@@ -229,7 +240,9 @@ impl StreamingModel {
             Some(&tensor_conditions),
         )?;
 
-        if let Some(codes) = model.lm().last_audio_tokens() {
+        if let Some(codes) = model.lm().last_audio_tokens().map_err(|e| {
+            crate::error::MoshiError::Custom(format!("Failed to get last audio tokens: {}", e))
+        })? {
             let codes_tensor = Tensor::from_vec(
                 codes.clone(),
                 (1, 1, model.config().mimi_num_codebooks),
@@ -265,12 +278,25 @@ impl StreamingModule for StreamingModel {
         Ok(Tensor::from_vec(pcm, (1, pcm_len), input.device())?)
     }
 
-    fn reset_streaming(&mut self) {
-        let model = self.inner.lock().unwrap();
-        self.state.text_token = model.config().tts.text_start_token;
-        self.state.audio_codes =
-            vec![model.lm().audio_pad_token(); model.config().lm.audio_codebooks];
+    fn reset_streaming(&mut self) -> std::result::Result<(), crate::error::MoshiError> {
+        let (text_start_token, audio_pad_token, audio_codebooks) = {
+            let model = self.inner.lock().map_err(|e| {
+                crate::error::MoshiError::MutexPoisoned(format!(
+                    "TTS model mutex poisoned during streaming reset: {}",
+                    e
+                ))
+            })?;
+            (
+                model.config().tts.text_start_token,
+                model.lm().audio_pad_token(),
+                model.config().lm.audio_codebooks,
+            )
+        };
+
+        self.state.text_token = text_start_token;
+        self.state.audio_codes = vec![audio_pad_token; audio_codebooks];
         self.state.pcm_buffer.clear();
+        Ok(())
     }
 
     fn streaming_state_size(&self) -> usize {

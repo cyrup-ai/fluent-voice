@@ -80,7 +80,7 @@ fluent_voice_whisper = { path = "../whisper", features = [
     "display",
     "record",
 ] }
-fluent_voice_vad = { path = "../vad", features = ["async", "ort"] }
+fluent_voice_vad = { path = "../vad", features = ["async", "ort"], version = "0.1.0" }
 koffee = { path = "../koffee" }
 dia = { path = "../dia" }
 cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", branch = "main", package = "cyrup_sugars", features = ["all"] }

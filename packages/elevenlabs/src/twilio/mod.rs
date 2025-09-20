@@ -1040,7 +1040,7 @@ mod tests {
     }
 
     impl TestAppState {
-        fn new(webhook_secret: &str, auth_token: &str) -> Self {
+        fn new(webhook_secret: &str, auth_token: &str) -> anyhow::Result<Self> {
             let agent_ws = Arc::new(Mutex::new(AgentWebSocket::new("test", "test")));
             let twilio_client =
                 Arc::new(TwilioClient::new("test", auth_token).with_number("1234567890"));
@@ -1059,12 +1059,12 @@ mod tests {
                 TestAppState { sub_state }
             } else {
                 let sub_state = TelephonyState::new("test".to_string(), agent_ws, twilio_client)
-                    .expect("Failed to create telephony state")
+                    .map_err(|e| anyhow::anyhow!("Failed to create telephony state: {}", e))?
                     .with_webhook_secret(webhook_secret);
                 TestAppState { sub_state }
             };
 
-            test_app
+            Ok(test_app)
         }
     }
 
@@ -1075,7 +1075,7 @@ mod tests {
     }
 
     fn app(webhook_secret: &str, auth_token: &str) -> Router {
-        let app_state = TestAppState::new(webhook_secret, auth_token);
+        let app_state = TestAppState::new(webhook_secret, auth_token).unwrap();
         Router::new()
             .route(
                 "/connect_twiml",
@@ -1117,7 +1117,7 @@ mod tests {
         auth_token: &str,
         url: &str,
         params: Option<&BTreeMap<String, String>>,
-    ) -> String {
+    ) -> anyhow::Result<String> {
         let mut data = url.to_string();
 
         if let Some(params) = params {
@@ -1127,10 +1127,10 @@ mod tests {
             }
         }
 
-        let mut mac =
-            HmacSha1::new_from_slice(auth_token.as_bytes()).expect("HMAC can take key of any size");
+        let mut mac = HmacSha1::new_from_slice(auth_token.as_bytes())
+            .map_err(|e| anyhow::anyhow!("Failed to create HMAC with auth token: {}", e))?;
         mac.update(data.as_bytes());
-        base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes())
+        Ok(base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes()))
     }
 
     fn required_twilio_params_for_deserialization() -> BTreeMap<String, String> {
@@ -1368,7 +1368,7 @@ mod tests {
 
     #[tokio::test]
     async fn twilio_params_extractor_is_returning_self() {
-        let app_state = TestAppState::new("test_secret", "test_auth_token");
+        let app_state = TestAppState::new("test_secret", "test_auth_token").unwrap();
 
         let params = required_twilio_params_for_deserialization();
 
@@ -1376,7 +1376,7 @@ mod tests {
 
         let url = "https://example.com/webhook";
 
-        let signature = generate_valid_signature("test_auth_token", url, Some(&params));
+        let signature = generate_valid_signature("test_auth_token", url, Some(&params)).unwrap();
 
         let request = Request::builder()
             .method(Method::POST)
@@ -1398,11 +1398,11 @@ mod tests {
     #[tokio::test]
     async fn twilio_params_extractor_is_rejecting_with_bad_request_when_twilio_signature_is_invalid(
     ) {
-        let app_state = TestAppState::new("test_secret", "test_auth_token");
+        let app_state = TestAppState::new("test_secret", "test_auth_token").unwrap();
         let params = required_twilio_params_for_deserialization();
         let form_data = serde_urlencoded::to_string(&params).expect("Failed to serialize form data");
         let url = "https://example.com/webhook";
-        let signature = generate_valid_signature("invalid_auth_token", url, Some(&params));
+        let signature = generate_valid_signature("invalid_auth_token", url, Some(&params)).unwrap();
 
         let request = Request::builder()
             .method(Method::POST)
@@ -1454,11 +1454,11 @@ mod tests {
 
     #[tokio::test]
     async fn twilio_params_extractor_is_rejecting_with_bad_request_when_host_missing() {
-        let app_state = TestAppState::new("test_secret", "test_auth_token");
+        let app_state = TestAppState::new("test_secret", "test_auth_token").unwrap();
         let params = required_twilio_params_for_deserialization();
         let form_data = serde_urlencoded::to_string(&params).expect("Failed to serialize test params");
         let url = "https://example.com/webhook";
-        let signature = generate_valid_signature("test_auth_token", url, Some(&params));
+        let signature = generate_valid_signature("test_auth_token", url, Some(&params)).unwrap();
         let request = Request::builder()
             .method(Method::POST)
             .uri(url)
@@ -1497,7 +1497,7 @@ mod tests {
         let url = format!("https://{}/connect_twiml", addr);
         let params = required_twilio_params_for_deserialization();
         let form_data = serde_urlencoded::to_string(&params).expect("Failed to serialize test params");
-        let signature = generate_valid_signature("test_auth_token", &url, Some(&params));
+        let signature = generate_valid_signature("test_auth_token", &url, Some(&params)).unwrap();
 
         let request = Request::builder()
             .method(Method::POST)
@@ -1531,7 +1531,7 @@ mod tests {
         let app = app("test_secret", "test_auth_token");
 
         let signature =
-            generate_valid_signature("test_auth_token", &format!("wss://{addr}/ws"), None);
+            generate_valid_signature("test_auth_token", &format!("wss://{addr}/ws"), None).unwrap();
 
         tokio::spawn(axum::serve(listener, app).into_future());
 

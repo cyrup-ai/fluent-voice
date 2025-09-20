@@ -24,8 +24,9 @@ pub mod quantization;
 pub mod sampling_config;
 pub mod seanet;
 pub mod speech_generator;
-// pub mod stream_both; // TODO: implement missing module
+pub mod stream_both;
 pub mod streaming;
+pub mod livekit_bridge;
 pub mod tokenizer;
 pub mod transformer;
 pub mod tts;
@@ -36,7 +37,12 @@ pub mod wav;
 
 // Re-export essential types and modules for ease of use
 pub use self::asr::{State as AsrState, Word};
-pub use self::engine::{KyutaiEngine, KyutaiSttConversationBuilder, KyutaiTtsConversationBuilder};
+pub use self::engine::{
+    KyutaiAudioIsolationBuilder, KyutaiEngine, KyutaiSoundEffectsBuilder, KyutaiSpeakerLine,
+    KyutaiSpeechToSpeechBuilder, KyutaiSttConversation, KyutaiSttConversationBuilder,
+    KyutaiTtsConversation, KyutaiTtsConversationBuilder, KyutaiVoiceCloneBuilder,
+    KyutaiVoiceDiscoveryBuilder,
+};
 pub use self::error::{MoshiError, Result};
 pub use self::models::{
     KyutaiModelConfig, KyutaiModelManager, KyutaiModelPaths, download_kyutai_models,
@@ -47,13 +53,14 @@ pub use self::speech_generator::{
     VoiceParameters,
 };
 
-// TODO: Uncomment when modules are implemented
+// Note: LmModel export disabled - used internally only
 // pub use self::lm::LmModel;
 pub use self::mimi::Mimi;
-// pub use self::stream_both::{
-//     Config as StreamConfig, LiveKitAudioIntegration, LiveKitAudioReceiver, StreamOut,
-//     StreamingModel,
-// };
+pub use self::stream_both::{
+    Config as StreamConfig, StreamingModel,
+};
+// LiveKit bridge integration
+pub use self::livekit_bridge::{LiveKitBidirectionalBridge, LiveKitBridgeError};
 // pub use self::tts::Config as TtsModelConfig;
 // pub use self::tts::Model as TtsModel;
 // pub use livekit::prelude::{Room, RoomOptions};

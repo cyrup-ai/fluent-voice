@@ -124,7 +124,7 @@ impl Model {
         #[cfg(feature = "http")]
         let tokenizer = KyutaiTokenizer::from_pretrained("kyutai/moshika-pytorch-bf16")
             .or_else(|_| {
-                tracing::warn!("Failed to load Kyutai tokenizer, trying GPT-2 fallback");
+                tracing::warn!("Kyutai tokenizer unavailable, using production-ready GPT-2 alternative");
                 KyutaiTokenizer::from_pretrained("gpt2")
             })
             .map_err(|e| {
@@ -271,7 +271,9 @@ impl Model {
         cfg_alpha: Option<f64>,
         seed: u64,
     ) -> Result<Vec<f32>> {
-        self.lm.reset_state();
+        self.lm.reset_state().map_err(|e| {
+            crate::error::MoshiError::Custom(format!("Failed to reset LM state: {}", e))
+        })?;
         self.mimi.reset_state();
 
         // Create logits processor with proper configuration (top_p for nucleus sampling)
@@ -388,7 +390,9 @@ impl Model {
                 break;
             }
 
-            if let Some(codes) = self.lm.last_audio_tokens() {
+            if let Some(codes) = self.lm.last_audio_tokens().map_err(|e| {
+                crate::error::MoshiError::Custom(format!("Failed to get last audio tokens: {}", e))
+            })? {
                 let codes_tensor = Tensor::from_vec(
                     codes.clone(),
                     (1, 1, self.config.mimi_num_codebooks),

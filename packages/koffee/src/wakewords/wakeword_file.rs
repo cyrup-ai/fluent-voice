@@ -39,6 +39,10 @@ fn read_cbor<R: Read, T: DeserializeOwned>(r: R) -> IoResult<T> {
 /* --------------------------------------------------------------------- */
 /*  Traits                                                               */
 
+/// Trait for saving wake word models to files or buffers.
+///
+/// This trait provides methods for serializing wake word models to CBOR format,
+/// with support for atomic file writing and in-memory serialization.
 pub trait WakewordSave: Serialize {
     /// Atomically write CBOR to `path`.
     /// Uses “`<file>.tmp` → rename” on the same filesystem for safety.
@@ -64,6 +68,10 @@ pub trait WakewordSave: Serialize {
     }
 }
 
+/// Trait for loading wake word models from files or buffers.
+///
+/// This trait provides methods for deserializing wake word models from CBOR format,
+/// with support for loading from files or in-memory buffers.
 pub trait WakewordLoad: DeserializeOwned + Sized {
     /// Load a CBOR file produced by [`WakewordSave::save_to_file`].
     fn load_from_file<P: AsRef<Path>>(path: P) -> IoResult<Self> {
@@ -80,8 +88,22 @@ pub trait WakewordLoad: DeserializeOwned + Sized {
 /* --------------------------------------------------------------------- */
 /*  Internal trait used by detector code                                 */
 
+/// Internal trait for wake word model files.
+///
+/// This trait is used internally by the detector code to abstract over
+/// different wake word model implementations and provide a unified interface
+/// for creating detectors and accessing model metadata.
 #[allow(dead_code)]
 pub(crate) trait WakewordFile {
+    /// Creates a wake word detector from this model file.
+    ///
+    /// # Arguments
+    /// * `score_ref` - Reference score for detection threshold scaling
+    /// * `band_size` - Band size for frequency analysis
+    /// * `score_mode` - Scoring mode to use for detection
+    ///
+    /// # Returns
+    /// Returns a boxed wake word detector ready for inference.
     fn get_detector(
         &self,
         score_ref: f32,
@@ -89,5 +111,4 @@ pub(crate) trait WakewordFile {
         score_mode: ScoreMode,
     ) -> Box<dyn WakewordDetector>;
 
-    fn get_kfc_size(&self) -> u16;
 }

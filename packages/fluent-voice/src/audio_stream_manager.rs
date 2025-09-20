@@ -5,7 +5,7 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam_channel::{Receiver, Sender};
-use fluent_voice_domain::{MicBackend, VoiceError};
+use fluent_voice_domain::VoiceError;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
@@ -258,6 +258,11 @@ impl AudioStreamManager {
 
         tracing::info!("Audio capture thread shutting down");
         Ok(())
+    }
+
+    /// Check if the audio stream is currently active
+    pub fn is_active(&self) -> bool {
+        !self.shutdown_flag.load(Ordering::Relaxed) && self.thread_handle.is_some()
     }
 
     /// Stop the audio stream and clean up resources

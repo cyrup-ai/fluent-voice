@@ -9,9 +9,93 @@ use ratatui::{
 
 use crate::audioio::Matrix;
 
-use super::{DataSet, Dimension, DisplayMode, GraphConfig, update_value_i};
+use super::{DataSet, Dimension, DisplayMode, GraphConfig, UIMode, update_value_i};
 
 use rustfft::{FftPlanner, num_complex::Complex};
+
+/// Configuration for spectro display behavior
+/// Follows the pattern established in src/visualizer_config.rs
+const DEFAULT_SCALE_MULTIPLIER: f64 = 7.5;
+
+/// Standard audio frequency markers for spectrum analysis
+const STANDARD_AUDIO_FREQUENCIES: &[f64] = &[
+    20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0,
+    200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0,
+    2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 20000.0
+];
+
+fn generate_frequency_markers(cfg: &GraphConfig, lower: f64, upper: f64) -> Vec<DataSet> {
+    STANDARD_AUDIO_FREQUENCIES
+        .iter()
+        .map(|&freq| {
+            let x = freq.ln();
+            DataSet::new(
+                None,
+                vec![(x, lower), (x, upper)],
+                cfg.marker_type,
+                GraphType::Line,
+                cfg.axis_color,
+            )
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone)]
+pub struct SpectroDisplayConfig {
+    /// Scale multiplier for Y-axis bounds calculation
+    pub scale_multiplier: f64,
+    /// Enable logarithmic scale display
+    pub log_scale_enabled: bool,
+    /// Custom axis label override
+    pub custom_axis_label: Option<String>,
+}
+
+impl Default for SpectroDisplayConfig {
+    fn default() -> Self {
+        Self {
+            scale_multiplier: DEFAULT_SCALE_MULTIPLIER,
+            log_scale_enabled: false,
+            custom_axis_label: None,
+        }
+    }
+}
+
+impl SpectroDisplayConfig {
+    /// Create configuration with custom scale multiplier
+    pub fn with_scale_multiplier(mut self, multiplier: f64) -> Self {
+        self.scale_multiplier = multiplier.clamp(1.0, 20.0);
+        self
+    }
+
+    /// Create configuration with logarithmic scale enabled
+    pub fn with_log_scale(mut self, enabled: bool) -> Self {
+        self.log_scale_enabled = enabled;
+        self
+    }
+
+    /// Calculate axis configuration based on current settings
+    pub fn calculate_axis_config(&self, cfg: &GraphConfig) -> (String, [f64; 2]) {
+        let name = self.custom_axis_label
+            .clone()
+            .unwrap_or_else(|| {
+                if self.log_scale_enabled { 
+                    "| level".to_string() 
+                } else { 
+                    "| amplitude".to_string() 
+                }
+            });
+        let bounds = [0.0, cfg.scale * self.scale_multiplier];
+        (name, bounds)
+    }
+
+    /// Validate configuration parameters
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if self.scale_multiplier < 1.0 || self.scale_multiplier > 20.0 {
+            return Err("Scale multiplier must be between 1.0 and 20.0");
+        }
+        Ok(())
+    }
+}
 
 pub struct Spectrograph {
     pub sampling_rate: u32,
@@ -20,6 +104,7 @@ pub struct Spectrograph {
     pub buf: Vec<VecDeque<Vec<f64>>>,
     pub window: bool,
     pub log_y: bool,
+    pub display_config: SpectroDisplayConfig,
 }
 
 fn magnitude(c: Complex<f64>) -> f64 {
@@ -49,7 +134,16 @@ impl From<&crate::cfg::SourceOptions> for Spectrograph {
             buf: Vec::new(),
             window: false,
             log_y: true,
+            display_config: SpectroDisplayConfig::default(),
         }
+    }
+}
+
+impl Spectrograph {
+    /// Create with custom display configuration
+    pub fn with_display_config(mut self, config: SpectroDisplayConfig) -> Self {
+        self.display_config = config;
+        self
     }
 }
 
@@ -85,24 +179,24 @@ impl DisplayMode for Spectrograph {
         }
     }
 
-    fn axis<'a>(&'a self, cfg: &'a GraphConfig, dimension: Dimension) -> Axis<'a> {
+    fn axis(&self, cfg: &GraphConfig, ui_mode: UIMode, dimension: Dimension) -> Axis {
         let (name, bounds) = match dimension {
             Dimension::X => (
-                "frequency -",
-                [
-                    20.0f64.ln(),
-                    ((cfg.samples as f64 / cfg.width as f64) * 20000.0).ln(),
-                ],
+                if self.log_x { "log(freq)" } else { "freq" },
+                if self.log_x {
+                    [20.0f64.ln(), 20000.0f64.ln()]
+                } else {
+                    [0.0, cfg.sampling_rate as f64 / 2.0]
+                },
             ),
-            Dimension::Y => (
-                if self.log_y { "| level" } else { "| amplitude" },
-                [0.0, cfg.scale * 7.5], // very arbitrary but good default
-            ),
-            // TODO super arbitraty! wtf! also ugly inline ifs, get this thing together!
+            Dimension::Y => {
+                let (name, bounds) = self.display_config.calculate_axis_config(cfg);
+                (name.as_str(), bounds)
+            },
         };
+
         let mut a = Axis::default();
-        if cfg.show_ui {
-            // TODO don't make it necessary to check show_ui inside here
+        if let UIMode::WithLabels = ui_mode {
             a = a.title(Span::styled(name, Style::default().fg(cfg.labels_color)));
         }
         a.style(Style::default().fg(cfg.axis_color)).bounds(bounds)
@@ -194,8 +288,10 @@ impl DisplayMode for Spectrograph {
 
     fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
         let lower = 0.; // if self.log_y { -(cfg.scale * 5.) } else { 0. };
-        let upper = cfg.scale * 7.5;
-        vec![
+        let upper = cfg.scale * self.display_config.scale_multiplier;
+        
+        let mut markers = vec![
+            // Base reference lines (horizontal)
             DataSet::new(
                 None,
                 vec![(0.0, 0.0), ((cfg.samples as f64).ln(), 0.0)],
@@ -203,203 +299,10 @@ impl DisplayMode for Spectrograph {
                 GraphType::Line,
                 cfg.axis_color,
             ),
-            // TODO can we auto generate these? lol...
-            DataSet::new(
-                None,
-                vec![(20.0f64.ln(), lower), (20.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(30.0f64.ln(), lower), (30.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(40.0f64.ln(), lower), (40.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(50.0f64.ln(), lower), (50.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(60.0f64.ln(), lower), (60.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(70.0f64.ln(), lower), (70.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(80.0f64.ln(), lower), (80.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(90.0f64.ln(), lower), (90.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(100.0f64.ln(), lower), (100.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(200.0f64.ln(), lower), (200.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(300.0f64.ln(), lower), (300.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(400.0f64.ln(), lower), (400.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(500.0f64.ln(), lower), (500.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(600.0f64.ln(), lower), (600.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(700.0f64.ln(), lower), (700.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(800.0f64.ln(), lower), (800.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(900.0f64.ln(), lower), (900.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(1000.0f64.ln(), lower), (1000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(2000.0f64.ln(), lower), (2000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(3000.0f64.ln(), lower), (3000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(4000.0f64.ln(), lower), (4000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(5000.0f64.ln(), lower), (5000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(6000.0f64.ln(), lower), (6000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(7000.0f64.ln(), lower), (7000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(8000.0f64.ln(), lower), (8000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(9000.0f64.ln(), lower), (9000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(10000.0f64.ln(), lower), (10000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-            DataSet::new(
-                None,
-                vec![(20000.0f64.ln(), lower), (20000.0f64.ln(), upper)],
-                cfg.marker_type,
-                GraphType::Line,
-                cfg.axis_color,
-            ),
-        ]
+        ];
+        
+        // Add generated frequency markers
+        markers.extend(generate_frequency_markers(cfg, lower, upper));
+        markers
     }
 }

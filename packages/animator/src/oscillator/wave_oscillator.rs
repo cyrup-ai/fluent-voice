@@ -7,7 +7,7 @@ use ratatui::{
 
 use crate::audioio::Matrix;
 
-use super::{DataSet, Dimension, DisplayMode, GraphConfig, update_value_f, update_value_i};
+use super::{DataSet, Dimension, DisplayMode, GraphConfig, UIMode, update_value_f, update_value_i};
 
 pub struct Oscillator {
     pub triggering: bool,
@@ -59,14 +59,14 @@ impl DisplayMode for Oscillator {
         }
     }
 
-    fn axis<'a>(&'a self, cfg: &'a GraphConfig, dimension: Dimension) -> Axis<'a> {
+    fn axis(&self, cfg: &GraphConfig, ui_mode: UIMode, dimension: Dimension) -> Axis {
         let (name, bounds) = match dimension {
-            Dimension::X => ("time -", [0.0, cfg.samples as f64]),
-            Dimension::Y => ("| amplitude", [-cfg.scale, cfg.scale]),
+            Dimension::X => ("time", [0.0, cfg.samples as f64]),
+            Dimension::Y => ("amplitude", [-cfg.scale, cfg.scale]),
         };
+
         let mut a = Axis::default();
-        if cfg.show_ui {
-            // TODO don't make it necessary to check show_ui inside here
+        if let UIMode::WithLabels = ui_mode {
             a = a.title(Span::styled(name, Style::default().fg(cfg.labels_color)));
         }
         a.style(Style::default().fg(cfg.axis_color)).bounds(bounds)
@@ -181,32 +181,29 @@ impl DisplayMode for Oscillator {
     }
 }
 
-#[allow(clippy::collapsible_else_if)] // TODO can this be made nicer?
 fn triggered(data: &[f64], index: usize, threshold: f64, depth: u32, falling_edge: bool) -> bool {
     if data.len() < index + (1 + depth as usize) {
         return false;
     }
-    if falling_edge {
-        if data[index] >= threshold {
-            for i in 1..=depth as usize {
-                if data[index + i] >= threshold {
-                    return false;
-                }
-            }
-            true
-        } else {
-            false
-        }
-    } else {
-        if data[index] <= threshold {
-            for i in 1..=depth as usize {
-                if data[index + i] <= threshold {
-                    return false;
-                }
-            }
-            true
-        } else {
-            false
-        }
+    
+    match falling_edge {
+        true => check_falling_edge_trigger(data, index, threshold, depth),
+        false => check_rising_edge_trigger(data, index, threshold, depth),
     }
+}
+
+fn check_falling_edge_trigger(data: &[f64], index: usize, threshold: f64, depth: u32) -> bool {
+    if data[index] < threshold {
+        return false;
+    }
+    
+    (1..=depth as usize).all(|i| data[index + i] < threshold)
+}
+
+fn check_rising_edge_trigger(data: &[f64], index: usize, threshold: f64, depth: u32) -> bool {
+    if data[index] > threshold {
+        return false;
+    }
+    
+    (1..=depth as usize).all(|i| data[index + i] > threshold)
 }

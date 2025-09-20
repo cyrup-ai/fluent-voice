@@ -16,15 +16,26 @@ pub enum RefError {
     MismatchedSize,
 }
 
-/// Wakeword representation.
+/// Wakeword representation using reference-based detection.
+///
+/// This structure stores wake word templates as feature vectors extracted
+/// from training samples, enabling similarity-based detection against new
+/// audio input.
 #[derive(Serialize, Deserialize)]
 pub struct WakewordRef {
+    /// Name of the wake word (e.g., "hey assistant")
     pub name: String,
+    /// Average feature vectors computed from all training samples
     pub avg_features: Option<Vec<Vec<f32>>>,
+    /// Feature vectors for individual training samples, keyed by sample name
     pub samples_features: HashMap<String, Vec<Vec<f32>>>,
+    /// Detection threshold for individual sample comparisons
     pub threshold: Option<f32>,
+    /// Detection threshold for average feature comparison
     pub avg_threshold: Option<f32>,
+    /// RMS audio level used for gain normalization
     pub rms_level: f32,
+    /// KFC (Koffee Feature Computation) size for audio features
     pub kfc_size: u16,
 }
 impl WakewordLoad for WakewordRef {}
@@ -43,9 +54,6 @@ impl WakewordFile for WakewordRef {
         ))
     }
 
-    fn get_kfc_size(&self) -> u16 {
-        self.kfc_size
-    }
 }
 impl WakewordRef {
     pub(crate) fn new(

@@ -50,6 +50,8 @@ microphone = []
 encodec = []
 mimi = []
 snac = []
+advanced_audio = ["symphonia"]
+symphonia = ["dep:symphonia"]
 
 [dependencies]
 fluent-voice-workspace-hack = { path = "../../workspace-hack" }
@@ -117,6 +119,11 @@ metal = { version = "0.32", optional = true }
 bindgen_cuda = { version = "0.1.5", optional = true }
 candle-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
 candle-metal-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+url = "2.5.7"
+symphonia = { version = "0.5.4", default-features = false, features = ["aac", "adpcm", "alac", "flac", "mp3", "pcm", "vorbis"], optional = true }
+srtparse = "0.2.0"
+vtt = "1.0.0"
+anyhow = "1.0.100"
 
 # OS-specific acceleration dependencies
 [target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]

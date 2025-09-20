@@ -3,10 +3,7 @@
 //! This module contains trait implementations that extend
 //! the core FluentVoice functionality.
 
-mod default_stt_engine;
+pub mod default_stt;
 
-pub use default_stt_engine::{
-    AudioProcessor, AudioStream, DefaultSTTConversationBuilder, DefaultSTTEngine,
-    DefaultSTTEngineBuilder, DefaultSTTPostChunkBuilder, VadConfig, WakeWordConfig,
-    WakeWordDetection,
-};
+// Re-export for backward compatibility
+pub use default_stt::*;

@@ -1,3 +1,9 @@
+//! Neural network implementation for wake word detection.
+//!
+//! This module provides the core neural network functionality for wake word detection,
+//! including model loading, inference, and various architecture implementations (Tiny, Small, Medium, Large).
+//! It uses the Candle machine learning framework for tensor operations and model execution.
+
 #![allow(clippy::too_many_arguments)]
 
 use std::{collections::HashMap, io::Cursor, sync::Mutex};
@@ -18,14 +24,19 @@ use crate::{
 /*  Error handling                                                           */
 /* ------------------------------------------------------------------------- */
 
+/// Errors that can occur during wake word neural network operations.
 #[derive(Debug, thiserror::Error)]
 pub enum WakewordError {
+    /// Error from the Candle machine learning framework
     #[error("candle: {0}")]
     Candle(#[from] candle_core::Error),
+    /// I/O error during model loading or tensor operations
     #[error("tensor-io: {0}")]
     Io(#[from] std::io::Error),
+    /// Required model weight is missing from the checkpoint file
     #[error("model weight '{0}' missing in checkpoint")]
     MissingWeight(String),
+    /// Tensor data is malformed or corrupted
     #[error("tensor data malformed: {0}")]
     TensorData(String),
 }
@@ -34,6 +45,11 @@ pub enum WakewordError {
 /*  Public struct                                                            */
 /* ------------------------------------------------------------------------- */
 
+/// Neural network implementation for wake word detection.
+///
+/// This struct wraps a Candle-based neural network model that processes
+/// audio features to detect wake words. It provides thread-safe access
+/// and reuses tensors for efficient inference.
 pub struct WakewordNN {
     model: Box<dyn ModelImpl>,
     // tensor reused between calls (avoids realloc); wrapped in `Mutex` to
@@ -50,6 +66,15 @@ pub struct WakewordNN {
 impl WakewordNN {
     /* ---------------- constructor ---------------- */
 
+    /// Creates a new WakewordNN from a trained model.
+    ///
+    /// # Arguments
+    /// * `model` - The trained wake word model containing weights and metadata
+    /// * `score_ref` - Reference score for detection threshold scaling
+    ///
+    /// # Returns
+    /// Returns a configured neural network ready for inference, or an error
+    /// if the model weights are invalid or incompatible.
     pub fn new(model: &WakewordModel, score_ref: f32) -> Result<Self, WakewordError> {
         let var_map = VarMap::new();
         let model_size = model.train_size; // train_size now contains the actual input feature vector size
@@ -410,10 +435,32 @@ impl_model!(LargeModel, |i, k| {
 /*  Traits & conversions                                                    */
 /* ------------------------------------------------------------------------- */
 
+/// Trait for neural network model implementations.
+///
+/// This trait defines the interface that all wake word model architectures
+/// must implement. It provides methods for model creation and forward inference.
 pub trait ModelImpl: Send + Sync {
+    /// Creates a new model instance with the specified architecture parameters.
+    ///
+    /// # Arguments
+    /// * `vs` - Variable builder for loading model weights
+    /// * `inp` - Input feature vector size
+    /// * `kfc` - KFC coefficient count for audio features
+    /// * `labels` - Number of output labels (classes)
+    ///
+    /// # Returns
+    /// Returns a new model instance or a Candle error if construction fails.
     fn new(vs: VarBuilder, inp: usize, kfc: usize, labels: usize) -> CandleResult<Self>
     where
         Self: Sized;
+
+    /// Performs forward inference on input tensor.
+    ///
+    /// # Arguments
+    /// * `xs` - Input tensor containing audio features
+    ///
+    /// # Returns
+    /// Returns output tensor with class predictions or a Candle error.
     fn forward(&self, xs: &Tensor) -> CandleResult<Tensor>;
 }
 

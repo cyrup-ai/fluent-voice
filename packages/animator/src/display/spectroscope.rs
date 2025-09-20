@@ -4,7 +4,7 @@ use ratatui::widgets::{Axis, GraphType};
 
 use crate::{
     input::Matrix,
-    oscillator::{DataSet, Dimension, DisplayMode, GraphConfig},
+    oscillator::{DataSet, Dimension, DisplayMode, GraphConfig, UIMode},
 };
 
 /// Spectroscope visualization component for frequency analysis
@@ -26,16 +26,26 @@ impl Default for Spectrograph {
 }
 
 impl DisplayMode for Spectrograph {
-    fn axis<'a>(&'a self, cfg: &'a GraphConfig, dimension: Dimension) -> Axis<'a> {
+    fn axis(&self, cfg: &GraphConfig, ui_mode: UIMode, dimension: Dimension) -> Axis {
         match dimension {
-            Dimension::X => Axis::default()
-                .title("Frequency (Hz)")
-                .style(ratatui::style::Style::default().fg(cfg.axis_color))
-                .bounds([0.0, (cfg.sampling_rate / 2) as f64]),
-            Dimension::Y => Axis::default()
-                .title("Magnitude (dB)")
-                .style(ratatui::style::Style::default().fg(cfg.axis_color))
-                .bounds([-120.0, 0.0]),
+            Dimension::X => {
+                let mut axis = Axis::default()
+                    .style(ratatui::style::Style::default().fg(cfg.axis_color))
+                    .bounds([0.0, (cfg.sampling_rate / 2) as f64]);
+                if let UIMode::WithLabels = ui_mode {
+                    axis = axis.title("Frequency (Hz)");
+                }
+                axis
+            }
+            Dimension::Y => {
+                let mut axis = Axis::default()
+                    .style(ratatui::style::Style::default().fg(cfg.axis_color))
+                    .bounds([-120.0, 0.0]);
+                if let UIMode::WithLabels = ui_mode {
+                    axis = axis.title("Magnitude (dB)");
+                }
+                axis
+            }
         }
     }
 

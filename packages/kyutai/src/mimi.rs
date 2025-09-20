@@ -3,6 +3,7 @@ use crate::conv::{ConvDownsample1d, ConvTrUpsample1d};
 use crate::quantization::SplitResidualVectorQuantizer;
 use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::VarBuilder;
+use std::path::Path;
 use std::sync::Arc;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -103,7 +104,7 @@ pub struct Mimi {
 
     // Derived parameters
     frame_size: usize,
-    downsample_stride: usize,
+    _downsample_stride: usize,
 }
 
 impl Mimi {
@@ -175,7 +176,7 @@ impl Mimi {
             downsample,
             upsample,
             frame_size,
-            downsample_stride,
+            _downsample_stride: downsample_stride,
         })
     }
 
@@ -337,4 +338,23 @@ pub fn load(model_file: &str, num_codebooks: Option<usize>, dev: &Device) -> Res
 
     // Create the Mimi instance with loaded weights
     Mimi::new(cfg, vb)
+}
+
+/// Load Mimi model from a path without requiring UTF-8 conversion
+/// 
+/// This function safely handles path types without unwrap() calls that could panic
+/// on non-UTF-8 paths, following existing patterns from TURD.md specification.
+pub fn load_from_path<P: AsRef<Path>>(
+    model_path: P, 
+    num_codebooks: Option<usize>, 
+    dev: &Device
+) -> Result<Mimi> {
+    let model_file = model_path.as_ref()
+        .to_str()
+        .ok_or_else(|| candle_core::Error::Msg(format!(
+            "Invalid UTF-8 in model path: {:?}", 
+            model_path.as_ref()
+        )))?;
+    
+    load(model_file, num_codebooks, dev)
 }

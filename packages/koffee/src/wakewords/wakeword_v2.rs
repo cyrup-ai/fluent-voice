@@ -10,7 +10,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum V2Error {
-    #[error("legacy wakeword contains no templates")]
+    #[error("wakeword contains no templates")]
     Empty,
     #[error("templates have different KFC sizes")]
     InconsistentSize,

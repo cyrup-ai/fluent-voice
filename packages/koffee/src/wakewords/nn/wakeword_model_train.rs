@@ -74,12 +74,17 @@ where
 /// Hyper-parameters accepted by the trainer.
 #[derive(Clone, Debug)]
 pub struct WakewordModelTrainOptions {
+    /// Learning rate for training
     pub lr: f64,
     /// multiplicative decay each epoch  (cosine if negative)
     pub lr_decay: f64,
+    /// Number of training epochs
     pub epochs: usize,
+    /// Test model every N epochs
     pub test_every: usize,
+    /// Training batch size
     pub batch_size: usize,
+    /// Band size for frequency analysis
     pub band_size: u16,
     /// early-stopping patience (epochs without improvement)
     pub early_stop_pat: usize,

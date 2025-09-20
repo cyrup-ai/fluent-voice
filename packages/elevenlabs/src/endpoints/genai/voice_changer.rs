@@ -82,7 +82,7 @@ impl ElevenLabsEndpoint for VoiceChanger {
 
 #[derive(Clone, Debug, Default)]
 pub struct VoiceChangerQuery {
-    params: QueryValues,
+    pub params: QueryValues,
 }
 
 impl VoiceChangerQuery {

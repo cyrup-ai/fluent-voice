@@ -4,7 +4,7 @@ use ratatui::widgets::{Axis, GraphType};
 
 use crate::{
     input::Matrix,
-    oscillator::{DataSet, Dimension, DisplayMode, GraphConfig},
+    oscillator::{DataSet, Dimension, DisplayMode, GraphConfig, UIMode},
 };
 
 /// Oscillator visualization component
@@ -15,16 +15,26 @@ pub struct Oscillator {
 }
 
 impl DisplayMode for Oscillator {
-    fn axis<'a>(&'a self, cfg: &'a GraphConfig, dimension: Dimension) -> Axis<'a> {
+    fn axis(&self, cfg: &GraphConfig, ui_mode: UIMode, dimension: Dimension) -> Axis {
         match dimension {
-            Dimension::X => Axis::default()
-                .title("Time")
-                .style(ratatui::style::Style::default().fg(cfg.axis_color))
-                .bounds([0.0, cfg.samples as f64]),
-            Dimension::Y => Axis::default()
-                .title("Amplitude")
-                .style(ratatui::style::Style::default().fg(cfg.axis_color))
-                .bounds([-cfg.scale, cfg.scale]),
+            Dimension::X => {
+                let mut axis = Axis::default()
+                    .style(ratatui::style::Style::default().fg(cfg.axis_color))
+                    .bounds([0.0, cfg.samples as f64]);
+                if let UIMode::WithLabels = ui_mode {
+                    axis = axis.title("Time");
+                }
+                axis
+            }
+            Dimension::Y => {
+                let mut axis = Axis::default()
+                    .style(ratatui::style::Style::default().fg(cfg.axis_color))
+                    .bounds([-cfg.scale, cfg.scale]);
+                if let UIMode::WithLabels = ui_mode {
+                    axis = axis.title("Amplitude");
+                }
+                axis
+            }
         }
     }
 

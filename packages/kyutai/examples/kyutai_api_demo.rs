@@ -79,9 +79,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         println!();
     }
 
-    // Create mock audio chunks with realistic metadata
-    println!("🎵 Generating mock audio chunks...");
-    let mut audio_chunks = Vec::new();
+    // Generate demonstration audio chunks for API example
+    println!("🎵 Generating demonstration audio chunks...");
+    let mut demo_audio_chunks = Vec::new();
     let mut cumulative_time_ms = 0u64;
 
     for speaker in speakers {
@@ -101,14 +101,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Some(AudioFormat::Pcm24Khz),
         );
 
-        audio_chunks.push(chunk);
+        demo_audio_chunks.push(chunk);
         cumulative_time_ms += duration_ms;
 
         println!("  ✓ {} ({} ms)", speaker.speaker_id, duration_ms);
     }
 
     // Create audio stream
-    let mut audio_stream = Box::pin(stream::iter(audio_chunks));
+    let mut audio_stream = Box::pin(stream::iter(demo_audio_chunks));
 
     // Process audio stream (README.md pattern)
     println!("\n🔊 Processing audio stream...");

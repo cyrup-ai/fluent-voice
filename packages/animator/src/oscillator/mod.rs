@@ -8,12 +8,33 @@ use ratatui::{
     symbols::Marker,
     widgets::{Axis, Dataset, GraphType},
 };
+use std::sync::Arc;
 
 use crate::input::Matrix;
 
 pub enum Dimension {
     X,
     Y,
+}
+
+/// Represents the UI display mode for axis labels
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UIMode {
+    /// Display axis with labels and titles
+    WithLabels,
+    /// Display axis without labels (minimal mode)
+    WithoutLabels,
+}
+
+impl UIMode {
+    /// Create UIMode from boolean (for backward compatibility)
+    pub fn from_show_ui(show_ui: bool) -> Self {
+        if show_ui {
+            Self::WithLabels
+        } else {
+            Self::WithoutLabels
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -41,10 +62,9 @@ impl GraphConfig {
     }
 }
 
-#[allow(clippy::ptr_arg)] // TODO temporarily! it's a shitty solution
 pub trait DisplayMode {
     // MUST define
-    fn axis<'a>(&'a self, cfg: &'a GraphConfig, dimension: Dimension) -> Axis<'a>; // TODO simplify this
+    fn axis(&self, cfg: &GraphConfig, ui_mode: UIMode, dimension: Dimension) -> Axis;
     fn process(&mut self, cfg: &GraphConfig, data: &Matrix<f64>) -> Vec<DataSet>;
     fn mode_str(&self) -> &'static str;
 
@@ -62,27 +82,40 @@ pub trait DisplayMode {
 }
 
 pub struct DataSet {
-    name: Option<String>,
-    data: Vec<(f64, f64)>,
-    marker_type: Marker,
-    graph_type: GraphType,
-    color: Color,
+    pub name: Option<String>,
+    pub data: Arc<Vec<(f64, f64)>>,
+    pub marker_type: Marker,
+    pub graph_type: GraphType,
+    pub color: Color,
+}
+
+impl Clone for DataSet {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            data: Arc::clone(&self.data),
+            marker_type: self.marker_type,
+            graph_type: self.graph_type,
+            color: self.color,
+        }
+    }
 }
 
 impl<'a> From<&'a DataSet> for Dataset<'a> {
     fn from(ds: &'a DataSet) -> Dataset<'a> {
-        let mut out = Dataset::default(); // TODO creating a binding is kinda ugly, is it avoidable?
-        if let Some(name) = &ds.name {
-            out = out.name(name.clone());
-        }
-        out.marker(ds.marker_type)
+        let base = Dataset::default()
+            .marker(ds.marker_type)
             .graph_type(ds.graph_type)
             .style(Style::default().fg(ds.color))
-            .data(&ds.data)
+            .data(&ds.data);
+            
+        match &ds.name {
+            Some(name) => base.name(name.clone()),
+            None => base,
+        }
     }
 }
 
-// TODO this is pretty ugly but I need datasets which own the data
 impl DataSet {
     pub fn new(
         name: Option<String>,
@@ -93,7 +126,7 @@ impl DataSet {
     ) -> Self {
         DataSet {
             name,
-            data,
+            data: Arc::new(data),
             marker_type,
             graph_type,
             color,

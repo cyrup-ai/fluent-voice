@@ -497,12 +497,14 @@ fn extract_model_files(
     // Debug: Print all available files
     println!("DEBUG: Available files from progresshub:");
     for file in &model_result.files {
-        println!("DEBUG:   filename='{}', path='{}', exists={}", 
-                 file.filename, 
-                 file.path.display(),
-                 file.path.exists());
+        println!(
+            "DEBUG:   filename='{}', path='{}', exists={}",
+            file.filename,
+            file.path.display(),
+            file.path.exists()
+        );
     }
-    
+
     let config_path = model_result
         .files
         .iter()

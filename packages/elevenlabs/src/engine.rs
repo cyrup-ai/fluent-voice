@@ -24,8 +24,6 @@ use bytes::Bytes;
 use futures_util::{Stream, StreamExt};
 use std::pin::Pin;
 
-use fluent_voice::stt_conversation::SttConversationBuilder;
-
 // Remove fluent-voice trait integration - ElevenLabs uses its own builder API
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -721,26 +719,121 @@ impl AudioStreamWithTimestamps {
         }
     }
 
-    /// Play the timestamped stream  
+    /// Play the timestamped stream with full timestamp support
     pub async fn play(self) -> Result<()> {
-        // For now, extract just the audio and play it
-        let audio_stream = self.audio_only();
-        stream_audio(audio_stream).await?;
+        use crate::utils::stream_audio;
+        use futures_util::StreamExt;
+
+        let timed_audio_stream = self.into_timed_audio_stream();
+        // Extract just the audio bytes for playback, ignoring timing info
+        let audio_only_stream =
+            timed_audio_stream.map(|result| result.map(|(bytes, _timing_info)| bytes));
+        stream_audio(audio_only_stream).await?;
         Ok(())
+    }
+
+    /// Decode base64 audio data to bytes
+    fn decode_audio_base64(audio_base64: &str) -> Result<Bytes> {
+        use base64::{Engine, engine::general_purpose};
+        general_purpose::STANDARD
+            .decode(audio_base64)
+            .map(Bytes::from)
+            .map_err(|e| format!("Failed to decode audio: {}", e).into())
+    }
+
+    /// Convert to timed audio stream with continuous playback
+    fn into_timed_audio_stream(self) -> impl Stream<Item = Result<(Bytes, TimingInfo)>> {
+        use futures_util::StreamExt;
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicU64, Ordering};
+
+        let cumulative_time = Arc::new(AtomicU64::new(0));
+        let synthesis_context = self.synthesis_context.clone();
+
+        self.inner.map(move |result| {
+            let cumulative_time = Arc::clone(&cumulative_time);
+            let synthesis_context = synthesis_context.clone();
+            result.and_then(|chunk| {
+                // Calculate timing
+                let start_ms = cumulative_time.load(Ordering::Relaxed);
+                let duration_ms =
+                    Self::calculate_chunk_duration_from_chunk(&chunk, &synthesis_context);
+                let end_ms = start_ms + duration_ms;
+                cumulative_time.store(end_ms, Ordering::Relaxed);
+
+                // Decode audio
+                let audio_bytes = Self::decode_audio_base64(&chunk.audio_base64)?;
+
+                // Return combined data
+                Ok((
+                    audio_bytes,
+                    TimingInfo {
+                        start_ms,
+                        end_ms,
+                        duration_ms,
+                        text_segment: chunk
+                            .alignment
+                            .as_ref()
+                            .map(|a| a.characters.join(""))
+                            .unwrap_or_default(),
+                        alignment: chunk.alignment.clone(),
+                    },
+                ))
+            })
+        })
+    }
+
+    /// Calculate duration from a chunk (helper for timing info)
+    fn calculate_chunk_duration_from_chunk(
+        chunk: &TimestampedAudioChunk,
+        synthesis_context: &SynthesisContext,
+    ) -> u64 {
+        if let Some(alignment) = &chunk.alignment {
+            // Use precise timing from alignment data
+            let start_seconds = alignment
+                .character_start_times_seconds
+                .first()
+                .copied()
+                .unwrap_or(0.0);
+            let end_seconds = alignment
+                .character_end_times_seconds
+                .last()
+                .copied()
+                .unwrap_or(0.0);
+            ((end_seconds - start_seconds) * 1000.0) as u64
+        } else {
+            // Fallback to estimated duration based on actual audio format from synthesis context
+            let (sample_rate, bytes_per_sample) =
+                Self::parse_audio_format(&synthesis_context.output_format);
+            let estimated_bytes = chunk.audio_base64.len() * 3 / 4; // base64 to bytes ratio
+            let samples = estimated_bytes / bytes_per_sample;
+            (samples as f64 / sample_rate * 1000.0) as u64
+        }
+    }
+
+    /// Parse audio format string to extract sample rate and bytes per sample
+    fn parse_audio_format(format: &str) -> (f64, usize) {
+        // Parse format strings like "pcm_22050", "mp3_44100_128", etc.
+        if format.contains("44100") {
+            (44100.0, 2) // 44.1kHz, 16-bit
+        } else if format.contains("22050") {
+            (22050.0, 2) // 22.05kHz, 16-bit  
+        } else if format.contains("24000") {
+            (24000.0, 2) // 24kHz, 16-bit
+        } else if format.contains("16000") {
+            (16000.0, 2) // 16kHz, 16-bit
+        } else if format.contains("8000") {
+            (8000.0, 1) // 8kHz, 8-bit (μ-law)
+        } else {
+            // Default fallback to common ElevenLabs format
+            (22050.0, 2) // 22.05kHz, 16-bit
+        }
     }
 
     /// Convert to audio-only stream
     pub fn audio_only(self) -> impl Stream<Item = Result<Bytes>> {
-        self.inner.map(|result| {
-            result.and_then(|chunk| {
-                // Decode base64 audio
-                use base64::{Engine, engine::general_purpose};
-                general_purpose::STANDARD
-                    .decode(&chunk.audio_base64)
-                    .map(Bytes::from)
-                    .map_err(|e| format!("Failed to decode audio: {}", e).into())
-            })
-        })
+        self.inner
+            .map(|result| result.and_then(|chunk| Self::decode_audio_base64(&chunk.audio_base64)))
     }
 
     /// Save the timestamped stream to file with separate timestamp data
@@ -876,6 +969,16 @@ pub struct TimestampedAudioChunk {
     pub audio_base64: String,
     pub alignment: Option<Alignment>,
     pub normalized_alignment: Option<Alignment>,
+}
+
+/// Timing information for external synchronization
+#[derive(Debug, Clone)]
+pub struct TimingInfo {
+    pub start_ms: u64,
+    pub end_ms: u64,
+    pub duration_ms: u64,
+    pub text_segment: String,
+    pub alignment: Option<Alignment>,
 }
 
 impl TimestampedAudioChunk {

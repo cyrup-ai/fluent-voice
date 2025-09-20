@@ -12,7 +12,7 @@ pub trait StreamingModule {
     fn forward_streaming(&mut self, input: &Tensor) -> Result<Tensor>;
 
     /// Reset the streaming state
-    fn reset_streaming(&mut self);
+    fn reset_streaming(&mut self) -> std::result::Result<(), crate::error::MoshiError>;
 
     /// Get the current streaming state size
     fn streaming_state_size(&self) -> usize;
@@ -68,10 +68,20 @@ impl StreamingTransformer {
     }
 
     /// Forward pass with optional cross-attention source
-    pub fn forward_ca(&mut self, input: &Tensor, _ca_src: Option<&CaSrc>) -> Result<Tensor> {
-        // For now, ignore cross-attention and just forward through transformer
-        // This can be extended to handle cross-attention properly
-        self.forward(input)
+    pub fn forward_ca(&mut self, input: &Tensor, ca_src: Option<&CaSrc>) -> Result<Tensor> {
+        // Extract cross-attention tensor from source
+        let ca_tensor = ca_src.and_then(|src| match src {
+            CaSrc::Tokens(t) => Some(t),
+            CaSrc::Embeddings(e) => Some(e),
+        });
+
+        // Forward through transformer with cross-attention
+        let output = self.transformer.forward(input, ca_tensor)?;
+
+        // Update cache for streaming
+        self.update_cache(&output)?;
+
+        Ok(output)
     }
 
     /// Standard forward pass
@@ -115,8 +125,9 @@ impl StreamingModule for StreamingTransformer {
         self.forward(input)
     }
 
-    fn reset_streaming(&mut self) {
+    fn reset_streaming(&mut self) -> std::result::Result<(), crate::error::MoshiError> {
         self.reset_cache();
+        Ok(())
     }
 
     fn streaming_state_size(&self) -> usize {

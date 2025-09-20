@@ -146,8 +146,11 @@ impl AudioVisualizer {
         let stats_clone = stats.clone();
         let running_clone = running.clone();
         let volume_clone = volume_multiplier.clone();
-        let mut audio_stream =
-            NativeAudioStream::new(rtc_track.clone(), config.sample_rate as i32, config.num_channels as i32);
+        let mut audio_stream = NativeAudioStream::new(
+            rtc_track.clone(),
+            config.sample_rate as i32,
+            config.num_channels as i32,
+        );
         let handle = rt_handle.clone();
         let smoothing = config.smoothing_factor;
 

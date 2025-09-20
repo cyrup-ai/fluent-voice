@@ -2,8 +2,8 @@
 
 use fluent_voice::prelude::*;
 use fluent_voice_domain::{
-    AudioFormat, Diarization, Language, MicBackend, Punctuation, SpeechSource, VadMode,
-    WordTimestamps,
+    transcription::{MessageChunk, TranscriptionSegmentImpl},
+    AudioFormat, Diarization, Language, Punctuation, SpeechSource, WordTimestamps,
 };
 use futures_util::StreamExt;
 

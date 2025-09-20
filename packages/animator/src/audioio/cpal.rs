@@ -79,12 +79,12 @@ impl DefaultAudioDeviceWithCPAL {
 }
 
 impl super::DataSource<f64> for DefaultAudioDeviceWithCPAL {
-    fn recv(&mut self) -> Option<super::Matrix<f64>> {
+    fn recv(&mut self) -> Result<super::Matrix<f64>, super::AudioDataError> {
         match self.rx.recv() {
-            Ok(x) => Some(x),
+            Ok(data) => Ok(data),
             Err(e) => {
-                println!("error receiving from source? {e}");
-                None
+                // Map channel errors to specific AudioDataError variants
+                Err(super::AudioDataError::ChannelReceive(e.to_string()))
             }
         }
     }

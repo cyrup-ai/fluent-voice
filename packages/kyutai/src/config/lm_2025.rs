@@ -1,0 +1,187 @@
+//! 2025 generation language model configurations
+
+use super::conditioners::DepFormerConfig;
+use super::lm_base::LmConfig;
+use crate::transformer::{
+    Config as TransformerConfig, CrossAttentionGating, NormType, PositionalEmbedding,
+};
+
+impl LmConfig {
+    /// ASR 300M parameter model (2025 version)
+    pub fn asr_300m_202501() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 1024,
+            num_heads: 8,
+            num_layers: 16,
+            dim_feedforward: 1024 * 4,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 750,
+            max_period: 100_000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: None,
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: None,
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 48001,
+            text_out_vocab_size: 48000,
+            audio_codebooks: 32,
+        }
+    }
+
+    /// TTS model (2025 version)
+    pub fn tts_202501() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 2048,
+            num_heads: 32,
+            num_layers: 48,
+            dim_feedforward: 2048 * 4,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 500,
+            max_period: 10000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: Some((CrossAttentionGating::Normal, NormType::LayerNorm, None)),
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: Some(DepFormerConfig {
+                transformer: TransformerConfig {
+                    d_model: 1024,
+                    num_heads: 16,
+                    num_layers: 6,
+                    dim_feedforward: 1024 * 4,
+                    causal: true,
+                    norm_first: true,
+                    bias_ff: false,
+                    bias_attn: false,
+                    layer_scale: None,
+                    context: 32,
+                    max_period: 10000,
+                    use_conv_block: false,
+                    use_conv_bias: true,
+                    cross_attention: None,
+                    gating: Some(candle_nn::Activation::Silu),
+                    norm: NormType::RmsNorm,
+                    positional_embedding: PositionalEmbedding::None,
+                    conv_layout: false,
+                    conv_kernel_size: 3,
+                    kv_repeat: 1,
+                    max_seq_len: 4096,
+                    shared_cross_attn: false,
+                },
+                num_slices: 32,
+                low_rank_embeddings: None,
+                shared: true,
+                multi_linear: true,
+                weights_per_step: true,
+                pos_emb: "none".to_string(),
+                weights_per_step_schedule: None,
+            }),
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 8001,
+            text_out_vocab_size: 8000,
+            audio_codebooks: 32,
+        }
+    }
+
+    /// Speech-to-Speech 2B model with 16 RVQ (2025 version)
+    pub fn s2s_2b_16rvq_202501() -> Self {
+        let lm_cfg = TransformerConfig {
+            d_model: 2560,
+            num_heads: 20,
+            num_layers: 24,
+            dim_feedforward: 2560 * 4,
+            causal: true,
+            norm_first: true,
+            bias_ff: false,
+            bias_attn: false,
+            layer_scale: None,
+            context: 3000,
+            max_period: 100000,
+            use_conv_block: false,
+            use_conv_bias: true,
+            cross_attention: None,
+            gating: Some(candle_nn::Activation::Silu),
+            norm: NormType::RmsNorm,
+            positional_embedding: PositionalEmbedding::Rope,
+            conv_layout: false,
+            conv_kernel_size: 3,
+            kv_repeat: 1,
+            max_seq_len: 4096,
+            shared_cross_attn: false,
+        };
+        Self {
+            transformer: lm_cfg,
+            depformer: Some(DepFormerConfig {
+                transformer: TransformerConfig {
+                    d_model: 1024,
+                    num_heads: 16,
+                    num_layers: 6,
+                    dim_feedforward: 1024 * 4,
+                    causal: true,
+                    norm_first: true,
+                    bias_ff: false,
+                    bias_attn: false,
+                    layer_scale: None,
+                    context: 16,
+                    max_period: 10000,
+                    use_conv_block: false,
+                    use_conv_bias: true,
+                    cross_attention: None,
+                    gating: Some(candle_nn::Activation::Silu),
+                    norm: NormType::RmsNorm,
+                    positional_embedding: PositionalEmbedding::None,
+                    conv_layout: false,
+                    conv_kernel_size: 3,
+                    kv_repeat: 1,
+                    max_seq_len: 4096,
+                    shared_cross_attn: false,
+                },
+                num_slices: 16,
+                low_rank_embeddings: None,
+                shared: true,
+                multi_linear: true,
+                weights_per_step: true,
+                pos_emb: "none".to_string(),
+                weights_per_step_schedule: None,
+            }),
+            fuser: None,
+            conditioners: None,
+            audio_vocab_size: 2049,
+            text_in_vocab_size: 48001,
+            text_out_vocab_size: 48000,
+            audio_codebooks: 32,
+        }
+    }
+}

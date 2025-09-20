@@ -115,7 +115,7 @@ impl ElevenLabsClient {
     pub async fn hit<T: ElevenLabsEndpoint>(&self, endpoint: T) -> Result<T::ResponseBody> {
         let mut builder = self
             .inner
-            .request(T::METHOD, endpoint.url())
+            .request(T::METHOD, endpoint.url()?)
             .header(XI_API_KEY_HEADER, &self.api_key)
             .version(http::Version::HTTP_3);
 
@@ -137,6 +137,38 @@ impl ElevenLabsClient {
         }
 
         endpoint.response_body(resp).await
+    }
+
+    /// Hit an endpoint and return both headers and response body
+    pub async fn hit_with_headers<T: ElevenLabsEndpoint>(&self, endpoint: T) -> Result<(http::HeaderMap, T::ResponseBody)> {
+        let mut builder = self
+            .inner
+            .request(T::METHOD, endpoint.url()?)
+            .header(XI_API_KEY_HEADER, &self.api_key)
+            .version(http::Version::HTTP_3);
+
+        if matches!(T::METHOD, Method::POST | Method::PATCH) {
+            let request_body = endpoint.request_body().await?;
+            builder = match request_body {
+                RequestBody::Json(json) => {
+                    builder.header(CONTENT_TYPE, APPLICATION_JSON).json(&json)
+                }
+                RequestBody::Multipart(form) => builder.multipart(form),
+                RequestBody::Empty => return Err("request must have a body".into()),
+            };
+        }
+
+        let resp = builder.send().await?;
+
+        if !resp.status().is_success() {
+            return Err(Box::new(HttpError(resp.json().await?)));
+        }
+
+        // Extract headers before consuming response
+        let headers = resp.headers().clone();
+        let body = endpoint.response_body(resp).await?;
+        
+        Ok((headers, body))
     }
 
     // WebSocket functionality is currently disabled

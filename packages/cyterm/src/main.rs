@@ -24,6 +24,7 @@ async fn main() -> Result<()> {
             print!("{} [prediction: {}]", transcription, prediction);
             std::io::Write::flush(&mut std::io::stdout()).unwrap();
         })
+        .on_chunk(|chunk| chunk.into())
         .listen(|result| match result {
             Ok(conversation) => Ok(conversation.into_stream()),
             Err(e) => Err(e),

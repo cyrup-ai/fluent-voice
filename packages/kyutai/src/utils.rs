@@ -1,6 +1,6 @@
 // src/utils.rs
 
-use candle_core::{D, DType, Result, Tensor};
+use candle_core::{D, DType, Tensor, Result as CResult};
 use std::collections::HashSet;
 
 /// Adds sinusoidal embeddings to the input tensor.
@@ -14,7 +14,7 @@ use std::collections::HashSet;
 /// # Returns
 ///
 /// * `Result<Tensor>` - The tensor with added sinusoidal embeddings.
-pub fn add_sin_embeddings(xs: &Tensor) -> Result<Tensor> {
+pub fn add_sin_embeddings(xs: &Tensor) -> CResult<Tensor> {
     let (b, t, d) = xs.dims3()?;
     let half_d = d / 2;
     let positions = Tensor::arange(0u32, t as u32, xs.device())?
@@ -51,7 +51,7 @@ pub fn add_sin_embeddings(xs: &Tensor) -> Result<Tensor> {
 /// # Returns
 ///
 /// * `Result<Tensor>` - The normalized tensor.
-pub fn rms_norm(xs: &Tensor, alpha: &Tensor, eps: f32) -> Result<Tensor> {
+pub fn rms_norm(xs: &Tensor, alpha: &Tensor, eps: f32) -> CResult<Tensor> {
     let eps_tensor = Tensor::full(eps as f64, xs.shape(), xs.device())?;
     let rms = xs
         .sqr()?
@@ -79,7 +79,7 @@ pub fn apply_repetition_penalty(
     logits: Tensor,
     prev_tokens: &[u32],
     penalty: f32,
-) -> Result<Tensor> {
+) -> CResult<Tensor> {
     let mut logits_vec = logits.to_vec1::<f32>()?;
     let mut seen = HashSet::new();
     for &token in prev_tokens.iter().rev() {
@@ -109,7 +109,7 @@ pub fn apply_repetition_penalty(
 /// # Returns
 ///
 /// * `Result<bool>` - True if all elements are zero, false otherwise.
-pub fn is_all_zero(tensor: &Tensor) -> Result<bool> {
+pub fn is_all_zero(tensor: &Tensor) -> CResult<bool> {
     let sum = tensor.sum_all()?;
     Ok(sum.to_scalar::<f32>()? == 0.0)
 }
@@ -127,8 +127,54 @@ pub fn is_all_zero(tensor: &Tensor) -> Result<bool> {
 /// # Returns
 ///
 /// * `Result<Tensor>` - The clamped tensor.
-pub fn clamp_tensor(tensor: &Tensor, min: f32, max: f32) -> Result<Tensor> {
+pub fn clamp_tensor(tensor: &Tensor, min: f32, max: f32) -> CResult<Tensor> {
     let min_tensor = Tensor::new(min, tensor.device())?.broadcast_as(tensor.shape())?;
     let max_tensor = Tensor::new(max, tensor.device())?.broadcast_as(tensor.shape())?;
     tensor.maximum(&min_tensor)?.minimum(&max_tensor)
+}
+
+/// Device compatibility validator for safe tensor operations
+pub struct DeviceValidator;
+
+impl DeviceValidator {
+    /// Create tensor with device validation and CPU fallback
+    pub fn create_tensor_with_fallback(
+        shape: impl Into<candle_core::Shape>,
+        dtype: DType,
+        preferred_device: &candle_core::Device,
+    ) -> Result<Tensor, crate::error::MoshiError> {
+        let shape = shape.into();
+        
+        // Try preferred device first
+        match Tensor::zeros(shape.clone(), dtype, preferred_device) {
+            Ok(tensor) => {
+                tracing::debug!("Successfully created tensor on {:?}", preferred_device);
+                Ok(tensor)
+            }
+            Err(device_err) => {
+                tracing::warn!("Device {:?} failed, falling back to CPU: {}", preferred_device, device_err);
+                
+                // Fallback to CPU
+                Tensor::zeros(shape.clone(), dtype, &candle_core::Device::Cpu)
+                    .map_err(|cpu_err| crate::error::MoshiError::DeviceError(format!(
+                        "Failed to create tensor on preferred device {:?} ({}) and CPU fallback also failed ({})",
+                        preferred_device, device_err, cpu_err
+                    )))
+            }
+        }
+    }
+
+    /// Create tensor with comprehensive error context
+    pub fn create_empty_tensor(
+        shape: impl Into<candle_core::Shape>,
+        dtype: DType,
+        device: &candle_core::Device,
+    ) -> Result<Tensor, crate::error::MoshiError> {
+        let shape = shape.into();
+        Tensor::zeros(shape.clone(), dtype, device)
+            .map_err(|e| crate::error::MoshiError::DeviceError(format!(
+                "Failed to create tensor with shape {:?}, dtype {:?} on device {:?}: {}",
+                shape, dtype, device, e
+            )))
+    }
 }

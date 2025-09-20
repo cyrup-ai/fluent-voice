@@ -14,6 +14,7 @@ categories = ["multimedia::audio", "science", "algorithms"]
 cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", branch = "main", package = "cyrup_sugars", features = ["all"] }
 fluent_voice_domain = { path = "../domain" }
 progresshub = { path = "../../../progresshub/packages/progresshub", default-features = false }
+
 candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
 candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
@@ -148,6 +149,7 @@ intel-mkl-src = { version = "0.8", optional = true }
 
 [target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
 intel-mkl-src = { version = "0.8", optional = true }
+windows-sys = { version = "0.59", features = ["Win32_System_SystemInformation", "Win32_Foundation"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 accelerate-src = { version = "0.3", optional = true }

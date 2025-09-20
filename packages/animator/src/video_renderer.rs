@@ -45,7 +45,7 @@ impl VideoRenderer {
             frame_count: 0,
             last_frame_time: Instant::now(),
             dropped_frames: 0,
-            blend_factor: 1.0, // Fully opaque by default
+            blend_factor: 1.0,   // Fully opaque by default
             mouth_openness: 0.0, // Mouth closed by default
         }));
 
@@ -123,7 +123,9 @@ impl VideoRenderer {
 impl RendererInternal {
     fn process_frame(
         &mut self,
-        frame: livekit::webrtc::video_frame::VideoFrame<Box<dyn livekit::webrtc::video_frame::VideoBuffer>>,
+        frame: livekit::webrtc::video_frame::VideoFrame<
+            Box<dyn livekit::webrtc::video_frame::VideoBuffer>,
+        >,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let buf = frame.buffer.to_i420();
         let (w, h) = (buf.width(), buf.height());
@@ -155,14 +157,14 @@ impl RendererInternal {
 
         if let Some(texture) = &self.texture {
             self.render_state.queue.write_texture(
-                wgpu::ImageCopyTexture {
+                wgpu::TexelCopyTextureInfo {
                     texture,
                     mip_level: 0,
                     origin: wgpu::Origin3d::default(),
                     aspect: wgpu::TextureAspect::default(),
                 },
                 &self.rgba_data[..required_size],
-                wgpu::ImageDataLayout {
+                wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(stride_rgba),
                     rows_per_image: None,

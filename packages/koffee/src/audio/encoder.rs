@@ -35,6 +35,10 @@ use rubato::{FftFixedIn, ResampleError, Resampler, ResamplerConstructionError};
     feature = "snac"
 )))]
 #[derive(Debug)]
+/// Error type used when audio features are disabled.
+///
+/// This is a placeholder error type that is used when the crate is compiled
+/// without audio processing features enabled.
 pub struct ResampleError;
 
 #[cfg(not(any(
@@ -64,6 +68,10 @@ impl std::error::Error for ResampleError {}
     feature = "snac"
 )))]
 #[derive(Debug)]
+/// Error type for resampler construction failures when audio features are disabled.
+///
+/// This is a placeholder error type that is used when the crate is compiled
+/// without audio processing features enabled.
 pub struct ResamplerConstructionError;
 
 #[cfg(not(any(
@@ -92,6 +100,11 @@ impl std::error::Error for ResamplerConstructionError {}
     feature = "mimi",
     feature = "snac"
 )))]
+/// Dummy FFT fixed-input resampler used when audio features are disabled.
+///
+/// This is a placeholder type that provides the same interface as the real
+/// FftFixedIn from rubato, but always returns errors since audio processing
+/// is disabled.
 pub struct FftFixedIn<T>(std::marker::PhantomData<T>);
 
 #[cfg(not(any(
@@ -101,6 +114,9 @@ pub struct FftFixedIn<T>(std::marker::PhantomData<T>);
     feature = "snac"
 )))]
 impl<T> FftFixedIn<T> {
+    /// Creates a new FFT fixed-input resampler (disabled version).
+    ///
+    /// This method always returns an error since audio features are disabled.
     pub fn new(
         _sr_in: usize,
         _sr_out: usize,
@@ -111,8 +127,12 @@ impl<T> FftFixedIn<T> {
         Err(ResamplerConstructionError)
     }
 
+    /// Resets the resampler state (no-op when audio features are disabled).
     pub fn reset(&mut self) {}
 
+    /// Processes audio through the resampler (disabled version).
+    ///
+    /// This method always returns an error since audio features are disabled.
     pub fn process_into_buffer(
         &mut self,
         _input: &[Vec<f32>],
@@ -122,18 +142,30 @@ impl<T> FftFixedIn<T> {
         Err(ResampleError)
     }
 
+    /// Returns the number of input frames needed for the next processing cycle.
+    ///
+    /// Always returns 0 when audio features are disabled.
     pub fn input_frames_next(&self) -> usize {
         0
     }
 
+    /// Returns the number of output frames that will be produced in the next processing cycle.
+    ///
+    /// Always returns 0 when audio features are disabled.
     pub fn output_frames_next(&self) -> usize {
         0
     }
 
+    /// Allocates input buffers for audio processing.
+    ///
+    /// Returns empty buffers when audio features are disabled.
     pub fn input_buffer_allocate(&self, _avoid_reallocation: bool) -> Vec<Vec<f32>> {
         vec![vec![]]
     }
 
+    /// Allocates output buffers for audio processing.
+    ///
+    /// Returns empty buffers when audio features are disabled.
     pub fn output_buffer_allocate(&self, _avoid_reallocation: bool) -> Vec<Vec<f32>> {
         vec![vec![]]
     }

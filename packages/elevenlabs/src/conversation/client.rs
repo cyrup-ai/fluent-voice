@@ -1,20 +1,20 @@
+use crate::Result;
 use crate::error::ConvAIError;
 use crate::messages::client_messages::{
     ClientToolResult, ContextualUpdate, ConversationInitiationClientData, Pong, UserAudioChunk,
 };
 use crate::messages::server_messages::ServerMessage;
-use crate::Result;
-use speakrs_elevenlabs::endpoints::convai::conversations::GetSignedUrl;
-use speakrs_elevenlabs::ElevenLabsClient;
 use futures_util::stream::{SplitSink, SplitStream};
-use futures_util::{pin_mut, SinkExt, Stream, StreamExt};
+use futures_util::{SinkExt, Stream, StreamExt, pin_mut};
+use speakrs_elevenlabs::ElevenLabsClient;
+use speakrs_elevenlabs::endpoints::convai::conversations::GetSignedUrl;
 use std::borrow::Cow;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::protocol::{CloseFrame, Message};
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tracing::warn;
 
 const WS_BASE_URL: &str = "wss://api.elevenlabs.io";
@@ -121,7 +121,7 @@ impl AgentWebSocket {
 
         self.writer_task_tx
             .as_ref()
-            .unwrap()
+            .ok_or_else(|| ConvAIError::SendError)?
             .send(close_message)
             .map_err(|_| ConvAIError::SendError)?;
 
@@ -179,7 +179,11 @@ impl AgentWebSocket {
             Message::Text(text) => {
                 let server_msg = ServerMessage::try_from(text.as_str())?;
                 if server_msg.is_ping() {
-                    let ping = server_msg.as_ping().unwrap();
+                    let ping = server_msg.as_ping().ok_or_else(|| {
+                        ConvAIError::Serialization(
+                            "Expected ping message, got different message type".to_string(),
+                        )
+                    })?;
                     tx_to_writer
                         .send(Message::try_from(Pong::new(ping.ping_event.event_id))?)
                         .map_err(|_| ConvAIError::SendError)?;

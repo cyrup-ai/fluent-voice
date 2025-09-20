@@ -1,7 +1,6 @@
 //! Demonstrates the fluent builder API for Text-to-Speech (TTS)
 
 use fluent_voice::prelude::*;
-use fluent_voice::synthesize_transform;
 
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {
@@ -16,9 +15,12 @@ async fn main() -> Result<(), VoiceError> {
                 .with_speed(1.0)
                 .build(),
         )
-        .synthesize(|conversation| Ok(conversation.into())) // <- Returns AudioStream directly
+        .synthesize(|conversation| match conversation {
+            Ok(conv) => conv.into_stream(),
+            Err(e) => panic!("Failed to create conversation: {}", e),
+        })
         .play() // <- This handles all rodio playback internally
-        .await; // <- Single await point
+        .await?; // <- Single await point
 
     Ok(())
 }

@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 /// Generator trait for Moshi models.
 pub trait Generator: std::fmt::Debug {
     fn generate(&mut self, prompt: &Tensor, max_length: usize) -> Result<Tensor>;
-    fn reset(&mut self);
+    fn reset(&mut self) -> Result<()>;
 }
 
 /// Basic generator implementation.
@@ -31,7 +31,12 @@ impl std::fmt::Debug for BasicGenerator {
 }
 
 impl BasicGenerator {
-    pub fn new(model: Arc<Mutex<LmModel>>, mimi: Arc<Mutex<Mimi>>, device: Device, seed: u64) -> Self {
+    pub fn new(
+        model: Arc<Mutex<LmModel>>,
+        mimi: Arc<Mutex<Mimi>>,
+        device: Device,
+        seed: u64,
+    ) -> Self {
         let logits_processor = LogitsProcessor::new(seed, None, None);
         Self {
             model,
@@ -47,7 +52,15 @@ impl Generator for BasicGenerator {
         let mut generated = prompt.clone();
 
         for _ in 0..max_length {
-            let logits = self.model.lock().unwrap().forward(Some(generated.clone()), vec![])?.0;
+            let logits = {
+                let model = self.model.lock().map_err(|e| {
+                    crate::error::MoshiError::MutexPoisoned(format!(
+                        "Model mutex poisoned during generation step: {}",
+                        e
+                    ))
+                })?;
+                model.forward(Some(generated.clone()), vec![])?.0
+            };
             // Get the last token's logits from the sequence
             let last_token_logits = logits.narrow(1, logits.dim(1)? - 1, 1)?.squeeze(1)?;
             let token_id = self
@@ -63,8 +76,29 @@ impl Generator for BasicGenerator {
         Ok(generated)
     }
 
-    fn reset(&mut self) {
-        self.model.lock().unwrap().reset_state();
-        self.mimi.lock().unwrap().reset_state();
+    fn reset(&mut self) -> Result<()> {
+        // Reset model state with error handling
+        {
+            let mut model = self.model.lock().map_err(|e| {
+                crate::error::MoshiError::MutexPoisoned(format!(
+                    "Model mutex poisoned during reset: {}",
+                    e
+                ))
+            })?;
+            model.reset_state()?;
+        }
+
+        // Reset MIMI state with error handling
+        {
+            let mut mimi = self.mimi.lock().map_err(|e| {
+                crate::error::MoshiError::MutexPoisoned(format!(
+                    "MIMI mutex poisoned during reset: {}",
+                    e
+                ))
+            })?;
+            mimi.reset_state();
+        }
+
+        Ok(())
     }
 }

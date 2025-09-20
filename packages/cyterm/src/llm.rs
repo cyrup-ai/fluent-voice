@@ -51,8 +51,6 @@ pub fn spawn_llm(
     Ok((prompt_tx, reply_rx))
 }
 
-
-
 async fn llm_loop(
     cfg: LlmConfig,
     device: Device,

@@ -7,7 +7,11 @@ use crate::error::MoshiError;
 use anyhow::Result;
 use progresshub::{DownloadResult, ProgressHub};
 use std::path::PathBuf;
-use tracing::{error, info, warn};
+use tokio::sync::OnceCell;
+use tracing::{error, info, warn, instrument};
+
+/// Thread-safe singleton for cached model paths
+static MODEL_PATHS: OnceCell<KyutaiModelPaths> = OnceCell::const_new();
 
 /// Configuration for Kyutai model downloading
 #[derive(Debug, Clone)]
@@ -62,23 +66,41 @@ impl KyutaiModelManager {
     }
 
     /// Download all required Kyutai models
+    #[instrument(name = "download_models", skip(self))]
     pub async fn download_models(&self) -> Result<KyutaiModelPaths, MoshiError> {
+        let _span = tracing::info_span!("kyutai_model_download").entered();
         info!("Starting Kyutai model downloads...");
 
         // Download Moshi language model
-        let moshi_result = self.download_moshi_model().await?;
-        let moshi_base_path = self.extract_model_path(&moshi_result)?;
+        let moshi_result = self.download_moshi_model().await.map_err(|e| {
+            error!("Moshi model download failed: {}", e);
+            MoshiError::ModelLoad(format!("Failed to download Moshi model: {}", e))
+        })?;
+        let moshi_base_path = self.extract_model_path(&moshi_result).map_err(|e| {
+            error!("Failed to extract Moshi model path: {}", e);
+            MoshiError::ModelLoad(format!("Moshi model path extraction failed: {}", e))
+        })?;
 
         // Download TTS voices for speaker conditioning
-        let tts_voices_result = self.download_tts_voices().await?;
-        let tts_voices_path = self.extract_model_path(&tts_voices_result)?;
+        let tts_voices_result = self.download_tts_voices().await.map_err(|e| {
+            error!("TTS voices download failed: {}", e);
+            MoshiError::ModelLoad(format!("Failed to download TTS voices: {}", e))
+        })?;
+        let tts_voices_path = self.extract_model_path(&tts_voices_result).map_err(|e| {
+            error!("Failed to extract TTS voices path: {}", e);
+            MoshiError::ModelLoad(format!("TTS voices path extraction failed: {}", e))
+        })?;
 
         // Construct paths to specific model files
         let lm_model_path = moshi_base_path.join("lm_final.safetensors");
         let mimi_model_path = moshi_base_path.join("mimi-v0_1.safetensors");
 
         // Validate that the expected files exist
-        self.validate_model_files(&lm_model_path, &mimi_model_path, &tts_voices_path)?;
+        self.validate_model_files(&lm_model_path, &mimi_model_path, &tts_voices_path)
+            .map_err(|e| {
+                error!("Model file validation failed: {}", e);
+                MoshiError::ModelLoad(format!("Model validation failed: {}", e))
+            })?;
 
         let paths = KyutaiModelPaths {
             lm_model_path,
@@ -96,7 +118,9 @@ impl KyutaiModelManager {
     }
 
     /// Download the Moshi language model
+    #[instrument(name = "download_moshi_model", skip(self))]
     async fn download_moshi_model(&self) -> Result<DownloadResult, MoshiError> {
+        let _span = tracing::info_span!("moshi_model_download").entered();
         info!("Downloading Moshi model from {}", self.config.moshi_repo);
 
         let mut builder = ProgressHub::builder().model(&self.config.moshi_repo);
@@ -129,7 +153,9 @@ impl KyutaiModelManager {
     }
 
     /// Download TTS voices for speaker conditioning
+    #[instrument(name = "download_tts_voices", skip(self))]
     async fn download_tts_voices(&self) -> Result<DownloadResult, MoshiError> {
+        let _span = tracing::info_span!("tts_voices_download").entered();
         info!(
             "Downloading TTS voices from {}",
             self.config.tts_voices_repo
@@ -242,6 +268,46 @@ impl Default for KyutaiModelManager {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Thread-safe function to get or download Kyutai models with lazy initialization
+/// 
+/// This function implements a singleton pattern using OnceCell for efficient model sharing.
+/// Models are downloaded only once and cached for subsequent calls across the application.
+/// 
+/// # Usage
+/// 
+/// ## Recommended: Use with async constructors
+/// ```rust
+/// // For SpeechGenerator
+/// let speech_gen = SpeechGenerator::new_with_download(config).await?;
+/// 
+/// // For SpeechGeneratorBuilder
+/// let speech_gen = SpeechGeneratorBuilder::new()
+///     .temperature(0.7)
+///     .build_with_download().await?;
+/// 
+/// // For KyutaiEngine
+/// let engine = KyutaiEngine::load_with_download(dtype, &device).await?;
+/// ```
+/// 
+/// ## Manual usage (advanced)
+/// ```rust
+/// let model_paths = get_or_download_models().await?;
+/// // Use model_paths.lm_model_path and model_paths.mimi_model_path
+/// ```
+#[instrument(name = "get_or_download_models")]
+pub async fn get_or_download_models() -> Result<&'static KyutaiModelPaths, MoshiError> {
+    MODEL_PATHS
+        .get_or_try_init(|| async {
+            info!("Initializing Kyutai models for first time");
+            let manager = KyutaiModelManager::new();
+            manager.download_models().await.map_err(|e| {
+                error!("Model initialization failed: {}", e);
+                MoshiError::ModelLoad(format!("Failed to initialize models: {}", e))
+            })
+        })
+        .await
 }
 
 /// Convenience function to download Kyutai models with default configuration

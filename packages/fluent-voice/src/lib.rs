@@ -129,6 +129,7 @@ pub mod prelude {
 
     /* Fluent-voice specific implementations */
     pub use crate::{
+        audio_stream_ext::AudioStreamExt,
         stream_ext::TtsStreamExt,
         tts_settings::{Similarity, SpeakerBoost, Stability, StyleExaggeration},
     };
@@ -167,6 +168,9 @@ pub mod prelude {
         SttConversationImpl, TranscriptImpl, TranscriptionBuilderImpl, TtsConversationBuilderImpl,
         TtsConversationImpl,
     };
+
+    /* Speaker builder trait - needed for fluent methods like add_line() */
+    pub use crate::speaker_builder::SpeakerBuilder;
 
     /* Domain traits needed for examples - only import what exists in domain */
     pub use fluent_voice_domain::TtsConversation;

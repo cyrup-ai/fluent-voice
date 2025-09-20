@@ -602,7 +602,9 @@ impl ElevenLabsVoiceCloneBuilder {
         if self.client.is_none() {
             self.client = Some(crate::client::ElevenLabsClient::from_env()?);
         }
-        Ok(self.client.as_ref().unwrap())
+        self.client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Failed to create ElevenLabs client"))
     }
 }
 
@@ -741,7 +743,9 @@ impl ElevenLabsSpeechToSpeechBuilder {
         if self.client.is_none() {
             self.client = Some(crate::client::ElevenLabsClient::from_env()?);
         }
-        Ok(self.client.as_ref().unwrap())
+        self.client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Failed to create ElevenLabs client"))
     }
 }
 
@@ -889,13 +893,54 @@ impl SpeechToSpeechSession for ElevenLabsSpeechToSpeechSession {
                 
                 let voice_changer = crate::endpoints::genai::voice_changer::VoiceChanger::new(voice_id.clone(), voice_changer_body);
 
-                match client.hit(voice_changer).await {
-                    Ok(audio_bytes) => {
-                        // Convert bytes to i16 samples (assuming PCM for now, will fix format handling later)
-                        let samples: Vec<i16> = audio_bytes
-                            .chunks_exact(2)
-                            .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]))
-                            .collect();
+                match client.hit_with_headers(voice_changer).await {
+                    Ok((headers, audio_bytes)) => {
+                        // Enhanced format detection and decoding
+                        use crate::audio_format_detection::AudioFormatDetector;
+                        use crate::audio_decoders::{AudioFormatDecoder, create_decoder};
+                        
+                        let detector = AudioFormatDetector::new()
+                            .with_rodio_enabled(true)
+                            .with_symphonia_enabled(cfg!(feature = "advanced_audio"));
+                        
+                        // Use actual response headers from API
+                        
+                        let detection_result = match detector.detect_format_enhanced(
+                            &headers,
+                            &audio_bytes,
+                            &None, // No query available at this level
+                        ) {
+                            Ok(result) => result,
+                            Err(e) => {
+                                tracing::warn!("Format detection failed: {}, falling back to PCM", e);
+                                // Fallback to original PCM conversion
+                                let samples: Vec<i16> = audio_bytes
+                                    .chunks_exact(2)
+                                    .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]))
+                                    .collect();
+                                
+                                if samples.is_empty() {
+                                    return None;
+                                }
+                                
+                                let first_sample = samples[0];
+                                return Some((first_sample, (client, source, voice_id, model, stability, similarity_boost, Some(samples), 1)));
+                            }
+                        };
+                        
+                        let decoder = create_decoder(&detection_result.detected_format);
+                        
+                        let samples = match decoder.decode_to_pcm(&audio_bytes) {
+                            Ok(samples) => samples,
+                            Err(e) => {
+                                tracing::warn!("Audio decoding failed: {}, falling back to PCM", e);
+                                // Fallback to original PCM conversion
+                                audio_bytes
+                                    .chunks_exact(2)
+                                    .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]))
+                                    .collect()
+                            }
+                        };
 
                         if samples.is_empty() {
                             return None;
@@ -905,7 +950,10 @@ impl SpeechToSpeechSession for ElevenLabsSpeechToSpeechSession {
                         let first_sample = samples[0];
                         Some((first_sample, (client, source, voice_id, model, stability, similarity_boost, Some(samples), 1)))
                     }
-                    Err(_) => None,
+                    Err(e) => {
+                        tracing::warn!("Voice changer API call failed: {}", e);
+                        None
+                    }
                 }
             },
         );
@@ -940,7 +988,9 @@ impl ElevenLabsAudioIsolationBuilder {
         if self.client.is_none() {
             self.client = Some(crate::client::ElevenLabsClient::from_env()?);
         }
-        Ok(self.client.as_ref().unwrap())
+        self.client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Failed to create ElevenLabs client"))
     }
     
     fn map_audio_format_to_elevenlabs(&self) -> Option<String> {
@@ -1091,7 +1141,9 @@ impl ElevenLabsSoundEffectsBuilder {
         if self.client.is_none() {
             self.client = Some(crate::client::ElevenLabsClient::from_env()?);
         }
-        Ok(self.client.as_ref().unwrap())
+        self.client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Failed to create ElevenLabs client"))
     }
 }
 

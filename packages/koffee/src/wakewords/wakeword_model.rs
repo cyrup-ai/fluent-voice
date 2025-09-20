@@ -1,7 +1,3 @@
-//---
-// path: potter-core/src/wakeword/model.rs
-//---
-
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
@@ -151,24 +147,26 @@ impl WakewordFile for WakewordModel {
         }
     }
 
-    // -----------------------------------------------------------------
-    // Legacy shim – the lib still asks for "kfc" size in a few places.
-    // Keep returning the coeff-count to avoid a breaking change.
-    // -----------------------------------------------------------------
-    fn get_kfc_size(&self) -> u16 {
-        self.kfc_size.0
-    }
 }
 
 /* --------------------------------------------------------------------- */
 /*  ModelType enum                                                       */
 
+/// Neural network model size variants for wake word detection.
+///
+/// Different model sizes offer trade-offs between accuracy, speed, and memory usage.
+/// Smaller models are faster but less accurate, while larger models provide
+/// higher accuracy at the cost of increased computation and memory requirements.
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Serialize, Deserialize, EnumString, IntoStaticStr)]
 #[strum(serialize_all = "lowercase")]
 pub enum ModelType {
+    /// Smallest model: fastest inference, lowest accuracy (~1MB)
     Tiny,
+    /// Small model: good balance for mobile/edge devices (~5MB)
     Small,
+    /// Medium model: higher accuracy for desktop applications (~20MB)
     Medium,
+    /// Largest model: maximum accuracy for server deployments (~80MB)
     Large,
 }
 
@@ -181,13 +179,17 @@ impl std::fmt::Display for ModelType {
 /* --------------------------------------------------------------------- */
 /*  Weights map + tensor wrapper                                         */
 
+/// Serializable tensor data container for model weights.
+///
+/// This structure stores tensor data in a format that can be serialized
+/// to CBOR and later reconstructed into Candle tensors for inference.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TensorData {
-    /// Raw bytes (little-endian f32/f16, etc.)
+    /// Raw tensor bytes in little-endian format
     pub bytes: Vec<u8>,
-    /// Tensor dimensions, row-major.
+    /// Tensor shape dimensions in row-major order
     pub dims: Vec<usize>,
-    /// Candle dtype as lowercase string (`"f32"`, `"bf16"`, …).
+    /// Candle data type as lowercase string (e.g., "f32", "bf16")
     pub d_type: String,
 }
 

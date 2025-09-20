@@ -184,10 +184,11 @@ impl SharedVoicesQuery {
         self.params.push(("accent", accent.to_string()));
         self
     }
-    pub fn with_language(mut self, language: Language) -> Self {
-        let language = serde_json::to_string(&language).unwrap();
+    pub fn with_language(mut self, language: Language) -> anyhow::Result<Self> {
+        let language = serde_json::to_string(&language)
+            .map_err(|e| anyhow::anyhow!("Failed to serialize language parameter: {}", e))?;
         self.params.push(("language", language));
-        self
+        Ok(self)
     }
     pub fn with_search(mut self, search: &str) -> Self {
         self.params.push(("search", search.to_string()));

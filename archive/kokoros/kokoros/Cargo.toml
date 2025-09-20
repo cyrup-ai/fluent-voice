@@ -23,6 +23,7 @@ ndarray = "0.16.1"
 tokio = "1.46.1"
 serde_json = "1.0.140"
 reqwest = "0.12.22"
+thiserror = "2.0.0"
 # regex = "1.11.1" # in workspace-hack
 # reqwest = { version = "0.12" } # in workspace-hack
 # serde_json = "1.0.140" # in workspace-hack

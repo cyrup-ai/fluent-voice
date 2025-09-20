@@ -25,4 +25,7 @@ pub enum VoiceError {
     /// Error during transcription operation
     #[error("transcription: {0}")]
     Transcription(String),
+    /// Error during audio processing operation
+    #[error("audio processing: {0}")]
+    AudioProcessing(String),
 }

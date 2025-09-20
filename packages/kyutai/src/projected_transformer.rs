@@ -14,7 +14,7 @@ pub struct ProjectedTransformer {
     /// Output projection layers (one per output)
     output_projs: Vec<Option<Linear>>,
     /// Configuration
-    config: TransformerConfig,
+    _config: TransformerConfig,
     /// Cache for streaming inference
     cache: Vec<TransformerCache>,
 }
@@ -64,7 +64,7 @@ impl ProjectedTransformer {
             input_proj,
             layers,
             output_projs,
-            config,
+            _config: config,
             cache,
         })
     }
@@ -81,7 +81,8 @@ impl ProjectedTransformer {
             hidden = if use_cache {
                 layer.forward_with_cache(&hidden, cache)?
             } else {
-                layer.forward(&hidden, None)?
+                // Use cache-based forward to enable cross-attention support
+                layer.forward_with_cache(&hidden, cache)?
             };
         }
 

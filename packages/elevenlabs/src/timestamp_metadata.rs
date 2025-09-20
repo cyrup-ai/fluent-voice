@@ -323,10 +323,12 @@ impl From<&Alignment> for Vec<CharacterTimestamp> {
     fn from(alignment: &Alignment) -> Self {
         // Validate array lengths match
         let len = alignment.characters.len();
-        if alignment.character_start_times_seconds.len() != len 
-            || alignment.character_end_times_seconds.len() != len {
-            tracing::warn!("Alignment array length mismatch: chars={}, starts={}, ends={}", 
-                len, 
+        if alignment.character_start_times_seconds.len() != len
+            || alignment.character_end_times_seconds.len() != len
+        {
+            tracing::warn!(
+                "Alignment array length mismatch: chars={}, starts={}, ends={}",
+                len,
                 alignment.character_start_times_seconds.len(),
                 alignment.character_end_times_seconds.len()
             );
@@ -334,18 +336,17 @@ impl From<&Alignment> for Vec<CharacterTimestamp> {
         }
 
         // Convert with bounds checking
-        alignment.characters
+        alignment
+            .characters
             .iter()
             .zip(alignment.character_start_times_seconds.iter())
             .zip(alignment.character_end_times_seconds.iter())
             .enumerate()
-            .map(|(idx, ((character, &start), &end))| {
-                CharacterTimestamp {
-                    character: character.clone(),
-                    start_seconds: start,
-                    end_seconds: end,
-                    text_position: idx,
-                }
+            .map(|(idx, ((character, &start), &end))| CharacterTimestamp {
+                character: character.clone(),
+                start_seconds: start,
+                end_seconds: end,
+                text_position: idx,
             })
             .collect()
     }
@@ -554,7 +555,7 @@ impl TimestampMetadata {
         self.synthesis_end = Some(SystemTime::now());
         self.processing_time_ms = Some(
             self.synthesis_end
-                .expect("synthesis_end should be set immediately above")
+                .ok_or_else(|| crate::engine::FluentVoiceError::ConfigError("synthesis_end should be set immediately above".to_string()))?
                 .duration_since(self.synthesis_start)
                 .map_err(|e| {
                     crate::engine::FluentVoiceError::ConfigError(format!(

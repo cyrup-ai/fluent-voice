@@ -16,6 +16,7 @@ categories = ["multimedia::audio", "visualization", "graphics"]
 fluent_voice = { path = "../fluent-voice" }
 fluent_voice_livekit = { path = "../livekit" }
 dia = { path = "../dia" }
+dirs = "5.0"
 parking_lot = "0.12.4"
 livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", features = [
     "native-tls",
@@ -119,9 +120,7 @@ accelerate-src = { version = "0.3", optional = true }
 path = "src/main.rs"
 name = "anima"
 
-[[example]]
-name = "full_room_visualizer"
-path = "examples/full_room_visualizer.rs"
+
 
 [lib]
 path = "src/lib.rs"

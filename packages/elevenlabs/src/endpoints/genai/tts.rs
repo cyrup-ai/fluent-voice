@@ -420,17 +420,22 @@ impl<'a> Iterator for Timestamps<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.alignment.characters.len() {
-            let item = (
-                self.alignment.characters.get(self.index).unwrap(),
-                (
-                    self.alignment.character_start_times_seconds[self.index],
-                    self.alignment.character_end_times_seconds[self.index],
-                ),
-            );
+            // Safe indexing: we already verified bounds above, but use get() for extra safety
+            if let Some(character) = self.alignment.characters.get(self.index) {
+                let item = (
+                    character,
+                    (
+                        self.alignment.character_start_times_seconds[self.index],
+                        self.alignment.character_end_times_seconds[self.index],
+                    ),
+                );
 
-            self.index += 1;
-
-            Some(item)
+                self.index += 1;
+                Some(item)
+            } else {
+                // Should never happen due to bounds check, but be defensive
+                None
+            }
         } else {
             None
         }
@@ -628,7 +633,17 @@ pub mod ws {
         }
         #[allow(dead_code)]
         pub fn url(&self) -> String {
-            let mut base_url = WS_BASE_URL.parse::<Url>().unwrap();
+            let mut base_url = match WS_BASE_URL.parse::<Url>() {
+                Ok(url) => url,
+                Err(_) => {
+                    // Fallback: construct URL manually if parsing fails
+                    // This should never happen since WS_BASE_URL is a constant, but be defensive
+                    return format!(
+                        "{}/v1/text-to-speech/{}/stream-input",
+                        WS_BASE_URL, self.voice_id
+                    );
+                }
+            };
 
             let mut path = WS_PATH.to_string();
 

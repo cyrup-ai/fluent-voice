@@ -49,7 +49,7 @@ impl Default for Config {
 pub struct SEANetResnetBlock {
     block: Vec<Conv1d>,
     shortcut: Option<Conv1d>,
-    compress: usize,
+    _compress: usize,
 }
 
 impl SEANetResnetBlock {
@@ -100,7 +100,7 @@ impl SEANetResnetBlock {
         Ok(Self {
             block,
             shortcut,
-            compress: config.compress,
+            _compress: config.compress,
         })
     }
 
@@ -144,7 +144,7 @@ pub struct SEANetEncoder {
     initial_conv: Conv1d,
     encoder_blocks: Vec<EncoderBlock>,
     final_conv: Conv1d,
-    config: Config,
+    _config: Config,
 }
 
 #[derive(Debug)]
@@ -218,7 +218,7 @@ impl SEANetEncoder {
             initial_conv,
             encoder_blocks,
             final_conv,
-            config,
+            _config: config,
         })
     }
 
@@ -262,7 +262,7 @@ pub struct SEANetDecoder {
     initial_conv: Conv1d,
     decoder_blocks: Vec<DecoderBlock>,
     final_conv: Conv1d,
-    config: Config,
+    _config: Config,
 }
 
 #[derive(Debug)]
@@ -335,7 +335,7 @@ impl SEANetDecoder {
             initial_conv,
             decoder_blocks,
             final_conv,
-            config,
+            _config: config,
         })
     }
 
@@ -378,7 +378,7 @@ impl Module for SEANetDecoder {
 pub struct SeanetModule {
     encoder: SEANetEncoder,
     decoder: SEANetDecoder,
-    config: Config,
+    _config: Config,
 }
 
 impl SeanetModule {
@@ -389,7 +389,7 @@ impl SeanetModule {
         Ok(Self {
             encoder,
             decoder,
-            config,
+            _config: config,
         })
     }
 
@@ -415,6 +415,6 @@ impl SeanetModule {
     }
 
     pub fn config(&self) -> &Config {
-        &self.config
+        &self._config
     }
 }

@@ -186,6 +186,41 @@ impl LmModel {
         Ok(())
     }
 
+    fn validate_embeddings(embeddings: &[Tensor]) -> Result<(), crate::error::MoshiError> {
+        if embeddings.is_empty() {
+            return Err(crate::error::MoshiError::InvalidInput(
+                "Empty embeddings vector - no text or audio tokens provided for processing".to_string()
+            ));
+        }
+
+        // Validate embedding dimensions are compatible for concatenation
+        if embeddings.len() > 1 {
+            let first_shape = embeddings[0].shape();
+            for (i, emb) in embeddings.iter().enumerate().skip(1) {
+                if emb.shape().rank() != first_shape.rank() {
+                    return Err(crate::error::MoshiError::ShapeMismatch(format!(
+                        "Embedding {} rank mismatch: expected {}, got {}",
+                        i, first_shape.rank(), emb.shape().rank()
+                    )));
+                }
+                
+                // Check all dimensions except concatenation dimension (1) match
+                for (dim_idx, (&expected, &actual)) in first_shape.dims().iter()
+                    .zip(emb.shape().dims().iter())
+                    .enumerate() {
+                    if dim_idx != 1 && expected != actual {
+                        return Err(crate::error::MoshiError::ShapeMismatch(format!(
+                            "Embedding {} dimension {} mismatch: expected {}, got {}",
+                            i, dim_idx, expected, actual
+                        )));
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn new(cfg: &Config, vb: MaybeQuantizedVarBuilder) -> Result<Self> {
         // Validate audio vocab size with proper range checking
         Self::validate_audio_vocab_size(cfg.audio_vocab_size)?;
@@ -269,7 +304,7 @@ impl LmModel {
         &self,
         input_ids: Option<Tensor>,
         audio_tokens: Vec<Option<Tensor>>,
-    ) -> Result<(Tensor, Option<Tensor>)> {
+    ) -> candle_core::Result<(Tensor, Option<Tensor>)> {
         match input_ids {
             Some(ids) => {
                 let text_embeddings = ids.apply(&self.text_in_embeddings)?;
@@ -283,11 +318,22 @@ impl LmModel {
                     }
                 }
 
+                // Validate embeddings before processing
+                Self::validate_embeddings(&all_embeddings)?;
+
                 // Concatenate all embeddings
-                let combined_embeddings = if all_embeddings.len() > 1 {
+                let combined_embeddings = if all_embeddings.is_empty() {
+                    return Err(crate::error::MoshiError::InvalidInput(
+                        "No embeddings provided for LM forward pass - ensure text or audio tokens are provided".to_string()
+                    ));
+                } else if all_embeddings.len() > 1 {
                     Tensor::cat(&all_embeddings, 1)?
                 } else {
-                    all_embeddings.into_iter().next().unwrap()
+                    // Safe single element access after validation
+                    all_embeddings.into_iter().next()
+                        .ok_or_else(|| crate::error::MoshiError::StateCorruption(
+                            "Embedding vector length validation failed - expected 1 element but iterator was empty".to_string()
+                        ))?
                 };
 
                 let transformer_output = self.transformer.forward(&combined_embeddings, None)?;
@@ -307,9 +353,15 @@ impl LmModel {
     }
 
     /// Reset internal state for streaming
-    pub fn reset_state(&self) {
-        // Clear the stored audio tokens state
-        *self.last_audio_tokens_state.lock().unwrap() = None;
+    pub fn reset_state(&self) -> std::result::Result<(), crate::error::MoshiError> {
+        let mut state = self.last_audio_tokens_state.lock().map_err(|e| {
+            crate::error::MoshiError::MutexPoisoned(format!(
+                "Audio tokens state mutex poisoned during reset: {}",
+                e
+            ))
+        })?;
+        *state = None;
+        Ok(())
     }
 
     /// Get the audio pad token ID for this model
@@ -405,7 +457,15 @@ impl LmModel {
         }
 
         // Store the generated audio tokens for later retrieval
-        *self.last_audio_tokens_state.lock().unwrap() = Some(audio_tokens);
+        {
+            let mut state = self.last_audio_tokens_state.lock().map_err(|e| {
+                crate::error::MoshiError::MutexPoisoned(format!(
+                    "Audio tokens state mutex poisoned during generation: {}",
+                    e
+                ))
+            })?;
+            *state = Some(audio_tokens);
+        }
 
         Ok(token_id)
     }
@@ -525,7 +585,15 @@ impl LmModel {
         }
 
         // Store the generated audio tokens for later retrieval
-        *self.last_audio_tokens_state.lock().unwrap() = Some(audio_tokens);
+        {
+            let mut state = self.last_audio_tokens_state.lock().map_err(|e| {
+                crate::error::MoshiError::MutexPoisoned(format!(
+                    "Audio tokens state mutex poisoned during top-k sampling: {}",
+                    e
+                ))
+            })?;
+            *state = Some(audio_tokens);
+        }
 
         Ok(token_id)
     }
@@ -636,15 +704,31 @@ impl LmModel {
             let audio_token = audio_last_logits.argmax(1)?.to_scalar::<u32>()?;
             audio_tokens.push(audio_token);
         }
-        *self.last_audio_tokens_state.lock().unwrap() = Some(audio_tokens);
+        {
+            let mut state = self.last_audio_tokens_state.lock().map_err(|e| {
+                crate::error::MoshiError::MutexPoisoned(format!(
+                    "Audio tokens state mutex poisoned during conditional generation: {}",
+                    e
+                ))
+            })?;
+            *state = Some(audio_tokens);
+        }
 
         Ok(last_logits)
     }
 
     /// Get the last generated audio tokens from the model state
     /// Returns None if no audio tokens were generated in the last step
-    pub fn last_audio_tokens(&self) -> Option<Vec<u32>> {
-        self.last_audio_tokens_state.lock().unwrap().clone()
+    pub fn last_audio_tokens(
+        &self,
+    ) -> std::result::Result<Option<Vec<u32>>, crate::error::MoshiError> {
+        let state = self.last_audio_tokens_state.lock().map_err(|e| {
+            crate::error::MoshiError::MutexPoisoned(format!(
+                "Audio tokens state mutex poisoned during retrieval: {}",
+                e
+            ))
+        })?;
+        Ok(state.clone())
     }
 }
 

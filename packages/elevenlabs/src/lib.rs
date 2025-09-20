@@ -38,9 +38,9 @@
 
 // Internal modules - NOT exposed to users
 mod client;
-mod endpoints;
-mod error;
-mod shared;
+pub mod endpoints;
+pub mod error;
+pub mod shared;
 mod tts;
 mod utils;
 
@@ -50,6 +50,10 @@ mod timestamp_metadata;
 
 // Internal engine module - NOT exposed
 mod engine;
+
+// Audio format detection and decoding modules
+pub mod audio_decoders;
+pub mod audio_format_detection;
 
 // Fluent API module - contains builders but only FluentVoice is exposed
 mod fluent_api;

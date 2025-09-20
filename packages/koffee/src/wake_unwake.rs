@@ -190,16 +190,33 @@ enum DetectorCommand {
 #[derive(Debug, Clone)]
 pub enum DetectorEvent {
     /// Wake word detected
-    WakeDetected { confidence: f32, timestamp: Instant },
+    WakeDetected {
+        /// Detection confidence score (0.0 to 1.0)
+        confidence: f32,
+        /// Time when detection occurred
+        timestamp: Instant,
+    },
     /// Unwake word detected
-    UnwakeDetected { confidence: f32, timestamp: Instant },
+    UnwakeDetected {
+        /// Detection confidence score (0.0 to 1.0)
+        confidence: f32,
+        /// Time when detection occurred
+        timestamp: Instant,
+    },
     /// Model swap completed successfully
     ModelSwapCompleted {
+        /// The new detector state after the swap
         new_state: WakeUnwakeState,
+        /// Time taken to complete the model swap
         swap_duration: Duration,
     },
     /// Error occurred during processing
-    Error { message: String, timestamp: Instant },
+    Error {
+        /// Error message describing what went wrong
+        message: String,
+        /// Time when the error occurred
+        timestamp: Instant,
+    },
 }
 
 /// Performance metrics for the wake/unwake detector

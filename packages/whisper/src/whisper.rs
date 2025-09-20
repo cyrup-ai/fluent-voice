@@ -19,10 +19,10 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "microphone")]
 use crate::microphone::Model;
 
-#[cfg(not(feature = "microphone"))]
-use candle_transformers::models::whisper::{self as m, Config};
 #[cfg(feature = "microphone")]
 use candle_transformers::models::whisper::{self as m};
+#[cfg(not(feature = "microphone"))]
+use candle_transformers::models::whisper::{self as m, Config};
 
 #[cfg(not(feature = "microphone"))]
 pub enum Model {
@@ -175,8 +175,9 @@ impl Decoder {
 
     #[allow(dead_code)] // Library code - decoder inference
     pub fn decode(&mut self, mel: &Tensor, t: f64) -> Result<DecodingResult> {
-        self.decode_batch(&[mel], t)
-            .map(|mut results| results.pop().unwrap())
+        let mut results = self.decode_batch(&[mel], t)?;
+        results.pop()
+            .ok_or_else(|| anyhow::anyhow!("No decoding results returned"))
     }
 
     /// Decode multiple audio segments in a batch for improved efficiency

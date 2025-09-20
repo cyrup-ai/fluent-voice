@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::string::ToString;
-use strum::Display;
+use strum::{Display, EnumString};
 
 pub mod url;
 pub use url::PathParam;
@@ -45,7 +45,7 @@ pub mod query_params {
     //}
 
     /// See Elevenlabs documentation on [supported output formats](https://help.elevenlabs.io/hc/en-us/articles/15754340124305-What-audio-formats-do-you-support).
-    #[derive(Clone, Debug, Display)]
+    #[derive(Clone, Debug, Display, EnumString)]
     pub enum OutputFormat {
         #[strum(to_string = "mp3_22050_32")]
         Mp3_22050Hz32kbps,

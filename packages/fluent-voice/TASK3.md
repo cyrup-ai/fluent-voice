@@ -1,56 +1,54 @@
-# TASK3: Fix Wake Word Model Loading Stub
+# TASK3: Fix Missing Imports Causing Compilation Errors
 
 ## Issue Classification
-**CRITICAL PRODUCTION QUALITY VIOLATION**
+**CRITICAL COMPILATION FAILURES - MISSING IMPORTS**
 
-## Problem Description
-Wake word model loading is commented out and marked as placeholder, preventing wake word detection functionality.
+## 🚨 **CURRENT COMPILATION ERRORS**
 
-## Location
-**File:** `packages/fluent-voice/src/engines/default_stt_engine.rs`  
-**Line:** ~99 (in AudioProcessor::new() method)
-
-## Current Implementation (STUB)
-```rust
-let wake_word_detector = KoffeeCandle::new(&koffee_config).map_err(|e| {
-    VoiceError::Configuration(format!("Failed to create wake word detector: {}", e))
-})?;
-
-// Load the "hey_fluent" wake word model (placeholder - would load real model bytes)
-// wake_word_detector.add_wakeword_bytes(&model_bytes)?;
+```
+packages/fluent-voice/src/fluent_voice/default_engine_provider.rs:143:10: error[E0412]: cannot find type `Pin` in this scope
+packages/fluent-voice/src/fluent_voice/default_engine_provider.rs:143:22: error[E0405]: cannot find trait `Future` in this scope
 ```
 
-## Root Cause
-The wake word model loading is commented out with an explicit placeholder comment, meaning wake word detection cannot function properly.
+## 🎯 **REQUIRED FIXES**
 
-## Required Fix
-Implement actual wake word model loading:
+### **1. Fix Missing Pin/Future Imports** - `src/fluent_voice/default_engine_provider.rs`
 
-1. **Load real wake word model bytes** for "hey_fluent" or similar
-2. **Uncomment and implement** the `add_wakeword_bytes` call
-3. **Handle model loading errors** properly
-4. **Ensure model compatibility** with KoffeeCandle
-5. **Configure proper wake word detection** settings
+**Current Missing Imports**:
+```rust
+use super::coordinated_voice_stream::CoordinatedVoiceStream;
+use super::default_engine_coordinator::DefaultEngineCoordinator;
+use fluent_voice_domain::VoiceError;
+```
 
-## Acceptance Criteria
-- ✅ No commented-out model loading code
-- ✅ No placeholder comments mentioning "would load real model bytes"
-- ✅ Actual wake word model loaded and functional
-- ✅ Wake word detection works with real audio input
-- ✅ Proper error handling for model loading failures
+**Required Imports to Add**:
+```rust
+use std::{
+    future::Future,
+    pin::Pin,
+};
+use super::default_engine_coordinator::{DefaultEngineCoordinator, SttResult, VadResult, WakeWordResult};
+```
 
-## Implementation Strategy
-1. **Obtain wake word model data**: Either embed model bytes in binary or load from file
-2. **Configure model loading**: Implement proper model bytes loading
-3. **Add error handling**: Handle model loading and validation errors
-4. **Test wake word detection**: Ensure detection works with loaded model
-5. **Document model requirements**: Specify model format and source
+### **2. Fix Missing Duration Import** - `src/fluent_voice/vad_conversation_system.rs:19`
 
-## Technical Notes
-- KoffeeCandle appears to support `add_wakeword_bytes(&model_bytes)` method
-- Model format and source need to be determined
-- Model bytes can be embedded in binary or loaded from filesystem
-- Error handling should use VoiceError::Configuration for consistency
+**Current Import**:
+```rust
+time::{SystemTime, UNIX_EPOCH},
+```
 
-## Priority
-**CRITICAL** - Wake word detection is a core STT feature and cannot function without proper model loading.
+**Required Import**:
+```rust
+time::{Duration, SystemTime, UNIX_EPOCH},
+```
+
+## 📋 **ACCEPTANCE CRITERIA**
+
+- [ ] **Zero Compilation Errors** - All missing imports resolved
+- [ ] **Pin/Future Available** - Trait methods can use Pin<Box<dyn Future<...>>>
+- [ ] **Duration Available** - Can use Duration::from_millis() 
+- [ ] **Result Types Available** - SttResult, VadResult, WakeWordResult accessible
+
+## 🚀 **IMPLEMENTATION PRIORITY: CRITICAL**
+
+These are blocking compilation errors that prevent the entire fluent-voice crate from building.
