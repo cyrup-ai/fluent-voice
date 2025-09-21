@@ -142,7 +142,8 @@ pub mod prelude {
 
     /* STT and TTS builder traits */
     pub use crate::stt_conversation::{
-        MicrophoneBuilder, SttConversationBuilder, SttPostChunkBuilder, TranscriptionBuilder,
+        MicrophoneBuilder, SttConversation, SttConversationBuilder, SttPostChunkBuilder,
+        TranscriptionBuilder,
     };
     pub use crate::tts_conversation::{TtsConversationBuilder, TtsConversationChunkBuilder};
 
@@ -164,10 +165,8 @@ pub mod prelude {
 
     /* Builder implementations */
     pub use crate::builders::{
-        stt_conversation_builder, tts_conversation_builder, MicrophoneBuilderImpl,
-        SpeakerLine as Speaker, SpeakerLineBuilder, SttConversationBuilderImpl,
-        SttConversationImpl, TranscriptImpl, TranscriptionBuilderImpl, TtsConversationBuilderImpl,
-        TtsConversationImpl,
+        tts_conversation_builder, SpeakerLine as Speaker, SpeakerLineBuilder,
+        TtsConversationBuilderImpl, TtsConversationImpl,
     };
 
     /* Speaker builder trait - needed for fluent methods like add_line() */

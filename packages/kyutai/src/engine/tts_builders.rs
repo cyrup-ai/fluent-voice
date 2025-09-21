@@ -1,6 +1,6 @@
 //! TTS conversation builders and speaker implementations
 
-
+use crate::speech_generator::voice_params::SpeakerPcmConfig;
 use fluent_voice::tts_conversation::{TtsConversationBuilder, TtsConversationChunkBuilder};
 use fluent_voice_domain::{
     AudioFormat, Language, ModelId, PitchRange, PronunciationDictId, RequestId, Similarity,
@@ -9,7 +9,6 @@ use fluent_voice_domain::{
 };
 use futures_core::Stream;
 use std::pin::Pin;
-use crate::speech_generator::voice_params::SpeakerPcmConfig;
 
 /// Zero-allocation TTS conversation builder
 #[derive(Debug, Clone)]
@@ -398,7 +397,7 @@ impl TtsConversation for KyutaiTtsConversation {
         }
 
         // STEP 1: Load models using thread-safe singleton
-        let model_future = async move {
+        let model_future = Box::pin(async move {
             let model_paths = crate::models::get_or_download_models()
                 .await
                 .map_err(|e| fluent_voice_domain::VoiceError::ProcessingError(e.to_string()))?;
@@ -417,7 +416,7 @@ impl TtsConversation for KyutaiTtsConversation {
             Ok::<SpeechSynthesisStream, fluent_voice_domain::VoiceError>(
                 SpeechSynthesisStream::new(speech_generator, self.speakers),
             )
-        };
+        });
 
         // STEP 4: Convert async initialization to stream
         use futures_util::StreamExt;
@@ -495,11 +494,7 @@ pub async fn kyutai_tts_synthesis(
     let mut audio_chunks = Vec::new();
     for speaker in speakers {
         let audio_samples = speech_generator.generate(&speaker.text)?;
-        let audio_chunk = convert_audio_samples(
-            audio_samples,
-            &speaker.speaker_id,
-            &speaker.text,
-        );
+        let audio_chunk = convert_audio_samples(audio_samples, &speaker.speaker_id, &speaker.text);
         audio_chunks.push(audio_chunk);
     }
 
@@ -525,7 +520,7 @@ impl KyutaiSpeakerLine {
         // Note: Speech generator dependency injection requires async context for model loading
         // For now, pass None - full dependency injection available in async contexts
         let speaker_pcm = Self::process_voice_cloning(&speaker, None);
-        
+
         Self {
             text: speaker.text().to_string(),
             voice_id: speaker.voice_id().cloned(),
@@ -545,19 +540,31 @@ impl KyutaiSpeakerLine {
         // Check if speaker has voice cloning capabilities through voice parameters
         // In a production system, this would extract voice clone data from the speaker
         let speaker_id = speaker.id();
-        
+
         // IMPLEMENTED: Use sophisticated voice processing infrastructure
         // This demonstrates integration with the existing PCM processing pipeline
         if let Some(voice_clone_path) = Self::extract_voice_clone_path(speaker) {
             if let Some(generator) = speech_generator {
                 let config = SpeakerPcmConfig::default();
-                match Self::process_speaker_pcm_data(speaker_id, &voice_clone_path, generator, &config) {
+                match Self::process_speaker_pcm_data(
+                    speaker_id,
+                    &voice_clone_path,
+                    generator,
+                    &config,
+                ) {
                     Ok(pcm_data) => {
-                        tracing::debug!("Successfully processed voice cloning for speaker: {}", speaker_id);
+                        tracing::debug!(
+                            "Successfully processed voice cloning for speaker: {}",
+                            speaker_id
+                        );
                         Some(pcm_data)
                     }
                     Err(e) => {
-                        tracing::warn!("Failed to process voice cloning for speaker {}: {}", speaker_id, e);
+                        tracing::warn!(
+                            "Failed to process voice cloning for speaker {}: {}",
+                            speaker_id,
+                            e
+                        );
                         None
                     }
                 }
@@ -574,13 +581,13 @@ impl KyutaiSpeakerLine {
     /// Extract voice clone audio path from speaker (if available)
     fn extract_voice_clone_path<S: Speaker>(speaker: &S) -> Option<std::path::PathBuf> {
         // IMPLEMENTED: Functional voice clone path extraction
-        
+
         // Extract from speaker metadata or voice parameters
         if let Some(voice_id) = speaker.voice_id() {
             // Check for voice clone files in standard locations
             let voice_clone_dirs = ["./voice_clones", "./assets/voices", "./data/speakers"];
             let supported_formats = ["wav", "mp3", "flac"];
-            
+
             for dir in voice_clone_dirs {
                 for format in supported_formats {
                     let clone_path = format!("{}/{}.{}", dir, voice_id, format);
@@ -590,7 +597,7 @@ impl KyutaiSpeakerLine {
                     }
                 }
             }
-            
+
             // Check speaker ID based path
             let speaker_id_path = format!("./voice_clones/{}.wav", speaker.id());
             let path = std::path::PathBuf::from(speaker_id_path);
@@ -598,22 +605,22 @@ impl KyutaiSpeakerLine {
                 return Some(path);
             }
         }
-        
+
         // No voice clone path found
         None
     }
 
     /// Process speaker PCM data using the sophisticated DSP infrastructure
     fn process_speaker_pcm_data(
-        speaker_id: &str, 
+        speaker_id: &str,
         voice_clone_path: &std::path::Path,
         speech_generator: &crate::speech_generator::SpeechGenerator, // ✅ INJECT DEPENDENCY
         config: &SpeakerPcmConfig,
     ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         // ✅ Use injected generator - ZERO resource creation
-        let processed_tensor = speech_generator
-            .process_speaker_pcm(speaker_id, Some(voice_clone_path), config)?;
-        
+        let processed_tensor =
+            speech_generator.process_speaker_pcm(speaker_id, Some(voice_clone_path), config)?;
+
         match processed_tensor {
             Some(tensor) => {
                 // Convert tensor back to PCM samples for storage
@@ -625,10 +632,12 @@ impl KyutaiSpeakerLine {
     }
 
     /// Convert processed tensor back to PCM samples
-    fn tensor_to_pcm_samples(tensor: candle_core::Tensor) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+    fn tensor_to_pcm_samples(
+        tensor: candle_core::Tensor,
+    ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         // IMPLEMENTED: Tensor to PCM conversion using sophisticated infrastructure
         let shape = tensor.shape();
-        
+
         // Handle different tensor shapes (batch, sequence, channels)
         let samples = if shape.rank() == 1 {
             // Simple 1D tensor - direct conversion
@@ -642,7 +651,7 @@ impl KyutaiSpeakerLine {
             let flattened = tensor.flatten_all()?;
             flattened.to_vec1::<f32>()?
         };
-        
+
         Ok(samples)
     }
 }

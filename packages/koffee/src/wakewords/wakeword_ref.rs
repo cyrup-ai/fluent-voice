@@ -53,7 +53,6 @@ impl WakewordFile for WakewordRef {
             score_mode,
         ))
     }
-
 }
 impl WakewordRef {
     pub(crate) fn new(

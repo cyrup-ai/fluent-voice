@@ -29,7 +29,8 @@ const MAX_REQUESTS_PER_MINUTE: u32 = 1000;
 
 /// Run a TCP server that accepts audio input and returns wake-word detections
 pub async fn run_tcp_server(detector: Arc<Mutex<KoffeeCandle>>, port: u16) -> Result<()> {
-    let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", port))
+        .await
         .map_err(|e| format!("Failed to bind TCP server to port {}: {}", port, e))?;
 
     info!("🚀 TCP server listening on port {}", port);
@@ -37,7 +38,10 @@ pub async fn run_tcp_server(detector: Arc<Mutex<KoffeeCandle>>, port: u16) -> Re
     info!("  - Max connections: {}", MAX_CONNECTIONS);
     info!("  - Connection timeout: {}s", CONNECTION_TIMEOUT);
     info!("  - Max audio chunk size: {} bytes", MAX_AUDIO_CHUNK_SIZE);
-    info!("  - Rate limit: {} requests/minute per client", MAX_REQUESTS_PER_MINUTE);
+    info!(
+        "  - Rate limit: {} requests/minute per client",
+        MAX_REQUESTS_PER_MINUTE
+    );
 
     // Initialize connection manager
     let connection_manager = Arc::new(ConnectionManager::new(detector));
@@ -53,16 +57,19 @@ pub async fn run_tcp_server(detector: Arc<Mutex<KoffeeCandle>>, port: u16) -> Re
         match listener.accept().await {
             Ok((stream, addr)) => {
                 let manager = connection_manager.clone();
-                
+
                 // Check connection limits
                 if manager.get_connection_count().await >= MAX_CONNECTIONS {
-                    warn!("Connection limit reached, rejecting connection from {}", addr);
+                    warn!(
+                        "Connection limit reached, rejecting connection from {}",
+                        addr
+                    );
                     drop(stream);
                     continue;
                 }
 
                 info!("New connection from {}", addr);
-                
+
                 // Spawn task to handle client connection
                 tokio::spawn(async move {
                     if let Err(e) = handle_client_connection(stream, addr, manager).await {
@@ -77,8 +84,6 @@ pub async fn run_tcp_server(detector: Arc<Mutex<KoffeeCandle>>, port: u16) -> Re
         }
     }
 }
-
-
 
 /// Connection manager for handling multiple clients
 struct ConnectionManager {
@@ -96,10 +101,10 @@ impl ConnectionManager {
 
     async fn create_session(&self, addr: SocketAddr) -> Result<ClientSession> {
         let session = ClientSession::new(addr);
-        
+
         let mut connections = self.connections.write().await;
         connections.insert(addr, session.clone());
-        
+
         info!("Created session for client {}", addr);
         Ok(session)
     }
@@ -118,16 +123,16 @@ impl ConnectionManager {
     async fn cleanup_expired_connections(&self) {
         loop {
             tokio::time::sleep(Duration::from_secs(60)).await; // Check every minute
-            
+
             let mut connections = self.connections.write().await;
             let mut expired_addrs = Vec::new();
-            
+
             for (addr, session) in connections.iter() {
                 if session.is_expired() {
                     expired_addrs.push(*addr);
                 }
             }
-            
+
             for addr in expired_addrs {
                 connections.remove(&addr);
                 info!("Cleaned up expired connection: {}", addr);
@@ -135,7 +140,11 @@ impl ConnectionManager {
         }
     }
 
-    async fn process_audio(&self, addr: SocketAddr, audio_data: &[u8]) -> Result<Option<DetectionResult>> {
+    async fn process_audio(
+        &self,
+        addr: SocketAddr,
+        audio_data: &[u8],
+    ) -> Result<Option<DetectionResult>> {
         // Rate limiting check
         {
             let mut connections = self.connections.write().await;
@@ -148,11 +157,13 @@ impl ConnectionManager {
 
         // Convert audio data to f32 samples
         let audio_samples = convert_audio_bytes_to_samples(audio_data)?;
-        
+
         // Process with wake word detector
-        let mut detector = self.detector.lock()
+        let mut detector = self
+            .detector
+            .lock()
             .map_err(|e| format!("Failed to lock detector: {}", e))?;
-        
+
         // Simulate wake word detection (replace with actual detection logic)
         if let Some(detection) = detector.process_samples(&audio_samples) {
             Ok(Some(DetectionResult {
@@ -201,12 +212,12 @@ impl ClientSession {
 
     fn check_rate_limit(&self) -> bool {
         let now = Instant::now();
-        
+
         // Update last activity
         if let Ok(mut last_activity) = self.last_activity.lock() {
             *last_activity = now;
         }
-        
+
         // Check if we need to reset the minute counter
         if let Ok(mut last_reset) = self.last_minute_reset.lock() {
             if now.duration_since(*last_reset) >= Duration::from_secs(60) {
@@ -216,7 +227,7 @@ impl ClientSession {
                 *last_reset = now;
             }
         }
-        
+
         // Check rate limit
         if let Ok(mut count) = self.request_count.lock() {
             if *count >= MAX_REQUESTS_PER_MINUTE {
@@ -271,12 +282,12 @@ async fn handle_client_connection(
 ) -> Result<()> {
     // Create client session
     let session = manager.create_session(addr).await?;
-    
+
     // Set connection timeout
     let mut buffer = vec![0u8; MAX_AUDIO_CHUNK_SIZE];
-    
+
     info!("Client {} connected, starting audio processing", addr);
-    
+
     loop {
         // Read message with timeout
         let bytes_read = match timeout(Duration::from_secs(30), stream.read(&mut buffer)).await {
@@ -299,7 +310,7 @@ async fn handle_client_connection(
 
         // Parse protocol message
         let message = parse_protocol_message(&buffer[..bytes_read])?;
-        
+
         match message {
             ProtocolMessage::AudioChunk { data } => {
                 // Process audio data
@@ -378,18 +389,18 @@ fn parse_protocol_message(data: &[u8]) -> Result<ProtocolMessage> {
 fn serialize_detection_result(detection: &DetectionResult) -> Result<Vec<u8>> {
     let mut response = Vec::new();
     response.push(0x81); // Detection result message type
-    
+
     // Wake word name length and data
     let name_bytes = detection.wake_word.as_bytes();
     response.extend_from_slice(&(name_bytes.len() as u32).to_le_bytes());
     response.extend_from_slice(name_bytes);
-    
+
     // Confidence score
     response.extend_from_slice(&detection.confidence.to_le_bytes());
-    
+
     // Timestamp
     response.extend_from_slice(&detection.timestamp.to_le_bytes());
-    
+
     Ok(response)
 }
 
@@ -407,11 +418,11 @@ fn serialize_pong() -> Result<Vec<u8>> {
 fn serialize_error(error_msg: &str) -> Result<Vec<u8>> {
     let mut response = Vec::new();
     response.push(0x84); // Error message type
-    
+
     let error_bytes = error_msg.as_bytes();
     response.extend_from_slice(&(error_bytes.len() as u32).to_le_bytes());
     response.extend_from_slice(error_bytes);
-    
+
     Ok(response)
 }
 
@@ -422,7 +433,7 @@ fn convert_audio_bytes_to_samples(data: &[u8]) -> Result<Vec<f32>> {
     }
 
     let mut samples = Vec::with_capacity(data.len() / 2);
-    
+
     for chunk in data.chunks_exact(2) {
         let sample_bytes = [chunk[0], chunk[1]];
         let sample_i16 = i16::from_le_bytes(sample_bytes);

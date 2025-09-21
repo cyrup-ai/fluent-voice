@@ -56,10 +56,13 @@ pub enum Error {
         bit_depth: u16,
     },
     #[error("Transcript parsing failed for {format}: {reason}")]
-    TranscriptParseError {
-        format: String,
-        reason: String,
-    },
+    TranscriptParseError { format: String, reason: String },
+    #[error("Stream processing failed: {reason}")]
+    StreamProcessingFailed { reason: String },
+    #[error("Channel send failed: receiver disconnected")]
+    ChannelSendFailed,
+    #[error("Text processing failed: {details}")]
+    TextProcessingFailed { details: String },
 }
 
 #[derive(Error, Debug)]

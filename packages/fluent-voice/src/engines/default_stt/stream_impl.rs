@@ -3,13 +3,12 @@
 //! Contains the main processing loop for audio stream handling including
 //! wake word detection, VAD processing, and transcription.
 
-use super::types::DefaultTranscriptionSegment;
 use fluent_voice_domain::{TranscriptionSegment, TranscriptionSegmentImpl, VoiceError};
 
 /// Core audio processing loop implementation
 pub async fn process_audio_loop(
     mut conversation: super::conversation::DefaultSTTConversation,
-) -> impl futures_core::Stream<Item = Result<DefaultTranscriptionSegment, VoiceError>> {
+) -> impl futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>> {
     use async_stream::stream;
 
     stream! {
@@ -60,7 +59,7 @@ pub async fn process_audio_loop(
                             handler.0(detection.name.clone());
                         }
 
-                        let segment = DefaultTranscriptionSegment::new(
+                        let segment = TranscriptionSegmentImpl::new(
                             format!("[WAKE WORD: {}]", detection.name),
                             0,
                             500,
@@ -80,14 +79,8 @@ pub async fn process_audio_loop(
                             segment_impl  // Fallback if no processor
                         };
 
-                        // Convert processed TranscriptionSegmentImpl back to DefaultTranscriptionSegment
-                        let final_segment = DefaultTranscriptionSegment::new(
-                            processed_segment.text().to_string(),
-                            processed_segment.start_ms(),
-                            processed_segment.end_ms(),
-                            processed_segment.speaker_id().map(|s| s.to_string()),
-                        );
-                        yield Ok(final_segment);
+                        // Yield the processed TranscriptionSegmentImpl directly
+                        yield Ok(processed_segment);
                         continue;
                     }
                 }
@@ -152,7 +145,7 @@ pub async fn process_audio_loop(
                                     let end_ms = speech_start_time.elapsed().as_millis() as u32;
                                     let start_ms = end_ms.saturating_sub(500);
 
-                                    let segment = DefaultTranscriptionSegment::new(
+                                    let segment = TranscriptionSegmentImpl::new(
                                         transcription.to_string(),
                                         start_ms,
                                         end_ms,
@@ -166,16 +159,19 @@ pub async fn process_audio_loop(
                                     }
 
                                     // CRITICAL: Use the chunk processor to transform the segment
+                                    let segment_impl = TranscriptionSegmentImpl::new(
+                                        segment.text().to_string(),
+                                        segment.start_ms(),
+                                        segment.end_ms(),
+                                        segment.speaker_id().map(|s| s.to_string()),
+                                    );
+
                                     if let Some(ref mut processor) = conversation.chunk_processor {
-                                        let segment_impl = TranscriptionSegmentImpl::new(
-                                            segment.text().to_string(),
-                                            segment.start_ms(),
-                                            segment.end_ms(),
-                                            segment.speaker_id().map(|s| s.to_string()),
-                                        );
-                                        let _processed_segment = processor.0(Ok(segment_impl));
+                                        let processed_segment = processor.0(Ok(segment_impl.clone()));
+                                        yield Ok(processed_segment);
+                                    } else {
+                                        yield Ok(segment_impl);
                                     }
-                                    yield Ok(segment);
                                 }
                             },
                             Err(e) => {
@@ -184,14 +180,8 @@ pub async fn process_audio_loop(
                                 // CRITICAL: Use the chunk processor to handle the error
                                 if let Some(ref mut processor) = conversation.chunk_processor {
                                     let processed_segment = processor.0(Err(error));
-                                    // Convert processed TranscriptionSegmentImpl back to DefaultTranscriptionSegment
-                                    let final_segment = DefaultTranscriptionSegment::new(
-                                        processed_segment.text().to_string(),
-                                        processed_segment.start_ms(),
-                                        processed_segment.end_ms(),
-                                        processed_segment.speaker_id().map(|s| s.to_string()),
-                                    );
-                                    yield Ok(final_segment);
+                                    // Yield the processed TranscriptionSegmentImpl directly
+                                    yield Ok(processed_segment);
                                 } else {
                                     yield Err(error);  // Fallback if no processor
                                 }
@@ -242,7 +232,7 @@ pub async fn process_audio_loop(
                                     let end_ms = speech_start_time.elapsed().as_millis() as u32;
                                     let start_ms = end_ms.saturating_sub((speech_data.len() as u32 * 1000) / 16000);
 
-                                    let segment = DefaultTranscriptionSegment::new(
+                                    let segment = TranscriptionSegmentImpl::new(
                                         transcription.to_string(),
                                         start_ms,
                                         end_ms,
@@ -256,16 +246,19 @@ pub async fn process_audio_loop(
                                     }
 
                                     // CRITICAL: Use the chunk processor to transform the segment
+                                    let segment_impl = TranscriptionSegmentImpl::new(
+                                        segment.text().to_string(),
+                                        segment.start_ms(),
+                                        segment.end_ms(),
+                                        segment.speaker_id().map(|s| s.to_string()),
+                                    );
+
                                     if let Some(ref mut processor) = conversation.chunk_processor {
-                                        let segment_impl = TranscriptionSegmentImpl::new(
-                                            segment.text().to_string(),
-                                            segment.start_ms(),
-                                            segment.end_ms(),
-                                            segment.speaker_id().map(|s| s.to_string()),
-                                        );
-                                        let _processed_segment = processor.0(Ok(segment_impl));
+                                        let processed_segment = processor.0(Ok(segment_impl.clone()));
+                                        yield Ok(processed_segment);
+                                    } else {
+                                        yield Ok(segment_impl);
                                     }
-                                    yield Ok(segment);
                                 }
                             },
                             Err(e) => {

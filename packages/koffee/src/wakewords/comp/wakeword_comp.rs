@@ -157,7 +157,7 @@ impl WakewordDetector for WakewordComparator {
         self.rms_level
     }
 
-    // Legacy getters now provided by the trait's default implementations
+    // Getters provided by the trait's default implementations
 
     fn update_config(&mut self, score_ref: f32, band: u16, mode: ScoreMode) {
         self.score_mode = mode;

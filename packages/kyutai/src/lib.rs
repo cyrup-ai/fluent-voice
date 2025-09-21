@@ -13,6 +13,7 @@ pub mod conv;
 pub mod engine;
 pub mod error;
 pub mod generator;
+pub mod livekit_bridge;
 pub mod lm;
 pub mod lm_generate;
 pub mod mimi;
@@ -26,7 +27,6 @@ pub mod seanet;
 pub mod speech_generator;
 pub mod stream_both;
 pub mod streaming;
-pub mod livekit_bridge;
 pub mod tokenizer;
 pub mod transformer;
 pub mod tts;
@@ -56,9 +56,7 @@ pub use self::speech_generator::{
 // Note: LmModel export disabled - used internally only
 // pub use self::lm::LmModel;
 pub use self::mimi::Mimi;
-pub use self::stream_both::{
-    Config as StreamConfig, StreamingModel,
-};
+pub use self::stream_both::{Config as StreamConfig, StreamingModel};
 // LiveKit bridge integration
 pub use self::livekit_bridge::{LiveKitBidirectionalBridge, LiveKitBridgeError};
 // pub use self::tts::Config as TtsModelConfig;

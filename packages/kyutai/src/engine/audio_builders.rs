@@ -84,27 +84,37 @@ impl SoundEffectsBuilder for KyutaiSoundEffectsBuilder {
     type Session = super::sessions::KyutaiSoundEffectsSession;
 
     #[inline]
-    fn describe(self, _description: impl Into<String>) -> Self {
+    fn with_audio_data(self, _data: Vec<u8>) -> Self {
         self
     }
 
     #[inline]
-    fn duration_seconds(self, _duration: f32) -> Self {
+    fn add_reverb(self, _room_size: f32, _damping: f32) -> Self {
         self
     }
 
     #[inline]
-    fn intensity(self, _intensity: f32) -> Self {
+    fn add_echo(self, _delay_ms: u32, _decay: f32) -> Self {
         self
     }
 
     #[inline]
-    fn mood(self, _mood: impl Into<String>) -> Self {
+    fn pitch_shift(self, _semitones: f32) -> Self {
         self
     }
 
     #[inline]
-    fn environment(self, _environment: impl Into<String>) -> Self {
+    fn low_pass(self, _frequency: u32) -> Self {
+        self
+    }
+
+    #[inline]
+    fn high_pass(self, _frequency: u32) -> Self {
+        self
+    }
+
+    #[inline]
+    fn add_chorus(self, _speed: f32, _depth: f32) -> Self {
         self
     }
 
@@ -113,17 +123,14 @@ impl SoundEffectsBuilder for KyutaiSoundEffectsBuilder {
         self
     }
 
-    #[inline]
-    fn seed(self, _seed: u64) -> Self {
-        self
-    }
-
-    async fn generate<F, R>(self, matcher: F) -> R
+    fn process<F, R>(self, matcher: F) -> impl core::future::Future<Output = R> + Send
     where
-        F: FnOnce(Result<Self::Session, VoiceError>) -> R,
+        F: FnOnce(Result<Self::Session, VoiceError>) -> R + Send + 'static,
     {
-        matcher(Err(VoiceError::ProcessingError(
-            "Sound effects generation requires specialized audio synthesis models".to_string(),
-        )))
+        async move {
+            matcher(Err(VoiceError::ProcessingError(
+                "Sound effects generation requires specialized audio synthesis models".to_string(),
+            )))
+        }
     }
 }

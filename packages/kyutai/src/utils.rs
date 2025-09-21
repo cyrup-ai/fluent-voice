@@ -1,6 +1,6 @@
 // src/utils.rs
 
-use candle_core::{D, DType, Tensor, Result as CResult};
+use candle_core::{D, DType, Result as CResult, Tensor};
 use std::collections::HashSet;
 
 /// Adds sinusoidal embeddings to the input tensor.
@@ -144,7 +144,7 @@ impl DeviceValidator {
         preferred_device: &candle_core::Device,
     ) -> Result<Tensor, crate::error::MoshiError> {
         let shape = shape.into();
-        
+
         // Try preferred device first
         match Tensor::zeros(shape.clone(), dtype, preferred_device) {
             Ok(tensor) => {
@@ -152,8 +152,12 @@ impl DeviceValidator {
                 Ok(tensor)
             }
             Err(device_err) => {
-                tracing::warn!("Device {:?} failed, falling back to CPU: {}", preferred_device, device_err);
-                
+                tracing::warn!(
+                    "Device {:?} failed, falling back to CPU: {}",
+                    preferred_device,
+                    device_err
+                );
+
                 // Fallback to CPU
                 Tensor::zeros(shape.clone(), dtype, &candle_core::Device::Cpu)
                     .map_err(|cpu_err| crate::error::MoshiError::DeviceError(format!(
@@ -171,10 +175,11 @@ impl DeviceValidator {
         device: &candle_core::Device,
     ) -> Result<Tensor, crate::error::MoshiError> {
         let shape = shape.into();
-        Tensor::zeros(shape.clone(), dtype, device)
-            .map_err(|e| crate::error::MoshiError::DeviceError(format!(
+        Tensor::zeros(shape.clone(), dtype, device).map_err(|e| {
+            crate::error::MoshiError::DeviceError(format!(
                 "Failed to create tensor with shape {:?}, dtype {:?} on device {:?}: {}",
                 shape, dtype, device, e
-            )))
+            ))
+        })
     }
 }

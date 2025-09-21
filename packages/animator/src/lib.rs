@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 #[cfg(all(
     not(feature = "microphone"),
     not(feature = "encodec"),

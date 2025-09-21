@@ -189,7 +189,7 @@ impl CoordinatedVadSystem {
                             timestamp: vad_result.timestamp,
                         };
                         let _ = event_bus.publish(activation_event).await;
-                        
+
                         CoordinationResult::EngineActivated {
                             engine_type: EngineType::Stt,
                             vad_result: vad_result.clone(),
@@ -202,7 +202,7 @@ impl CoordinatedVadSystem {
                             error: "Engine busy".to_string(),
                         };
                         let _ = event_bus.publish(error_event).await;
-                        
+
                         CoordinationResult::EngineActivationFailed {
                             engine_type: EngineType::Stt,
                             reason: "Engine busy".to_string(),

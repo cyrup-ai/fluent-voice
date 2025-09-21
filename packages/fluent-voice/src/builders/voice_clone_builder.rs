@@ -141,7 +141,12 @@ impl VoiceCloneBuilder for VoiceCloneBuilderImpl {
             // Load voice data through dia's voice pool system
             let pool = match global_pool() {
                 Ok(pool) => pool,
-                Err(e) => return matcher(Err(VoiceError::Configuration(format!("Failed to access voice pool: {}", e)))),
+                Err(e) => {
+                    return matcher(Err(VoiceError::Configuration(format!(
+                        "Failed to access voice pool: {}",
+                        e
+                    ))))
+                }
             };
             match pool.load_voice(&voice_name, first_sample) {
                 Ok(_voice_data) => {

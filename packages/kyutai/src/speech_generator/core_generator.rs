@@ -79,20 +79,20 @@ impl SpeechGenerator {
     ///
     /// This constructor uses the singleton pattern to automatically download and cache models.
     /// Recommended for production use as it ensures efficient model sharing across instances.
-    pub async fn new_with_download(
-        config: GeneratorConfig,
-    ) -> Result<Self, SpeechGenerationError> {
+    pub async fn new_with_download(config: GeneratorConfig) -> Result<Self, SpeechGenerationError> {
         // Use thread-safe singleton for model loading
-        let model_paths = crate::models::get_or_download_models().await
+        let model_paths = crate::models::get_or_download_models()
+            .await
             .map_err(|e| SpeechGenerationError::ModelLoading(e.to_string()))?;
 
         // Load TTS model with actual weights from singleton paths
         let tts_model = TtsModel::load(
-            &model_paths.lm_model_path, 
-            &model_paths.mimi_model_path, 
-            config.dtype, 
-            &config.device
-        ).map_err(|e| SpeechGenerationError::ModelLoading(e.to_string()))?;
+            &model_paths.lm_model_path,
+            &model_paths.mimi_model_path,
+            config.dtype,
+            &config.device,
+        )
+        .map_err(|e| SpeechGenerationError::ModelLoading(e.to_string()))?;
 
         // Initialize audio buffer
         let audio_buffer = AudioBuffer::new(SAMPLE_RATE, CHANNELS);

@@ -185,7 +185,7 @@ fn triggered(data: &[f64], index: usize, threshold: f64, depth: u32, falling_edg
     if data.len() < index + (1 + depth as usize) {
         return false;
     }
-    
+
     match falling_edge {
         true => check_falling_edge_trigger(data, index, threshold, depth),
         false => check_rising_edge_trigger(data, index, threshold, depth),
@@ -196,7 +196,7 @@ fn check_falling_edge_trigger(data: &[f64], index: usize, threshold: f64, depth:
     if data[index] < threshold {
         return false;
     }
-    
+
     (1..=depth as usize).all(|i| data[index + i] < threshold)
 }
 
@@ -204,6 +204,6 @@ fn check_rising_edge_trigger(data: &[f64], index: usize, threshold: f64, depth: 
     if data[index] > threshold {
         return false;
     }
-    
+
     (1..=depth as usize).all(|i| data[index + i] > threshold)
 }

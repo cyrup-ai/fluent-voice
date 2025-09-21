@@ -17,7 +17,7 @@ pub enum MoshiError {
     Generation(String),
     /// LiveKit integration errors
     LiveKit(String),
-    /// Audio bridge errors  
+    /// Audio bridge errors
     AudioBridge(String),
     /// I/O errors
     Io(std::io::Error),
@@ -29,18 +29,21 @@ pub enum MoshiError {
     Custom(String),
     /// Mutex poisoning error with context about which mutex failed
     MutexPoisoned(String),
-    /// State corruption detected due to concurrent access failures  
+    /// State corruption detected due to concurrent access failures
     StateCorruption(String),
     /// Device operation failed with context
     DeviceError(String),
-    /// Tensor creation failed with detailed context  
+    /// Tensor creation failed with detailed context
     TensorCreationError(String),
     /// Empty vector access attempted
     EmptyVectorAccess(String),
     /// Vector size validation failed
     VectorSizeValidation(String),
     /// Embedding dimension mismatch
-    EmbeddingDimensionMismatch { expected: Vec<usize>, actual: Vec<usize> },
+    EmbeddingDimensionMismatch {
+        expected: Vec<usize>,
+        actual: Vec<usize>,
+    },
     /// Tensor concatenation failed
     TensorConcatenationError(String),
     /// Shape validation failed
@@ -67,12 +70,22 @@ impl fmt::Display for MoshiError {
             MoshiError::StateCorruption(msg) => write!(f, "State corruption error: {}", msg),
             MoshiError::DeviceError(msg) => write!(f, "Device operation failed: {}", msg),
             MoshiError::TensorCreationError(msg) => write!(f, "Tensor creation failed: {}", msg),
-            MoshiError::EmptyVectorAccess(msg) => write!(f, "Empty vector access attempted: {}", msg),
-            MoshiError::VectorSizeValidation(msg) => write!(f, "Vector size validation failed: {}", msg),
-            MoshiError::EmbeddingDimensionMismatch { expected, actual } => {
-                write!(f, "Embedding dimension mismatch: expected {:?}, got {:?}", expected, actual)
+            MoshiError::EmptyVectorAccess(msg) => {
+                write!(f, "Empty vector access attempted: {}", msg)
             }
-            MoshiError::TensorConcatenationError(msg) => write!(f, "Tensor concatenation failed: {}", msg),
+            MoshiError::VectorSizeValidation(msg) => {
+                write!(f, "Vector size validation failed: {}", msg)
+            }
+            MoshiError::EmbeddingDimensionMismatch { expected, actual } => {
+                write!(
+                    f,
+                    "Embedding dimension mismatch: expected {:?}, got {:?}",
+                    expected, actual
+                )
+            }
+            MoshiError::TensorConcatenationError(msg) => {
+                write!(f, "Tensor concatenation failed: {}", msg)
+            }
             MoshiError::ShapeMismatch(msg) => write!(f, "Tensor shape mismatch: {}", msg),
             MoshiError::InvalidInput(msg) => write!(f, "Invalid input provided: {}", msg),
         }
@@ -128,12 +141,26 @@ impl From<crate::speech_generator::error::SpeechGenerationError> for MoshiError 
 impl From<crate::livekit_bridge::LiveKitBridgeError> for MoshiError {
     fn from(error: crate::livekit_bridge::LiveKitBridgeError) -> Self {
         match error {
-            crate::livekit_bridge::LiveKitBridgeError::ConnectionError(msg) => MoshiError::LiveKit(msg),
+            crate::livekit_bridge::LiveKitBridgeError::ConnectionError(msg) => {
+                MoshiError::LiveKit(msg)
+            }
             crate::livekit_bridge::LiveKitBridgeError::RoomError(msg) => MoshiError::LiveKit(msg),
-            crate::livekit_bridge::LiveKitBridgeError::MicrophoneError(msg) => MoshiError::LiveKit(msg),
-            crate::livekit_bridge::LiveKitBridgeError::AudioConversionError(msg) => MoshiError::AudioBridge(msg),
-            crate::livekit_bridge::LiveKitBridgeError::CommunicationError(msg) => MoshiError::AudioBridge(msg),
+            crate::livekit_bridge::LiveKitBridgeError::MicrophoneError(msg) => {
+                MoshiError::LiveKit(msg)
+            }
+            crate::livekit_bridge::LiveKitBridgeError::AudioConversionError(msg) => {
+                MoshiError::AudioBridge(msg)
+            }
+            crate::livekit_bridge::LiveKitBridgeError::CommunicationError(msg) => {
+                MoshiError::AudioBridge(msg)
+            }
         }
+    }
+}
+
+impl From<anyhow::Error> for MoshiError {
+    fn from(error: anyhow::Error) -> Self {
+        MoshiError::Custom(error.to_string())
     }
 }
 

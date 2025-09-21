@@ -8,7 +8,7 @@ use anyhow::Result;
 use progresshub::{DownloadResult, ProgressHub};
 use std::path::PathBuf;
 use tokio::sync::OnceCell;
-use tracing::{error, info, warn, instrument};
+use tracing::{error, info, instrument, warn};
 
 /// Thread-safe singleton for cached model paths
 static MODEL_PATHS: OnceCell<KyutaiModelPaths> = OnceCell::const_new();
@@ -271,26 +271,26 @@ impl Default for KyutaiModelManager {
 }
 
 /// Thread-safe function to get or download Kyutai models with lazy initialization
-/// 
+///
 /// This function implements a singleton pattern using OnceCell for efficient model sharing.
 /// Models are downloaded only once and cached for subsequent calls across the application.
-/// 
+///
 /// # Usage
-/// 
+///
 /// ## Recommended: Use with async constructors
 /// ```rust
 /// // For SpeechGenerator
 /// let speech_gen = SpeechGenerator::new_with_download(config).await?;
-/// 
+///
 /// // For SpeechGeneratorBuilder
 /// let speech_gen = SpeechGeneratorBuilder::new()
 ///     .temperature(0.7)
 ///     .build_with_download().await?;
-/// 
+///
 /// // For KyutaiEngine
 /// let engine = KyutaiEngine::load_with_download(dtype, &device).await?;
 /// ```
-/// 
+///
 /// ## Manual usage (advanced)
 /// ```rust
 /// let model_paths = get_or_download_models().await?;

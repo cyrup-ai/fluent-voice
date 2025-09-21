@@ -51,14 +51,14 @@ impl VectorDisplayConfig {
         if !self.auto_split_enabled || data.len() <= self.max_points_per_dataset {
             return vec![data];
         }
-        
+
         if self.split_parts <= 1 {
             return vec![data];
         }
 
         let chunk_size = data.len() / self.split_parts;
         let overlap_size = (chunk_size as f64 * self.split_overlap) as usize;
-        
+
         (0..self.split_parts)
             .map(|i| {
                 let start = (i * chunk_size).saturating_sub(overlap_size);
@@ -179,12 +179,12 @@ impl DisplayMode for Vector {
                 out.push(DataSet::new(
                     Some(self.channel_name((n * self.display_config.split_parts) + split_idx)),
                     split_data,
-                cfg.marker_type,
-                if cfg.scatter {
-                    GraphType::Scatter
-                } else {
-                    GraphType::Line
-                },
+                    cfg.marker_type,
+                    if cfg.scatter {
+                        GraphType::Scatter
+                    } else {
+                        GraphType::Line
+                    },
                     cfg.palette((n * self.display_config.split_parts) + split_idx),
                 ));
             }

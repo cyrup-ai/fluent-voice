@@ -1,5 +1,6 @@
 //! STT conversation builders and transcription functionality
 
+use fluent_voice::TranscriptionSegmentImpl;
 use fluent_voice::stt_conversation::{
     MicrophoneBuilder, SttConversationBuilder, SttPostChunkBuilder, TranscriptionBuilder,
 };
@@ -170,6 +171,15 @@ impl SttConversationBuilder for KyutaiSttConversationBuilder {
         self.prediction_handler = Some(Box::new(f));
         self
     }
+
+    fn on_chunk<F>(self, _f: F) -> impl SttPostChunkBuilder<Conversation = Self::Conversation>
+    where
+        F: FnMut(Result<TranscriptionSegmentImpl, VoiceError>) -> TranscriptionSegmentImpl
+            + Send
+            + 'static,
+    {
+        KyutaiSttPostChunkBuilder::new(self)
+    }
 }
 /// Post-chunk STT builder with terminal action methods
 #[derive(Debug, Clone)]
@@ -215,7 +225,10 @@ impl SttPostChunkBuilder for KyutaiSttPostChunkBuilder {
     where
         M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
         S: futures_core::Stream<
-                Item = fluent_voice_domain::transcription::TranscriptionSegmentImpl,
+                Item = Result<
+                    fluent_voice_domain::transcription::TranscriptionSegmentImpl,
+                    VoiceError,
+                >,
             > + Send
             + Unpin
             + 'static,
@@ -288,7 +301,10 @@ impl MicrophoneBuilder for KyutaiMicrophoneBuilder {
     where
         M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
         S: futures_core::Stream<
-                Item = fluent_voice_domain::transcription::TranscriptionSegmentImpl,
+                Item = Result<
+                    fluent_voice_domain::transcription::TranscriptionSegmentImpl,
+                    VoiceError,
+                >,
             > + Send
             + Unpin
             + 'static,
@@ -404,7 +420,10 @@ impl TranscriptionBuilder for KyutaiTranscriptionBuilder {
     where
         M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
         S: futures_core::Stream<
-                Item = fluent_voice_domain::transcription::TranscriptionSegmentImpl,
+                Item = Result<
+                    fluent_voice_domain::transcription::TranscriptionSegmentImpl,
+                    VoiceError,
+                >,
             > + Send
             + Unpin
             + 'static,

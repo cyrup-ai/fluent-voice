@@ -91,7 +91,7 @@ impl DefaultTranscriptionSegment {
 
 /// Zero-Allocation Stream: Pre-allocated, lock-free transcript stream
 pub type DefaultTranscriptStream =
-    Pin<Box<dyn Stream<Item = Result<DefaultTranscriptionSegment, VoiceError>> + Send>>;
+    Pin<Box<dyn Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>> + Send>>;
 
 /// Stream Control Messages: Lock-free command system
 /// Reserved for future stream control implementation

@@ -50,7 +50,8 @@ pub trait ElevenLabsEndpoint {
     async fn response_body(self, resp: Response) -> Result<Self::ResponseBody>;
 
     fn url(&self) -> Result<Url> {
-        let mut url = Self::BASE_URL.parse::<Url>()
+        let mut url = Self::BASE_URL
+            .parse::<Url>()
             .map_err(|e| anyhow::anyhow!("Failed to parse base URL '{}': {}", Self::BASE_URL, e))?;
 
         let mut path = Self::PATH.to_string();

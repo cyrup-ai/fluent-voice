@@ -51,8 +51,8 @@
 //! ```
 
 use super::*;
-use crate::error::Error;
 use crate::endpoints::genai::speech_to_text::{Word, WordType};
+use crate::error::Error;
 
 use serde::Deserialize;
 use std::path::Path;
@@ -132,11 +132,12 @@ impl DubbingSource {
                 let file_path = Path::new(path);
 
                 // ATOMIC OPERATION: Read file and validate in single step
-                let file_data = std::fs::read(file_path)
-                    .map_err(|e| Box::new(Error::FileValidationFailed { 
-                        path: path.clone(), 
-                        reason: format!("Failed to read file: {}", e) 
-                    }))?;
+                let file_data = std::fs::read(file_path).map_err(|e| {
+                    Box::new(Error::FileValidationFailed {
+                        path: path.clone(),
+                        reason: format!("Failed to read file: {}", e),
+                    })
+                })?;
 
                 // Populate size from actual data
                 *size_bytes = Some(file_data.len() as u64);
@@ -269,21 +270,30 @@ impl DubbingSource {
             DubbingSource::Url { .. } => None, // Size unknown for remote URLs
         }
     }
-    
+
     /// Get comprehensive metadata about the dubbing source
     pub fn metadata(&self) -> SourceMetadata {
         match self {
-            DubbingSource::File { path, mime_type, size_bytes, extension, .. } => {
-                SourceMetadata {
-                    source_type: SourceType::File,
-                    path: Some(path.clone()),
-                    size_bytes: *size_bytes,
-                    mime_type: mime_type.clone(),
-                    extension: extension.clone(),
-                    is_cached: self.is_cached(),
-                }
-            }
-            DubbingSource::Bytes { data, filename, mime_type, source_description: _ } => {
+            DubbingSource::File {
+                path,
+                mime_type,
+                size_bytes,
+                extension,
+                ..
+            } => SourceMetadata {
+                source_type: SourceType::File,
+                path: Some(path.clone()),
+                size_bytes: *size_bytes,
+                mime_type: mime_type.clone(),
+                extension: extension.clone(),
+                is_cached: self.is_cached(),
+            },
+            DubbingSource::Bytes {
+                data,
+                filename,
+                mime_type,
+                source_description: _,
+            } => {
                 SourceMetadata {
                     source_type: SourceType::Bytes,
                     path: Some(filename.clone()),
@@ -293,7 +303,10 @@ impl DubbingSource {
                     is_cached: true, // Bytes are always "cached"
                 }
             }
-            DubbingSource::Url { url, expected_content_type } => {
+            DubbingSource::Url {
+                url,
+                expected_content_type,
+            } => {
                 SourceMetadata {
                     source_type: SourceType::Url,
                     path: Some(url.clone()),
@@ -305,16 +318,16 @@ impl DubbingSource {
             }
         }
     }
-    
+
     /// Check if the source data is cached in memory
     pub fn is_cached(&self) -> bool {
         match self {
             DubbingSource::File { cached_data, .. } => cached_data.is_some(),
             DubbingSource::Bytes { .. } => true, // Always in memory
-            DubbingSource::Url { .. } => false, // Never cached
+            DubbingSource::Url { .. } => false,  // Never cached
         }
     }
-    
+
     /// Get human-readable size description
     pub fn size_description(&self) -> String {
         match self.file_size() {
@@ -332,7 +345,7 @@ impl DubbingSource {
             None => "Unknown size".to_string(),
         }
     }
-    
+
     // Helper methods for metadata extraction
     fn extract_extension_from_filename(filename: &str) -> Option<String> {
         std::path::Path::new(filename)
@@ -340,16 +353,14 @@ impl DubbingSource {
             .and_then(|ext| ext.to_str())
             .map(|s| s.to_lowercase())
     }
-    
+
     fn extract_extension_from_url(url: &str) -> Option<String> {
-        url::Url::parse(url)
-            .ok()
-            .and_then(|parsed| {
-                std::path::Path::new(parsed.path())
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .map(|s| s.to_lowercase())
-            })
+        url::Url::parse(url).ok().and_then(|parsed| {
+            std::path::Path::new(parsed.path())
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|s| s.to_lowercase())
+        })
     }
 }
 
@@ -457,7 +468,7 @@ impl DubbingBody {
             mime_type: None,
             size_bytes: None,
             extension: None,
-            cached_data: None,  // Will be populated during validation
+            cached_data: None, // Will be populated during validation
         };
         source.validate()?;
 
@@ -600,17 +611,17 @@ impl DubbingBody {
     pub fn source_size(&self) -> Option<u64> {
         self.source.file_size()
     }
-    
+
     /// Get comprehensive source metadata
     pub fn source_metadata(&self) -> SourceMetadata {
         self.source.metadata()
     }
-    
+
     /// Get human-readable source size description
     pub fn source_size_description(&self) -> String {
         self.source.size_description()
     }
-    
+
     /// Check if source data is cached in memory
     pub fn is_source_cached(&self) -> bool {
         self.source.is_cached()
@@ -861,9 +872,12 @@ impl GetDubbedTranscriptQuery {
 }
 
 /// Parse SRT format transcript into Word structures (REUSE existing patterns)
-fn parse_srt_transcript(content: String, format: TranscriptFormat) -> Result<GetDubbedTranscriptResponse> {
-    let items: Vec<srtparse::Item> = srtparse::from_str(&content)
-        .map_err(|e| Error::TranscriptParseError {
+fn parse_srt_transcript(
+    content: String,
+    format: TranscriptFormat,
+) -> Result<GetDubbedTranscriptResponse> {
+    let items: Vec<srtparse::Item> =
+        srtparse::from_str(&content).map_err(|e| Error::TranscriptParseError {
             format: "SRT".to_string(),
             reason: e.to_string(),
         })?;
@@ -872,11 +886,11 @@ fn parse_srt_transcript(content: String, format: TranscriptFormat) -> Result<Get
         .into_iter()
         .map(|item| Word {
             text: item.text,
-            r#type: WordType::Word,  // REUSE existing enum
+            r#type: WordType::Word, // REUSE existing enum
             start: Some(item.start_time.into_duration().as_secs_f32()),
             end: Some(item.end_time.into_duration().as_secs_f32()),
-            speaker_id: None,  // SRT doesn't have speaker info
-            characters: None,  // Not needed for transcript segments
+            speaker_id: None, // SRT doesn't have speaker info
+            characters: None, // Not needed for transcript segments
         })
         .collect();
 
@@ -891,24 +905,26 @@ fn parse_srt_transcript(content: String, format: TranscriptFormat) -> Result<Get
 }
 
 /// Parse WebVTT format transcript into Word structures (REUSE existing patterns)
-fn parse_webvtt_transcript(content: String, format: TranscriptFormat) -> Result<GetDubbedTranscriptResponse> {
+fn parse_webvtt_transcript(
+    content: String,
+    format: TranscriptFormat,
+) -> Result<GetDubbedTranscriptResponse> {
     use std::str::FromStr;
-    let webvtt = vtt::WebVtt::from_str(&content)
-        .map_err(|e| Error::TranscriptParseError {
-            format: "WebVTT".to_string(),
-            reason: e.to_string(),
-        })?;
+    let webvtt = vtt::WebVtt::from_str(&content).map_err(|e| Error::TranscriptParseError {
+        format: "WebVTT".to_string(),
+        reason: e.to_string(),
+    })?;
 
     let words: Vec<Word> = webvtt
         .cues
         .into_iter()
         .map(|cue| Word {
             text: cue.payload,
-            r#type: WordType::Word,  // REUSE existing enum
+            r#type: WordType::Word, // REUSE existing enum
             start: Some(cue.start.as_duration().as_secs_f32()),
             end: Some(cue.end.as_duration().as_secs_f32()),
-            speaker_id: cue.identifier,  // WebVTT cue ID as speaker
-            characters: None,  // Not needed for transcript segments
+            speaker_id: cue.identifier, // WebVTT cue ID as speaker
+            characters: None,           // Not needed for transcript segments
         })
         .collect();
 
@@ -927,7 +943,7 @@ impl ElevenLabsEndpoint for GetDubbedTranscript {
 
     const METHOD: Method = Method::GET;
 
-    type ResponseBody = GetDubbedTranscriptResponse;  // CHANGED from String
+    type ResponseBody = GetDubbedTranscriptResponse; // CHANGED from String
 
     fn path_params(&self) -> Vec<(&'static str, &str)> {
         vec![
@@ -942,7 +958,8 @@ impl ElevenLabsEndpoint for GetDubbedTranscript {
 
     async fn response_body(self, resp: Response) -> Result<Self::ResponseBody> {
         let content = resp.text().await?;
-        let format = self.query
+        let format = self
+            .query
             .as_ref()
             .map(|q| q.get_format())
             .unwrap_or(TranscriptFormat::Srt);
@@ -1023,7 +1040,10 @@ impl GetDubbedTranscriptResponse {
                 let end_time = crate::timestamp_export::seconds_to_srt_time(end);
                 srt.push_str(&format!(
                     "{}\n{} --> {}\n{}\n\n",
-                    i + 1, start_time, end_time, word.text
+                    i + 1,
+                    start_time,
+                    end_time,
+                    word.text
                 ));
             }
         }
@@ -1063,7 +1083,11 @@ impl TryFrom<&DubbingBody> for RequestBody {
         // Handle source based on enum variant
         match &body.source {
             DubbingSource::File {
-                path, mime_type, cached_data, size_bytes, ..
+                path,
+                mime_type,
+                cached_data,
+                size_bytes,
+                ..
             } => {
                 let file_bytes = match cached_data {
                     Some(data) => {
@@ -1073,14 +1097,15 @@ impl TryFrom<&DubbingBody> for RequestBody {
                     None => {
                         // Fallback for large files - original behavior with race condition risk
                         let file_path = Path::new(path);
-                        std::fs::read(file_path)
-                            .map_err(|e| format!(
+                        std::fs::read(file_path).map_err(|e| {
+                            format!(
                                 "Failed to read large file '{}' (size: {} bytes): {}. \
-                                 File may have been deleted after validation.", 
-                                path, 
+                                 File may have been deleted after validation.",
+                                path,
                                 size_bytes.unwrap_or(0),
                                 e
-                            ))?
+                            )
+                        })?
                     }
                 };
 

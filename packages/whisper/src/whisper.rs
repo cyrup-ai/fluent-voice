@@ -176,7 +176,8 @@ impl Decoder {
     #[allow(dead_code)] // Library code - decoder inference
     pub fn decode(&mut self, mel: &Tensor, t: f64) -> Result<DecodingResult> {
         let mut results = self.decode_batch(&[mel], t)?;
-        results.pop()
+        results
+            .pop()
             .ok_or_else(|| anyhow::anyhow!("No decoding results returned"))
     }
 

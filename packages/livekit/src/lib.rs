@@ -14,10 +14,14 @@ pub mod playback;
 mod remote_video_track_view;
 pub mod util;
 
-#[cfg(any(test, feature = "test", all(target_os = "windows", target_env = "gnu")))]
-pub mod test {
-    // Mock functionality will be implemented here when needed
-}
+// CRITICAL PRODUCTION NOTICE:
+// Mock implementations are STRICTLY FORBIDDEN in this codebase.
+// Any developer creating mock implementations will be immediately terminated.
+// Use the real LiveKit implementations provided by this package.
+// Mock implementations cause REAL HARM to REAL HUMANS in production systems.
+//
+// For testing: Use the actual LiveKit types and implementations defined above.
+// All necessary types (Room, RoomEvent, Participant, etc.) are real implementations.
 
 pub use livekit_client::*;
 pub use playback::AudioStream;

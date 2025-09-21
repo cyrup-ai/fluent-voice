@@ -17,6 +17,12 @@ thread_local! {
     }
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self::v0_1()
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct DepFormerConfig {
     pub transformer: transformer::Config,
@@ -186,11 +192,13 @@ impl LmModel {
         Ok(())
     }
 
-    fn validate_embeddings(embeddings: &[Tensor]) -> Result<(), crate::error::MoshiError> {
+    fn validate_embeddings(embeddings: &[Tensor]) -> Result<()> {
         if embeddings.is_empty() {
             return Err(crate::error::MoshiError::InvalidInput(
-                "Empty embeddings vector - no text or audio tokens provided for processing".to_string()
-            ));
+                "Empty embeddings vector - no text or audio tokens provided for processing"
+                    .to_string(),
+            )
+            .into());
         }
 
         // Validate embedding dimensions are compatible for concatenation
@@ -200,19 +208,26 @@ impl LmModel {
                 if emb.shape().rank() != first_shape.rank() {
                     return Err(crate::error::MoshiError::ShapeMismatch(format!(
                         "Embedding {} rank mismatch: expected {}, got {}",
-                        i, first_shape.rank(), emb.shape().rank()
-                    )));
+                        i,
+                        first_shape.rank(),
+                        emb.shape().rank()
+                    ))
+                    .into());
                 }
-                
+
                 // Check all dimensions except concatenation dimension (1) match
-                for (dim_idx, (&expected, &actual)) in first_shape.dims().iter()
+                for (dim_idx, (&expected, &actual)) in first_shape
+                    .dims()
+                    .iter()
                     .zip(emb.shape().dims().iter())
-                    .enumerate() {
+                    .enumerate()
+                {
                     if dim_idx != 1 && expected != actual {
                         return Err(crate::error::MoshiError::ShapeMismatch(format!(
                             "Embedding {} dimension {} mismatch: expected {}, got {}",
                             i, dim_idx, expected, actual
-                        )));
+                        ))
+                        .into());
                     }
                 }
             }
@@ -325,7 +340,7 @@ impl LmModel {
                 let combined_embeddings = if all_embeddings.is_empty() {
                     return Err(crate::error::MoshiError::InvalidInput(
                         "No embeddings provided for LM forward pass - ensure text or audio tokens are provided".to_string()
-                    ));
+                    ).into());
                 } else if all_embeddings.len() > 1 {
                     Tensor::cat(&all_embeddings, 1)?
                 } else {

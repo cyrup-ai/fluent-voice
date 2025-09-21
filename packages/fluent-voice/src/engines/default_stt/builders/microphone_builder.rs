@@ -5,7 +5,7 @@ use fluent_voice_domain::{
     Diarization, Language, NoiseReduction, Punctuation, TimestampsGranularity,
     TranscriptionSegmentImpl, VadMode, VoiceError, WordTimestamps,
 };
-use futures_core::Stream;
+
 
 use crate::engines::default_stt::{
     AudioProcessor, DefaultSTTConversation, SendableClosure, VadConfig, WakeWordConfig,
@@ -68,7 +68,10 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
     fn listen<M, S>(self, matcher: M) -> S
     where
         M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
-        S: Stream<Item = TranscriptionSegmentImpl> + Send + Unpin + 'static,
+        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
+            + Send
+            + Unpin
+            + 'static,
     {
         // Create AudioProcessor for wake word detection, VAD, and transcription
         let audio_processor = match AudioProcessor::new(self.wake_word_config.clone()) {

@@ -138,15 +138,15 @@ impl DefaultSTTConversation {
         let (stream_manager, _) =
             crate::audio_stream_manager::AudioStreamManager::new(stream_config)?;
 
-        // Create conversation
+        // Create conversation using the builder's actual configuration
         Self::new(
             vad_config,
             wake_word_config,
-            None, // error_handler
-            None, // wake_word_handler
-            None, // turn_detection_handler
-            None, // prediction_processor
-            None, // chunk_handler
+            builder.error_handler,
+            builder.wake_handler,
+            builder.turn_handler,
+            builder.prediction_processor,
+            builder.chunk_handler,
             audio_receiver,
             audio_processor,
             stream_manager,

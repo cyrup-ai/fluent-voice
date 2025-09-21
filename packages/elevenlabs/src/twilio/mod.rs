@@ -34,6 +34,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::{debug, warn};
 use tokio::sync::Mutex;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::{error, field, info, instrument, warn, Span};
@@ -62,6 +63,14 @@ pub enum Error {
     AgentWebSocketNotSet,
     #[error("twilio phone number not available")]
     PhoneNumberNotAvailable,
+    #[error("Unsupported WebSocket message type: {message_type}. Expected Text message")]
+    UnsupportedWebSocketMessageType { message_type: String },
+    #[error("WebSocket connection closed unexpectedly")]
+    WebSocketConnectionClosed,
+    #[error("Failed to parse WebSocket message: {reason}")]
+    WebSocketMessageParseError { reason: String },
+    #[error("WebSocket protocol error: {details}")]
+    WebSocketProtocolError { details: String },
 }
 
 // TODO: Rename ?
@@ -1523,7 +1532,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn telephony_agent_extractor_is_sending_media_payload() {
+    async fn telephony_agent_extractor_is_sending_media_payload() -> Result<(), Error> {
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("Failed to bind test listener");
 
         let addr = listener.local_addr().expect("Failed to get listener address");
@@ -1592,13 +1601,46 @@ mod tests {
             .expect("Failed to send start message");
 
         let msg = match socket.next().await.expect("Failed to get next message").expect("Failed to get message content") {
-            tungstenite::Message::Text(msg) => msg,
-            other => panic!("expected a text message but got {other:?}"),
+            tungstenite::Message::Text(msg) => {
+                debug!("Received WebSocket text message: {} bytes", msg.len());
+                msg
+            }
+            tungstenite::Message::Binary(data) => {
+                warn!("Received unexpected binary WebSocket message: {} bytes", data.len());
+                return Err(Error::UnsupportedWebSocketMessageType { 
+                    message_type: "Binary".to_string() 
+                });
+            }
+            tungstenite::Message::Ping(_) => {
+                return Err(Error::UnsupportedWebSocketMessageType { 
+                    message_type: "Ping".to_string() 
+                });
+            }
+            tungstenite::Message::Pong(_) => {
+                return Err(Error::UnsupportedWebSocketMessageType { 
+                    message_type: "Pong".to_string() 
+                });
+            }
+            tungstenite::Message::Close(close_frame) => {
+                let details = close_frame
+                    .as_ref()
+                    .map(|cf| format!("Code: {:?}, Reason: {}", cf.code, cf.reason))
+                    .unwrap_or_else(|| "No close frame details".to_string());
+                warn!("WebSocket connection closed: {}", details);
+                return Err(Error::WebSocketConnectionClosed);
+            }
+            tungstenite::Message::Frame(_) => {
+                return Err(Error::UnsupportedWebSocketMessageType { 
+                    message_type: "Frame".to_string() 
+                });
+            }
         };
 
         let want =
             r#"{"event":"media","streamSid":"test_stream_sid","media":{"payload":"test_payload"}}"#;
 
         assert_eq!(msg.as_str(), want);
+        
+        Ok(())
     }
 }

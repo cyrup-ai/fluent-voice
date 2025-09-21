@@ -146,7 +146,7 @@ impl RealTimeVadSystem {
                         // Store values before result is moved
                         let voice_detected = result.voice_detected;
                         let timestamp = result.timestamp;
-                        
+
                         // Detect turn transitions
                         if voice_detected != last_voice_state {
                             // Record turn detection in performance metrics
@@ -280,7 +280,10 @@ mod tests {
         let vad_engine = Arc::new(Mutex::new(vad_engine_result.unwrap()));
         let vad_system = RealTimeVadSystem::new(event_bus, vad_engine);
 
-        assert!(vad_system.processing_state.is_active == false, "Should create VAD system successfully");
+        assert!(
+            vad_system.processing_state.is_active == false,
+            "Should create VAD system successfully"
+        );
     }
 
     #[tokio::test]

@@ -9,6 +9,53 @@ use std::time::SystemTime;
 use dia::voice::{voice_builder::DiaVoiceBuilder, VoicePool};
 use std::sync::Arc;
 
+// Removed unused imports: async_stream_empty, async_stream_from_error, async_stream_from_result, default_audio_chunk_error_handler
+
+/// Error AudioChunk Factory - Standardizes existing patterns
+/// Uses existing AudioChunk::with_metadata pattern for consistent error handling
+fn create_error_chunk(
+    error_message: String,
+    speaker_id: Option<String>,
+    error_category: &str,
+) -> AudioChunk {
+    AudioChunk::with_metadata(
+        Vec::new(),                                              // Empty audio data
+        0,                                                       // Zero duration
+        0,                                                       // Zero start time
+        speaker_id,                                              // Preserve speaker context
+        Some(format!("[{}] {}", error_category, error_message)), // Categorized message
+        None,                                                    // No audio format
+    )
+}
+
+/// Resource Validation Helper - Applies device validation pattern to filesystem
+/// Uses existing device validation approach for filesystem resource validation
+fn validate_synthesis_resources() -> Result<(), VoiceError> {
+    let temp_dir = std::env::temp_dir();
+
+    // Apply existing device validation pattern structure to filesystem
+    let _metadata = std::fs::metadata(&temp_dir).map_err(|e| {
+        VoiceError::ProcessingError(format!(
+            "Cannot access temporary directory: {} - {}",
+            temp_dir.display(),
+            e
+        ))
+    })?;
+
+    // Test write permissions using device validation approach
+    let test_file = temp_dir.join(format!("tts_test_{}.tmp", std::process::id()));
+    std::fs::write(&test_file, b"test").map_err(|e| {
+        VoiceError::ProcessingError(format!(
+            "Cannot write to temp directory: {} - {}",
+            temp_dir.display(),
+            e
+        ))
+    })?;
+
+    let _ = std::fs::remove_file(&test_file);
+    Ok(())
+}
+
 /// Simple TTS wrapper that delegates to DiaVoiceBuilder defaults
 pub struct DefaultTtsBuilder {
     speaker_id: Option<String>,
@@ -16,7 +63,8 @@ pub struct DefaultTtsBuilder {
     synthesis_parameters: Option<SynthesisParameters>,
     synthesis_session: Option<SynthesisSession>,
     // Add callback storage following existing TTS builder patterns
-    result_callback: Option<Box<dyn FnOnce(Result<DefaultTtsConversation, VoiceError>) + Send + 'static>>,
+    result_callback:
+        Option<Box<dyn FnOnce(Result<DefaultTtsConversation, VoiceError>) + Send + 'static>>,
 }
 
 impl DefaultTtsBuilder {
@@ -26,7 +74,7 @@ impl DefaultTtsBuilder {
             voice_clone_path: None,
             synthesis_parameters: None,
             synthesis_session: None,
-            result_callback: None,  // Initialize callback storage
+            result_callback: None, // Initialize callback storage
         }
     }
 
@@ -208,30 +256,30 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
         use std::sync::Arc;
 
         // Helper function to create conversation result
-        let create_conversation_result = || -> Result<DefaultTtsConversation, fluent_voice_domain::VoiceError> {
-            match VoicePool::new() {
-                Ok(pool) => {
-                    let pool_arc = Arc::new(pool);
-                    let audio_path = std::env::temp_dir().join("temp_audio.wav");
-                    let dia_builder = dia::voice::voice_builder::DiaVoiceBuilder::new(pool_arc, audio_path);
-                    
-                    // Create conversation using DiaVoiceBuilder as backend
-                    let conversation = DefaultTtsConversation::with_dia_builder(dia_builder);
-                    Ok(conversation)
-                }
-                Err(_) => {
-                    Err(fluent_voice_domain::VoiceError::Configuration(
+        let create_conversation_result =
+            || -> Result<DefaultTtsConversation, fluent_voice_domain::VoiceError> {
+                match VoicePool::new() {
+                    Ok(pool) => {
+                        let pool_arc = Arc::new(pool);
+                        let audio_path = std::env::temp_dir().join("temp_audio.wav");
+                        let dia_builder =
+                            dia::voice::voice_builder::DiaVoiceBuilder::new(pool_arc, audio_path);
+
+                        // Create conversation using DiaVoiceBuilder as backend
+                        let conversation = DefaultTtsConversation::with_dia_builder(dia_builder);
+                        Ok(conversation)
+                    }
+                    Err(_) => Err(fluent_voice_domain::VoiceError::Configuration(
                         "Failed to create VoicePool".to_string(),
-                    ))
+                    )),
                 }
-            }
-        };
-        
+            };
+
         // Execute stored callback if present (both success and error cases)
         if let Some(callback) = self.result_callback {
             callback(create_conversation_result());
         }
-        
+
         // Call the matcher with the result (preserves existing API contract)
         matcher(create_conversation_result())
     }
@@ -246,17 +294,48 @@ impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder 
         // Capture values for use in async block
         let speaker_id_clone = self.speaker_id.clone();
         let voice_clone_path = self.voice_clone_path.clone();
+        let synthesis_parameters = self.synthesis_parameters.clone();
 
         // Single async_stream that handles both error and success cases
         Box::pin(async_stream::stream! {
-            // Create VoicePool for dia-voice synthesis
+            // Apply resource validation using device validation pattern before synthesis
+            if let Err(e) = validate_synthesis_resources() {
+                tracing::error!("Resource validation failed: {}", e);
+                let error_chunk = create_error_chunk(
+                    e.to_string(),
+                    speaker_id_clone.clone(),
+                    "ResourceValidation"
+                );
+                yield error_chunk;
+                return;
+            }
+
+            // Apply parameter validation pattern from synthesis_parameters.rs:75-140
+            if let Some(ref params) = synthesis_parameters {
+                if let Err(validation_error) = params.validate() {
+                    tracing::error!("Parameter validation failed: {}", validation_error);
+                    let error_chunk = create_error_chunk(
+                        format!("Configuration error: {}", validation_error),
+                        speaker_id_clone.clone(),
+                        "Configuration"
+                    );
+                    yield error_chunk;
+                    return;
+                }
+            }
+
+            // Apply existing VoicePool error handling pattern from chunk_synthesis.rs:25-35
             let pool = match VoicePool::new() {
                 Ok(pool) => Arc::new(pool),
                 Err(e) => {
-                    // Yield error chunk and return
-                    let error_chunk = AudioChunk::with_metadata(
-                        Vec::new(), 0, 0, None,
-                        Some(format!("VoicePool creation failed: {}", e)), None
+                    // Enhanced error logging using existing tracing patterns
+                    tracing::error!("VoicePool creation failed: {}", e);
+
+                    // Yield error chunk using create_error_chunk utility and return
+                    let error_chunk = create_error_chunk(
+                        format!("Failed to create voice pool: {}", e),
+                        speaker_id_clone.clone(),
+                        "Configuration"
                     );
                     yield error_chunk;
                     return;
@@ -279,17 +358,53 @@ impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder 
                 "Default fluent-voice synthesis".to_string()
             };
 
-            // Use DiaVoiceBuilder for real synthesis
-            let audio_data = dia_builder
+            // Apply comprehensive synthesis error handling pattern from synthesis.rs:20-65
+            let audio_data = match dia_builder
                 .speak(&synthesis_text)
                 .play(|result| match result {
-                    Ok(voice_player) => voice_player.audio_data,
+                    Ok(voice_player) => Ok(voice_player.audio_data),
                     Err(e) => {
                         tracing::error!("DiaVoice synthesis failed: {}", e);
-                        Vec::new()
+                        Err(VoiceError::Synthesis(format!("Failed to generate speech: {}", e)))
                     }
                 })
-                .await;
+                .await
+            {
+                Ok(data) => data,
+                Err(e) => {
+                    // Yield error chunk using create_error_chunk utility and return
+                    let error_chunk = create_error_chunk(
+                        e.to_string(),
+                        speaker_id_clone.clone(),
+                        "Synthesis"
+                    );
+                    yield error_chunk;
+                    return;
+                }
+            };
+
+            // Apply audio data validation pattern from default_engine_coordinator.rs:440-445
+            if audio_data.len() % 2 != 0 {
+                tracing::error!("Invalid audio format: data length not aligned to 16-bit samples");
+                let error_chunk = create_error_chunk(
+                    "Audio data length must be even for 16-bit samples".to_string(),
+                    speaker_id_clone.clone(),
+                    "AudioProcessing"
+                );
+                yield error_chunk;
+                return;
+            }
+
+            if audio_data.is_empty() {
+                tracing::warn!("Synthesis completed but returned empty audio data");
+                let error_chunk = create_error_chunk(
+                    "Synthesis failed: No audio data generated".to_string(),
+                    speaker_id_clone.clone(),
+                    "Synthesis"
+                );
+                yield error_chunk;
+                return;
+            }
 
             // Calculate duration based on audio data length (16-bit PCM at 16kHz)
             let sample_rate = 16000u32;

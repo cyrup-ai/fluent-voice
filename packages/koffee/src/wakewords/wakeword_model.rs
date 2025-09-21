@@ -100,6 +100,7 @@ impl WakewordSave for WakewordModel {}
 /// Minimal detector that returns None for all detections
 /// Used as fallback when main detector fails to initialize
 struct EmptyDetector {
+    #[allow(dead_code)] // False positive: field is used in get_kfc_dimensions() method
     kfc_size: u16,
 }
 
@@ -146,7 +147,6 @@ impl WakewordFile for WakewordModel {
             }
         }
     }
-
 }
 
 /* --------------------------------------------------------------------- */

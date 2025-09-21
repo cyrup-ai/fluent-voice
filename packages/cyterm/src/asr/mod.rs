@@ -16,8 +16,8 @@ pub use error::Error;
 pub use iterator::{IteratorExt, LabelIterator, PredictIterator};
 pub use label::LabeledAudio;
 // Use external Sample trait and local utility functions
-pub use sample::{samples_to_f32, samples_to_mono_f32};
 pub use fluent_voice_vad::Sample;
+pub use sample::{samples_to_f32, samples_to_mono_f32};
 
 // Re-export whisper types from the working implementation
 pub use fluent_voice_whisper::{

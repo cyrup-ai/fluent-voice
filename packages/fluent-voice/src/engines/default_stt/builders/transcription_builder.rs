@@ -35,7 +35,7 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
     fn transcribe<M, S>(self, matcher: M) -> S
     where
         M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = TranscriptionSegmentImpl> + Send + Unpin + 'static,
+        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>> + Send + Unpin + 'static,
     {
         // For file transcription, create dummy audio components
         let audio_processor = match AudioProcessor::new(self.wake_word_config.clone()) {

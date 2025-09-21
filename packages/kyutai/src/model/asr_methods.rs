@@ -33,7 +33,7 @@ impl LmModel {
         } else {
             // FIXED: Use extracted dimensions instead of hardcoded defaults
             let batch_size = 1; // Minimal batch when no input provided
-            let seq_len = 1;    // Minimal sequence when no input provided
+            let seq_len = 1; // Minimal sequence when no input provided
             Tensor::from_vec(
                 vec![self.text_start_token()],
                 (batch_size, seq_len),
@@ -44,28 +44,28 @@ impl LmModel {
         // Extract dynamic batch size and sequence length from actual input tensor
         let input_shape = text_input.shape();
         let batch_size = input_shape.dims()[0].max(1); // Handle empty batches
-        let seq_len = if input_shape.rank() > 1 { 
+        let seq_len = if input_shape.rank() > 1 {
             input_shape.dims()[1].max(1) // Handle empty sequences
-        } else { 
-            1 
+        } else {
+            1
         };
 
         // IMPLEMENTED: Validate extracted dimensions for processing
         if batch_size == 0 || seq_len == 0 {
             return Err(candle_core::Error::Msg(format!(
-                "Invalid tensor dimensions: batch_size={}, seq_len={}", 
+                "Invalid tensor dimensions: batch_size={}, seq_len={}",
                 batch_size, seq_len
             )));
         }
 
         // Embed text tokens using dynamic dimensions
         let mut hidden_states = text_input.apply(&self.embed_tokens)?;
-        
+
         // IMPLEMENTED: Use extracted batch_size and seq_len in tensor operations
         // Ensure hidden states match expected dynamic dimensions
         let hidden_shape = hidden_states.shape();
         let expected_shape = &[batch_size, seq_len, hidden_shape.dims()[2]];
-        
+
         if hidden_shape.dims() != expected_shape {
             // Reshape tensor to match extracted dynamic dimensions
             hidden_states = hidden_states.reshape(expected_shape)?;
@@ -102,7 +102,7 @@ impl LmModel {
         } else {
             // FIXED: Use extracted dimensions instead of hardcoded defaults
             let batch_size = 1; // Minimal batch when no input provided
-            let seq_len = 1;    // Minimal sequence when no input provided
+            let seq_len = 1; // Minimal sequence when no input provided
             Tensor::from_vec(
                 vec![self.text_start_token()],
                 (batch_size, seq_len),
@@ -113,28 +113,28 @@ impl LmModel {
         // Extract dynamic batch size and sequence length from actual input tensor
         let input_shape = text_input.shape();
         let batch_size = input_shape.dims()[0].max(1); // Handle empty batches
-        let seq_len = if input_shape.rank() > 1 { 
+        let seq_len = if input_shape.rank() > 1 {
             input_shape.dims()[1].max(1) // Handle empty sequences
-        } else { 
-            1 
+        } else {
+            1
         };
 
         // IMPLEMENTED: Validate extracted dimensions for processing
         if batch_size == 0 || seq_len == 0 {
             return Err(candle_core::Error::Msg(format!(
-                "Invalid tensor dimensions: batch_size={}, seq_len={}", 
+                "Invalid tensor dimensions: batch_size={}, seq_len={}",
                 batch_size, seq_len
             )));
         }
 
         // Embed text tokens using dynamic dimensions
         let mut hidden_states = text_input.apply(&self.embed_tokens)?;
-        
+
         // IMPLEMENTED: Use extracted batch_size and seq_len in tensor operations
         // Ensure hidden states match expected dynamic dimensions
         let hidden_shape = hidden_states.shape();
         let expected_shape = &[batch_size, seq_len, hidden_shape.dims()[2]];
-        
+
         if hidden_shape.dims() != expected_shape {
             // Reshape tensor to match extracted dynamic dimensions
             hidden_states = hidden_states.reshape(expected_shape)?;

@@ -341,20 +341,20 @@ pub fn load(model_file: &str, num_codebooks: Option<usize>, dev: &Device) -> Res
 }
 
 /// Load Mimi model from a path without requiring UTF-8 conversion
-/// 
+///
 /// This function safely handles path types without unwrap() calls that could panic
 /// on non-UTF-8 paths, following existing patterns from TURD.md specification.
 pub fn load_from_path<P: AsRef<Path>>(
-    model_path: P, 
-    num_codebooks: Option<usize>, 
-    dev: &Device
+    model_path: P,
+    num_codebooks: Option<usize>,
+    dev: &Device,
 ) -> Result<Mimi> {
-    let model_file = model_path.as_ref()
-        .to_str()
-        .ok_or_else(|| candle_core::Error::Msg(format!(
-            "Invalid UTF-8 in model path: {:?}", 
+    let model_file = model_path.as_ref().to_str().ok_or_else(|| {
+        candle_core::Error::Msg(format!(
+            "Invalid UTF-8 in model path: {:?}",
             model_path.as_ref()
-        )))?;
-    
+        ))
+    })?;
+
     load(model_file, num_codebooks, dev)
 }

@@ -99,19 +99,7 @@ macro_rules! tts_synthesize {
     };
 }
 
-/// Macro for STT conversation builder pattern.
-///
-/// This macro supports the fluent builder pattern for STT operations,
-/// allowing for a clean syntax with a single await point.
-#[macro_export]
-macro_rules! stt_conversation_builder {
-    ($engine:expr) => {{
-        use $crate::builders::SttConversationBuilderImpl;
-        use $crate::stt_conversation::SttConversationBuilder;
-
-        SttConversationBuilderImpl::new($engine)
-    }};
-}
+// STT conversation builder macro removed - was orphaned code using removed SttConversationBuilderImpl
 
 /// Macro for the listen method on STT microphone builders.
 ///

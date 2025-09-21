@@ -110,5 +110,4 @@ pub(crate) trait WakewordFile {
         band_size: u16,
         score_mode: ScoreMode,
     ) -> Box<dyn WakewordDetector>;
-
 }

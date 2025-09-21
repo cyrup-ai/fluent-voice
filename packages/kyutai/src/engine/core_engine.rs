@@ -72,7 +72,7 @@ impl ModelWorker {
             Err(pcm_err) => {
                 // Log the PCM failure and create fallback
                 tracing::warn!("Failed to create tensor from PCM data: {}", pcm_err);
-                
+
                 Tensor::zeros((1024,), DType::F32, &Device::Cpu)
                     .map_err(|fallback_err| crate::error::MoshiError::DeviceError(format!(
                         "Critical failure: PCM tensor creation failed ({}), fallback also failed ({})",
@@ -86,7 +86,8 @@ impl ModelWorker {
     fn run(mut self) {
         while let Ok(request) = self.request_rx.recv() {
             // Create speaker tensor safely with error handling
-            let speaker_tensor_result = request.speaker_pcm
+            let speaker_tensor_result = request
+                .speaker_pcm
                 .as_ref()
                 .map(|pcm| Self::create_speaker_tensor(pcm))
                 .transpose(); // Convert Option<Result<T, E>> to Result<Option<T>, E>
@@ -97,10 +98,10 @@ impl ModelWorker {
                     .generate(
                         &request.text,
                         speaker_tensor.as_ref(),
-                    request.max_steps,
-                    request.temperature,
-                    request.top_k,
-                    request.top_p,
+                        request.max_steps,
+                        request.temperature,
+                        request.top_k,
+                        request.top_p,
                         request.repetition_penalty,
                         request.cfg_alpha,
                         request.seed,
@@ -157,12 +158,14 @@ impl KyutaiEngine {
 
     /// Load a Kyutai model using thread-safe singleton with automatic downloading
     #[inline]
-    pub async fn load_with_download(
-        dtype: DType,
-        device: &Device,
-    ) -> Result<Self, MoshiError> {
+    pub async fn load_with_download(dtype: DType, device: &Device) -> Result<Self, MoshiError> {
         let model_paths = crate::models::get_or_download_models().await?;
-        let model = Model::load(&model_paths.lm_model_path, &model_paths.mimi_model_path, dtype, device)?;
+        let model = Model::load(
+            &model_paths.lm_model_path,
+            &model_paths.mimi_model_path,
+            dtype,
+            device,
+        )?;
         Self::new(model)
     }
 

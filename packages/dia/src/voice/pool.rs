@@ -194,7 +194,7 @@ pub fn init_global_pool(cache_dir: impl AsRef<Path>, device: Device) -> Result<(
 
 /// Get the global voice pool
 pub fn global_pool() -> Result<&'static VoicePool> {
-    GLOBAL_POOL
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Global voice pool not initialized - call init_global_pool() first"))
+    GLOBAL_POOL.get().ok_or_else(|| {
+        anyhow::anyhow!("Global voice pool not initialized - call init_global_pool() first")
+    })
 }

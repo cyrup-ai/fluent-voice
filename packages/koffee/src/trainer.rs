@@ -1,7 +1,7 @@
 //! Training functionality for wake-word models
 
-use std::{collections::HashMap, fs, path::Path};
 use rand::seq::SliceRandom;
+use std::{collections::HashMap, fs, path::Path};
 
 use crate::{
     ModelType, Result,
@@ -15,7 +15,7 @@ use crate::{
 pub fn train_dir(input_dir: &Path, output_path: &Path, model_type: ModelType) -> Result<()> {
     // Read wav files from directory
     let all_data = load_wav_files_from_path(input_dir)?;
-    
+
     // Implement proper stratified train/validation split (80/20)
     let (train_data, val_data) = split_training_data(all_data, 0.8)?;
 
@@ -79,63 +79,67 @@ fn load_wav_files(dir_path: &str) -> Result<HashMap<String, Vec<u8>>> {
 
 /// Load wav files from a Path directory
 fn load_wav_files_from_path(dir_path: &Path) -> Result<HashMap<String, Vec<u8>>> {
-    let dir_path_str = dir_path.to_str()
+    let dir_path_str = dir_path
+        .to_str()
         .ok_or_else(|| format!("Directory path contains invalid UTF-8: {:?}", dir_path))?;
     load_wav_files(dir_path_str)
 }
 
 /// Split training data into train and validation sets with stratified sampling
 fn split_training_data(
-    data: HashMap<String, Vec<u8>>, 
-    train_ratio: f32
+    data: HashMap<String, Vec<u8>>,
+    train_ratio: f32,
 ) -> Result<(HashMap<String, Vec<u8>>, HashMap<String, Vec<u8>>)> {
     let mut positive_samples = Vec::new();
     let mut negative_samples = Vec::new();
-    
+
     // Separate positive and negative samples based on filename patterns
     for (filename, audio_data) in data {
-        if filename.contains("noise") || filename.contains("negative") || filename.contains("background") {
+        if filename.contains("noise")
+            || filename.contains("negative")
+            || filename.contains("background")
+        {
             negative_samples.push((filename, audio_data));
         } else {
             positive_samples.push((filename, audio_data));
         }
     }
-    
+
     // Shuffle samples for random distribution
     let mut rng = rand::rng();
     positive_samples.shuffle(&mut rng);
     negative_samples.shuffle(&mut rng);
-    
+
     // Calculate split indices
     let pos_train_count = (positive_samples.len() as f32 * train_ratio) as usize;
     let neg_train_count = (negative_samples.len() as f32 * train_ratio) as usize;
-    
+
     // Split positive samples
     let (train_pos, val_pos) = positive_samples.split_at(pos_train_count);
-    
-    // Split negative samples  
+
+    // Split negative samples
     let (train_neg, val_neg) = negative_samples.split_at(neg_train_count);
-    
+
     // Combine train and validation sets
     let mut train_data = HashMap::new();
     let mut val_data = HashMap::new();
-    
+
     for (filename, audio_data) in train_pos.iter().chain(train_neg.iter()) {
         train_data.insert(filename.clone(), audio_data.clone());
     }
-    
+
     for (filename, audio_data) in val_pos.iter().chain(val_neg.iter()) {
         val_data.insert(filename.clone(), audio_data.clone());
     }
-    
+
     // Ensure we have data in both sets
     if train_data.is_empty() {
         return Err("No training data available after split".to_string());
     }
-    
+
     if val_data.is_empty() {
         return Err("No validation data available after split".to_string());
     }
-    
+
     Ok((train_data, val_data))
 }

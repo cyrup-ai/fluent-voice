@@ -8,7 +8,7 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 
 use fluent_voice_animator::{
-    app::{TerminalApp, GuiApp},
+    app::{GuiApp, TerminalApp},
     audioio::cpal::DefaultAudioDeviceWithCPAL,
     cfg::{ScopeSource, SourceOptions, UiOptions},
 };
@@ -58,9 +58,11 @@ fn main() -> Result<()> {
     let args = AnimatorArgs::parse();
 
     match args.mode {
-        AnimatorMode::Terminal { source, mut opts, ui } => {
-            run_terminal_mode(source, opts, ui)
-        }
+        AnimatorMode::Terminal {
+            source,
+            mut opts,
+            ui,
+        } => run_terminal_mode(source, opts, ui),
         AnimatorMode::Room {
             url,
             api_key,
@@ -68,9 +70,14 @@ fn main() -> Result<()> {
             room_name,
             participant_name,
             auto_connect,
-        } => {
-            run_gui_mode(url, api_key, api_secret, room_name, participant_name, auto_connect)
-        }
+        } => run_gui_mode(
+            url,
+            api_key,
+            api_secret,
+            room_name,
+            participant_name,
+            auto_connect,
+        ),
     }
 }
 
@@ -153,7 +160,7 @@ fn run_gui_mode(
         options,
         Box::new(move |cc| {
             let mut app = GuiApp::new(cc);
-            
+
             // Set connection parameters if provided
             if let Some(url) = url {
                 app.room_url = url;
@@ -168,7 +175,11 @@ fn run_gui_mode(
             app.participant_name = participant_name;
 
             // Auto-connect if requested
-            if auto_connect && !app.room_url.is_empty() && !app.api_key.is_empty() && !app.api_secret.is_empty() {
+            if auto_connect
+                && !app.room_url.is_empty()
+                && !app.api_key.is_empty()
+                && !app.api_secret.is_empty()
+            {
                 app.connect_to_room();
             }
 

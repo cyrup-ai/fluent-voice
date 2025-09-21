@@ -276,7 +276,7 @@ pub fn train(
     // -----------------------------------------------------------------
     // ⚙ Restore the original "Kfc-CNN" first-layer width (16 channels).
     //    This yields the same feature capacity & test-set accuracy the
-    //    legacy implementation achieved, while preserving all modern
+    //    original implementation achieved, while preserving all modern
     //    safety / ergonomics improvements made elsewhere.
     // -----------------------------------------------------------------
     // ------------------------------------------------------------------

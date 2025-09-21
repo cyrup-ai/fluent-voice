@@ -87,9 +87,9 @@ impl EuclideanCodebook {
     pub fn encode(&self, xs: &Tensor) -> Result<Tensor> {
         // Graceful performance degradation: use optimized path when available, stable path otherwise
         if self.can_use_custom_op() {
-            self.encode_with_custom_op(xs)  // Optimized implementation
+            self.encode_with_custom_op(xs) // Optimized implementation
         } else {
-            self.encode_slow(xs)  // Stable reference implementation
+            self.encode_slow(xs) // Stable reference implementation
         }
     }
 
@@ -388,31 +388,31 @@ impl candle::CustomOp2 for CodebookEncode {
         embedding_layout: &candle::Layout,
     ) -> candle::Result<(candle::CpuStorage, candle::Shape)> {
         // Efficient codebook encoding implementation
-        use candle::backend::BackendStorage;
         use candle::Tensor;
-        
+        use candle::backend::BackendStorage;
+
         // Create tensors from storage
         let xs_tensor = Tensor::from_storage(xs.clone(), xs_layout.clone())?;
         let embedding_tensor = Tensor::from_storage(embedding.clone(), embedding_layout.clone())?;
-        
+
         // Compute dot product: xs @ embedding.T
         let dot_prod = xs_tensor.matmul(&embedding_tensor.t()?)?;
-        
+
         // Compute c2 values (squared norms of embedding vectors)
         let embedding_norms = embedding_tensor.sqr()?.sum_keepdim(1)?;
         let c2 = embedding_norms.broadcast_as(dot_prod.shape())?;
-        
+
         // Compute distances: c2 - 2 * dot_prod
         // (We don't need xs norms since we only care about argmin)
         let distances = c2.broadcast_sub(&dot_prod.mul_scalar(2.0)?)?;
-        
+
         // Find closest codebook entries
         let codes = distances.argmin(candle::D::Minus1)?;
-        
+
         // Return storage and shape
         let storage = codes.storage_and_layout().0;
         let shape = codes.shape().clone();
-        
+
         match storage {
             BackendStorage::Cpu(cpu_storage) => Ok((cpu_storage, shape)),
             _ => candle::bail!("Expected CPU storage in custom op"),

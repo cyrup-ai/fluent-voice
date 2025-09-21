@@ -1,12 +1,12 @@
 //! Demonstrates the fluent builder API for Speech-to-Text (STT)
 
+use cyrup_sugars::prelude::ChunkHandler;
 use fluent_voice::prelude::*;
 use fluent_voice_domain::{
     transcription::{MessageChunk, TranscriptionSegmentImpl},
     AudioFormat, Diarization, Language, Punctuation, SpeechSource, WordTimestamps,
 };
 use futures_util::StreamExt;
-use cyrup_sugars::prelude::ChunkHandler;
 
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {

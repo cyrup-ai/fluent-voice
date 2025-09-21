@@ -555,7 +555,11 @@ impl TimestampMetadata {
         self.synthesis_end = Some(SystemTime::now());
         self.processing_time_ms = Some(
             self.synthesis_end
-                .ok_or_else(|| crate::engine::FluentVoiceError::ConfigError("synthesis_end should be set immediately above".to_string()))?
+                .ok_or_else(|| {
+                    crate::engine::FluentVoiceError::ConfigError(
+                        "synthesis_end should be set immediately above".to_string(),
+                    )
+                })?
                 .duration_since(self.synthesis_start)
                 .map_err(|e| {
                     crate::engine::FluentVoiceError::ConfigError(format!(

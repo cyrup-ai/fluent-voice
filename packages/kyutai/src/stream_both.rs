@@ -3,15 +3,15 @@
 //! Enables real-time conversation with simultaneous speech recognition and synthesis.
 
 use crate::asr::{State as AsrState, Word};
-use crate::speech_generator::{SpeechGenerator, GeneratorConfig};
 use crate::error::MoshiError;
+use crate::speech_generator::{GeneratorConfig, SpeechGenerator};
+use candle_core::{Device, Tensor};
 use futures_core::Stream;
-use std::task::Poll;
+use std::collections::VecDeque;
 use std::pin::Pin;
 use std::task::Context;
-use std::collections::VecDeque;
+use std::task::Poll;
 use std::time::Instant;
-use candle_core::{Device, Tensor};
 
 /// Expected sample rate for Moshi (24kHz)
 const EXPECTED_SAMPLE_RATE: u32 = 24000;
@@ -59,7 +59,7 @@ impl Config {
                 self.max_latency_ms
             )));
         }
-        
+
         if self.max_latency_ms > 5000 {
             return Err(MoshiError::InvalidInput(format!(
                 "max_latency_ms too high: {}ms (maximum: 5000ms for responsive interaction)",
@@ -74,11 +74,12 @@ impl Config {
                 self.audio_buffer_size, MIN_BUFFER_SIZE
             )));
         }
-        
+
         if self.audio_buffer_size > MAX_BUFFER_SIZE * 4 {
             return Err(MoshiError::InvalidInput(format!(
                 "audio_buffer_size too large: {} samples (maximum: {} samples for efficient processing)",
-                self.audio_buffer_size, MAX_BUFFER_SIZE * 4
+                self.audio_buffer_size,
+                MAX_BUFFER_SIZE * 4
             )));
         }
 
@@ -97,7 +98,7 @@ impl Config {
                 self.max_event_buffer_size
             )));
         }
-        
+
         if self.max_event_buffer_size > 1_000_000 {
             return Err(MoshiError::InvalidInput(format!(
                 "max_event_buffer_size too large: {} (maximum: 1,000,000 to prevent memory exhaustion)",
@@ -113,23 +114,16 @@ impl Config {
 #[derive(Debug, Clone)]
 pub enum StreamEvent {
     /// User speech detected with word information
-    UserSpeech {
-        words: Vec<Word>,
-        is_final: bool,
-    },
+    UserSpeech { words: Vec<Word>, is_final: bool },
     /// Bot response generated
     BotSpeech {
         audio_data: Vec<f32>,
         text: Option<String>,
     },
     /// Conversation turn detected
-    TurnBoundary {
-        turn: ConversationTurn,
-    },
+    TurnBoundary { turn: ConversationTurn },
     /// Processing error occurred
-    Error {
-        error: MoshiError,
-    },
+    Error { error: MoshiError },
     /// Latency metrics update
     LatencyUpdate {
         asr_latency_ms: f64,
@@ -143,19 +137,14 @@ pub enum StreamEvent {
 #[derive(Debug, Clone)]
 pub enum ConversationTurn {
     /// User is speaking
-    UserTurn {
-        start_time: f64,
-    },
+    UserTurn { start_time: f64 },
     /// Bot is responding
     BotTurn {
         start_time: f64,
         response_to_user: bool,
     },
     /// Silence detected
-    Silence {
-        start_time: f64,
-        duration_ms: u32,
-    },
+    Silence { start_time: f64, duration_ms: u32 },
 }
 
 /// Bidirectional stream for full-duplex dialogue
@@ -247,7 +236,7 @@ impl BidirectionalStream {
                 buffer_len, MIN_BUFFER_SIZE
             )));
         }
-        
+
         if buffer_len > MAX_BUFFER_SIZE {
             return Err(MoshiError::InvalidInput(format!(
                 "Audio buffer too large: {} samples (maximum: {} samples for 1s at 24kHz)",
@@ -273,7 +262,7 @@ impl BidirectionalStream {
                     i, sample
                 )));
             }
-            
+
             // Check for extreme values that could cause processing issues
             if sample.abs() > 10.0 {
                 return Err(MoshiError::InvalidInput(format!(
@@ -303,12 +292,14 @@ impl BidirectionalStream {
 
         let current_time = Instant::now();
         let silence_duration_ms = (self.config.max_latency_ms as f64 * 2.0) as u64; // 2x max latency as timeout
-        
+
         match &self.current_turn {
             Some(ConversationTurn::UserTurn { start_time }) => {
                 // Check if user turn has been silent too long
                 if let Some(last_silence) = self.last_silence_time {
-                    if current_time.duration_since(last_silence).as_millis() as u64 > silence_duration_ms {
+                    if current_time.duration_since(last_silence).as_millis() as u64
+                        > silence_duration_ms
+                    {
                         // UserTurn → Silence transition due to timeout
                         let session_time = self.session_start.elapsed().as_secs_f64();
                         let new_turn = ConversationTurn::Silence {
@@ -357,33 +348,34 @@ impl BidirectionalStream {
         self.validate_audio_format(audio_data)?;
 
         // Convert audio data to tensor for ASR processing
-        let pcm_tensor = Tensor::from_slice(
-            audio_data, 
-            (1, audio_data.len()), 
-            &self.device
-        ).map_err(|e| MoshiError::TensorCreationError(format!("Failed to create PCM tensor: {}", e)))?;
+        let pcm_tensor = Tensor::from_slice(audio_data, (1, audio_data.len()), &self.device)
+            .map_err(|e| {
+                MoshiError::TensorCreationError(format!("Failed to create PCM tensor: {}", e))
+            })?;
 
         // Process audio through production ASR pipeline with real-time token processing
         // Measure ASR processing latency for performance monitoring
         let asr_start = Instant::now();
         let mut streaming_tokens = Vec::new();
-        let words = self.asr_state.step_pcm(pcm_tensor, |token, _tensor| {
-            // Collect tokens for streaming transcription feedback
-            streaming_tokens.push(token);
-            Ok(())
-        }).map_err(|e| MoshiError::Audio(format!("ASR processing failed: {}", e)))?;
-        
+        let words = self
+            .asr_state
+            .step_pcm(pcm_tensor, |token, _tensor| {
+                // Collect tokens for streaming transcription feedback
+                streaming_tokens.push(token);
+                Ok(())
+            })
+            .map_err(|e| MoshiError::Audio(format!("ASR processing failed: {}", e)))?;
+
         // Update ASR latency tracking and enforce constraint
         self.asr_latency_ms = asr_start.elapsed().as_secs_f64() * 1000.0;
         if self.asr_latency_ms > self.config.max_latency_ms as f64 {
             let error = MoshiError::Audio(format!(
-                "ASR latency exceeded constraint: {:.1}ms > {}ms", 
-                self.asr_latency_ms, 
-                self.config.max_latency_ms
+                "ASR latency exceeded constraint: {:.1}ms > {}ms",
+                self.asr_latency_ms, self.config.max_latency_ms
             ));
             self.push_event(StreamEvent::Error { error });
         }
-        
+
         // Emit latency metrics update for monitoring
         self.push_event(StreamEvent::LatencyUpdate {
             asr_latency_ms: self.asr_latency_ms,
@@ -395,7 +387,7 @@ impl BidirectionalStream {
         // Process streaming tokens for immediate feedback
         if !streaming_tokens.is_empty() {
             self.partial_tokens.extend(streaming_tokens);
-            
+
             // Generate intermediate transcription event for real-time feedback
             // Create a partial Word from accumulated tokens for streaming display
             if !self.partial_tokens.is_empty() {
@@ -405,37 +397,36 @@ impl BidirectionalStream {
                     start_time: current_time,
                     stop_time: current_time,
                 };
-                
+
                 self.push_event(StreamEvent::UserSpeech {
                     words: vec![partial_word],
                     is_final: false,
                 });
             }
         }
-        
+
         if !words.is_empty() {
             // Clear partial tokens when we get complete words
             self.partial_tokens.clear();
-            
+
             // Update end-to-end conversation latency tracking
             let current_time = self.session_start.elapsed().as_secs_f64();
             if let Some(ConversationTurn::Silence { start_time, .. }) = &self.current_turn {
                 self.conversation_latency_ms = (current_time - start_time) * 1000.0;
                 if self.conversation_latency_ms > self.config.max_latency_ms as f64 {
                     let error = MoshiError::Audio(format!(
-                        "Conversation latency exceeded constraint: {:.1}ms > {}ms", 
-                        self.conversation_latency_ms, 
-                        self.config.max_latency_ms
+                        "Conversation latency exceeded constraint: {:.1}ms > {}ms",
+                        self.conversation_latency_ms, self.config.max_latency_ms
                     ));
                     self.push_event(StreamEvent::Error { error });
                 }
             }
-            
+
             self.push_event(StreamEvent::UserSpeech {
                 words,
                 is_final: true,
             });
-            
+
             // Update conversation turn with complete state machine
             if self.config.enable_turn_detection {
                 let current_time = self.session_start.elapsed().as_secs_f64();
@@ -446,9 +437,7 @@ impl BidirectionalStream {
                             start_time: current_time,
                         };
                         self.current_turn = Some(new_turn.clone());
-                        self.push_event(StreamEvent::TurnBoundary {
-                            turn: new_turn,
-                        });
+                        self.push_event(StreamEvent::TurnBoundary { turn: new_turn });
                     }
                     Some(ConversationTurn::BotTurn { .. }) => {
                         // BotTurn → UserTurn transition (interruption)
@@ -456,9 +445,7 @@ impl BidirectionalStream {
                             start_time: current_time,
                         };
                         self.current_turn = Some(new_turn.clone());
-                        self.push_event(StreamEvent::TurnBoundary {
-                            turn: new_turn,
-                        });
+                        self.push_event(StreamEvent::TurnBoundary { turn: new_turn });
                     }
                     Some(ConversationTurn::UserTurn { .. }) => {
                         // Continue in UserTurn - no transition needed
@@ -469,9 +456,7 @@ impl BidirectionalStream {
                             start_time: current_time,
                         };
                         self.current_turn = Some(new_turn.clone());
-                        self.push_event(StreamEvent::TurnBoundary {
-                            turn: new_turn,
-                        });
+                        self.push_event(StreamEvent::TurnBoundary { turn: new_turn });
                     }
                 }
             }
@@ -489,20 +474,21 @@ impl BidirectionalStream {
         // Generate speech using production TTS pipeline
         // Measure TTS generation latency for performance monitoring
         let tts_start = Instant::now();
-        let audio_data = self.speech_generator.generate(text)
+        let audio_data = self
+            .speech_generator
+            .generate(text)
             .map_err(|e| MoshiError::Generation(format!("TTS generation failed: {}", e)))?;
-        
+
         // Update TTS latency tracking and enforce constraint
         self.tts_latency_ms = tts_start.elapsed().as_secs_f64() * 1000.0;
         if self.tts_latency_ms > self.config.max_latency_ms as f64 {
             let error = MoshiError::Generation(format!(
-                "TTS latency exceeded constraint: {:.1}ms > {}ms", 
-                self.tts_latency_ms, 
-                self.config.max_latency_ms
+                "TTS latency exceeded constraint: {:.1}ms > {}ms",
+                self.tts_latency_ms, self.config.max_latency_ms
             ));
             self.push_event(StreamEvent::Error { error });
         }
-        
+
         // Emit latency metrics update for monitoring
         self.push_event(StreamEvent::LatencyUpdate {
             asr_latency_ms: self.asr_latency_ms,
@@ -510,7 +496,7 @@ impl BidirectionalStream {
             conversation_latency_ms: self.conversation_latency_ms,
             timestamp: self.session_start.elapsed().as_secs_f64(),
         });
-        
+
         self.push_event(StreamEvent::BotSpeech {
             audio_data,
             text: Some(text.to_string()),
@@ -527,9 +513,7 @@ impl BidirectionalStream {
                         response_to_user: true,
                     };
                     self.current_turn = Some(new_turn.clone());
-                    self.push_event(StreamEvent::TurnBoundary {
-                        turn: new_turn,
-                    });
+                    self.push_event(StreamEvent::TurnBoundary { turn: new_turn });
                 }
                 Some(ConversationTurn::Silence { .. }) => {
                     // Silence → BotTurn transition (proactive response)
@@ -538,9 +522,7 @@ impl BidirectionalStream {
                         response_to_user: false,
                     };
                     self.current_turn = Some(new_turn.clone());
-                    self.push_event(StreamEvent::TurnBoundary {
-                        turn: new_turn,
-                    });
+                    self.push_event(StreamEvent::TurnBoundary { turn: new_turn });
                 }
                 Some(ConversationTurn::BotTurn { .. }) => {
                     // Continue in BotTurn - no transition needed (continued response)
@@ -552,9 +534,7 @@ impl BidirectionalStream {
                         response_to_user: false,
                     };
                     self.current_turn = Some(new_turn.clone());
-                    self.push_event(StreamEvent::TurnBoundary {
-                        turn: new_turn,
-                    });
+                    self.push_event(StreamEvent::TurnBoundary { turn: new_turn });
                 }
             }
         }
@@ -566,10 +546,7 @@ impl BidirectionalStream {
 impl Stream for BidirectionalStream {
     type Item = Result<StreamEvent, MoshiError>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if !self.is_active {
             return Poll::Ready(None);
         }
@@ -586,7 +563,6 @@ impl Stream for BidirectionalStream {
         Poll::Pending
     }
 }
-
 
 /// Streaming model wrapper for bidirectional processing
 pub struct StreamingModel {
@@ -607,10 +583,7 @@ impl StreamingModel {
         // Validate configuration before creating streaming model
         config.validate()?;
         let stream = BidirectionalStream::new(asr_state, speech_generator, config.clone(), device)?;
-        Ok(Self {
-            stream,
-            config,
-        })
+        Ok(Self { stream, config })
     }
 
     /// Get mutable reference to the stream

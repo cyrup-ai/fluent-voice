@@ -7,7 +7,6 @@ mod wakeword_file;
 /// Wakeword model types and operations.
 pub mod wakeword_model;
 mod wakeword_ref;
-mod wakeword_v2;
 
 pub use comp::{WakewordRefBuildFromBuffers, WakewordRefBuildFromFiles};
 pub(crate) use wakeword_detector::WakewordDetector;

@@ -223,13 +223,13 @@ fn get_available_memory() -> Result<u64, String> {
 
     #[cfg(target_os = "windows")]
     {
-        use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
         use std::mem;
+        use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 
         unsafe {
             let mut mem_status: MEMORYSTATUSEX = mem::zeroed();
             mem_status.dwLength = mem::size_of::<MEMORYSTATUSEX>() as u32;
-            
+
             if GlobalMemoryStatusEx(&mut mem_status) != 0 {
                 // Return available physical memory in bytes
                 Ok(mem_status.ullAvailPhys)

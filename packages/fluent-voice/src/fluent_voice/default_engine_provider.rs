@@ -3,10 +3,7 @@
 use super::coordinated_voice_stream::CoordinatedVoiceStream;
 use super::default_engine_coordinator::DefaultEngineCoordinator;
 use fluent_voice_domain::VoiceError;
-use std::{
-    future::Future,
-    pin::Pin,
-};
+use std::{future::Future, pin::Pin};
 
 /// API that implementing packages use to access coordinated default engines
 ///

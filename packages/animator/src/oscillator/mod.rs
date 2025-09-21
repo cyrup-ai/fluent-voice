@@ -108,7 +108,7 @@ impl<'a> From<&'a DataSet> for Dataset<'a> {
             .graph_type(ds.graph_type)
             .style(Style::default().fg(ds.color))
             .data(&ds.data);
-            
+
         match &ds.name {
             Some(name) => base.name(name.clone()),
             None => base,

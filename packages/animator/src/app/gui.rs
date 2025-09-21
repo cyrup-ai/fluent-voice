@@ -1,10 +1,10 @@
-use anyhow::Result;
-use eframe::egui;
-use egui_wgpu::RenderState;
 use crate::{
     AudioVisualizer, ConnectionQuality, ErrorState, LiveKitAudioPlayer, RoomVisualizerConfig,
     VideoRenderer, VisualizerError,
 };
+use anyhow::Result;
+use eframe::egui;
+use egui_wgpu::RenderState;
 use livekit::prelude::*;
 use livekit_api::access_token;
 use std::collections::HashMap;
@@ -161,7 +161,7 @@ pub struct FullRoomVisualizerApp {
 
     // Copy feedback state
     copy_feedback: Option<(String, Instant)>, // (message, timestamp)
-    
+
     // Cached sharing command to avoid regenerating every frame
     cached_sharing_command: Option<(String, usize, String, String)>, // (command, participant_count, room_url, room_name)
 }
@@ -462,7 +462,7 @@ impl FullRoomVisualizerApp {
                         );
 
                         tracing::info!("Participant connected: {}", identity.0);
-                        
+
                         // Invalidate cached sharing command due to participant count change
                         self.cached_sharing_command = None;
                     }
@@ -477,7 +477,7 @@ impl FullRoomVisualizerApp {
                         if self.selected_participant.as_ref() == Some(&identity) {
                             self.selected_participant = None;
                         }
-                        
+
                         // Invalidate cached sharing command due to participant count change
                         self.cached_sharing_command = None;
 
@@ -720,11 +720,11 @@ impl FullRoomVisualizerApp {
             }
         } else {
             ui.heading("Connected to Room");
-            
+
             // Room sharing section
             ui.separator();
             ui.label("Share this room with others:");
-            
+
             // Room name with copy
             ui.horizontal(|ui| {
                 ui.label("Room Name:");
@@ -734,7 +734,7 @@ impl FullRoomVisualizerApp {
                     self.copy_feedback = Some(("Room name copied!".into(), Instant::now()));
                 }
             });
-            
+
             // Server URL with copy
             ui.horizontal(|ui| {
                 ui.label("Server URL:");
@@ -744,27 +744,32 @@ impl FullRoomVisualizerApp {
                     self.copy_feedback = Some(("Server URL copied!".into(), Instant::now()));
                 }
             });
-            
+
             // Generate or use cached connection command with enterprise-grade error handling
             let current_participant_count = self.participants.len();
-            let cache_valid = if let Some((_, cached_count, cached_url, cached_name)) = &self.cached_sharing_command {
-                *cached_count == current_participant_count 
-                    && cached_url == &self.room_url 
+            let cache_valid = if let Some((_, cached_count, cached_url, cached_name)) =
+                &self.cached_sharing_command
+            {
+                *cached_count == current_participant_count
+                    && cached_url == &self.room_url
                     && cached_name == &self.room_name
             } else {
                 false
             };
-            
+
             let (connection_command, validation_error) = if cache_valid {
                 // Cache hit - return reference to cached command with no error
                 if let Some((cached_command, _, _, _)) = &self.cached_sharing_command {
                     (Some(cached_command.as_str()), None)
                 } else {
                     // This should never happen, but handle gracefully
-                    (None, Some(ValidationError::InvalidContent { 
-                        field: "Cache", 
-                        reason: "internal cache corruption" 
-                    }))
+                    (
+                        None,
+                        Some(ValidationError::InvalidContent {
+                            field: "Cache",
+                            reason: "internal cache corruption",
+                        }),
+                    )
                 }
             } else {
                 // Cache miss or invalid - regenerate command
@@ -773,20 +778,19 @@ impl FullRoomVisualizerApp {
                         // Update cache with minimal cloning - only clone the strings once
                         let room_url = self.room_url.clone();
                         let room_name = self.room_name.clone();
-                        self.cached_sharing_command = Some((
-                            command, 
-                            current_participant_count,
-                            room_url,
-                            room_name
-                        ));
+                        self.cached_sharing_command =
+                            Some((command, current_participant_count, room_url, room_name));
                         // Safe access since we just set it
                         if let Some((cached_command, _, _, _)) = &self.cached_sharing_command {
                             (Some(cached_command.as_str()), None)
                         } else {
-                            (None, Some(ValidationError::InvalidContent { 
-                                field: "Cache", 
-                                reason: "cache update failed" 
-                            }))
+                            (
+                                None,
+                                Some(ValidationError::InvalidContent {
+                                    field: "Cache",
+                                    reason: "cache update failed",
+                                }),
+                            )
                         }
                     }
                     Err(validation_err) => {
@@ -795,10 +799,10 @@ impl FullRoomVisualizerApp {
                     }
                 }
             };
-            
+
             ui.separator();
             ui.label("Command for others to join:");
-            
+
             // Use vertical layout for long command to prevent overflow
             ui.vertical(|ui| {
                 match (connection_command, &validation_error) {
@@ -808,13 +812,14 @@ impl FullRoomVisualizerApp {
                             ui.spacing_mut().item_spacing.x = 0.0;
                             ui.monospace(command);
                         });
-                        
+
                         ui.horizontal(|ui| {
                             if ui.button("📋 Copy Command").clicked() {
                                 ui.output_mut(|o| o.copied_text = command.to_string());
-                                self.copy_feedback = Some(("Command copied!".into(), Instant::now()));
+                                self.copy_feedback =
+                                    Some(("Command copied!".into(), Instant::now()));
                             }
-                        
+
                             // Show copy feedback with automatic cleanup
                             if let Some((message, timestamp)) = &self.copy_feedback {
                                 if timestamp.elapsed() < Duration::from_secs(2) {
@@ -828,21 +833,31 @@ impl FullRoomVisualizerApp {
                     (None, Some(error)) => {
                         // Validation error - display specific error message with appropriate styling
                         let error_color = match error {
-                            ValidationError::EmptyInput { .. } => egui::Color32::from_rgb(255, 165, 0), // Orange for missing input
-                            ValidationError::TooLong { .. } => egui::Color32::from_rgb(255, 100, 100), // Red for length issues
-                            ValidationError::InvalidUrlScheme { .. } | 
-                            ValidationError::MalformedUrl { .. } |
-                            ValidationError::InvalidHostname { .. } |
-                            ValidationError::InvalidPort { .. } |
-                            ValidationError::InvalidIPv4 { .. } |
-                            ValidationError::InvalidIPv6 { .. } => egui::Color32::from_rgb(255, 100, 100), // Red for format errors
-                            ValidationError::UnsafeCharacters { .. } => egui::Color32::from_rgb(255, 50, 50), // Bright red for security issues
-                            ValidationError::InvalidEncoding { .. } |
-                            ValidationError::InvalidContent { .. } => egui::Color32::from_rgb(255, 100, 100), // Red for content issues
+                            ValidationError::EmptyInput { .. } => {
+                                egui::Color32::from_rgb(255, 165, 0)
+                            } // Orange for missing input
+                            ValidationError::TooLong { .. } => {
+                                egui::Color32::from_rgb(255, 100, 100)
+                            } // Red for length issues
+                            ValidationError::InvalidUrlScheme { .. }
+                            | ValidationError::MalformedUrl { .. }
+                            | ValidationError::InvalidHostname { .. }
+                            | ValidationError::InvalidPort { .. }
+                            | ValidationError::InvalidIPv4 { .. }
+                            | ValidationError::InvalidIPv6 { .. } => {
+                                egui::Color32::from_rgb(255, 100, 100)
+                            } // Red for format errors
+                            ValidationError::UnsafeCharacters { .. } => {
+                                egui::Color32::from_rgb(255, 50, 50)
+                            } // Bright red for security issues
+                            ValidationError::InvalidEncoding { .. }
+                            | ValidationError::InvalidContent { .. } => {
+                                egui::Color32::from_rgb(255, 100, 100)
+                            } // Red for content issues
                         };
-                        
+
                         ui.colored_label(error_color, error.user_message());
-                        
+
                         // Add helpful guidance for common errors
                         match error {
                             ValidationError::InvalidUrlScheme { .. } => {
@@ -851,26 +866,40 @@ impl FullRoomVisualizerApp {
                             ValidationError::InvalidHostname { .. } => {
                                 ui.small("💡 Examples: localhost, example.com, 192.168.1.1");
                             }
-                            ValidationError::TooLong { field, max_length, .. } => {
-                                ui.small(format!("💡 {} must be {} characters or less", field, max_length));
+                            ValidationError::TooLong {
+                                field, max_length, ..
+                            } => {
+                                ui.small(format!(
+                                    "💡 {} must be {} characters or less",
+                                    field, max_length
+                                ));
                             }
                             ValidationError::EmptyInput { field } => {
-                                ui.small(format!("💡 Please enter a valid {}", field.to_lowercase()));
+                                ui.small(format!(
+                                    "💡 Please enter a valid {}",
+                                    field.to_lowercase()
+                                ));
                             }
                             _ => {}
                         }
                     }
                     (None, None) => {
                         // This should never happen, but handle gracefully
-                        ui.colored_label(egui::Color32::from_rgb(255, 100, 100), "⚠ Internal error: unable to generate command");
+                        ui.colored_label(
+                            egui::Color32::from_rgb(255, 100, 100),
+                            "⚠ Internal error: unable to generate command",
+                        );
                     }
                     (Some(_), Some(_)) => {
                         // This should never happen either
-                        ui.colored_label(egui::Color32::from_rgb(255, 100, 100), "⚠ Internal error: inconsistent state");
+                        ui.colored_label(
+                            egui::Color32::from_rgb(255, 100, 100),
+                            "⚠ Internal error: inconsistent state",
+                        );
                     }
                 }
             });
-            
+
             ui.separator();
             if ui.button("Disconnect").clicked() {
                 self.disconnect_from_room();
@@ -1345,7 +1374,11 @@ enum ValidationError {
     /// Input field is empty or contains only whitespace
     EmptyInput { field: &'static str },
     /// Input exceeds maximum allowed length
-    TooLong { field: &'static str, max_length: usize, actual_length: usize },
+    TooLong {
+        field: &'static str,
+        max_length: usize,
+        actual_length: usize,
+    },
     /// URL scheme is not ws:// or wss://
     InvalidUrlScheme { provided: String },
     /// URL contains invalid characters or structure
@@ -1359,11 +1392,17 @@ enum ValidationError {
     /// IPv6 address format is invalid  
     InvalidIPv6 { address: String },
     /// Input contains dangerous shell metacharacters that cannot be safely escaped
-    UnsafeCharacters { field: &'static str, characters: String },
+    UnsafeCharacters {
+        field: &'static str,
+        characters: String,
+    },
     /// Input contains invalid UTF-8 sequences
     InvalidEncoding { field: &'static str },
     /// Input contains only control characters or whitespace
-    InvalidContent { field: &'static str, reason: &'static str },
+    InvalidContent {
+        field: &'static str,
+        reason: &'static str,
+    },
 }
 
 impl ValidationError {
@@ -1374,36 +1413,66 @@ impl ValidationError {
             ValidationError::EmptyInput { field } => {
                 format!("⚠ {} cannot be empty. Please enter a valid value.", field)
             }
-            ValidationError::TooLong { field, max_length, actual_length } => {
-                format!("⚠ {} is too long ({} characters). Maximum allowed: {} characters.", 
-                    field, actual_length, max_length)
+            ValidationError::TooLong {
+                field,
+                max_length,
+                actual_length,
+            } => {
+                format!(
+                    "⚠ {} is too long ({} characters). Maximum allowed: {} characters.",
+                    field, actual_length, max_length
+                )
             }
             ValidationError::InvalidUrlScheme { provided } => {
-                format!("⚠ URL must start with 'ws://' or 'wss://'. Found: '{}'", provided)
+                format!(
+                    "⚠ URL must start with 'ws://' or 'wss://'. Found: '{}'",
+                    provided
+                )
             }
             ValidationError::MalformedUrl { reason } => {
                 format!("⚠ Invalid URL format: {}", reason)
             }
             ValidationError::InvalidHostname { hostname } => {
-                format!("⚠ Invalid hostname '{}'. Use format like 'example.com' or '192.168.1.1'", hostname)
+                format!(
+                    "⚠ Invalid hostname '{}'. Use format like 'example.com' or '192.168.1.1'",
+                    hostname
+                )
             }
             ValidationError::InvalidPort { port } => {
-                format!("⚠ Invalid port '{}'. Port must be a number between 1 and 65535.", port)
+                format!(
+                    "⚠ Invalid port '{}'. Port must be a number between 1 and 65535.",
+                    port
+                )
             }
             ValidationError::InvalidIPv4 { address } => {
-                format!("⚠ Invalid IPv4 address '{}'. Use format like '192.168.1.1'", address)
+                format!(
+                    "⚠ Invalid IPv4 address '{}'. Use format like '192.168.1.1'",
+                    address
+                )
             }
             ValidationError::InvalidIPv6 { address } => {
-                format!("⚠ Invalid IPv6 address '{}'. Use format like '[::1]' or '[2001:db8::1]'", address)
+                format!(
+                    "⚠ Invalid IPv6 address '{}'. Use format like '[::1]' or '[2001:db8::1]'",
+                    address
+                )
             }
             ValidationError::UnsafeCharacters { field, characters } => {
-                format!("⚠ {} contains unsafe characters: {}. Please remove these characters.", field, characters)
+                format!(
+                    "⚠ {} contains unsafe characters: {}. Please remove these characters.",
+                    field, characters
+                )
             }
             ValidationError::InvalidEncoding { field } => {
-                format!("⚠ {} contains invalid characters. Please use only valid text.", field)
+                format!(
+                    "⚠ {} contains invalid characters. Please use only valid text.",
+                    field
+                )
             }
             ValidationError::InvalidContent { field, reason } => {
-                format!("⚠ {} is invalid: {}. Please enter valid content.", field, reason)
+                format!(
+                    "⚠ {} is invalid: {}. Please enter valid content.",
+                    field, reason
+                )
             }
         }
     }
@@ -1429,10 +1498,13 @@ impl FullRoomVisualizerApp {
     #[inline]
     fn shell_escape(arg: &str) -> String {
         // Fast path for arguments that don't need escaping
-        if arg.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/' | ':')) {
+        if arg
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/' | ':'))
+        {
             return arg.to_string();
         }
-        
+
         // Single-quote escaping is the safest method for POSIX shells
         // Inside single quotes, only single quotes need special handling
         if !arg.contains('\'') {
@@ -1440,11 +1512,11 @@ impl FullRoomVisualizerApp {
             format!("'{}'", arg)
         } else {
             // Contains single quotes - escape them as '\''
-            // This closes the current single-quoted string, adds an escaped single quote, 
+            // This closes the current single-quoted string, adds an escaped single quote,
             // then opens a new single-quoted string
             let mut result = String::with_capacity(arg.len() + 20);
             result.push('\'');
-            
+
             for c in arg.chars() {
                 if c == '\'' {
                     result.push_str("'\\''");
@@ -1452,27 +1524,27 @@ impl FullRoomVisualizerApp {
                     result.push(c);
                 }
             }
-            
+
             result.push('\'');
             result
         }
     }
-    
+
     /// Enterprise-grade RFC 3986 compliant WebSocket URL validation
     /// Validates scheme, hostname, port, and path components according to standards
     #[inline]
     fn validate_websocket_url(url: &str) -> Result<(), ValidationError> {
         let trimmed = url.trim();
-        
+
         // Length validation
         if trimmed.len() > Self::MAX_URL_LENGTH {
-            return Err(ValidationError::TooLong { 
-                field: "URL", 
-                max_length: Self::MAX_URL_LENGTH, 
-                actual_length: trimmed.len() 
+            return Err(ValidationError::TooLong {
+                field: "URL",
+                max_length: Self::MAX_URL_LENGTH,
+                actual_length: trimmed.len(),
             });
         }
-        
+
         // Scheme validation - must be ws:// or wss://
         let (is_secure, after_scheme) = if let Some(after) = trimmed.strip_prefix("wss://") {
             (true, after)
@@ -1480,47 +1552,47 @@ impl FullRoomVisualizerApp {
             (false, after)
         } else {
             let scheme = trimmed.split("://").next().unwrap_or(trimmed);
-            return Err(ValidationError::InvalidUrlScheme { 
-                provided: scheme.to_string() 
+            return Err(ValidationError::InvalidUrlScheme {
+                provided: scheme.to_string(),
             });
         };
-        
+
         if after_scheme.is_empty() {
-            return Err(ValidationError::MalformedUrl { 
-                reason: "missing hostname after scheme" 
+            return Err(ValidationError::MalformedUrl {
+                reason: "missing hostname after scheme",
             });
         }
-        
+
         // Split into host and path components
         let (host_port, _path) = if let Some(slash_pos) = after_scheme.find('/') {
             (&after_scheme[..slash_pos], &after_scheme[slash_pos..])
         } else {
             (after_scheme, "")
         };
-        
+
         if host_port.is_empty() {
-            return Err(ValidationError::MalformedUrl { 
-                reason: "empty hostname" 
+            return Err(ValidationError::MalformedUrl {
+                reason: "empty hostname",
             });
         }
-        
+
         // Parse host and port
         let (host, port) = if host_port.starts_with('[') {
             // IPv6 address format [::1]:8080 - enhanced bracket validation
             if let Some(bracket_end) = host_port.find(']') {
                 // Validate bracket positioning
                 if bracket_end == 1 {
-                    return Err(ValidationError::MalformedUrl { 
-                        reason: "empty IPv6 address in brackets" 
+                    return Err(ValidationError::MalformedUrl {
+                        reason: "empty IPv6 address in brackets",
                     });
                 }
-                
+
                 let ipv6_part = &host_port[1..bracket_end];
                 let port_part = &host_port[bracket_end + 1..];
-                
+
                 // Validate IPv6 address format
                 Self::validate_ipv6_address(ipv6_part)?;
-                
+
                 // Validate what comes after the closing bracket
                 if port_part.is_empty() {
                     // Just [ipv6] with no port
@@ -1529,21 +1601,21 @@ impl FullRoomVisualizerApp {
                     // [ipv6]:port format
                     let port_str = &port_part[1..];
                     if port_str.is_empty() {
-                        return Err(ValidationError::MalformedUrl { 
-                            reason: "empty port after IPv6 address" 
+                        return Err(ValidationError::MalformedUrl {
+                            reason: "empty port after IPv6 address",
                         });
                     }
                     let port_num = Self::validate_port(port_str)?;
                     (host_port, Some(port_num))
                 } else {
                     // Invalid characters immediately after ]
-                    return Err(ValidationError::MalformedUrl { 
-                        reason: "invalid characters after IPv6 address - expected ':port' or end of host" 
+                    return Err(ValidationError::MalformedUrl {
+                        reason: "invalid characters after IPv6 address - expected ':port' or end of host",
                     });
                 }
             } else {
-                return Err(ValidationError::MalformedUrl { 
-                    reason: "unclosed IPv6 bracket - missing ']'" 
+                return Err(ValidationError::MalformedUrl {
+                    reason: "unclosed IPv6 bracket - missing ']'",
                 });
             }
         } else if let Some(colon_pos) = host_port.rfind(':') {
@@ -1565,116 +1637,125 @@ impl FullRoomVisualizerApp {
             Self::validate_hostname(host_port)?;
             (host_port, None)
         };
-        
+
         // Validate default ports for security
         if let Some(port_num) = port {
             if is_secure && port_num == 80 {
-                return Err(ValidationError::MalformedUrl { 
-                    reason: "wss:// should not use port 80 (use 443 or custom port)" 
+                return Err(ValidationError::MalformedUrl {
+                    reason: "wss:// should not use port 80 (use 443 or custom port)",
                 });
             }
             if !is_secure && port_num == 443 {
-                return Err(ValidationError::MalformedUrl { 
-                    reason: "ws:// should not use port 443 (use 80 or custom port)" 
+                return Err(ValidationError::MalformedUrl {
+                    reason: "ws:// should not use port 443 (use 80 or custom port)",
                 });
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate hostname according to DNS rules (RFC 1123)
     #[inline]
     fn validate_hostname(hostname: &str) -> Result<(), ValidationError> {
         if hostname.is_empty() {
-            return Err(ValidationError::InvalidHostname { 
-                hostname: hostname.to_string() 
+            return Err(ValidationError::InvalidHostname {
+                hostname: hostname.to_string(),
             });
         }
-        
+
         // Check for IPv4 address format
         if hostname.chars().all(|c| c.is_ascii_digit() || c == '.') {
             return Self::validate_ipv4_address(hostname);
         }
-        
+
         // DNS hostname validation
         if hostname.len() > 253 {
-            return Err(ValidationError::InvalidHostname { 
-                hostname: hostname.to_string() 
+            return Err(ValidationError::InvalidHostname {
+                hostname: hostname.to_string(),
             });
         }
-        
+
         // Check each label (part between dots)
         for label in hostname.split('.') {
             if label.is_empty() || label.len() > 63 {
-                return Err(ValidationError::InvalidHostname { 
-                    hostname: hostname.to_string() 
+                return Err(ValidationError::InvalidHostname {
+                    hostname: hostname.to_string(),
                 });
             }
-            
+
             // Labels must start and end with alphanumeric
-            if !label.chars().next().map_or(false, |c| c.is_ascii_alphanumeric()) ||
-               !label.chars().last().map_or(false, |c| c.is_ascii_alphanumeric()) {
-                return Err(ValidationError::InvalidHostname { 
-                    hostname: hostname.to_string() 
+            if !label
+                .chars()
+                .next()
+                .map_or(false, |c| c.is_ascii_alphanumeric())
+                || !label
+                    .chars()
+                    .last()
+                    .map_or(false, |c| c.is_ascii_alphanumeric())
+            {
+                return Err(ValidationError::InvalidHostname {
+                    hostname: hostname.to_string(),
                 });
             }
-            
+
             // Labels can only contain alphanumeric and hyphens
             if !label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
-                return Err(ValidationError::InvalidHostname { 
-                    hostname: hostname.to_string() 
+                return Err(ValidationError::InvalidHostname {
+                    hostname: hostname.to_string(),
                 });
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate IPv4 address format
     #[inline]
     fn validate_ipv4_address(addr: &str) -> Result<(), ValidationError> {
         let parts: Vec<&str> = addr.split('.').collect();
         if parts.len() != 4 {
-            return Err(ValidationError::InvalidIPv4 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv4 {
+                address: addr.to_string(),
             });
         }
-        
+
         for part in parts {
             if part.is_empty() || part.len() > 3 {
-                return Err(ValidationError::InvalidIPv4 { 
-                    address: addr.to_string() 
+                return Err(ValidationError::InvalidIPv4 {
+                    address: addr.to_string(),
                 });
             }
-            
+
             // Check for leading zeros (not allowed except for "0")
             if part.len() > 1 && part.starts_with('0') {
-                return Err(ValidationError::InvalidIPv4 { 
-                    address: addr.to_string() 
+                return Err(ValidationError::InvalidIPv4 {
+                    address: addr.to_string(),
                 });
             }
-            
+
             match part.parse::<u8>() {
-                Ok(_) => {}, // Valid octet
-                Err(_) => return Err(ValidationError::InvalidIPv4 { 
-                    address: addr.to_string() 
-                }),
+                Ok(_) => {} // Valid octet
+                Err(_) => {
+                    return Err(ValidationError::InvalidIPv4 {
+                        address: addr.to_string(),
+                    });
+                }
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate IPv6 address format with proper group validation and IPv4-in-IPv6 support
     #[inline]
     fn validate_ipv6_address(addr: &str) -> Result<(), ValidationError> {
         if addr.is_empty() {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
-        
+
         // Handle IPv4-in-IPv6 addresses (e.g., ::ffff:192.0.2.1)
         if let Some(ipv4_start) = addr.rfind(':') {
             let potential_ipv4 = &addr[ipv4_start + 1..];
@@ -1694,78 +1775,86 @@ impl FullRoomVisualizerApp {
                 }
             }
         }
-        
+
         Self::validate_pure_ipv6_address(addr)
     }
-    
+
     /// Validate pure IPv6 address (no embedded IPv4)
     #[inline]
     fn validate_pure_ipv6_address(addr: &str) -> Result<(), ValidationError> {
         // Check for valid characters only
         let valid_chars = addr.chars().all(|c| c.is_ascii_hexdigit() || c == ':');
         if !valid_chars {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
-        
+
         // Handle special case of "::" (all zeros)
         if addr == "::" {
             return Ok(());
         }
-        
+
         // Check for invalid patterns
         if addr.starts_with(':') && !addr.starts_with("::") {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
         if addr.ends_with(':') && !addr.ends_with("::") {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
         if addr.contains(":::") {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
-        
+
         // Count "::" occurrences - can only have one
         let double_colon_count = addr.matches("::").count();
         if double_colon_count > 1 {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
-        
+
         // Split by "::" if present
         if double_colon_count == 1 {
             let parts: Vec<&str> = addr.split("::").collect();
             if parts.len() != 2 {
-                return Err(ValidationError::InvalidIPv6 { 
-                    address: addr.to_string() 
+                return Err(ValidationError::InvalidIPv6 {
+                    address: addr.to_string(),
                 });
             }
-            
-            let left_groups = if parts[0].is_empty() { 0 } else { parts[0].split(':').len() };
-            let right_groups = if parts[1].is_empty() { 0 } else { parts[1].split(':').len() };
-            
+
+            let left_groups = if parts[0].is_empty() {
+                0
+            } else {
+                parts[0].split(':').len()
+            };
+            let right_groups = if parts[1].is_empty() {
+                0
+            } else {
+                parts[1].split(':').len()
+            };
+
             // Total groups must not exceed 8
             if left_groups + right_groups >= 8 {
-                return Err(ValidationError::InvalidIPv6 { 
-                    address: addr.to_string() 
+                return Err(ValidationError::InvalidIPv6 {
+                    address: addr.to_string(),
                 });
             }
-            
+
             // Validate each group in left part
             if !parts[0].is_empty() {
                 for group in parts[0].split(':') {
                     Self::validate_ipv6_group(group, addr)?;
                 }
             }
-            
-            // Validate each group in right part  
+
+            // Validate each group in right part
             if !parts[1].is_empty() {
                 for group in parts[1].split(':') {
                     Self::validate_ipv6_group(group, addr)?;
@@ -1775,111 +1864,122 @@ impl FullRoomVisualizerApp {
             // No "::" - must have exactly 8 groups
             let groups: Vec<&str> = addr.split(':').collect();
             if groups.len() != 8 {
-                return Err(ValidationError::InvalidIPv6 { 
-                    address: addr.to_string() 
+                return Err(ValidationError::InvalidIPv6 {
+                    address: addr.to_string(),
                 });
             }
-            
+
             // Validate each group
             for group in groups {
                 Self::validate_ipv6_group(group, addr)?;
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate individual IPv6 group (1-4 hex digits)
     #[inline]
     fn validate_ipv6_group(group: &str, full_addr: &str) -> Result<(), ValidationError> {
         if group.is_empty() || group.len() > 4 {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: full_addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: full_addr.to_string(),
             });
         }
-        
+
         // All characters must be hex digits
         if !group.chars().all(|c| c.is_ascii_hexdigit()) {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: full_addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: full_addr.to_string(),
             });
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate partial IPv6 address for IPv4-in-IPv6 format
     /// reserved_groups: number of groups reserved for IPv4 (typically 2)
     #[inline]
-    fn validate_partial_ipv6_address(addr: &str, reserved_groups: usize) -> Result<(), ValidationError> {
+    fn validate_partial_ipv6_address(
+        addr: &str,
+        reserved_groups: usize,
+    ) -> Result<(), ValidationError> {
         // Check for valid characters only
         let valid_chars = addr.chars().all(|c| c.is_ascii_hexdigit() || c == ':');
         if !valid_chars {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
-        
+
         // Handle special case of "::" (all zeros)
         if addr == "::" {
             return Ok(());
         }
-        
+
         // Check for invalid patterns
         if addr.starts_with(':') && !addr.starts_with("::") {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
         if addr.ends_with(':') && !addr.ends_with("::") {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
         if addr.contains(":::") {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
-        
+
         // Count "::" occurrences - can only have one
         let double_colon_count = addr.matches("::").count();
         if double_colon_count > 1 {
-            return Err(ValidationError::InvalidIPv6 { 
-                address: addr.to_string() 
+            return Err(ValidationError::InvalidIPv6 {
+                address: addr.to_string(),
             });
         }
-        
+
         // Calculate maximum allowed groups (8 total - reserved for IPv4)
         let max_ipv6_groups = 8 - reserved_groups;
-        
+
         // Split by "::" if present
         if double_colon_count == 1 {
             let parts: Vec<&str> = addr.split("::").collect();
             if parts.len() != 2 {
-                return Err(ValidationError::InvalidIPv6 { 
-                    address: addr.to_string() 
+                return Err(ValidationError::InvalidIPv6 {
+                    address: addr.to_string(),
                 });
             }
-            
-            let left_groups = if parts[0].is_empty() { 0 } else { parts[0].split(':').len() };
-            let right_groups = if parts[1].is_empty() { 0 } else { parts[1].split(':').len() };
-            
+
+            let left_groups = if parts[0].is_empty() {
+                0
+            } else {
+                parts[0].split(':').len()
+            };
+            let right_groups = if parts[1].is_empty() {
+                0
+            } else {
+                parts[1].split(':').len()
+            };
+
             // Total groups must not exceed maximum allowed
             if left_groups + right_groups > max_ipv6_groups {
-                return Err(ValidationError::InvalidIPv6 { 
-                    address: addr.to_string() 
+                return Err(ValidationError::InvalidIPv6 {
+                    address: addr.to_string(),
                 });
             }
-            
+
             // Validate each group in left part
             if !parts[0].is_empty() {
                 for group in parts[0].split(':') {
                     Self::validate_ipv6_group(group, addr)?;
                 }
             }
-            
-            // Validate each group in right part  
+
+            // Validate each group in right part
             if !parts[1].is_empty() {
                 for group in parts[1].split(':') {
                     Self::validate_ipv6_group(group, addr)?;
@@ -1889,36 +1989,36 @@ impl FullRoomVisualizerApp {
             // No "::" - count groups and ensure within limits
             let groups: Vec<&str> = addr.split(':').collect();
             if groups.len() > max_ipv6_groups {
-                return Err(ValidationError::InvalidIPv6 { 
-                    address: addr.to_string() 
+                return Err(ValidationError::InvalidIPv6 {
+                    address: addr.to_string(),
                 });
             }
-            
+
             // Validate each group
             for group in groups {
                 Self::validate_ipv6_group(group, addr)?;
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate port number (1-65535)
     #[inline]
     fn validate_port(port_str: &str) -> Result<u16, ValidationError> {
         if port_str.is_empty() {
-            return Err(ValidationError::InvalidPort { 
-                port: port_str.to_string() 
+            return Err(ValidationError::InvalidPort {
+                port: port_str.to_string(),
             });
         }
-        
+
         match port_str.parse::<u16>() {
-            Ok(0) => Err(ValidationError::InvalidPort { 
-                port: port_str.to_string() 
+            Ok(0) => Err(ValidationError::InvalidPort {
+                port: port_str.to_string(),
             }),
             Ok(port) => Ok(port),
-            Err(_) => Err(ValidationError::InvalidPort { 
-                port: port_str.to_string() 
+            Err(_) => Err(ValidationError::InvalidPort {
+                port: port_str.to_string(),
             }),
         }
     }
@@ -1926,12 +2026,13 @@ impl FullRoomVisualizerApp {
     /// Generate a sharing command with enterprise-grade validation and security
     /// Returns Result with specific error information for comprehensive user feedback
     #[inline]
-    fn generate_sharing_command(&self, participant_count: usize) -> Result<String, ValidationError> {
+    fn generate_sharing_command(
+        &self,
+        participant_count: usize,
+    ) -> Result<String, ValidationError> {
         let room_url = self.room_url.trim();
         let room_name = self.room_name.trim();
-        
 
-        
         // Validate inputs are not empty
         if room_url.is_empty() {
             return Err(ValidationError::EmptyInput { field: "Room URL" });
@@ -1939,63 +2040,67 @@ impl FullRoomVisualizerApp {
         if room_name.is_empty() {
             return Err(ValidationError::EmptyInput { field: "Room Name" });
         }
-        
+
         // Length validation for security
         if room_url.len() > Self::MAX_URL_LENGTH {
-            return Err(ValidationError::TooLong { 
-                field: "Room URL", 
-                max_length: Self::MAX_URL_LENGTH, 
-                actual_length: room_url.len() 
+            return Err(ValidationError::TooLong {
+                field: "Room URL",
+                max_length: Self::MAX_URL_LENGTH,
+                actual_length: room_url.len(),
             });
         }
         if room_name.len() > Self::MAX_ROOM_NAME_LENGTH {
-            return Err(ValidationError::TooLong { 
-                field: "Room Name", 
-                max_length: Self::MAX_ROOM_NAME_LENGTH, 
-                actual_length: room_name.len() 
+            return Err(ValidationError::TooLong {
+                field: "Room Name",
+                max_length: Self::MAX_ROOM_NAME_LENGTH,
+                actual_length: room_name.len(),
             });
         }
-        
+
         // Comprehensive URL validation
         Self::validate_websocket_url(room_url)?;
-        
+
         // Validate room name content
-        if room_name.chars().all(|c| c.is_whitespace() || c.is_control()) {
-            return Err(ValidationError::InvalidContent { 
-                field: "Room Name", 
-                reason: "contains only whitespace or control characters" 
+        if room_name
+            .chars()
+            .all(|c| c.is_whitespace() || c.is_control())
+        {
+            return Err(ValidationError::InvalidContent {
+                field: "Room Name",
+                reason: "contains only whitespace or control characters",
             });
         }
-        
+
         // Check for potentially dangerous characters in room name
         let dangerous_chars: Vec<char> = room_name.chars()
             .filter(|&c| matches!(c, '\0' | '\x01'..='\x08' | '\x0B' | '\x0C' | '\x0E'..='\x1F' | '\x7F'))
             .collect();
         if !dangerous_chars.is_empty() {
-            let char_display: String = dangerous_chars.iter()
+            let char_display: String = dangerous_chars
+                .iter()
                 .map(|c| format!("\\x{:02X}", *c as u8))
                 .collect::<Vec<_>>()
                 .join(", ");
-            return Err(ValidationError::UnsafeCharacters { 
-                field: "Room Name", 
-                characters: char_display 
+            return Err(ValidationError::UnsafeCharacters {
+                field: "Room Name",
+                characters: char_display,
             });
         }
-        
+
         // Prevent integer overflow with safe arithmetic
         let total_participants = participant_count.saturating_add(1); // Including me
         let next_participant_number = total_participants.saturating_add(1);
-        
+
         // Generate participant name with length validation
         let participant_name = format!("Participant {}", next_participant_number);
         if participant_name.len() > Self::MAX_PARTICIPANT_NAME_LENGTH {
-            return Err(ValidationError::TooLong { 
-                field: "Participant Name", 
-                max_length: Self::MAX_PARTICIPANT_NAME_LENGTH, 
-                actual_length: participant_name.len() 
+            return Err(ValidationError::TooLong {
+                field: "Participant Name",
+                max_length: Self::MAX_PARTICIPANT_NAME_LENGTH,
+                actual_length: participant_name.len(),
             });
         }
-        
+
         // Generate command with enterprise-grade shell escaping
         Ok(format!(
             "anima room --url {} --room-name {} --participant-name {}",

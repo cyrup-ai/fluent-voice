@@ -5,20 +5,6 @@ pub(crate) trait WakewordDetector: Send + Sync {
     #[allow(dead_code)]
     fn get_kfc_dimensions(&self) -> (u16, usize);
 
-    /* ------------------------------------------------------------- *
-     *  Back-compat shims – keep the old API signature so existing   *
-     *  crates compile, but forward to the canonical method. *
-     * ------------------------------------------------------------- */
-    #[allow(dead_code)]
-    #[inline(always)]
-    fn get_kfc_size(&self) -> u16 {
-        self.get_kfc_dimensions().0
-    }
-    #[allow(dead_code)]
-    #[inline(always)]
-    fn get_kfc_frame_size(&self) -> usize {
-        self.get_kfc_dimensions().1
-    }
     fn run_detection(
         &self,
         kfc_frame: Vec<Vec<f32>>,

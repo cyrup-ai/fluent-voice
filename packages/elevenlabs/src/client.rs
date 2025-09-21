@@ -140,7 +140,11 @@ impl ElevenLabsClient {
     }
 
     /// Hit an endpoint and return both headers and response body
-    pub async fn hit_with_headers<T: ElevenLabsEndpoint>(&self, endpoint: T) -> Result<(http::HeaderMap, T::ResponseBody)> {
+    #[allow(dead_code)] // False positive: method is used in fluent_voice_impl.rs
+    pub async fn hit_with_headers<T: ElevenLabsEndpoint>(
+        &self,
+        endpoint: T,
+    ) -> Result<(http::HeaderMap, T::ResponseBody)> {
         let mut builder = self
             .inner
             .request(T::METHOD, endpoint.url()?)
@@ -167,7 +171,7 @@ impl ElevenLabsClient {
         // Extract headers before consuming response
         let headers = resp.headers().clone();
         let body = endpoint.response_body(resp).await?;
-        
+
         Ok((headers, body))
     }
 

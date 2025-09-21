@@ -11,12 +11,7 @@ pub use tts_builder::{
     TtsConversationImpl,
 };
 
-// Re-export STT builders
-mod stt_builder;
-pub use stt_builder::{
-    builder::stt_conversation_builder, MicrophoneBuilderImpl, SttConversationBuilderImpl,
-    SttConversationImpl, TranscriptImpl, TranscriptionBuilderImpl,
-};
+// STT builders removed - orphaned code that was not used by the working DefaultSTTConversationBuilder system
 
 // Re-export ElevenLabs extension builders
 mod audio_isolation_builder;

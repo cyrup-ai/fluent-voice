@@ -124,7 +124,10 @@ impl Model {
         #[cfg(feature = "http")]
         let tokenizer = KyutaiTokenizer::from_pretrained("kyutai/moshika-pytorch-bf16")
             .or_else(|_| {
-                tracing::warn!("Kyutai tokenizer unavailable, using production-ready GPT-2 alternative");
+                #[cfg(debug_assertions)]
+                tracing::warn!(
+                    "Kyutai tokenizer unavailable, using production-ready GPT-2 alternative"
+                );
                 KyutaiTokenizer::from_pretrained("gpt2")
             })
             .map_err(|e| {
@@ -312,6 +315,7 @@ impl Model {
 
         for step in 0..max_steps {
             // Log progress periodically for debugging
+            #[cfg(debug_assertions)]
             if step % 100 == 0 && step > 0 {
                 tracing::debug!("Generation step {}/{}", step, max_steps);
             }
@@ -431,6 +435,7 @@ impl Model {
         }
 
         // Log tokenization for debugging (can be removed in production)
+        #[cfg(debug_assertions)]
         tracing::debug!(
             "Tokenized text '{}' into {} tokens: {:?}",
             text,

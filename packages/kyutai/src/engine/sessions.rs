@@ -1,5 +1,7 @@
 //! Session structs for ongoing voice operations
 
+use crate::error::MoshiError;
+use crate::tokenizer::KyutaiTokenizer;
 use candle_core::Tensor;
 use fluent_voice::builders::{AudioIsolationSession, SoundEffectsSession, SpeechToSpeechSession};
 use fluent_voice::stt_conversation::SttConversation;
@@ -9,8 +11,6 @@ use futures_util::stream;
 use std::collections::VecDeque;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use crate::tokenizer::KyutaiTokenizer;
-use crate::error::MoshiError;
 
 /// Speech-to-speech session
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub struct KyutaiSpeechToSpeechSession {
 }
 
 impl SpeechToSpeechSession for KyutaiSpeechToSpeechSession {
-    type AudioStream = Pin<Box<dyn Stream<Item = i16> + Send + Unpin>>;
+    type AudioStream = Pin<Box<dyn Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin>>;
 
     fn into_stream(self) -> Self::AudioStream {
         Box::pin(stream::empty())
@@ -33,7 +33,7 @@ pub struct KyutaiAudioIsolationSession {
 }
 
 impl AudioIsolationSession for KyutaiAudioIsolationSession {
-    type AudioStream = Pin<Box<dyn Stream<Item = i16> + Send + Unpin>>;
+    type AudioStream = Pin<Box<dyn Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin>>;
 
     fn into_stream(self) -> Self::AudioStream {
         Box::pin(stream::empty())
@@ -47,7 +47,7 @@ pub struct KyutaiSoundEffectsSession {
 }
 
 impl SoundEffectsSession for KyutaiSoundEffectsSession {
-    type AudioStream = Pin<Box<dyn Stream<Item = i16> + Send + Unpin>>;
+    type AudioStream = Pin<Box<dyn Stream<Item = fluent_voice_domain::AudioChunk> + Send + Unpin>>;
 
     fn into_stream(self) -> Self::AudioStream {
         Box::pin(stream::empty())
@@ -75,7 +75,7 @@ impl SttConversation for KyutaiSttConversation {
     fn into_stream(self) -> Self::Stream {
         use futures_util::stream;
         // STEP 1: Initialize model loading (thread-safe singleton)
-        let model_future = async {
+        let model_future = Box::pin(async {
             let model_paths = crate::models::get_or_download_models()
                 .await
                 .map_err(|e| VoiceError::ProcessingError(e.to_string()))?;
@@ -83,7 +83,9 @@ impl SttConversation for KyutaiSttConversation {
             // STEP 2: Load Mimi and LM models using existing patterns
             let device = candle_core::Device::Cpu;
             let mimi = crate::mimi::load_from_path(&model_paths.mimi_model_path, None, &device)
-                .map_err(|e| VoiceError::ProcessingError(format!("Failed to load Mimi model: {}", e)))?;
+                .map_err(|e| {
+                    VoiceError::ProcessingError(format!("Failed to load Mimi model: {}", e))
+                })?;
 
             // Load LM model using VarBuilder
             let vb = unsafe {
@@ -94,13 +96,16 @@ impl SttConversation for KyutaiSttConversation {
                 )
                 .map_err(|e| VoiceError::ProcessingError(e.to_string()))?
             };
-            let lm_config = crate::lm::Config::default();
+            let lm_config = crate::config::main_config::Config::default();
             let lm = crate::model::LmModel::new(&lm_config, vb)
                 .map_err(|e| VoiceError::ProcessingError(e.to_string()))?;
 
             // STEP 3: Load tokenizer using existing error handling patterns
-            let tokenizer = KyutaiTokenizer::from_file(model_paths.moshi_base_path.join("tokenizer.json"))
-                .map_err(|e| VoiceError::ProcessingError(format!("Tokenizer load failed: {}", e)))?;
+            let tokenizer =
+                KyutaiTokenizer::from_file(model_paths.moshi_base_path.join("tokenizer.json"))
+                    .map_err(|e| {
+                        VoiceError::ProcessingError(format!("Tokenizer load failed: {}", e))
+                    })?;
 
             // STEP 4: Create ASR state (existing constructor)
             let asr_state = crate::asr::State::new(
@@ -110,8 +115,10 @@ impl SttConversation for KyutaiSttConversation {
             .map_err(|e| VoiceError::ProcessingError(e.to_string()))?;
 
             // STEP 5: Return working stream instead of empty stream
-            Ok::<AudioTranscriptionStream, VoiceError>(AudioTranscriptionStream::new(asr_state, tokenizer))
-        };
+            Ok::<AudioTranscriptionStream, VoiceError>(AudioTranscriptionStream::new(
+                asr_state, tokenizer,
+            ))
+        });
 
         // Convert async initialization to stream
         use futures_util::StreamExt;
@@ -205,7 +212,11 @@ impl Stream for AudioTranscriptionStream {
                     // STEP 4: Convert Word to KyutaiTranscriptSegment (perfect match!)
                     let text = match self.decode_tokens(&word.tokens) {
                         Ok(decoded_text) => decoded_text,
-                        Err(e) => return Poll::Ready(Some(Err(VoiceError::ProcessingError(e.to_string())))),
+                        Err(e) => {
+                            return Poll::Ready(Some(Err(VoiceError::ProcessingError(
+                                e.to_string(),
+                            ))));
+                        }
                     };
                     let segment = KyutaiTranscriptSegment {
                         text,

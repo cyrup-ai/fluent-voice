@@ -19,9 +19,9 @@ const DEFAULT_SCALE_MULTIPLIER: f64 = 7.5;
 
 /// Standard audio frequency markers for spectrum analysis
 const STANDARD_AUDIO_FREQUENCIES: &[f64] = &[
-    20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0,
-    200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0,
-    2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 20000.0
+    20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0,
+    700.0, 800.0, 900.0, 1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0,
+    10000.0, 20000.0,
 ];
 
 fn generate_frequency_markers(cfg: &GraphConfig, lower: f64, upper: f64) -> Vec<DataSet> {
@@ -75,15 +75,13 @@ impl SpectroDisplayConfig {
 
     /// Calculate axis configuration based on current settings
     pub fn calculate_axis_config(&self, cfg: &GraphConfig) -> (String, [f64; 2]) {
-        let name = self.custom_axis_label
-            .clone()
-            .unwrap_or_else(|| {
-                if self.log_scale_enabled { 
-                    "| level".to_string() 
-                } else { 
-                    "| amplitude".to_string() 
-                }
-            });
+        let name = self.custom_axis_label.clone().unwrap_or_else(|| {
+            if self.log_scale_enabled {
+                "| level".to_string()
+            } else {
+                "| amplitude".to_string()
+            }
+        });
         let bounds = [0.0, cfg.scale * self.scale_multiplier];
         (name, bounds)
     }
@@ -192,7 +190,7 @@ impl DisplayMode for Spectrograph {
             Dimension::Y => {
                 let (name, bounds) = self.display_config.calculate_axis_config(cfg);
                 (name.as_str(), bounds)
-            },
+            }
         };
 
         let mut a = Axis::default();
@@ -289,7 +287,7 @@ impl DisplayMode for Spectrograph {
     fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
         let lower = 0.; // if self.log_y { -(cfg.scale * 5.) } else { 0. };
         let upper = cfg.scale * self.display_config.scale_multiplier;
-        
+
         let mut markers = vec![
             // Base reference lines (horizontal)
             DataSet::new(
@@ -300,7 +298,7 @@ impl DisplayMode for Spectrograph {
                 cfg.axis_color,
             ),
         ];
-        
+
         // Add generated frequency markers
         markers.extend(generate_frequency_markers(cfg, lower, upper));
         markers

@@ -49,6 +49,14 @@ impl SttEntry {
     {
         self.conversation().on_prediction(f)
     }
+
+    /// Delegate method for on_chunk - forwards to conversation builder
+    pub fn on_chunk<F>(self, f: F) -> impl SttPostChunkBuilder
+    where
+        F: FnMut(Result<fluent_voice_domain::TranscriptionSegmentImpl, VoiceError>) -> fluent_voice_domain::TranscriptionSegmentImpl + Send + 'static,
+    {
+        self.conversation().on_chunk(f)
+    }
 }
 
 /// Post-chunk entry point that provides listen() method
@@ -64,7 +72,7 @@ where
     pub fn listen<M, R>(self, matcher: M) -> R
     where
         M: FnOnce(Result<B::Conversation, VoiceError>) -> R + Send + 'static,
-        R: futures_core::Stream<Item = fluent_voice_domain::TranscriptionSegmentImpl>
+        R: futures_core::Stream<Item = Result<fluent_voice_domain::TranscriptionSegmentImpl, VoiceError>>
             + Send
             + Unpin
             + 'static,

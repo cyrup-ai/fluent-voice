@@ -10,6 +10,8 @@ async fn main() -> Result<()> {
 
     println!("Starting real-time STT with fluent-voice...");
 
+    println!("\nListening for your voice... (Ctrl-C to quit)");
+
     let mut transcript_stream = FluentVoice::stt()
         .with_source(SpeechSource::Microphone {
             backend: MicBackend::Default,
@@ -24,14 +26,31 @@ async fn main() -> Result<()> {
             print!("{} [prediction: {}]", transcription, prediction);
             std::io::Write::flush(&mut std::io::stdout()).unwrap();
         })
-        .on_chunk(|chunk| chunk.into())
-        .listen(|result| match result {
-            Ok(conversation) => Ok(conversation.into_stream()),
-            Err(e) => Err(e),
+        .on_chunk(|result| match result {
+            Ok(segment) => segment,
+            Err(e) => {
+                eprintln!("Recognition error: {}", e);
+                TranscriptionSegmentImpl::new(format!("[ERROR] {}", e), 0, 0, None)
+            }
         })
-        .await;
-
-    println!("\nListening for your voice... (Ctrl-C to quit)");
+        .listen(|result| match result {
+            Ok(conversation) => {
+                use futures_util::StreamExt;
+                Box::pin(conversation.into_stream().map(|item| match item {
+                    Ok(kyutai_segment) => {
+                        // Convert KyutaiTranscriptSegment to TranscriptionSegmentImpl
+                        Ok(fluent_voice::TranscriptionSegmentImpl::new(
+                            kyutai_segment.text().to_string(),
+                            kyutai_segment.start_ms(),
+                            kyutai_segment.end_ms(),
+                            None,
+                        ))
+                    }
+                    Err(e) => Err(e),
+                }))
+            }
+            Err(e) => panic!("Failed to create STT conversation: {}", e),
+        });
 
     // Process the final transcript segments as they are confirmed.
     while let Some(result) = transcript_stream.next().await {

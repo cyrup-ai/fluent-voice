@@ -11,10 +11,10 @@
 //! - `cargo run --example elevenlabs_tts play` - Play directly  
 //! - `cargo run --example elevenlabs_tts both` - Save and play
 
+use bytes::Bytes;
 use fluent_voice_elevenlabs::{FluentVoice, Result};
 use futures_util::StreamExt;
-use hound::{WavSpec, WavWriter, SampleFormat};
-use bytes::Bytes;
+use hound::{SampleFormat, WavSpec, WavWriter};
 use std::env;
 
 /// Save audio stream to WAV file using existing hound dependency
@@ -24,32 +24,32 @@ async fn save_audio_stream_to_wav(
 ) -> Result<()> {
     // ElevenLabs default audio specifications
     let spec = WavSpec {
-        channels: 1,           // Mono
-        sample_rate: 22050,    // ElevenLabs default
-        bits_per_sample: 16,   // 16-bit PCM
+        channels: 1,         // Mono
+        sample_rate: 22050,  // ElevenLabs default
+        bits_per_sample: 16, // 16-bit PCM
         sample_format: SampleFormat::Int,
     };
-    
+
     let mut writer = WavWriter::create(path, spec)?;
     let mut total_samples = 0;
-    
+
     println!("🎵 Saving audio to: {}", path);
-    
+
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result?;
-        
+
         // Convert bytes to i16 samples (assuming 16-bit PCM)
         let samples: Vec<i16> = chunk
             .chunks_exact(2)
             .map(|bytes| i16::from_le_bytes([bytes[0], bytes[1]]))
             .collect();
-        
+
         for sample in samples {
             writer.write_sample(sample)?;
             total_samples += 1;
         }
     }
-    
+
     writer.finalize()?;
     println!("✅ Saved {} samples to {}", total_samples, path);
     Ok(())
@@ -60,10 +60,10 @@ async fn play_audio_stream(
     audio_stream: impl futures_util::Stream<Item = Result<Bytes>> + Unpin,
 ) -> Result<()> {
     println!("🔊 Playing audio...");
-    
+
     // Use existing stream_audio function from utils/playback.rs
     crate::utils::stream_audio(audio_stream).await?;
-    
+
     println!("✅ Audio playback completed");
     Ok(())
 }
@@ -119,7 +119,7 @@ async fn main() -> Result<()> {
             println!("💾 Saving audio...");
             let output_path = "elevenlabs_sarah_demo.wav";
             save_audio_stream_to_wav(audio_only_stream, output_path).await?;
-            
+
             println!("🔊 Playing saved audio...");
             // Use existing playback infrastructure consistently
             let file_data = std::fs::read(output_path)?;
@@ -176,7 +176,7 @@ async fn main() -> Result<()> {
         })?
         .synthesize(|result| result)
         .await?;
-    
+
     // Convert to audio-only stream and save
     let alice_audio_stream = alice_stream.audio_only();
     let alice_output_path = "elevenlabs_alice_demo.wav";
@@ -195,7 +195,7 @@ async fn main() -> Result<()> {
         })?
         .synthesize(|result| result)
         .await?;
-    
+
     // Convert to audio-only stream and save
     let bob_audio_stream = bob_stream.audio_only();
     let bob_output_path = "elevenlabs_bob_demo.wav";

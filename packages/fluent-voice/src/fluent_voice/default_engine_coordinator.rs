@@ -5,8 +5,8 @@ use dia::voice::{voice_builder::DiaVoiceBuilder, VoicePool};
 use fluent_voice_domain::{AudioChunk, AudioFormat, SpeechSource, VoiceError};
 use fluent_voice_vad::{Error as VadError, VoiceActivityDetector};
 use fluent_voice_whisper::{ModelConfig, WhichModel, WhisperTranscriber};
+use koffee::wakewords::{WakewordLoad, WakewordModel};
 use koffee::{KoffeeCandle, KoffeeCandleConfig};
-use koffee::wakewords::{WakewordModel, WakewordLoad};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
@@ -401,44 +401,53 @@ pub struct KoffeeEngine {
 impl KoffeeEngine {
     pub fn new() -> Result<Self, VoiceError> {
         let config = KoffeeCandleConfig::default();
-        let mut detector = KoffeeCandle::new(&config)
-            .map_err(|e| VoiceError::Configuration(format!("Failed to create Koffee detector: {}", e)))?;
-        
+        let mut detector = KoffeeCandle::new(&config).map_err(|e| {
+            VoiceError::Configuration(format!("Failed to create Koffee detector: {}", e))
+        })?;
+
         let mut models_loaded = Vec::new();
         let syrup_model_path = "../koffee/training/models/syrup.rpw";
         match WakewordModel::load_from_file(syrup_model_path) {
             Ok(model) => {
-                detector.add_wakeword_model(model)
-                    .map_err(|e| VoiceError::Configuration(format!("Failed to add syrup model: {}", e)))?;
+                detector.add_wakeword_model(model).map_err(|e| {
+                    VoiceError::Configuration(format!("Failed to add syrup model: {}", e))
+                })?;
                 models_loaded.push("syrup".to_string());
             }
             Err(_) => {
                 let alt_model_path = "../koffee/tests/resources/syrup_model.rpw";
                 if let Ok(model) = WakewordModel::load_from_file(alt_model_path) {
-                    detector.add_wakeword_model(model)
-                        .map_err(|e| VoiceError::Configuration(format!("Failed to add syrup model: {}", e)))?;
+                    detector.add_wakeword_model(model).map_err(|e| {
+                        VoiceError::Configuration(format!("Failed to add syrup model: {}", e))
+                    })?;
                     models_loaded.push("syrup".to_string());
                 } else {
-                    return Err(VoiceError::Configuration("No wake word models could be loaded".to_string()));
+                    return Err(VoiceError::Configuration(
+                        "No wake word models could be loaded".to_string(),
+                    ));
                 }
             }
         }
-        
-        Ok(Self { detector, models_loaded, config })
+
+        Ok(Self {
+            detector,
+            models_loaded,
+            config,
+        })
     }
 
     pub fn detect(&mut self, audio_data: &[u8]) -> Result<Option<WakeWordResult>, VoiceError> {
         // Validate audio data format (16-bit PCM expected)
         if audio_data.len() % 2 != 0 {
             return Err(VoiceError::ProcessingError(
-                "Audio data length must be even for 16-bit samples".to_string()
+                "Audio data length must be even for 16-bit samples".to_string(),
             ));
         }
-        
+
         if audio_data.is_empty() {
             return Ok(None);
         }
-        
+
         // Process audio through Koffee detection pipeline
         match self.detector.process_bytes(audio_data) {
             Some(detection) => {
@@ -446,25 +455,25 @@ impl KoffeeEngine {
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_millis() as u64;
-                
+
                 // Map KoffeeCandleDetection to WakeWordResult
                 let result = WakeWordResult {
                     word: detection.name,
                     confidence: detection.score,
                     timestamp,
                 };
-                
+
                 Ok(Some(result))
             }
             None => Ok(None),
         }
     }
-    
+
     /// Get information about loaded models
     pub fn loaded_models(&self) -> &[String] {
         &self.models_loaded
     }
-    
+
     /// Update detection thresholds at runtime
     pub fn update_thresholds(&mut self, _avg_threshold: f32, _threshold: f32) {
         // Note: Koffee detector configuration update requires reconstruction

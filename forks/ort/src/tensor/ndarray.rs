@@ -25,10 +25,19 @@ where
 {
 	fn softmax(&self, axis: ndarray::Axis) -> ndarray::Array<T, D> {
 		let mut new_array: ndarray::Array<T, D> = self.to_owned();
-		// FIXME: Change to non-overflowing formula
-		// e = np.exp(A - np.sum(A, axis=1, keepdims=True))
-		// np.exp(a) / np.sum(np.exp(a))
+
+		// Find maximum for numerical stability: softmax(x) = softmax(x - max(x))
+		let max_values = new_array
+			.map_axis(axis, |view| view.iter().cloned().fold(T::neg_infinity(), |acc, x| if x > acc { x } else { acc }))
+			.insert_axis(axis);
+
+		// Subtract max to prevent overflow
+		new_array -= &max_values;
+
+		// Apply exponential
 		new_array.map_inplace(|v| *v = v.exp());
+
+		// Normalize by sum
 		let sum = new_array.sum_axis(axis).insert_axis(axis);
 		new_array /= &sum;
 

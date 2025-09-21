@@ -14,13 +14,13 @@
 //  helper modules that are only used by the demo CLIs / integration tests.
 //  ───────────────────────────────────────────────────────────────────────────
 //! # Koffee Wake Word Detection Library
-//! 
+//!
 //! Koffee is a sophisticated cross-platform wake word detection system built using the Candle ML framework.
 //! It provides real-time wake word detection with configurable thresholds, multiple model sizes,
 //! advanced audio processing capabilities, and comprehensive training tools.
-//! 
+//!
 //! ## Features
-//! 
+//!
 //! - **Real-time Wake Word Detection**: High-performance audio processing with configurable detection thresholds
 //! - **Multiple Model Sizes**: Support for Tiny, Small, Medium, and Large models to balance accuracy vs performance
 //! - **Advanced Audio Processing**: Built-in resampling, filtering, and feature extraction
@@ -28,107 +28,107 @@
 //! - **TCP Server**: Network-based detection service with connection management and rate limiting
 //! - **Cross-platform Audio**: Support for multiple audio devices and formats using CPAL
 //! - **Production Ready**: Comprehensive error handling, logging, and monitoring capabilities
-//! 
+//!
 //! ## Quick Start
-//! 
+//!
 //! ### Basic Wake Word Detection
-//! 
+//!
 //! ```rust
 //! use koffee::{KoffeeCandle, KoffeeCandleConfig};
 //! use koffee::wakewords::WakewordModel;
-//! 
+//!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Initialize the wake word detector
 //! let config = KoffeeCandleConfig::default();
 //! let mut detector = KoffeeCandle::new(&config)?;
-//! 
+//!
 //! // Load a pre-trained wake word model
 //! let model = WakewordModel::load_from_file("wake_word.rpw")?;
 //! detector.add_wakeword_model(model)?;
-//! 
+//!
 //! // Process audio samples (16kHz, mono, f32)
 //! let audio_samples: Vec<f32> = vec![0.0; 16000]; // 1 second of silence
 //! if let Some(detection) = detector.process_samples(&audio_samples) {
-//!     println!("Wake word detected: {} (confidence: {:.3})", 
+//!     println!("Wake word detected: {} (confidence: {:.3})",
 //!              detection.name, detection.score);
 //! }
 //! # Ok(())
 //! # }
 //! ```
-//! 
+//!
 //! ### Training a Custom Wake Word Model
-//! 
+//!
 //! ```rust
 //! use koffee::trainer;
 //! use koffee::ModelType;
 //! use std::path::Path;
-//! 
+//!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Train a model from a directory of WAV files
 //! let input_dir = Path::new("training_data/");
 //! let output_path = Path::new("my_wake_word.rpw");
-//! 
+//!
 //! trainer::train_dir(input_dir, output_path, ModelType::Small)?;
 //! println!("Model trained successfully!");
 //! # Ok(())
 //! # }
 //! ```
-//! 
+//!
 //! ### TCP Server for Network Detection
-//! 
+//!
 //! ```rust,no_run
 //! use koffee::{KoffeeCandle, KoffeeCandleConfig};
 //! use koffee::server::run_tcp_server;
 //! use std::sync::{Arc, Mutex};
-//! 
+//!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Initialize detector
 //! let config = KoffeeCandleConfig::default();
 //! let detector = Arc::new(Mutex::new(KoffeeCandle::new(&config)?));
-//! 
+//!
 //! // Start TCP server on port 8080
 //! run_tcp_server(detector, 8080).await?;
 //! # Ok(())
 //! # }
 //! ```
-//! 
+//!
 //! ## Architecture
-//! 
+//!
 //! The library consists of several key components:
-//! 
+//!
 //! ### Core Detection Engine
 //! - **[`KoffeeCandle`]**: Main detection engine with configurable parameters
 //! - **[`KoffeeCandleConfig`]**: Configuration system for detection thresholds and behavior
 //! - **[`Kfc`]**: Low-level feature extraction and audio processing
-//! 
+//!
 //! ### Model Management
 //! - **[`wakewords::WakewordModel`]**: Wake word model loading and management
 //! - **[`wakewords::WakewordLoad`]**: Trait for loading models from various sources
 //! - **[`wakewords::WakewordSave`]**: Trait for saving trained models
-//! 
+//!
 //! ### Training System
 //! - **[`trainer`]**: Complete training pipeline with data splitting and validation
 //! - **TTS Integration**: Synthetic sample generation using dia voice synthesis
 //! - **Audio Processing**: Advanced preprocessing and augmentation
-//! 
+//!
 //! ### Network Services
 //! - **[`server`]**: TCP server with connection management and rate limiting
 //! - **Binary Protocol**: Efficient audio streaming and detection result protocol
 //! - **Multi-client Support**: Concurrent connection handling with resource management
-//! 
+//!
 //! ### Audio Processing
 //! - **[`audio`]**: Comprehensive audio processing pipeline
 //! - **Device Management**: Cross-platform audio device enumeration and selection
 //! - **Format Support**: Multiple audio formats and sample rates
-//! 
+//!
 //! ## Configuration
-//! 
+//!
 //! ### Detection Configuration
-//! 
+//!
 //! ```rust
 //! use koffee::{KoffeeCandleConfig, ModelType};
-//! 
+//!
 //! let config = KoffeeCandleConfig {
 //!     detection_threshold: 0.7,        // Higher threshold = fewer false positives
 //!     model_type: ModelType::Medium,   // Balance between accuracy and speed
@@ -138,41 +138,41 @@
 //!     ..Default::default()
 //! };
 //! ```
-//! 
+//!
 //! ### Training Configuration
-//! 
+//!
 //! Training supports various model sizes and configurations:
-//! 
+//!
 //! - **Tiny**: Fastest inference, lowest accuracy (~1MB model size)
 //! - **Small**: Good balance for mobile/edge devices (~5MB model size)  
 //! - **Medium**: Higher accuracy for desktop applications (~20MB model size)
 //! - **Large**: Maximum accuracy for server deployments (~80MB model size)
-//! 
+//!
 //! ## Performance Considerations
-//! 
+//!
 //! ### Model Size vs Accuracy Trade-offs
-//! 
+//!
 //! | Model Type | Size | Inference Time | Accuracy | Use Case |
 //! |------------|------|----------------|----------|----------|
 //! | Tiny       | ~1MB | <1ms          | Good     | IoT/Embedded |
 //! | Small      | ~5MB | ~2ms          | Better   | Mobile/Edge |
 //! | Medium     | ~20MB| ~5ms          | High     | Desktop |
 //! | Large      | ~80MB| ~10ms         | Highest  | Server |
-//! 
+//!
 //! ### Audio Processing Optimization
-//! 
+//!
 //! - Use 16kHz sample rate for optimal balance of quality and performance
 //! - Process audio in 512-sample frames with 50% overlap
 //! - Enable hardware acceleration when available
 //! - Use appropriate buffer sizes for your latency requirements
-//! 
+//!
 //! ## Error Handling
-//! 
+//!
 //! All functions return [`Result`] types with descriptive error messages:
-//! 
+//!
 //! ```rust
 //! use koffee::{KoffeeCandle, KoffeeCandleConfig};
-//! 
+//!
 //! match KoffeeCandle::new(&KoffeeCandleConfig::default()) {
 //!     Ok(detector) => {
 //!         // Use detector
@@ -183,19 +183,19 @@
 //!     }
 //! }
 //! ```
-//! 
+//!
 //! ## Thread Safety
-//! 
+//!
 //! The library is designed for multi-threaded usage:
-//! 
+//!
 //! - [`KoffeeCandle`] can be safely shared between threads when wrapped in `Arc<Mutex<>>`
 //! - Audio processing is thread-safe and can be parallelized
 //! - TCP server supports multiple concurrent connections
-//! 
+//!
 //! ## Examples
-//! 
+//!
 //! See the `examples/` directory for complete usage examples:
-//! 
+//!
 //! - `basic_detection.rs`: Simple wake word detection
 //! - `training_pipeline.rs`: Complete model training workflow
 //! - `tcp_server.rs`: Network-based detection service
@@ -297,7 +297,7 @@ pub struct KoffeeCandle {
 }
 
 /// Historic API compatibility alias for [`KoffeeCandle`].
-/// 
+///
 /// This type alias is maintained for backward compatibility with existing code
 /// that uses the shorter `Kfc` name. New code should prefer using [`KoffeeCandle`] directly.
 pub type Kfc = KoffeeCandle;
