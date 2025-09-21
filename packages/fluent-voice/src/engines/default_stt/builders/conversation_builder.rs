@@ -9,7 +9,7 @@ use super::super::types::SendableClosure;
 use crate::stt_conversation::SttConversationBuilder;
 use fluent_voice_domain::{
     Diarization, Language, NoiseReduction, Punctuation, SpeechSource, TimestampsGranularity,
-    VadMode, VoiceError, WordTimestamps,
+    TranscriptionSegmentImpl, VadMode, VoiceError, WordTimestamps,
 };
 
 /// Default STT Conversation Builder
@@ -48,8 +48,8 @@ pub struct DefaultSTTConversationBuilder {
     /// Prediction processor with SendableClosure wrapper
     pub prediction_processor:
         Option<SendableClosure<Box<dyn FnMut(String, String) + Send + 'static>>>,
-    /// Chunk handler with SendableClosure wrapper
-    pub chunk_handler: Option<SendableClosure<Box<dyn FnMut(String) + Send + 'static>>>,
+    /// Chunk handler with SendableClosure wrapper for real-time transcription processing
+    pub chunk_handler: Option<SendableClosure<Box<dyn FnMut(Result<TranscriptionSegmentImpl, VoiceError>) -> TranscriptionSegmentImpl + Send + 'static>>>,
 }
 
 impl Default for DefaultSTTConversationBuilder {
@@ -131,6 +131,14 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
         self
     }
 
+    fn on_chunk<F>(self, f: F) -> impl crate::stt_conversation::SttPostChunkBuilder<Conversation = Self::Conversation>
+    where
+        F: FnMut(Result<TranscriptionSegmentImpl, VoiceError>) -> TranscriptionSegmentImpl + Send + 'static,
+    {
+        // Pass the closure to the post-chunk builder, don't store it in self
+        crate::stt_conversation::SttPostChunkBuilderImpl::new(self, Box::new(f))
+    }
+
     fn on_result<F>(mut self, f: F) -> Self
     where
         F: FnMut(VoiceError) -> String + Send + 'static,
@@ -153,5 +161,19 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
     {
         self.turn_handler = Some(SendableClosure(Box::new(f)));
         self
+    }
+}
+
+impl DefaultSTTConversationBuilder {
+    /// Build a real conversation with chunk processor from post-chunk builder
+    pub fn build_real_conversation_with_chunk_processor(
+        mut self,
+        chunk_processor: Box<dyn FnMut(Result<TranscriptionSegmentImpl, VoiceError>) -> TranscriptionSegmentImpl + Send + 'static>,
+    ) -> Result<DefaultSTTConversation, VoiceError> {
+        // Set the chunk processor from the post-chunk builder
+        self.chunk_handler = Some(SendableClosure(chunk_processor));
+        
+        // Create real conversation using the existing new_from_builder method
+        DefaultSTTConversation::new_from_builder(self)
     }
 }

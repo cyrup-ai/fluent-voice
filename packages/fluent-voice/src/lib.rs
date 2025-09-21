@@ -151,6 +151,7 @@ pub mod prelude {
 
     /* cyrup-sugars macros for Ok => Err => syntax and JSON object syntax */
     pub use cyrup_sugars::macros::*;
+    pub use cyrup_sugars::prelude::ChunkHandler;
     pub use cyrup_sugars::prelude::*;
 
     /* Arrow syntax transformation macros */

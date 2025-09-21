@@ -1,0 +1,20 @@
+    Checking fluent-voice-workspace-hack v0.1.0 (/Volumes/samsung_t9/fluent-voice/workspace-hack)
+    Checking fluent_voice_domain v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/domain)
+    Checking ort-sys v0.1.0 (/Volumes/samsung_t9/fluent-voice/forks/ort/ort-sys)
+    Checking ort v0.1.0 (/Volumes/samsung_t9/fluent-voice/forks/ort)
+    Checking dia v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/dia)
+    Checking fluent_voice_whisper v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/whisper)
+    Checking fluent_voice_vad v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/vad)
+    Checking koffee v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/koffee)
+    Checking fluent_voice v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/fluent-voice)
+packages/fluent-voice/src/stt_conversation.rs:379:25: error[E0277]: the trait bound `(): stt_conversation::SttConversation` is not satisfied: the trait `stt_conversation::SttConversation` is not implemented for `()`
+packages/fluent-voice/src/stt_conversation.rs:412:12: error[E0276]: impl has stricter requirements than trait: impl has extra requirement `F: FnMut(f32)`
+packages/fluent-voice/src/stt_conversation.rs:412:25: error[E0276]: impl has stricter requirements than trait: impl has extra requirement `F: std::marker::Send`
+packages/fluent-voice/src/stt_conversation.rs:416:13: error[E0049]: method `emit` has 1 type parameter but its trait declaration has 0 type parameters: found 1 type parameter
+packages/fluent-voice/src/stt_conversation.rs:422:16: error[E0049]: method `collect` has 1 type parameter but its trait declaration has 0 type parameters: found 1 type parameter
+packages/fluent-voice/src/stt_conversation.rs:430:12: error[E0276]: impl has stricter requirements than trait: impl has extra requirement `F: FnOnce(std::string::String)`
+packages/fluent-voice/src/stt_conversation.rs:431:12: error[E0276]: impl has stricter requirements than trait: impl has extra requirement `T: std::marker::Send`
+packages/fluent-voice/src/stt_conversation.rs:428:43: error[E0277]: `PlaceholderTranscriptionBuilder` is not a future: `PlaceholderTranscriptionBuilder` is not a future
+packages/fluent-voice/src/stt_conversation.rs:435:92: warning: impl trait in impl method signature does not match trait method signature: this bound is stronger than that defined on the trait
+warning: `fluent_voice` (lib) generated 1 warning
+error: could not compile `fluent_voice` (lib) due to 8 previous errors; 1 warning emitted

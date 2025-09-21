@@ -1,0 +1,14 @@
+    Checking fluent-voice-workspace-hack v0.1.0 (/Volumes/samsung_t9/fluent-voice/workspace-hack)
+    Checking fluent_voice_domain v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/domain)
+    Checking ort-sys v0.1.0 (/Volumes/samsung_t9/fluent-voice/forks/ort/ort-sys)
+    Checking ort v0.1.0 (/Volumes/samsung_t9/fluent-voice/forks/ort)
+    Checking dia v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/dia)
+    Checking fluent_voice_whisper v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/whisper)
+    Checking fluent_voice_vad v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/vad)
+    Checking koffee v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/koffee)
+    Checking fluent_voice v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/fluent-voice)
+packages/fluent-voice/src/stt_conversation.rs:383:5: error[E0437]: type `Transcript` is not a member of trait `MicrophoneBuilder`: not a member of trait `MicrophoneBuilder`
+packages/fluent-voice/src/stt_conversation.rs:387:32: error[E0220]: associated type `Transcript` not found for `Self`: there is an associated type `Transcript` in the trait `TranscriptionBuilder`
+packages/fluent-voice/src/stt_conversation.rs:382:1: error[E0046]: not all trait items implemented, missing: `Conversation`, `vad_mode`, `noise_reduction`, `language_hint`, `diarization`, `word_timestamps`, `timestamps_granularity`, `punctuation`: missing `Conversation`, `vad_mode`, `noise_reduction`, `language_hint`, `diarization`, `word_timestamps`, `timestamps_granularity`, `punctuation` in implementation
+packages/fluent-voice/src/stt_conversation.rs:402:1: error[E0046]: not all trait items implemented, missing: `vad_mode`, `noise_reduction`, `language_hint`, `diarization`, `word_timestamps`, `timestamps_granularity`, `punctuation`, `with_progress`, `emit`, `collect`, `collect_with`, `into_text_stream`: missing `vad_mode`, `noise_reduction`, `language_hint`, `diarization`, `word_timestamps`, `timestamps_granularity`, `punctuation`, `with_progress`, `emit`, `collect`, `collect_with`, `into_text_stream` in implementation
+error: could not compile `fluent_voice` (lib) due to 4 previous errors

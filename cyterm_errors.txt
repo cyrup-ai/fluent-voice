@@ -1,0 +1,12 @@
+    Checking fluent-voice-workspace-hack v0.1.0 (/Volumes/samsung_t9/fluent-voice/workspace-hack)
+    Checking fluent_voice_domain v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/domain)
+    Checking ort-sys v0.1.0 (/Volumes/samsung_t9/fluent-voice/forks/ort/ort-sys)
+    Checking ort v0.1.0 (/Volumes/samsung_t9/fluent-voice/forks/ort)
+    Checking dia v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/dia)
+    Checking fluent_voice_whisper v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/whisper)
+    Checking fluent_voice_vad v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/vad)
+    Checking koffee v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/koffee)
+    Checking fluent_voice v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/fluent-voice)
+packages/fluent-voice/src/stt_conversation.rs:354:61: error[E0277]: the trait bound `(): MicrophoneBuilder` is not satisfied: the trait `MicrophoneBuilder` is not implemented for `()`
+packages/fluent-voice/src/stt_conversation.rs:360:54: error[E0277]: the trait bound `(): TranscriptionBuilder` is not satisfied: the trait `TranscriptionBuilder` is not implemented for `()`
+error: could not compile `fluent_voice` (lib) due to 2 previous errors

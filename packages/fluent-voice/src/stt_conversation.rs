@@ -119,6 +119,24 @@ pub trait SttConversationBuilder: Sized + Send {
 
     /* polymorphic branching */
 
+    /// Process each transcription chunk with the provided function.
+    ///
+    /// This method enables real-time processing of transcription segments
+    /// as they are recognized from the audio stream. Returns a post-chunk
+    /// builder that provides access to action methods like `listen()`.
+    ///
+    /// # Example
+    /// ```ignore
+    /// .on_chunk(|result| match result {
+    ///     Ok(segment) => segment,
+    ///     Err(e) => TranscriptionSegmentImpl::bad_chunk(e.to_string()),
+    /// })
+    /// .listen(|conversation| Ok(conversation.into_stream()))
+    /// ```
+    fn on_chunk<F>(self, f: F) -> impl SttPostChunkBuilder<Conversation = Self::Conversation>
+    where
+        F: FnMut(Result<TranscriptionSegmentImpl, VoiceError>) -> TranscriptionSegmentImpl + Send + 'static;
+
     /* closure capture methods */
 
     /// Capture result processing closure (optional).
@@ -306,6 +324,52 @@ pub trait TranscriptionBuilder: Sized + Send {
     where
         M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
         S: futures_core::Stream<Item = TranscriptionSegmentImpl> + Send + Unpin + 'static;
+}
+
+/// Post-chunk builder implementation that wraps the original builder
+/// and provides access to action methods after chunk processing is configured.
+pub struct SttPostChunkBuilderImpl<B> {
+    builder: B,
+    chunk_processor: Box<dyn FnMut(Result<TranscriptionSegmentImpl, VoiceError>) -> TranscriptionSegmentImpl + Send + 'static>,
+}
+
+impl<B> SttPostChunkBuilderImpl<B> {
+    pub fn new(
+        builder: B,
+        chunk_processor: Box<dyn FnMut(Result<TranscriptionSegmentImpl, VoiceError>) -> TranscriptionSegmentImpl + Send + 'static>,
+    ) -> Self {
+        Self {
+            builder,
+            chunk_processor,
+        }
+    }
+}
+
+impl<B> SttPostChunkBuilder for SttPostChunkBuilderImpl<B>
+where
+    B: SttConversationBuilder,
+{
+    type Conversation = B::Conversation;
+
+    fn with_microphone(self, _device: impl Into<String>) -> impl MicrophoneBuilder {
+        unimplemented!("Microphone builder not implemented - use .listen() for cyterm functionality")
+    }
+
+    fn transcribe(self, _path: impl Into<String>) -> impl TranscriptionBuilder {
+        unimplemented!("Transcription builder not implemented - use .listen() for cyterm functionality")
+    }
+
+    fn listen<M, S>(self, matcher: M) -> S
+    where
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
+        S: futures_core::Stream<Item = TranscriptionSegmentImpl> + Send + Unpin + 'static,
+    {
+        // Create REAL DefaultSTTConversation using the existing working infrastructure
+        let conversation_result = crate::engines::default_stt::builders::DefaultSTTConversationBuilder::new()
+            .build_real_conversation_with_chunk_processor(self.chunk_processor);
+        
+        matcher(conversation_result)
+    }
 }
 
 /// Static entry point for STT conversations.

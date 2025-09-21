@@ -1,0 +1,15 @@
+    Checking fluent-voice-workspace-hack v0.1.0 (/Volumes/samsung_t9/fluent-voice/workspace-hack)
+    Checking fluent_voice_domain v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/domain)
+    Checking ort-sys v0.1.0 (/Volumes/samsung_t9/fluent-voice/forks/ort/ort-sys)
+    Checking ort v0.1.0 (/Volumes/samsung_t9/fluent-voice/forks/ort)
+    Checking dia v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/dia)
+    Checking fluent_voice_whisper v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/whisper)
+    Checking fluent_voice_vad v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/vad)
+    Checking koffee v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/koffee)
+    Checking fluent_voice v0.1.0 (/Volumes/samsung_t9/fluent-voice/packages/fluent-voice)
+packages/fluent-voice/src/builders/stt_builder/conversation_builder_trait.rs:97:5: error[E0407]: method `on_chunk` is not a member of trait `crate::stt_conversation::SttConversationBuilder`: not a member of trait `crate::stt_conversation::SttConversationBuilder`
+packages/fluent-voice/src/builders/stt_builder/conversation_builder_trait.rs:106:5: error[E0407]: method `listen` is not a member of trait `crate::stt_conversation::SttConversationBuilder`: not a member of trait `crate::stt_conversation::SttConversationBuilder`
+packages/fluent-voice/src/engines/default_stt/builders/conversation_builder.rs:134:5: error[E0407]: method `on_chunk` is not a member of trait `SttConversationBuilder`: not a member of trait `SttConversationBuilder`
+packages/fluent-voice/src/engines/default_stt/builders/conversation_builder.rs:166:5: error[E0407]: method `listen` is not a member of trait `SttConversationBuilder`: not a member of trait `SttConversationBuilder`
+packages/fluent-voice/src/builders/stt_builder/conversation_builder_trait.rs:112:59: error[E0599]: no function or associated item named `new` found for struct `stt_builder::conversation_impl::SttConversationImpl<S>` in the current scope: function or associated item not found in `stt_builder::conversation_impl::SttConversationImpl<_>`
+error: could not compile `fluent_voice` (lib) due to 5 previous errors

@@ -93,4 +93,12 @@ where
         self.prediction_processor = Some(Box::new(f));
         self
     }
+
+    fn on_chunk<F>(self, f: F) -> impl crate::stt_conversation::SttPostChunkBuilder<Conversation = Self::Conversation>
+    where
+        F: FnMut(Result<fluent_voice_domain::TranscriptionSegmentImpl, fluent_voice_domain::VoiceError>) -> fluent_voice_domain::TranscriptionSegmentImpl + Send + 'static,
+    {
+        // Store the chunk processor for real-time transcription processing
+        crate::stt_conversation::SttPostChunkBuilderImpl::new(self, Box::new(f))
+    }
 }

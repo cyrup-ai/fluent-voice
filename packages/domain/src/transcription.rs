@@ -170,3 +170,14 @@ impl MessageChunk for TranscriptionSegmentImpl {
         self.error.as_deref()
     }
 }
+
+/// Enable cyterm-style usage: .on_chunk(|chunk| chunk.into())
+/// Converts Result<TranscriptionSegmentImpl, VoiceError> to TranscriptionSegmentImpl
+impl From<Result<TranscriptionSegmentImpl, VoiceError>> for TranscriptionSegmentImpl {
+    fn from(result: Result<TranscriptionSegmentImpl, VoiceError>) -> Self {
+        match result {
+            Ok(segment) => segment,
+            Err(error) => TranscriptionSegmentImpl::bad_chunk(error.to_string()),
+        }
+    }
+}

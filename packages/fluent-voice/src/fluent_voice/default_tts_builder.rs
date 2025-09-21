@@ -15,6 +15,8 @@ pub struct DefaultTtsBuilder {
     voice_clone_path: Option<std::path::PathBuf>,
     synthesis_parameters: Option<SynthesisParameters>,
     synthesis_session: Option<SynthesisSession>,
+    // Add callback storage following existing TTS builder patterns
+    result_callback: Option<Box<dyn FnOnce(Result<DefaultTtsConversation, VoiceError>) + Send + 'static>>,
 }
 
 impl DefaultTtsBuilder {
@@ -24,6 +26,7 @@ impl DefaultTtsBuilder {
             voice_clone_path: None,
             synthesis_parameters: None,
             synthesis_session: None,
+            result_callback: None,  // Initialize callback storage
         }
     }
 
@@ -183,12 +186,13 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
 
         self
     }
-    fn on_result<F>(self, _f: F) -> Self
+    fn on_result<F>(mut self, processor: F) -> Self
     where
         F: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) + Send + 'static,
     {
-        // Store the result processor for error handling
-        // For now, we'll just return self until we implement storage
+        // Store the callback using Box to match trait bounds and existing patterns
+        // Pattern follows builder_core.rs:40-42 implementation
+        self.result_callback = Some(Box::new(processor));
         self
     }
 
@@ -203,25 +207,33 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
         use dia::voice::VoicePool;
         use std::sync::Arc;
 
-        // Create default VoicePool for DiaVoiceBuilder
-        let pool = match VoicePool::new() {
-            Ok(pool) => Arc::new(pool),
-            Err(_) => {
-                // Return error through matcher
-                return matcher(Err(fluent_voice_domain::VoiceError::Configuration(
-                    "Failed to create VoicePool".to_string(),
-                )));
+        // Helper function to create conversation result
+        let create_conversation_result = || -> Result<DefaultTtsConversation, fluent_voice_domain::VoiceError> {
+            match VoicePool::new() {
+                Ok(pool) => {
+                    let pool_arc = Arc::new(pool);
+                    let audio_path = std::env::temp_dir().join("temp_audio.wav");
+                    let dia_builder = dia::voice::voice_builder::DiaVoiceBuilder::new(pool_arc, audio_path);
+                    
+                    // Create conversation using DiaVoiceBuilder as backend
+                    let conversation = DefaultTtsConversation::with_dia_builder(dia_builder);
+                    Ok(conversation)
+                }
+                Err(_) => {
+                    Err(fluent_voice_domain::VoiceError::Configuration(
+                        "Failed to create VoicePool".to_string(),
+                    ))
+                }
             }
         };
-        let audio_path = std::env::temp_dir().join("temp_audio.wav");
-        let dia_builder = dia::voice::voice_builder::DiaVoiceBuilder::new(pool, audio_path);
-
-        // Create conversation using DiaVoiceBuilder as backend
-        let conversation = DefaultTtsConversation::with_dia_builder(dia_builder);
-        let conversation_result = Ok(conversation);
-
-        // Call the matcher with the result, just like listen() does
-        matcher(conversation_result)
+        
+        // Execute stored callback if present (both success and error cases)
+        if let Some(callback) = self.result_callback {
+            callback(create_conversation_result());
+        }
+        
+        // Call the matcher with the result (preserves existing API contract)
+        matcher(create_conversation_result())
     }
 }
 /// Implementation of TtsConversationChunkBuilder for DefaultTtsBuilder

@@ -6,6 +6,7 @@ use fluent_voice_domain::{
     AudioFormat, Diarization, Language, Punctuation, SpeechSource, WordTimestamps,
 };
 use futures_util::StreamExt;
+use cyrup_sugars::prelude::ChunkHandler;
 
 #[tokio::main]
 async fn main() -> Result<(), VoiceError> {

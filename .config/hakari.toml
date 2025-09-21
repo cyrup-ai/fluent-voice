@@ -16,7 +16,7 @@ third-party = [
     { name = "candle-kernels", git = "https://github.com/huggingface/candle", branch = "main" },
     { name = "cudarc" },
     { name = "bindgen_cuda" },
-
+    { name = "float8" },
     { name = "half" },
     { name = "metal" },
     { name = "accelerate-src" },
