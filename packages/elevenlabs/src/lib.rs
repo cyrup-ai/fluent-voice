@@ -151,11 +151,14 @@ pub mod prelude {
         WordTimestamps,
     };
 
+    // Import transcription types from domain
+    pub use fluent_voice_domain::transcription::{TranscriptionSegment, TranscriptionSegmentImpl};
+
     // Import TtsConversation trait for into_stream method
     pub use fluent_voice_domain::TtsConversation;
 
-    // Import SttConversation trait for into_stream method
-    pub use fluent_voice_domain::SttConversation;
+    // Import SttConversation trait for into_stream method (from fluent_voice, not domain)
+    pub use fluent_voice::stt_conversation::SttConversation;
 
     // Use ElevenLabs FluentVoice implementation instead of default
     pub use super::ElevenLabsFluentVoice;

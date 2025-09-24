@@ -61,11 +61,17 @@ futures-util = "0.3"
         .diarization(Diarization::On)
         .word_timestamps(WordTimestamps::On)
         .punctuation(Punctuation::On)
-        .listen(|segment| {
-            Ok => segment.text(),  // streaming chunks
-            Err(e) => Err(e),
+        .on_chunk(|result| match result {
+            Ok(segment) => {
+                println!("Real-time: {}", segment.text());
+                segment
+            },
+            Err(e) => TranscriptionSegmentImpl::bad_chunk(e.to_string()),
         })
-        .collect();  // transcript is now the end-state string
+        .listen(|conversation| match conversation {
+            Ok(conv) => conv.into_stream(),
+            Err(e) => Err(e),
+        });  // Creates persistent listening stream
 ```
 
 ```rust

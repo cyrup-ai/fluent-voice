@@ -62,6 +62,36 @@ impl SttEntry {
         self.conversation().on_prediction(f)
     }
 
+    /// Delegate method for noise_reduction - forwards to conversation builder
+    pub fn noise_reduction(self, level: fluent_voice_domain::NoiseReduction) -> impl SttConversationBuilder {
+        self.conversation().noise_reduction(level)
+    }
+
+    /// Delegate method for language_hint - forwards to conversation builder
+    pub fn language_hint(self, lang: fluent_voice_domain::Language) -> impl SttConversationBuilder {
+        self.conversation().language_hint(lang)
+    }
+
+    /// Delegate method for diarization - forwards to conversation builder
+    pub fn diarization(self, d: fluent_voice_domain::Diarization) -> impl SttConversationBuilder {
+        self.conversation().diarization(d)
+    }
+
+    /// Delegate method for word_timestamps - forwards to conversation builder
+    pub fn word_timestamps(self, w: fluent_voice_domain::WordTimestamps) -> impl SttConversationBuilder {
+        self.conversation().word_timestamps(w)
+    }
+
+    /// Delegate method for timestamps_granularity - forwards to conversation builder
+    pub fn timestamps_granularity(self, g: fluent_voice_domain::TimestampsGranularity) -> impl SttConversationBuilder {
+        self.conversation().timestamps_granularity(g)
+    }
+
+    /// Delegate method for punctuation - forwards to conversation builder
+    pub fn punctuation(self, p: fluent_voice_domain::Punctuation) -> impl SttConversationBuilder {
+        self.conversation().punctuation(p)
+    }
+
     /// Delegate method for on_chunk - forwards to conversation builder
     pub fn on_chunk<F>(self, f: F) -> impl SttPostChunkBuilder
     where

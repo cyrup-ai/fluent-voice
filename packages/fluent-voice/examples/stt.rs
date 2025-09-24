@@ -2,7 +2,7 @@
 
 use fluent_voice::prelude::*;
 use fluent_voice_domain::{
-    transcription::{TranscriptionSegment, TranscriptionSegmentImpl},
+    transcription::TranscriptionSegmentImpl,
     AudioFormat, Diarization, Language, MicBackend, Punctuation, SpeechSource, VadMode, WordTimestamps,
 };
 use futures_util::StreamExt;
@@ -12,6 +12,8 @@ async fn main() -> Result<(), VoiceError> {
     println!("Starting microphone listening for speech-to-text...");
     println!("Speak into your microphone. Press Ctrl+C to stop.");
 
+
+    // Complete fluent chain with microphone support, VAD and wake word detection
     let _transcript = FluentVoice::stt()
         .with_source(SpeechSource::Microphone {
             backend: MicBackend::Default,
@@ -25,30 +27,27 @@ async fn main() -> Result<(), VoiceError> {
         .punctuation(Punctuation::On)
         .on_chunk(|result| match result {
             Ok(segment) => {
-                println!("Transcribed: {}", segment.text());
+                println!("🎤 Real-time: {}", segment.text());
                 segment
             },
-            Err(e) => TranscriptionSegmentImpl::new("".to_string(), 0, 0, None),
+            Err(_e) => TranscriptionSegmentImpl::new("".to_string(), 0, 0, None),
         })
-        .listen(|conversation| {
-            match conversation {
-                Ok(conv) => {
-                    use futures_util::StreamExt;
-                    conv.into_stream().map(|result| {
-                        result.map(|segment| TranscriptionSegmentImpl::new(
-                            segment.text().to_string(),
-                            segment.start_ms(),
-                            segment.end_ms(),
-                            segment.speaker_id().map(|s| s.to_string()),
-                        ))
-                    }).boxed()
-                },
-                Err(e) => {
-                    eprintln!("STT conversation error: {}", e);
-                    panic!("STT failed: {}", e);
-                },
-            }
-        });
+        .listen(|conversation| match conversation {
+            Ok(conv) => {
+                conv.into_stream().map(|result| {
+                    result.map(|segment| TranscriptionSegmentImpl::new(
+                        segment.text().to_string(),
+                        segment.start_ms(),
+                        segment.end_ms(),
+                        segment.speaker_id().map(|s| s.to_string()),
+                    ))
+                }).boxed()
+            },
+            Err(e) => {
+                eprintln!("❌ STT conversation error: {}", e);
+                panic!("STT failed: {}", e);
+            },
+        }); 
 
     println!("STT stream created successfully");
     Ok(())
