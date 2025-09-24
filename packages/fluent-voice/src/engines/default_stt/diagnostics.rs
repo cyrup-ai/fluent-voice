@@ -104,15 +104,10 @@ pub async fn log_diagnostic_startup_settings(
 
     // Whisper Configuration Diagnostics
     info!("🎯 WHISPER STT CONFIGURATION");
-    match fluent_voice_whisper::WhisperTranscriber::new() {
-        Ok(_whisper) => {
-            info!("  Whisper initialization: ✅ SUCCESS");
-            debug!("  Whisper transcriber ready for inference");
-        }
-        Err(e) => {
-            warn!("  Whisper initialization: ❌ FAILED - {}", e);
-        }
-    }
+    // Test WhisperSttBuilder initialization
+    let _whisper_builder = fluent_voice_whisper::WhisperSttBuilder::new();
+    info!("  Whisper STT Builder initialization: ✅ SUCCESS");
+    debug!("  Whisper STT builder ready for inference");
 
     // Koffee Wake Word Detector Diagnostics
     info!("☕ KOFFEE WAKE WORD DETECTOR CONFIGURATION");

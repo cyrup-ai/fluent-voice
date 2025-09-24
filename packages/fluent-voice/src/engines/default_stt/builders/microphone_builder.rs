@@ -6,14 +6,13 @@ use fluent_voice_domain::{
     TranscriptionSegmentImpl, VadMode, VoiceError, WordTimestamps,
 };
 
-
 use crate::engines::default_stt::{
     AudioProcessor, DefaultSTTConversation, SendableClosure, VadConfig, WakeWordConfig,
 };
 
 /// Builder for microphone-based speech recognition using the default STT engine.
 ///
-/// Zero-allocation architecture: creates WhisperTranscriber instances on demand.
+/// Zero-allocation architecture: creates WhisperSttBuilder instances on demand.
 pub struct DefaultMicrophoneBuilder {
     #[allow(dead_code)]
     pub(crate) device: String,
@@ -74,7 +73,7 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
             + 'static,
     {
         // Create AudioProcessor for wake word detection, VAD, and transcription
-        let audio_processor = match AudioProcessor::new(self.wake_word_config.clone()) {
+        let audio_processor = match AudioProcessor::new(self.wake_word_config) {
             Ok(processor) => processor,
             Err(e) => {
                 return matcher(Err(e));

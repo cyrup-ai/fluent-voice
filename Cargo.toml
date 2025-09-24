@@ -15,6 +15,7 @@ members = [
     "packages/vad",
     "packages/video",
     "packages/whisper",
+    "packages/termcolor",
     "workspace-hack",
     "forks/ort",
     "forks/ort/ort-sys",

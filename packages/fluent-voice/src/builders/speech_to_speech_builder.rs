@@ -3,7 +3,9 @@
 use core::future::Future;
 use fluent_voice_domain::VoiceError;
 use fluent_voice_domain::{audio_format::AudioFormat, model_id::ModelId, voice_id::VoiceId};
+
 use futures_core::Stream;
+use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
@@ -42,6 +44,9 @@ pub trait SpeechToSpeechBuilder: Sized + Send {
     /// Set similarity boost parameter.
     fn similarity_boost(self, similarity: f32) -> Self;
 
+    /// Set the voice reference file path for voice cloning.
+    fn with_voice_reference_path<P: Into<PathBuf>>(self, path: P) -> Self;
+
     /// Convert the speech with a matcher closure.
     fn convert<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
     where
@@ -61,6 +66,7 @@ pub trait SpeechToSpeechSession: Send {
 pub struct SpeechToSpeechSessionImpl {
     source_audio: Vec<u8>,
     target_voice_id: VoiceId,
+    voice_reference_path: Option<PathBuf>,
     #[allow(dead_code)]
     conversion_config: ConversionConfig,
 }
@@ -125,44 +131,47 @@ impl SpeechToSpeechSessionImpl {
     }
 
     async fn transcribe_with_whisper(&self) -> Result<String, VoiceError> {
-        let temp_input = std::env::temp_dir().join("source_audio.wav");
-        tokio::fs::write(&temp_input, &self.source_audio)
+        use fluent_voice_domain::SpeechSource;
+        use fluent_voice_whisper::WhisperSttBuilder;
+
+        // Use native Rust Whisper implementation instead of Python subprocess
+        let speech_source = SpeechSource::Memory {
+            data: self.source_audio.clone(),
+            format: fluent_voice_domain::AudioFormat::Pcm16Khz,
+            sample_rate: 16000,
+        };
+
+        // Use WhisperSttBuilder for native transcription
+        let conversation = WhisperSttBuilder::new()
+            .with_source(speech_source)
+            .transcribe(|conversation_result| conversation_result)
             .await
-            .map_err(|e| VoiceError::AudioProcessing(format!("Failed to write audio: {}", e)))?;
+            .map_err(|e| {
+                VoiceError::AudioProcessing(format!("Native Whisper transcription failed: {}", e))
+            })?;
 
-        let mut cmd = tokio::process::Command::new("python");
-        cmd.arg("-c")
-            .arg(
-                r#"
-import whisper
-import sys
-model = whisper.load_model("base")
-result = model.transcribe(sys.argv[1])
-print(result["text"])
-"#,
-            )
-            .arg(&temp_input);
-
-        let output = cmd.output().await.map_err(|e| {
-            VoiceError::AudioProcessing(format!("Whisper transcription failed: {}", e))
+        let transcription = conversation.collect().await.map_err(|e| {
+            VoiceError::AudioProcessing(format!("Whisper text collection failed: {}", e))
         })?;
 
-        if !output.status.success() {
-            return Err(VoiceError::AudioProcessing(format!(
-                "Whisper failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            )));
-        }
-
-        let transcription = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        tokio::fs::remove_file(&temp_input).await.ok();
         Ok(transcription)
     }
 
     async fn get_voice_reference(&self) -> Result<Vec<u8>, VoiceError> {
-        // For now, return a dummy voice reference
-        // In a real implementation, this would load the actual voice reference file
-        Ok(Vec::new())
+        let voice_ref_path = self.voice_reference_path.as_ref().ok_or_else(|| {
+            VoiceError::Configuration("Voice reference path not configured".to_string())
+        })?;
+
+        if !voice_ref_path.exists() {
+            return Err(VoiceError::Configuration(format!(
+                "Voice reference file does not exist: {}",
+                voice_ref_path.display()
+            )));
+        }
+
+        tokio::fs::read(voice_ref_path).await.map_err(|e| {
+            VoiceError::AudioProcessing(format!("Failed to load voice reference: {}", e))
+        })
     }
 
     async fn synthesize_with_tortoise(
@@ -240,6 +249,7 @@ pub struct SpeechToSpeechBuilderImpl {
     output_format: Option<AudioFormat>,
     stability: Option<f32>,
     similarity_boost: Option<f32>,
+    voice_reference_path: Option<PathBuf>,
 }
 
 impl SpeechToSpeechBuilderImpl {
@@ -256,7 +266,14 @@ impl SpeechToSpeechBuilderImpl {
             output_format: None,
             stability: None,
             similarity_boost: None,
+            voice_reference_path: None,
         }
+    }
+
+    /// Set the voice reference file path for voice cloning.
+    pub fn with_voice_reference_path<P: Into<PathBuf>>(mut self, path: P) -> Self {
+        self.voice_reference_path = Some(path.into());
+        self
     }
 }
 
@@ -319,16 +336,22 @@ impl SpeechToSpeechBuilder for SpeechToSpeechBuilderImpl {
         self
     }
 
+    fn with_voice_reference_path<P: Into<PathBuf>>(mut self, path: P) -> Self {
+        self.voice_reference_path = Some(path.into());
+        self
+    }
+
     fn convert<F, R>(self, matcher: F) -> impl Future<Output = R> + Send
     where
         F: FnOnce(Result<Self::Session, VoiceError>) -> R + Send + 'static,
     {
         async move {
-            match self.validate_and_prepare() {
+            match self.validate_and_prepare().await {
                 Ok((source_audio, target_voice_id, config)) => {
                     let session = SpeechToSpeechSessionImpl {
                         source_audio,
                         target_voice_id,
+                        voice_reference_path: self.voice_reference_path.clone(),
                         conversion_config: config,
                     };
                     matcher(Ok(session))
@@ -340,13 +363,23 @@ impl SpeechToSpeechBuilder for SpeechToSpeechBuilderImpl {
 }
 
 impl SpeechToSpeechBuilderImpl {
-    fn validate_and_prepare(&self) -> Result<(Vec<u8>, VoiceId, ConversionConfig), VoiceError> {
+    async fn validate_and_prepare(
+        &self,
+    ) -> Result<(Vec<u8>, VoiceId, ConversionConfig), VoiceError> {
         let source_audio = if let Some(ref audio_data) = self.audio_data {
             audio_data.clone()
-        } else if let Some(ref _source) = self.source {
-            // In a real implementation, this would load the file
-            // For now, return empty vec as placeholder
-            Vec::new()
+        } else if let Some(ref source) = self.source {
+            let source_path = std::path::PathBuf::from(source);
+            if !source_path.exists() {
+                return Err(VoiceError::Configuration(format!(
+                    "Source audio file does not exist: {}",
+                    source_path.display()
+                )));
+            }
+
+            tokio::fs::read(&source_path).await.map_err(|e| {
+                VoiceError::AudioProcessing(format!("Failed to load source audio file: {}", e))
+            })?
         } else {
             return Err(VoiceError::Configuration(
                 "Missing source audio".to_string(),

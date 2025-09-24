@@ -64,6 +64,7 @@ impl GraphConfig {
 
 pub trait DisplayMode {
     // MUST define
+    #[allow(warnings)]
     fn axis(&self, cfg: &GraphConfig, ui_mode: UIMode, dimension: Dimension) -> Axis;
     fn process(&mut self, cfg: &GraphConfig, data: &Matrix<f64>) -> Vec<DataSet>;
     fn mode_str(&self) -> &'static str;

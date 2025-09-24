@@ -70,6 +70,29 @@ impl TtsChunk {
         }
     }
 
+    /// Create a simple TtsChunk from basic segment information
+    /// Used for compatibility with TranscriptionSegment data
+    pub fn from_segment(
+        text: String,
+        start_ms: u32,
+        end_ms: u32,
+        _speaker_id: Option<String>,
+    ) -> Self {
+        let start = start_ms as f64 / 1000.0;
+        let end = end_ms as f64 / 1000.0;
+        Self {
+            start,
+            end,
+            duration: end - start,
+            tokens: Vec::new(),
+            text,
+            avg_logprob: 0.0,
+            no_speech_prob: 0.0,
+            temperature: 0.0,
+            compression_ratio: 0.0,
+        }
+    }
+
     /// Sugar: return a `&str` view of the transcript.
     ///
     /// ```ignore

@@ -139,7 +139,15 @@ where
         self
     }
 
-    // on_chunk method removed - not part of TtsConversationBuilder trait
+    #[inline]
+    fn on_chunk<F>(mut self, processor: F) -> Self::ChunkBuilder
+    where
+        F: FnMut(Result<fluent_voice_domain::AudioChunk, VoiceError>) -> fluent_voice_domain::AudioChunk + Send + 'static,
+    {
+        // Store the chunk processor - for now just return self as ChunkBuilder
+        // TODO: Implement proper chunk processing storage and handling
+        self
+    }
 
     #[inline]
     fn on_result<F>(mut self, f: F) -> Self

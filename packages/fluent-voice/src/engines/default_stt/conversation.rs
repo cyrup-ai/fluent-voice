@@ -13,12 +13,12 @@ use crate::stt_conversation::SttConversation;
 /// Complete STT conversation that handles the full pipeline:
 /// microphone input -> wake word detection -> VAD turn detection -> Whisper transcription
 ///
-/// Zero-allocation, no-locking architecture: creates new WhisperTranscriber instances
+/// Zero-allocation, no-locking architecture: creates new WhisperSttBuilder instances
 /// per transcription for optimal performance and thread safety.
 pub struct DefaultSTTConversation {
     pub(crate) vad_config: VadConfig,
     pub wake_word_config: WakeWordConfig, // Made public for audio processor configuration
-    pub(crate) speech_source: Option<fluent_voice_domain::SpeechSource>,
+    pub(crate) _speech_source: Option<fluent_voice_domain::SpeechSource>,
     // Event handlers that get called during processing
     pub(crate) error_handler:
         Option<SendableClosure<Box<dyn FnMut(VoiceError) -> String + Send + 'static>>>,
@@ -76,7 +76,7 @@ impl DefaultSTTConversation {
         Ok(Self {
             vad_config,
             wake_word_config,
-            speech_source: None,
+            _speech_source: None,
             error_handler,
             wake_handler,
             turn_handler,

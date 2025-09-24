@@ -144,7 +144,9 @@ scap = "0.0.8"
 core-foundation = "0.10.1"
 core-video = "0.4.3"
 coreaudio-rs = "0.13.0"
+coreaudio-sys = "0.2.17"
 objc2 = "0.6"
+objc2-core-audio = { version = "0.3.1", features = ["AudioHardware"] }
 accelerate-src = { version = "0.3.2", optional = true }
 
 [dev-dependencies]

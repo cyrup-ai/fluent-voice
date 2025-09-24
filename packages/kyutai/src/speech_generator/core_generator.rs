@@ -1,8 +1,13 @@
 //! Core speech generation engine implementation
 
 use super::{
-    audio_buffer::AudioBuffer, audio_stream::AudioStreamIterator, config::GeneratorConfig,
-    error::SpeechGenerationError, stats::GenerationStats, utils::validate_model_file,
+    audio_buffer::AudioBuffer,
+    audio_stream::AudioStreamIterator,
+    config::GeneratorConfig,
+    error::SpeechGenerationError,
+    speaker_processing::{AudioCache, ResourcePool},
+    stats::GenerationStats,
+    utils::validate_model_file,
     voice_params::VoiceParameters,
 };
 use crate::tts::Model as TtsModel;
@@ -37,6 +42,10 @@ pub struct SpeechGenerator {
     pub(super) generation_active: bool,
     /// Text processing queue (used for async text processing pipeline)
     _text_queue: VecDeque<String>,
+    /// Audio cache for decoded audio data
+    pub(super) audio_cache: AudioCache,
+    /// Resource pool for expensive audio processing resources
+    pub(super) resource_pool: ResourcePool,
 }
 
 impl SpeechGenerator {
@@ -64,6 +73,10 @@ impl SpeechGenerator {
         // Pre-allocate token buffer
         let token_buffer = Box::new([0u32; TOKEN_BUFFER_SIZE]);
 
+        // Initialize audio processing optimizations
+        let audio_cache = AudioCache::new(256); // 256MB default cache size
+        let resource_pool = ResourcePool::new();
+
         Ok(Self {
             tts_model,
             audio_buffer,
@@ -72,6 +85,8 @@ impl SpeechGenerator {
             stats: GenerationStats::default(),
             generation_active: false,
             _text_queue: VecDeque::with_capacity(16),
+            audio_cache,
+            resource_pool,
         })
     }
 
@@ -100,6 +115,10 @@ impl SpeechGenerator {
         // Pre-allocate token buffer
         let token_buffer = Box::new([0u32; TOKEN_BUFFER_SIZE]);
 
+        // Initialize audio processing optimizations
+        let audio_cache = AudioCache::new(256); // 256MB default cache size
+        let resource_pool = ResourcePool::new();
+
         Ok(Self {
             tts_model,
             audio_buffer,
@@ -108,6 +127,8 @@ impl SpeechGenerator {
             stats: GenerationStats::default(),
             generation_active: false,
             _text_queue: VecDeque::with_capacity(16),
+            audio_cache,
+            resource_pool,
         })
     }
 
@@ -302,5 +323,15 @@ impl SpeechGenerator {
     /// Flush audio buffer
     pub fn flush_buffer(&mut self) {
         self.audio_buffer.clear();
+    }
+
+    /// Get audio cache for optimized audio processing
+    pub fn audio_cache(&self) -> &AudioCache {
+        &self.audio_cache
+    }
+
+    /// Get resource pool for optimized audio processing
+    pub fn resource_pool(&self) -> &ResourcePool {
+        &self.resource_pool
     }
 }

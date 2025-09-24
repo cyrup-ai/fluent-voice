@@ -33,18 +33,13 @@ use crate::config::KoffeeCandleConfig;
 use crate::wakewords::{WakewordLoad, WakewordModel};
 
 /// Wake/Unwake state enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum WakeUnwakeState {
     /// System is in sleep mode, listening for wake words
+    #[default]
     Sleep,
     /// System is awake, listening for unwake words
     Awake,
-}
-
-impl Default for WakeUnwakeState {
-    fn default() -> Self {
-        Self::Sleep
-    }
 }
 
 impl std::fmt::Display for WakeUnwakeState {

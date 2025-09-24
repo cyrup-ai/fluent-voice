@@ -37,6 +37,12 @@ pub struct TurnProcessor {
     turn_counter: u64,
 }
 
+impl Default for TurnProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TurnProcessor {
     pub fn new() -> Self {
         Self {
@@ -61,31 +67,29 @@ impl TurnProcessor {
                 // Continuing turn
                 None
             }
-        } else {
-            if let Some(turn_start) = self.current_turn_start {
-                let turn_duration = vad_result.timestamp - turn_start;
+        } else if let Some(turn_start) = self.current_turn_start {
+            let turn_duration = vad_result.timestamp - turn_start;
 
-                if turn_duration >= self.min_turn_duration_ms {
-                    // Valid turn completed
-                    self.current_turn_start = None;
-                    self.turn_counter += 1;
+            if turn_duration >= self.min_turn_duration_ms {
+                // Valid turn completed
+                self.current_turn_start = None;
+                self.turn_counter += 1;
 
-                    Some(TurnEvent::TurnCompleted {
-                        turn_id: self.turn_counter - 1,
-                        start_timestamp: turn_start,
-                        end_timestamp: vad_result.timestamp,
-                        duration_ms: turn_duration,
-                        confidence: vad_result.confidence,
-                    })
-                } else {
-                    // Turn too short, ignore
-                    self.current_turn_start = None;
-                    None
-                }
+                Some(TurnEvent::TurnCompleted {
+                    turn_id: self.turn_counter - 1,
+                    start_timestamp: turn_start,
+                    end_timestamp: vad_result.timestamp,
+                    duration_ms: turn_duration,
+                    confidence: vad_result.confidence,
+                })
             } else {
-                // Silence continues
+                // Turn too short, ignore
+                self.current_turn_start = None;
                 None
             }
+        } else {
+            // Silence continues
+            None
         }
     }
 
@@ -109,6 +113,12 @@ pub struct SpeakerInfo {
     pub turn_count: u32,
     pub average_confidence: f32,
     pub last_activity_timestamp: u64,
+}
+
+impl Default for SpeakerTracker {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SpeakerTracker {
@@ -190,6 +200,12 @@ pub enum ConversationFlowState {
     Responding,
     Paused,
     Ended,
+}
+
+impl Default for DialogueController {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DialogueController {

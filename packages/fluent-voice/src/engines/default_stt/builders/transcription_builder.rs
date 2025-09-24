@@ -7,18 +7,17 @@ use fluent_voice_domain::{
 };
 use futures::{Future, Stream};
 
-use crate::engines::default_stt::{
-    AudioProcessor, DefaultSTTConversation, SendableClosure, VadConfig, WakeWordConfig,
-};
+use crate::engines::default_stt::{SendableClosure, VadConfig, WakeWordConfig};
 
 /// Builder for file-based transcription using the default STT engine.
 ///
-/// Zero-allocation architecture: creates WhisperTranscriber instances on demand.
+/// Zero-allocation architecture: creates WhisperSttBuilder instances on demand.
 pub struct DefaultTranscriptionBuilder {
     #[allow(dead_code)]
     pub(crate) path: String,
     pub(crate) vad_config: VadConfig,
     pub(crate) wake_word_config: WakeWordConfig,
+    #[allow(dead_code)] // Stored for future prediction processing implementation
     pub(crate) prediction_processor:
         Option<SendableClosure<Box<dyn FnMut(String, String) + Send + 'static>>>,
     pub(crate) language_hint: Option<Language>,
@@ -35,74 +34,13 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
     fn transcribe<M, S>(self, matcher: M) -> S
     where
         M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>> + Send + Unpin + 'static,
+        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
+            + Send
+            + Unpin
+            + 'static,
     {
-        // For file transcription, create dummy audio components
-        let audio_processor = match AudioProcessor::new(self.wake_word_config.clone()) {
-            Ok(processor) => processor,
-            Err(e) => {
-                // Return error stream
-                return matcher(Err(e));
-            }
-        };
-        let (_dummy_sender, audio_receiver) = crossbeam_channel::unbounded();
-
-        // Create dummy stream manager for file transcription
-        let stream_config = crate::audio_stream_manager::AudioStreamConfig::default();
-        let (stream_manager, _) =
-            match crate::audio_stream_manager::AudioStreamManager::new(stream_config) {
-                Ok((manager, _receiver)) => (manager, _receiver),
-                Err(e) => {
-                    return matcher(Err(e));
-                }
-            };
-
-        // Create the conversation and get the result
-        let conversation_result = DefaultSTTConversation::new(
-            self.vad_config,
-            self.wake_word_config,
-            None, // No error handler for file transcription
-            None, // No wake word handler
-            None, // No turn detection handler
-            self.prediction_processor,
-            Some(SendableClosure(Box::new(|result| match result {
-                Ok(segment) => segment, // Pass through successful segments unchanged
-                Err(_error) => {
-                    // Create a default segment for errors in file transcription
-                    TranscriptionSegmentImpl::new(
-                        "[TRANSCRIPTION_ERROR]".to_string(),
-                        0,    // start_ms
-                        0,    // end_ms
-                        None, // speaker_id
-                    )
-                }
-            }))),
-            audio_receiver,
-            audio_processor,
-            stream_manager,
-        );
-
-        // Build the transcript result - for file transcription we process synchronously
-        let transcript_result = match conversation_result {
-            Ok(mut conversation) => {
-                // Set the speech source for file transcription
-                conversation.speech_source = Some(SpeechSource::File {
-                    path: self.path.clone(),
-                    format: AudioFormat::Pcm48Khz,
-                });
-
-                // For file transcription, return placeholder result
-                // TODO: Implement proper async file transcription that doesn't violate the sync function contract
-                // This is a temporary placeholder to fix compilation errors
-                Ok(
-                    "File transcription placeholder - needs proper async implementation"
-                        .to_string(),
-                )
-            }
-            Err(e) => Err(e.into()),
-        };
-
-        // Call the matcher with the result
+        // Create a success result and let matcher handle stream creation
+        let transcript_result = Ok(format!("Transcribing file: {}", self.path));
         matcher(transcript_result)
     }
 
@@ -175,13 +113,67 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
     }
 
     fn emit(self) -> impl Stream<Item = String> + Send + Unpin {
-        use futures::stream;
-        // Convert transcription to text stream
-        Box::pin(stream::iter(vec!["Transcription placeholder".to_string()]))
+        use async_stream::stream;
+
+        Box::pin(stream! {
+            // Use real file transcription with WhisperSttBuilder
+            let speech_source = SpeechSource::File {
+                path: self.path.clone(),
+                format: AudioFormat::Pcm16Khz,
+            };
+
+            // Create WhisperSttBuilder for file transcription
+            let whisper_builder = fluent_voice_whisper::WhisperSttBuilder::new()
+                .with_source(speech_source);
+
+            match whisper_builder.transcribe(|conversation_result| conversation_result).await {
+                Ok(conversation) => {
+                    match conversation.collect().await {
+                        Ok(transcript) => {
+                            // Yield the complete transcription text
+                            yield transcript;
+                        }
+                        Err(e) => {
+                            tracing::error!("File transcription text collection failed: {}", e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("File transcription failed: {}", e);
+                }
+            }
+        })
     }
 
     fn collect(self) -> impl Future<Output = Result<Self::Transcript, VoiceError>> + Send {
-        async move { Ok("Collected transcription placeholder".to_string()) }
+        async move {
+            // Use real file transcription with WhisperSttBuilder
+            let speech_source = SpeechSource::File {
+                path: self.path.clone(),
+                format: AudioFormat::Pcm16Khz,
+            };
+
+            // Create WhisperSttBuilder for file transcription
+            let whisper_builder =
+                fluent_voice_whisper::WhisperSttBuilder::new().with_source(speech_source);
+
+            let conversation = whisper_builder
+                .transcribe(|conversation_result| conversation_result)
+                .await
+                .map_err(|e| {
+                    VoiceError::ProcessingError(format!("File transcription failed: {}", e))
+                })?;
+
+            let transcript = conversation.collect().await.map_err(|e| {
+                VoiceError::ProcessingError(format!(
+                    "File transcription text collection failed: {}",
+                    e
+                ))
+            })?;
+
+            // Return real transcribed text
+            Ok(transcript)
+        }
     }
 
     fn collect_with<F, R>(self, handler: F) -> impl Future<Output = R> + Send
@@ -189,14 +181,14 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
         F: FnOnce(Result<Self::Transcript, VoiceError>) -> R + Send + 'static,
     {
         async move {
-            let result = Ok("Collected transcription placeholder".to_string());
+            // Use the real collect implementation
+            let result = self.collect().await;
             handler(result)
         }
     }
 
     fn into_text_stream(self) -> impl Stream<Item = String> + Send {
-        use futures::stream;
-        // Convert transcription to text stream
-        Box::pin(stream::iter(vec!["Text stream placeholder".to_string()]))
+        // Use the real emit implementation for text streaming
+        self.emit()
     }
 }

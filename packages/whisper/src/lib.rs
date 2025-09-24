@@ -1,22 +1,41 @@
+// Core implementation modules - all internal
 mod builder;
-#[cfg(feature = "microphone")]
-pub mod microphone;
-pub mod multilingual;
+mod multilingual;
 mod pcm_decode;
-pub mod prelude;
 mod stream;
 mod token_filtering;
 mod transcript;
 mod types;
-pub mod whisper;
+mod whisper;
 
-pub use builder::{ModelConfig, WhisperTranscriber};
+// Microphone feature - conditionally internal
 #[cfg(feature = "microphone")]
-pub use microphone::{Model, token_id};
-pub use pcm_decode::pcm_decode;
-pub use stream::WhisperStream;
+mod microphone;
+
+// Public prelude with essential API only
+pub mod prelude;
+
+// Public fluent API - Primary interface for new code
+pub use builder::{WhisperConversation, WhisperSttBuilder};
+
+// Configuration for advanced users
+pub use builder::ModelConfig;
+
+// Legacy types for existing integrations
 pub use transcript::Transcript;
 pub use types::TtsChunk;
-pub use whisper::{Decoder, DecodingResult, Segment, Task, WhichModel};
+
+// Core whisper functionality for advanced users
+pub use whisper::{Decoder, Task, WhichModel, token_id};
+
+// Audio processing utilities
+pub use pcm_decode::pcm_decode;
+
+// Conditionally expose Model based on features
+#[cfg(feature = "microphone")]
+pub use microphone::Model;
 #[cfg(not(feature = "microphone"))]
-pub use whisper::{Model, token_id};
+pub use whisper::Model;
+
+// Re-export essential domain types for interoperability
+pub use fluent_voice_domain::prelude::*;

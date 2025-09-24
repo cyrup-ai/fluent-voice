@@ -46,19 +46,15 @@ impl LiveKitAudioPlayer {
         track: RtcAudioTrack,
     ) -> Result<Self, LiveKitAudioError> {
         // Initialize audio output with comprehensive error handling
-        let (_stream, stream_handle) = OutputStream::try_default().map_err(|e| {
+        let stream_handle = rodio::OutputStreamBuilder::open_default_stream().map_err(|e| {
             LiveKitAudioError::DeviceError(format!("Failed to open audio output: {}", e))
         })?;
 
-        let sink = Sink::try_new(&stream_handle).map_err(|e| {
-            LiveKitAudioError::DeviceError(format!("Failed to create audio sink: {}", e))
-        })?;
+        let sink = rodio::Sink::connect_new(&stream_handle.mixer());
         sink.set_volume(0.7); // Default 70% volume (established pattern)
 
         // Create a second sink for the async task (rodio::Sink doesn't clone)
-        let sink_for_task = Sink::try_new(&stream_handle).map_err(|e| {
-            LiveKitAudioError::DeviceError(format!("Failed to create task audio sink: {}", e))
-        })?;
+        let sink_for_task = rodio::Sink::connect_new(&stream_handle.mixer());
         sink_for_task.set_volume(0.7);
 
         let volume = Arc::new(std::sync::Mutex::new(0.7f32));
@@ -75,7 +71,7 @@ impl LiveKitAudioPlayer {
             sink,
             volume,
             running,
-            _stream: _stream,
+            _stream: stream_handle,
         })
     }
 

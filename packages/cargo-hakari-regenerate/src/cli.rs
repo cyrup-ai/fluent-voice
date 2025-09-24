@@ -167,7 +167,8 @@ impl CliRunner {
         
         let filter = EnvFilter::from_default_env()
             .add_directive(level.into())
-            .add_directive("cargo_hakari_regenerate=debug".parse().unwrap());
+            .add_directive("cargo_hakari_regenerate=debug".parse()
+                .map_err(|e| anyhow::anyhow!("Failed to parse log directive: {}", e))?);
         
         match self.args.format {
             OutputFormat::Human => {
@@ -435,12 +436,11 @@ impl CliRunner {
     /// Create progress bar
     fn create_progress_bar(&self, message: &str, total: u64) -> ProgressBar {
         let pb = ProgressBar::new(total);
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
-                .unwrap()
-                .progress_chars("#>-"),
-        );
+        let style = ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
+            .unwrap_or_else(|_| ProgressStyle::default_bar())
+            .progress_chars("#>-");
+        pb.set_style(style);
         pb.set_message(message.to_string());
         pb
     }
@@ -505,7 +505,10 @@ impl CliRunner {
                     "warnings": result.warnings,
                     "duration_ms": result.duration.as_millis(),
                     "timestamp": chrono::Utc::now().to_rfc3339()});
-                println!("{}", serde_json::to_string_pretty(&json_result).unwrap());
+                match serde_json::to_string_pretty(&json_result) {
+                    Ok(json) => println!("{}", json),
+                    Err(e) => eprintln!("Failed to serialize result to JSON: {}", e),
+                }
             }
             OutputFormat::Compact => {
                 println!("RESULT: {}", if result.success { "SUCCESS" } else { "FAILED" });
@@ -552,7 +555,10 @@ impl CliRunner {
                     "warnings": result.warnings,
                     "duration_ms": result.duration.as_millis(),
                     "timestamp": chrono::Utc::now().to_rfc3339()});
-                println!("{}", serde_json::to_string_pretty(&json_result).unwrap());
+                match serde_json::to_string_pretty(&json_result) {
+                    Ok(json) => println!("{}", json),
+                    Err(e) => eprintln!("Failed to serialize detailed result to JSON: {}", e),
+                }
             }
             OutputFormat::Compact => {
                 for op in &result.operations_performed {
@@ -584,8 +590,10 @@ impl CliRunner {
                 }
             }
             OutputFormat::Json => {
-                let json_config = serde_json::to_string_pretty(config).unwrap();
-                println!("{}", json_config);
+                match serde_json::to_string_pretty(config) {
+                    Ok(json_config) => println!("{}", json_config),
+                    Err(e) => eprintln!("Failed to serialize config to JSON: {}", e),
+                }
             }
             OutputFormat::Compact => {
                 println!("PACKAGE: {}", config.hakari_package);
@@ -621,7 +629,10 @@ impl CliRunner {
                     "warnings": report.warnings,
                     "valid": report.is_valid(),
                     "summary": report.summary()});
-                println!("{}", serde_json::to_string_pretty(&json_report).unwrap());
+                match serde_json::to_string_pretty(&json_report) {
+                    Ok(json) => println!("{}", json),
+                    Err(e) => eprintln!("Failed to serialize report to JSON: {}", e),
+                }
             }
             OutputFormat::Compact => {
                 for error in &report.errors {
@@ -650,7 +661,10 @@ impl CliRunner {
                     "root": workspace_manager.config().root_path,
                     "packages": workspace_manager.packages().len(),
                     "workspace_hack_path": workspace_manager.config().workspace_hack_path});
-                println!("{}", serde_json::to_string_pretty(&json_info).unwrap());
+                match serde_json::to_string_pretty(&json_info) {
+                    Ok(json) => println!("{}", json),
+                    Err(e) => eprintln!("Failed to serialize workspace info to JSON: {}", e),
+                }
             }
             OutputFormat::Compact => {
                 println!("ROOT: {}", workspace_manager.config().root_path.display());
@@ -672,8 +686,10 @@ impl CliRunner {
                 println!("Path: {}", info.path.display());
             }
             OutputFormat::Json => {
-                let json_info = serde_json::to_string_pretty(info).unwrap();
-                println!("{}", json_info);
+                match serde_json::to_string_pretty(info) {
+                    Ok(json_info) => println!("{}", json_info),
+                    Err(e) => eprintln!("Failed to serialize workspace-hack info to JSON: {}", e),
+                }
             }
             OutputFormat::Compact => {
                 println!("HACK_NAME: {}", info.name);
@@ -710,7 +726,10 @@ impl CliRunner {
                 
                 let json_info = json!({
                     "packages": packages});
-                println!("{}", serde_json::to_string_pretty(&json_info).unwrap());
+                match serde_json::to_string_pretty(&json_info) {
+                    Ok(json) => println!("{}", json),
+                    Err(e) => eprintln!("Failed to serialize packages info to JSON: {}", e),
+                }
             }
             OutputFormat::Compact => {
                 for package in workspace_manager.packages() {

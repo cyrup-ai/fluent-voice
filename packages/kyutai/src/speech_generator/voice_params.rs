@@ -3,7 +3,7 @@
 use super::error::SpeechGenerationError;
 
 /// Voice parameters for speech synthesis control
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct VoiceParameters {
     /// Speech rate multiplier (0.5 = half speed, 2.0 = double speed)
     pub speed: f32,
@@ -33,7 +33,7 @@ pub struct SpeakerPcmData {
 }
 
 /// Configuration for speaker PCM processing
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SpeakerPcmConfig {
     pub target_sample_rate: u32,
     pub target_channels: u16,
@@ -41,6 +41,12 @@ pub struct SpeakerPcmConfig {
     pub min_samples: usize,
     pub max_samples: usize,
     pub normalization_enabled: bool,
+    /// Audio cache configuration - maximum cache size in MB
+    pub audio_cache_max_size_mb: usize,
+    /// Enable streaming processing for large files (>10MB)
+    pub streaming_enabled: bool,
+    /// Chunk size for streaming processing (samples)
+    pub streaming_chunk_size: usize,
 }
 
 impl Default for SpeakerPcmConfig {
@@ -52,6 +58,9 @@ impl Default for SpeakerPcmConfig {
             min_samples: 2400,         // 100ms minimum at 24kHz
             max_samples: 240000,       // 10s maximum at 24kHz
             normalization_enabled: true,
+            audio_cache_max_size_mb: 256, // 256MB cache limit
+            streaming_enabled: true,      // Enable streaming for large files
+            streaming_chunk_size: 44100,  // 1 second chunks at 44.1kHz
         }
     }
 }

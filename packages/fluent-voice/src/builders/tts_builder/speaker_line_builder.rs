@@ -48,7 +48,7 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
     fn with_prelude(mut self, prelude: impl Into<String>) -> Self {
         let prelude_text = prelude.into();
         if !self.text.is_empty() {
-            self.text.push_str(" ");
+            self.text.push(' ');
         }
         self.text.push_str(&prelude_text);
         self
@@ -58,7 +58,7 @@ impl crate::speaker_builder::SpeakerBuilder for SpeakerLineBuilder {
     fn add_line(mut self, line: impl Into<String>) -> Self {
         let line_text = line.into();
         if !self.text.is_empty() {
-            self.text.push_str(" ");
+            self.text.push(' ');
         }
         self.text.push_str(&line_text);
         self

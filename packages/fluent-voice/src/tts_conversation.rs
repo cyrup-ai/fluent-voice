@@ -89,6 +89,22 @@ pub trait TtsConversationBuilder: Sized + Send {
     where
         F: FnOnce(Result<Self::Conversation, VoiceError>) + Send + 'static;
 
+    /// Set a chunk processor callback for real-time audio chunk processing.
+    ///
+    /// This method allows processing of individual audio chunks as they are generated,
+    /// enabling real-time audio processing, streaming, and custom chunk handling.
+    ///
+    /// # Arguments
+    ///
+    /// * `processor` - A function that processes each audio chunk as it's generated
+    ///
+    /// # Returns
+    ///
+    /// A chunk builder that can be used to execute synthesis with chunk processing.
+    fn on_chunk<F>(self, processor: F) -> Self::ChunkBuilder
+    where
+        F: FnMut(Result<AudioChunk, VoiceError>) -> AudioChunk + Send + 'static;
+
     /// Execute synthesis and return an audio stream with JSON syntax support.
     ///
     /// This method terminates the fluent chain and executes the TTS synthesis,

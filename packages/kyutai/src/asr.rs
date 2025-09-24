@@ -68,7 +68,7 @@ impl State {
     /// Reset the ASR state
     pub fn reset(&mut self) -> Result<()> {
         self._step_idx = 0;
-        self._lm.reset_state();
+        self._lm.reset_state()?;
         self._audio_tokenizer.reset_state();
         self._word_tokens.clear();
         let text_start_token = self._lm.text_start_token();
@@ -88,7 +88,7 @@ impl State {
     /// Process PCM audio data and extract words
     pub fn step_pcm<F>(&mut self, pcm: Tensor, f: F) -> Result<Vec<Word>>
     where
-        F: Fn(u32, Tensor) -> Result<()>,
+        F: FnMut(u32, Tensor) -> Result<()>,
     {
         let audio_tokens = self._audio_tokenizer.encode_step(&pcm)?;
         if let Some(audio_tokens) = audio_tokens {
@@ -99,9 +99,9 @@ impl State {
     }
 
     /// Process audio tokens and extract words
-    pub fn step_tokens<F>(&mut self, audio_tokens: &Tensor, f: F) -> Result<Vec<Word>>
+    pub fn step_tokens<F>(&mut self, audio_tokens: &Tensor, mut f: F) -> Result<Vec<Word>>
     where
-        F: Fn(u32, Tensor) -> Result<()>,
+        F: FnMut(u32, Tensor) -> Result<()>,
     {
         let (_one, codebooks, steps) = audio_tokens.dims3()?;
         let mut words = Vec::with_capacity(steps / 4); // Heuristic pre-allocation

@@ -4,20 +4,56 @@
 //! using real implementations with optimized performance.
 
 use anyhow::Result;
-use fluent_voice_domain::{AudioFormat, SpeechSource, TranscriptionSegment, VoiceError};
+use fluent_voice_domain::{AudioFormat, SpeechSource, VoiceError};
 use fluent_voice_vad::VoiceActivityDetector;
-use fluent_voice_whisper::WhisperTranscriber;
+use fluent_voice_whisper::WhisperSttBuilder;
+use koffee::wakewords::{WakewordLoad, WakewordModel};
 use koffee::{KoffeeCandle, KoffeeCandleConfig};
 use ringbuf::{traits::*, HeapCons, HeapProd, HeapRb};
 use std::io::Write;
 
 use super::config::WakeWordConfig;
 
+/// Load wake word model with fallback paths
+/// Uses the same proven pattern as default_engine_coordinator.rs
+fn load_wake_word_model() -> Result<WakewordModel, VoiceError> {
+    let wake_word_paths = [
+        "assets/wake-word.rpw",                      // Local cyterm model
+        "../koffee/training/models/syrup.rpw",       // Trained model
+        "../koffee/tests/resources/syrup_model.rpw", // Test model fallback
+    ];
+
+    for model_path in &wake_word_paths {
+        if let Ok(model) = WakewordModel::load_from_file(model_path) {
+            log::debug!("✅ Loaded wake word model: {}", model_path);
+            return Ok(model);
+        }
+    }
+
+    Err(VoiceError::Configuration(
+        "No wake word models could be loaded. Available paths checked: assets/wake-word.rpw, ../koffee/training/models/syrup.rpw, ../koffee/tests/resources/syrup_model.rpw".to_string()
+    ))
+}
+
 /// Detection result from wake word processing
 #[derive(Debug, Clone)]
 pub struct WakeWordDetection {
     pub name: String,
     pub score: f32,
+}
+
+/// Results from processing all independent listeners simultaneously
+pub struct IndependentListenerResults {
+    pub wake_detection: Option<WakeWordDetection>,
+    pub vad_probability: f32,
+    pub transcription_context: Option<TranscriptionContext>,
+}
+
+/// Pre-converted audio data for efficient transcription
+pub struct TranscriptionContext {
+    pub audio_bytes: Vec<u8>,
+    pub sample_rate: u32,
+    pub format: AudioFormat,
 }
 
 /// Audio stream for lock-free processing
@@ -32,7 +68,6 @@ pub struct AudioStream {
 pub struct AudioProcessor {
     wake_word_detector: KoffeeCandle,
     vad_detector: VoiceActivityDetector,
-    whisper_transcriber: WhisperTranscriber,
     pub frame_size: usize,
 }
 
@@ -47,12 +82,16 @@ impl AudioProcessor {
         koffee_config.filters.band_pass.low_cutoff = wake_word_config.band_pass_low_cutoff;
         koffee_config.filters.band_pass.high_cutoff = wake_word_config.band_pass_high_cutoff;
 
-        let wake_word_detector = KoffeeCandle::new(&koffee_config).map_err(|e| {
+        let mut wake_word_detector = KoffeeCandle::new(&koffee_config).map_err(|e| {
             VoiceError::Configuration(format!("Failed to create wake word detector: {}", e))
         })?;
 
-        // Load the "hey_fluent" wake word model (placeholder - would load real model bytes)
-        // wake_word_detector.add_wakeword_bytes(&model_bytes)?;
+        // Load wake word model with fallback paths (using proven pattern)
+        // Load wake word model using the dedicated function
+        let model = load_wake_word_model()?;
+        wake_word_detector.add_wakeword_model(model).map_err(|e| {
+            VoiceError::Configuration(format!("Failed to add wake word model: {}", e))
+        })?;
 
         // Create VoiceActivityDetector with proper configuration
         let vad_detector = VoiceActivityDetector::builder()
@@ -63,15 +102,12 @@ impl AudioProcessor {
                 VoiceError::Configuration(format!("Failed to create VAD detector: {:?}", e))
             })?;
 
-        // Create WhisperTranscriber with default configuration
-        let whisper_transcriber = WhisperTranscriber::new().map_err(|e| {
-            VoiceError::Configuration(format!("Failed to create Whisper transcriber: {:?}", e))
-        })?;
+        // Note: WhisperSttBuilder is created per-transcription for thread safety
+        // No need to store a transcriber instance
 
         Ok(AudioProcessor {
             wake_word_detector,
             vad_detector,
-            whisper_transcriber,
             frame_size: 1600, // 100ms at 16kHz
         })
     }
@@ -107,10 +143,10 @@ impl AudioProcessor {
             .map_err(|e| VoiceError::ProcessingError(format!("VAD prediction failed: {:?}", e)))
     }
 
-    /// Transcribe audio data using real WhisperTranscriber
+    /// Transcribe audio data using WhisperSttBuilder
     /// Returns transcribed text
     pub async fn transcribe_audio(&mut self, audio_data: &[f32]) -> Result<String, VoiceError> {
-        // Convert f32 samples to bytes for WhisperTranscriber
+        // Convert f32 samples to bytes for WhisperSttBuilder
         let audio_bytes: Vec<u8> = audio_data
             .iter()
             .flat_map(|&sample| {
@@ -119,24 +155,96 @@ impl AudioProcessor {
             })
             .collect();
 
-        // Use real WhisperTranscriber for in-memory transcription
+        // Use WhisperSttBuilder for in-memory transcription
         let speech_source = SpeechSource::Memory {
             data: audio_bytes,
             format: AudioFormat::Pcm16Khz,
             sample_rate: 16000,
         };
 
-        let transcript = self.whisper_transcriber.transcribe(speech_source).await?;
+        // Create new WhisperSttBuilder for thread safety
+        let conversation = WhisperSttBuilder::new()
+            .with_source(speech_source)
+            .transcribe(|conversation_result| conversation_result)
+            .await?;
 
-        // Extract text from all transcript chunks
-        let transcribed_text = transcript
-            .chunks()
-            .iter()
-            .map(|chunk| chunk.text())
-            .collect::<Vec<_>>()
-            .join(" ");
+        let transcribed_text = conversation.collect().await?;
 
         Ok(transcribed_text)
+    }
+
+    /// Process all independent listeners simultaneously on the same audio chunk
+    /// REPLACES: Three separate method calls with one coordinated call
+    pub fn process_independent_listeners(
+        &mut self,
+        audio_chunk: &[f32],
+    ) -> IndependentListenerResults {
+        // Process all three listeners simultaneously (not sequentially)
+        let wake_result =
+            if let Some(detection) = self.wake_word_detector.process_samples(audio_chunk) {
+                Some(WakeWordDetection {
+                    name: detection.name,
+                    score: detection.score,
+                })
+            } else {
+                None
+            };
+        let vad_result = self
+            .vad_detector
+            .predict(audio_chunk.iter().copied())
+            .unwrap_or(0.0); // Uses iterator
+
+        // Only prepare transcription context if wake word detected and speech active
+        let transcription_context = if wake_result.is_some() && vad_result > 0.5 {
+            Some(self.prepare_transcription_context(audio_chunk))
+        } else {
+            None
+        };
+
+        IndependentListenerResults {
+            wake_detection: wake_result,
+            vad_probability: vad_result,
+            transcription_context,
+        }
+    }
+
+    /// Convert audio data once for transcription (eliminates redundant conversions)
+    fn prepare_transcription_context(&self, audio_chunk: &[f32]) -> TranscriptionContext {
+        // Convert f32 → bytes once and store for later use
+        let audio_bytes: Vec<u8> = audio_chunk
+            .iter()
+            .flat_map(|&sample| {
+                let sample_i16 = (sample * 32767.0).clamp(-32768.0, 32767.0) as i16;
+                sample_i16.to_le_bytes()
+            })
+            .collect();
+
+        TranscriptionContext {
+            audio_bytes,
+            sample_rate: 16000,
+            format: AudioFormat::Pcm16Khz,
+        }
+    }
+
+    /// Transcribe audio using pre-converted context data (no redundant conversions)
+    pub async fn transcribe_with_context(
+        &mut self,
+        context: TranscriptionContext,
+    ) -> Result<String, VoiceError> {
+        // Use pre-converted audio bytes (no redundant f32 → bytes conversion)
+        let speech_source = SpeechSource::Memory {
+            data: context.audio_bytes,
+            format: context.format,
+            sample_rate: context.sample_rate,
+        };
+
+        // Create WhisperSttBuilder with pre-converted data
+        let conversation = WhisperSttBuilder::new()
+            .with_source(speech_source)
+            .transcribe(|conversation_result| conversation_result)
+            .await?;
+
+        conversation.collect().await
     }
 }
 

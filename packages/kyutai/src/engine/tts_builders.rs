@@ -300,6 +300,7 @@ impl TtsConversation for KyutaiTtsConversation {
             speakers: std::collections::VecDeque<KyutaiSpeakerLine>,
             current_speaker_index: usize,
             current_audio_chunks: std::collections::VecDeque<fluent_voice_domain::AudioChunk>,
+            #[allow(dead_code)]
             initialized: bool,
         }
 

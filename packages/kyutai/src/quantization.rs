@@ -389,11 +389,18 @@ impl candle::CustomOp2 for CodebookEncode {
     ) -> candle::Result<(candle::CpuStorage, candle::Shape)> {
         // Efficient codebook encoding implementation
         use candle::Tensor;
-        use candle::backend::BackendStorage;
 
-        // Create tensors from storage
-        let xs_tensor = Tensor::from_storage(xs.clone(), xs_layout.clone())?;
-        let embedding_tensor = Tensor::from_storage(embedding.clone(), embedding_layout.clone())?;
+        // Extract data from storage for tensor recreation
+        let xs_data = xs.as_slice::<f32>()?;
+        let embedding_data = embedding.as_slice::<f32>()?;
+
+        // Create tensors from data using current API
+        let xs_tensor = Tensor::from_slice(xs_data, xs_layout.shape(), &candle_core::Device::Cpu)?;
+        let embedding_tensor = Tensor::from_slice(
+            embedding_data,
+            embedding_layout.shape(),
+            &candle_core::Device::Cpu,
+        )?;
 
         // Compute dot product: xs @ embedding.T
         let dot_prod = xs_tensor.matmul(&embedding_tensor.t()?)?;
@@ -404,18 +411,22 @@ impl candle::CustomOp2 for CodebookEncode {
 
         // Compute distances: c2 - 2 * dot_prod
         // (We don't need xs norms since we only care about argmin)
-        let distances = c2.broadcast_sub(&dot_prod.mul_scalar(2.0)?)?;
+        let distances = c2.broadcast_sub(&(dot_prod * 2.0)?)?;
 
         // Find closest codebook entries
         let codes = distances.argmin(candle::D::Minus1)?;
 
-        // Return storage and shape
-        let storage = codes.storage_and_layout().0;
+        // Return storage and shape - use simpler approach
         let shape = codes.shape().clone();
 
-        match storage {
-            BackendStorage::Cpu(cpu_storage) => Ok((cpu_storage, shape)),
-            _ => candle::bail!("Expected CPU storage in custom op"),
+        // Convert to CPU storage directly
+        let cpu_codes = codes.to_device(&candle_core::Device::Cpu)?;
+        let (storage, _layout) = cpu_codes.storage_and_layout();
+
+        // Convert to CpuStorage directly
+        match &*storage {
+            candle::Storage::Cpu(cpu_storage) => Ok((cpu_storage.clone(), shape)),
+            _ => Err(candle_core::Error::Msg("Expected CPU storage".to_string())),
         }
     }
 }

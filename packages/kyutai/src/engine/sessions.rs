@@ -151,7 +151,9 @@ impl SttConversation for KyutaiSttConversation {
 struct AudioTranscriptionStream {
     asr_state: crate::asr::State,
     audio_buffer: VecDeque<f32>,
+    #[allow(dead_code)]
     sample_rate: u32,
+    #[allow(dead_code)]
     initialized: bool,
     tokenizer: KyutaiTokenizer,
 }
@@ -168,6 +170,7 @@ impl AudioTranscriptionStream {
     }
 
     /// Add incoming audio samples to processing buffer
+    #[allow(dead_code)]
     pub fn push_audio(&mut self, samples: &[f32]) {
         self.audio_buffer.extend(samples);
 
@@ -179,6 +182,7 @@ impl AudioTranscriptionStream {
     }
 
     /// Check if enough audio is buffered for processing
+    #[allow(dead_code)]
     pub fn can_process(&self) -> bool {
         self.audio_buffer.len() >= 512 // Minimum chunk size for ASR
     }

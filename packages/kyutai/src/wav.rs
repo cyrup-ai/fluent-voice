@@ -30,7 +30,7 @@ pub fn write_pcm_as_wav<P: AsRef<Path>, S: AsRef<[f32]>>(
 ) -> Result<()> {
     let samples = samples.as_ref();
     let mut file =
-        BufWriter::new(File::create(path.as_ref()).map_err(|e| MoshiError::Io(e.into()))?);
+        BufWriter::new(File::create(path.as_ref()).map_err(|e| MoshiError::Io(e.to_string()))?);
 
     let num_samples = samples.len() as u32;
     let bytes_per_sample = 2u32; // i16
@@ -41,41 +41,41 @@ pub fn write_pcm_as_wav<P: AsRef<Path>, S: AsRef<[f32]>>(
 
     // Write RIFF header
     file.write_all(b"RIFF")
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     file.write_u32::<LittleEndian>(chunk_size)
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     file.write_all(b"WAVE")
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
 
     // Write fmt subchunk
     file.write_all(b"fmt ")
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     file.write_u32::<LittleEndian>(16)
-        .map_err(|e| MoshiError::Io(e.into()))?; // Subchunk1Size for PCM
+        .map_err(|e| MoshiError::Io(e.to_string()))?; // Subchunk1Size for PCM
     file.write_u16::<LittleEndian>(1)
-        .map_err(|e| MoshiError::Io(e.into()))?; // AudioFormat: PCM
+        .map_err(|e| MoshiError::Io(e.to_string()))?; // AudioFormat: PCM
     file.write_u16::<LittleEndian>(channels)
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     file.write_u32::<LittleEndian>(sample_rate)
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     file.write_u32::<LittleEndian>(avg_bytes_per_sec)
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     file.write_u16::<LittleEndian>(block_align as u16)
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     file.write_u16::<LittleEndian>(16)
-        .map_err(|e| MoshiError::Io(e.into()))?; // BitsPerSample
+        .map_err(|e| MoshiError::Io(e.to_string()))?; // BitsPerSample
 
     // Write data subchunk
     file.write_all(b"data")
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     file.write_u32::<LittleEndian>(subchunk2_size)
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
 
     // Write samples as i16
     for &sample in samples {
         let i16_sample = (sample.clamp(-1.0, 1.0) * 32767.0) as i16;
         file.write_i16::<LittleEndian>(i16_sample)
-            .map_err(|e| MoshiError::Io(e.into()))?;
+            .map_err(|e| MoshiError::Io(e.to_string()))?;
     }
 
     Ok(())
@@ -93,19 +93,20 @@ pub fn write_pcm_as_wav<P: AsRef<Path>, S: AsRef<[f32]>>(
 ///
 /// * `Result<(Vec<f32>, u32, u16)>` - A tuple containing the PCM samples, sample rate, and number of channels.
 pub fn read_wav<P: AsRef<Path>>(path: P) -> Result<(Vec<f32>, u32, u16)> {
-    let mut file = BufReader::new(File::open(path.as_ref()).map_err(|e| MoshiError::Io(e.into()))?);
+    let mut file =
+        BufReader::new(File::open(path.as_ref()).map_err(|e| MoshiError::Io(e.to_string()))?);
 
     // Read RIFF header
     let mut riff = [0u8; 4];
     file.read_exact(&mut riff)
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     if riff != *b"RIFF" {
         return Err(MoshiError::Custom("Invalid RIFF header".into()));
     }
 
     let chunk_size = file
         .read_u32::<LittleEndian>()
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
 
     // Validate chunk size is reasonable (WAV files should be at least 44 bytes)
     if chunk_size < 36 {
@@ -116,7 +117,7 @@ pub fn read_wav<P: AsRef<Path>>(path: P) -> Result<(Vec<f32>, u32, u16)> {
 
     let mut wave = [0u8; 4];
     file.read_exact(&mut wave)
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     if wave != *b"WAVE" {
         return Err(MoshiError::Custom("Invalid WAVE format".into()));
     }
@@ -124,44 +125,44 @@ pub fn read_wav<P: AsRef<Path>>(path: P) -> Result<(Vec<f32>, u32, u16)> {
     // Read fmt subchunk
     let mut fmt = [0u8; 4];
     file.read_exact(&mut fmt)
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     if fmt != *b"fmt " {
         return Err(MoshiError::Custom("Invalid fmt subchunk".into()));
     }
 
     let subchunk1_size = file
         .read_u32::<LittleEndian>()
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     if subchunk1_size < 16 {
         return Err(MoshiError::Custom("Invalid fmt subchunk size".into()));
     }
 
     let audio_format = file
         .read_u16::<LittleEndian>()
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     if audio_format != 1 {
         return Err(MoshiError::Custom("Only PCM format is supported".into()));
     }
 
     let channels = file
         .read_u16::<LittleEndian>()
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
 
     let sample_rate = file
         .read_u32::<LittleEndian>()
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
 
     let _byte_rate = file
         .read_u32::<LittleEndian>()
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
 
     let _block_align = file
         .read_u16::<LittleEndian>()
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
 
     let bits_per_sample = file
         .read_u16::<LittleEndian>()
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
     if bits_per_sample != 16 {
         return Err(MoshiError::Custom(
             "Only 16-bit samples are supported".into(),
@@ -172,7 +173,7 @@ pub fn read_wav<P: AsRef<Path>>(path: P) -> Result<(Vec<f32>, u32, u16)> {
     if subchunk1_size > 16 {
         let mut extra = vec![0u8; (subchunk1_size - 16) as usize];
         file.read_exact(&mut extra)
-            .map_err(|e| MoshiError::Io(e.into()))?;
+            .map_err(|e| MoshiError::Io(e.to_string()))?;
     }
 
     // Read data subchunk
@@ -186,15 +187,15 @@ pub fn read_wav<P: AsRef<Path>>(path: P) -> Result<(Vec<f32>, u32, u16)> {
         }
         let subchunk_size = file
             .read_u32::<LittleEndian>()
-            .map_err(|e| MoshiError::Io(e.into()))?;
+            .map_err(|e| MoshiError::Io(e.to_string()))?;
         let mut skip = vec![0u8; subchunk_size as usize];
         file.read_exact(&mut skip)
-            .map_err(|e| MoshiError::Io(e.into()))?;
+            .map_err(|e| MoshiError::Io(e.to_string()))?;
     }
 
     let subchunk2_size = file
         .read_u32::<LittleEndian>()
-        .map_err(|e| MoshiError::Io(e.into()))?;
+        .map_err(|e| MoshiError::Io(e.to_string()))?;
 
     let num_samples = (subchunk2_size / (channels as u32 * 2)) as usize;
     let mut samples = Vec::with_capacity(num_samples);
@@ -202,7 +203,7 @@ pub fn read_wav<P: AsRef<Path>>(path: P) -> Result<(Vec<f32>, u32, u16)> {
     for _ in 0..num_samples {
         let sample = file
             .read_i16::<LittleEndian>()
-            .map_err(|e| MoshiError::Io(e.into()))?;
+            .map_err(|e| MoshiError::Io(e.to_string()))?;
         samples.push(sample as f32 / 32768.0);
     }
 

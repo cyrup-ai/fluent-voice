@@ -95,8 +95,8 @@ pub fn apply_timestamp_rules_static(
         // If timestamps are more probable, suppress non-timestamp tokens
         if timestamp_sum > other_sum {
             let mut modified_logits = logits_vec;
-            for i in 0..timestamp_start {
-                modified_logits[i] = f32::NEG_INFINITY;
+            for item in modified_logits.iter_mut().take(timestamp_start) {
+                *item = f32::NEG_INFINITY;
             }
             logits = Tensor::new(modified_logits.as_slice(), logits.device())?;
         }

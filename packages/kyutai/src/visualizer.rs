@@ -44,11 +44,11 @@ pub fn visualize_waveform(samples: &[f32], width: usize) -> Result<()> {
         for _ in 0..height {
             handle
                 .write_all(b"|")
-                .map_err(|e| MoshiError::Io(e.into()))?;
+                .map_err(|e| MoshiError::Io(e.to_string()))?;
         }
         handle
             .write_all(b"\n")
-            .map_err(|e| MoshiError::Io(e.into()))?;
+            .map_err(|e| MoshiError::Io(e.to_string()))?;
     }
 
     Ok(())
@@ -92,9 +92,9 @@ pub fn visualize_codes(codes: &[Vec<u32>]) -> Result<()> {
                 128..=191 => '*',
                 192..=255 => '#',
             };
-            write!(&mut handle, "{}", char).map_err(|e| MoshiError::Io(e.into()))?;
+            write!(&mut handle, "{}", char).map_err(|e| MoshiError::Io(e.to_string()))?;
         }
-        writeln!(&mut handle).map_err(|e| MoshiError::Io(e.into()))?;
+        writeln!(&mut handle).map_err(|e| MoshiError::Io(e.to_string()))?;
     }
 
     Ok(())

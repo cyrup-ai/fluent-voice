@@ -79,6 +79,7 @@ impl<T: Default + Copy> RingBuffer<T> {
         }
     }
 
+    #[allow(dead_code)]
     fn capacity(&self) -> usize {
         self.capacity
     }
@@ -151,7 +152,7 @@ impl AudioVisualizer {
             config.sample_rate as i32,
             config.num_channels as i32,
         );
-        let handle = rt_handle.clone();
+        let _handle = rt_handle.clone();
         let smoothing = config.smoothing_factor;
 
         let thread_handle = tokio::spawn(async move {
@@ -218,6 +219,7 @@ impl AudioVisualizer {
     }
 
     /// Calculate RMS amplitude from audio frame data (bytes)
+    #[allow(dead_code)]
     fn calculate_rms(data: &[u8]) -> Result<f32, &'static str> {
         if data.len() % 2 != 0 {
             return Err("Invalid audio data length");

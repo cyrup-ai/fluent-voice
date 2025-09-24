@@ -157,8 +157,7 @@ pub mod prelude {
 
     /* Arrow syntax transformation macros */
     pub use crate::{fv_match, listen_transform, synthesize_transform};
-    // Real production transcript segment type from Whisper crate
-    pub use fluent_voice_whisper::TtsChunk;
+    // Domain types are already included in the prelude
 
     /* TTS method macros that enable arrow syntax */
     pub use crate::tts_synthesize;
@@ -193,4 +192,4 @@ pub mod prelude {
 // Re-export at crate root for internal use
 pub use cyrup_sugars::{AsyncStream, AsyncTask};
 pub use fluent_voice_domain::{TranscriptionSegment, TranscriptionStream};
-pub use fluent_voice_whisper::TtsChunk;
+// Domain types handle chunk representation

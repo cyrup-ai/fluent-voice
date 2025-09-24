@@ -101,6 +101,7 @@ pub struct Spectrograph {
     pub average: u32,
     pub buf: Vec<VecDeque<Vec<f64>>>,
     pub window: bool,
+    pub log_x: bool,
     pub log_y: bool,
     pub display_config: SpectroDisplayConfig,
 }
@@ -131,6 +132,7 @@ impl From<&crate::cfg::SourceOptions> for Spectrograph {
             average: 5,
             buf: Vec::new(),
             window: false,
+            log_x: false,
             log_y: true,
             display_config: SpectroDisplayConfig::default(),
         }
@@ -177,27 +179,33 @@ impl DisplayMode for Spectrograph {
         }
     }
 
+    #[allow(warnings)]
     fn axis(&self, cfg: &GraphConfig, ui_mode: UIMode, dimension: Dimension) -> Axis {
-        let (name, bounds) = match dimension {
-            Dimension::X => (
-                if self.log_x { "log(freq)" } else { "freq" },
-                if self.log_x {
+        let mut a = Axis::default();
+
+        match dimension {
+            Dimension::X => {
+                let name = if self.log_x { "log(freq)" } else { "freq" };
+                let bounds = if self.log_x {
                     [20.0f64.ln(), 20000.0f64.ln()]
                 } else {
                     [0.0, cfg.sampling_rate as f64 / 2.0]
-                },
-            ),
+                };
+
+                if let UIMode::WithLabels = ui_mode {
+                    a = a.title(Span::styled(name, Style::default().fg(cfg.labels_color)));
+                }
+                a.style(Style::default().fg(cfg.axis_color)).bounds(bounds)
+            }
             Dimension::Y => {
                 let (name, bounds) = self.display_config.calculate_axis_config(cfg);
-                (name.as_str(), bounds)
-            }
-        };
 
-        let mut a = Axis::default();
-        if let UIMode::WithLabels = ui_mode {
-            a = a.title(Span::styled(name, Style::default().fg(cfg.labels_color)));
+                if let UIMode::WithLabels = ui_mode {
+                    a = a.title(Span::styled(name, Style::default().fg(cfg.labels_color)));
+                }
+                a.style(Style::default().fg(cfg.axis_color)).bounds(bounds)
+            }
         }
-        a.style(Style::default().fg(cfg.axis_color)).bounds(bounds)
     }
 
     fn process(&mut self, cfg: &GraphConfig, data: &Matrix<f64>) -> Vec<DataSet> {

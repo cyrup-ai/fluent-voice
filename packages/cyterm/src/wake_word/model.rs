@@ -165,7 +165,7 @@ mod tests {
     fn test_model_creation() {
         let weights = vec![0.5; FEATURE_DIM];
         let bias = 0.1;
-        let model = KwModel::new(weights, bias).expect("Failed to create model");
+        let model = KwModel::new(weights.clone(), bias).expect("Failed to create model");
 
         assert_eq!(model.weights().len(), FEATURE_DIM);
         assert_eq!(model.bias(), bias);

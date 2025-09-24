@@ -34,5 +34,5 @@ pub async fn handle_list_devices() -> Result<TranscriptionSegmentImpl> {
         }
         tracing::info!("");
     }
-    Err(anyhow::anyhow!("Device listing completed").into())
+    Err(anyhow::anyhow!("Device listing completed"))
 }

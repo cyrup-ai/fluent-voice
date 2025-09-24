@@ -4,7 +4,7 @@
 
 use std::{path::Path, process::Command};
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Ensure the helper CLI is on $PATH (installs once per toolchain dir).
     if Command::new("rustpotter-cli")
         .arg("--version")
@@ -14,21 +14,25 @@ fn main() {
         println!("cargo:warning=Installing rustpotter-cli …");
         let status = Command::new("cargo")
             .args(["install", "rustpotter-cli", "--locked"])
-            .status()
-            .expect("failed to spawn cargo install rustpotter-cli");
+            .status()?; // Remove unwrap
         assert!(status.success(), "couldn't install rustpotter-cli");
     }
 
-    // 2. Ensure the model file exists so examples/tests build without training.
+    // 2. Check for model file and fail if missing
     let out = Path::new("assets").join("wake-word.rpw");
     if !out.exists() {
-        std::fs::create_dir_all("assets").unwrap();
-        std::fs::write(&out, []).unwrap(); // zero-byte placeholder
-        println!(
-            "cargo:warning=Created stub assets/wake-word.rpw – run `cargo run --bin train-wake-word` to train"
-        );
+        std::fs::create_dir_all("assets")?;
+
+        eprintln!("❌ Wake word model not found: {}", out.display());
+        eprintln!("📋 To fix this:");
+        eprintln!("   1. Copy a trained .rpw model to assets/wake-word.rpw");
+        eprintln!("   2. Or train a new model using: cargo run --example train_syrup");
+        eprintln!("   3. Or use an existing model from: ../koffee/training/models/");
+
+        return Err("Required wake word model file missing".into());
     }
 
     // Re-run if this file changes.
     println!("cargo:rerun-if-changed=build.rs");
+    Ok(())
 }

@@ -3,10 +3,10 @@
 use std::fmt;
 
 /// Main error type for Moshi operations
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MoshiError {
     /// Candle framework errors
-    Candle(candle::Error),
+    Candle(String),
     /// Configuration errors
     Config(String),
     /// Model loading errors
@@ -20,9 +20,9 @@ pub enum MoshiError {
     /// Audio bridge errors
     AudioBridge(String),
     /// I/O errors
-    Io(std::io::Error),
+    Io(String),
     /// Serialization errors
-    Serde(serde_json::Error),
+    Serde(String),
     /// Tokenization errors (loading, encoding, decoding)
     Tokenization(String),
     /// Custom error messages
@@ -94,27 +94,20 @@ impl fmt::Display for MoshiError {
 
 impl std::error::Error for MoshiError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            MoshiError::Candle(e) => Some(e),
-            MoshiError::Io(e) => Some(e),
-            MoshiError::Serde(e) => Some(e),
-            _ => None,
-        }
+        // All error types are now String, so no source available
+        None
     }
 }
 
 impl From<candle::Error> for MoshiError {
     fn from(error: candle::Error) -> Self {
-        MoshiError::Candle(error)
+        MoshiError::Candle(error.to_string())
     }
 }
 
 impl From<MoshiError> for candle_core::Error {
     fn from(error: MoshiError) -> Self {
-        match error {
-            MoshiError::Candle(e) => e,
-            _ => candle_core::Error::Msg(error.to_string()),
-        }
+        candle_core::Error::Msg(error.to_string())
     }
 }
 
@@ -122,13 +115,13 @@ impl From<MoshiError> for candle_core::Error {
 
 impl From<std::io::Error> for MoshiError {
     fn from(error: std::io::Error) -> Self {
-        MoshiError::Io(error)
+        MoshiError::Io(error.to_string())
     }
 }
 
 impl From<serde_json::Error> for MoshiError {
     fn from(error: serde_json::Error) -> Self {
-        MoshiError::Serde(error)
+        MoshiError::Serde(error.to_string())
     }
 }
 

@@ -39,7 +39,9 @@ impl RgbPixmap {
     pub fn get_pixel(&self, x: usize, y: usize) -> [u8; 3] {
         debug_assert!(x < self.w && y < self.h);
         let idx = 3 * (y * self.w + x);
-        self.data[idx..idx + 3].try_into().unwrap()
+        self.data[idx..idx + 3]
+            .try_into()
+            .unwrap_or_else(|_| [0, 0, 0]) // Fallback to black pixel if slice conversion fails
     }
 
     /// Fill the entire buffer.

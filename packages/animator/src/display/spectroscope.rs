@@ -26,6 +26,7 @@ impl Default for Spectrograph {
 }
 
 impl DisplayMode for Spectrograph {
+    #[allow(warnings)]
     fn axis(&self, cfg: &GraphConfig, ui_mode: UIMode, dimension: Dimension) -> Axis {
         match dimension {
             Dimension::X => {

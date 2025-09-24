@@ -19,11 +19,8 @@ pub use label::LabeledAudio;
 pub use fluent_voice_vad::Sample;
 pub use sample::{samples_to_f32, samples_to_mono_f32};
 
-// Re-export whisper types from the working implementation
-pub use fluent_voice_whisper::{
-    Decoder as WhisperDecoder, DecodingResult, Segment, Task, WhichModel,
-};
-pub use fluent_voice_whisper::{ModelConfig, Transcript, WhisperStream, WhisperTranscriber};
+// Re-export whisper types from the new public API
+pub use fluent_voice_whisper::{WhisperConversation, WhisperSttBuilder};
 // Re-export VAD types from the working implementation
 pub use fluent_voice_vad::{VoiceActivityDetector, VoiceActivityDetectorBuilder};
 

@@ -1,4 +1,7 @@
-use crate::{Model, token_id};
+#[cfg(feature = "microphone")]
+use crate::microphone::{Model, token_id};
+#[cfg(not(feature = "microphone"))]
+use crate::whisper::{Model, token_id};
 use candle_core::{D, IndexOp, Result, Tensor};
 use candle_transformers::models::whisper::{self as m};
 use tokenizers::Tokenizer;

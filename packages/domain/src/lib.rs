@@ -89,7 +89,7 @@ pub mod prelude {
         AudioChunk, AudioChunkResult, AudioChunkTimestamp, AudioFormat, CharacterTimestamp,
         Diarization, Language, MicBackend, ModelId, Punctuation, SpeechSource, SynthesisChunk,
         SynthesisMetadata, TimestampConfiguration, TimestampMetadata, TimestampsGranularity,
-        TranscriptionSegment, TranscriptionSegmentImpl, VadMode, VocalSpeedMod, VoiceError, VoiceId, WordTimestamp,
-        WordTimestamps,
+        TranscriptionSegment, TranscriptionSegmentImpl, VadMode, VocalSpeedMod, VoiceError,
+        VoiceId, WordTimestamp, WordTimestamps,
     };
 }

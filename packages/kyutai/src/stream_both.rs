@@ -15,8 +15,6 @@ use std::time::Instant;
 
 /// Expected sample rate for Moshi (24kHz)
 const EXPECTED_SAMPLE_RATE: u32 = 24000;
-/// Expected number of channels (mono)
-const EXPECTED_CHANNELS: u32 = 1;
 /// Minimum buffer size (10ms of audio at 24kHz)
 const MIN_BUFFER_SIZE: usize = 240;
 /// Maximum buffer size (1 second of audio at 24kHz)
@@ -294,7 +292,7 @@ impl BidirectionalStream {
         let silence_duration_ms = (self.config.max_latency_ms as f64 * 2.0) as u64; // 2x max latency as timeout
 
         match &self.current_turn {
-            Some(ConversationTurn::UserTurn { start_time }) => {
+            Some(ConversationTurn::UserTurn { start_time: _ }) => {
                 // Check if user turn has been silent too long
                 if let Some(last_silence) = self.last_silence_time {
                     if current_time.duration_since(last_silence).as_millis() as u64

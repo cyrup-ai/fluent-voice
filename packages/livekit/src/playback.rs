@@ -18,6 +18,10 @@ use libwebrtc::native::{apm, audio_mixer, audio_resampler};
 #[cfg(target_os = "macos")]
 use core_video;
 
+// CoreAudio imports for macOS audio device management
+#[cfg(target_os = "macos")]
+extern crate coreaudio_sys;
+
 // Core Video pixel format constants for format detection
 #[cfg(target_os = "macos")]
 mod pixel_format_constants {
@@ -48,6 +52,66 @@ struct AudioObjectPropertyAddress {
     mScope: u32,
     #[allow(non_snake_case)]
     mElement: u32,
+}
+
+// CoreAudio constants - sourced from Apple's CoreAudio framework headers
+#[cfg(target_os = "macos")]
+const K_AUDIO_OBJECT_SYSTEM_OBJECT: AudioObjectID = 1;
+#[cfg(target_os = "macos")]
+const K_AUDIO_HARDWARE_PROPERTY_DEFAULT_INPUT_DEVICE: u32 = 0x64696564; // 'died'
+#[cfg(target_os = "macos")]
+const K_AUDIO_HARDWARE_PROPERTY_DEFAULT_OUTPUT_DEVICE: u32 = 0x64656664; // 'defd'
+#[cfg(target_os = "macos")]
+const K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL: u32 = 0x676c6f62; // 'glob'
+#[cfg(target_os = "macos")]
+const K_AUDIO_OBJECT_PROPERTY_ELEMENT_MASTER: u32 = 0;
+#[cfg(target_os = "macos")]
+const K_AUDIO_DEVICE_PROPERTY_STREAM_FORMAT: u32 = 0x73666d74; // 'sfmt'
+#[cfg(target_os = "macos")]
+const K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT: u32 = 0x696e7074; // 'inpt'
+#[cfg(target_os = "macos")]
+const K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT: u32 = 0x6f757470; // 'outp'
+
+// CoreAudio function declarations - linking to system framework
+#[cfg(target_os = "macos")]
+#[link(name = "CoreAudio", kind = "framework")]
+unsafe extern "C" {
+    fn AudioObjectAddPropertyListener(
+        inObjectID: AudioObjectID,
+        inAddress: *const AudioObjectPropertyAddress,
+        inListener: Option<
+            unsafe extern "C" fn(
+                AudioObjectID,
+                u32,
+                *const AudioObjectPropertyAddress,
+                *mut std::os::raw::c_void,
+            ) -> OSStatus,
+        >,
+        inClientData: *mut std::os::raw::c_void,
+    ) -> OSStatus;
+
+    fn AudioObjectRemovePropertyListener(
+        inObjectID: AudioObjectID,
+        inAddress: *const AudioObjectPropertyAddress,
+        inListener: Option<
+            unsafe extern "C" fn(
+                AudioObjectID,
+                u32,
+                *const AudioObjectPropertyAddress,
+                *mut std::os::raw::c_void,
+            ) -> OSStatus,
+        >,
+        inClientData: *mut std::os::raw::c_void,
+    ) -> OSStatus;
+
+    fn AudioObjectGetPropertyData(
+        inObjectID: AudioObjectID,
+        inAddress: *const AudioObjectPropertyAddress,
+        inQualifierDataSize: u32,
+        inQualifierData: *const std::os::raw::c_void,
+        ioDataSize: *mut u32,
+        outData: *mut std::os::raw::c_void,
+    ) -> OSStatus;
 }
 use livekit::track;
 
@@ -1270,7 +1334,20 @@ trait DeviceChangeListenerApi: Stream<Item = ()> + Sized {
 #[cfg(target_os = "macos")]
 mod macos {
 
+    use super::{
+        AudioObjectAddPropertyListener, AudioObjectGetPropertyData,
+        AudioObjectRemovePropertyListener,
+    };
     use super::{AudioObjectID, AudioObjectPropertyAddress, OSStatus};
+    use super::{
+        K_AUDIO_DEVICE_PROPERTY_STREAM_FORMAT, K_AUDIO_OBJECT_PROPERTY_ELEMENT_MASTER,
+        K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
+    };
+    use super::{
+        K_AUDIO_HARDWARE_PROPERTY_DEFAULT_INPUT_DEVICE,
+        K_AUDIO_HARDWARE_PROPERTY_DEFAULT_OUTPUT_DEVICE, K_AUDIO_OBJECT_SYSTEM_OBJECT,
+    };
+    use super::{K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT};
     use futures::channel::mpsc::UnboundedReceiver;
 
     /// Implementation from: https://github.com/zed-industries/cpal/blob/fd8bc2fd39f1f5fdee5a0690656caff9a26d9d50/src/host/coreaudio/macos/property_listener.rs#L15
@@ -1310,8 +1387,7 @@ mod macos {
         0
     }
 
-    // TODO: Fix coreaudio-rs API usage when proper imports are available
-    /*
+    #[cfg(target_os = "macos")]
     impl super::DeviceChangeListenerApi for CoreAudioDefaultDeviceChangeListener {
         fn new(input: bool) -> anyhow::Result<Self> {
             let (tx, rx) = futures::channel::mpsc::unbounded();
@@ -1322,34 +1398,40 @@ mod macos {
 
             // Get the current default device ID
             // SAFETY: Core Audio system calls with validated parameters.
-            // kAudioObjectSystemObject is a valid system-provided constant.
+            // K_AUDIO_OBJECT_SYSTEM_OBJECT is a valid system-provided constant.
             let device_id = unsafe {
                 // Listen for default device changes
-                coreaudio::Error::from_os_status(AudioObjectAddPropertyListener(
-                    kAudioObjectSystemObject,
+                let status = AudioObjectAddPropertyListener(
+                    K_AUDIO_OBJECT_SYSTEM_OBJECT,
                     &AudioObjectPropertyAddress {
                         mSelector: if input {
-                            kAudioHardwarePropertyDefaultInputDevice
+                            K_AUDIO_HARDWARE_PROPERTY_DEFAULT_INPUT_DEVICE
                         } else {
-                            kAudioHardwarePropertyDefaultOutputDevice
+                            K_AUDIO_HARDWARE_PROPERTY_DEFAULT_OUTPUT_DEVICE
                         },
-                        mScope: kAudioObjectPropertyScopeGlobal,
-                        mElement: kAudioObjectPropertyElementMaster,
+                        mScope: K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
+                        mElement: K_AUDIO_OBJECT_PROPERTY_ELEMENT_MASTER,
                     },
                     Some(property_listener_handler_shim),
                     &*callback as *const _ as *mut _,
-                ))?;
+                );
+                if status != 0 {
+                    return Err(anyhow::anyhow!(
+                        "Failed to add property listener: {}",
+                        status
+                    ));
+                }
 
                 // Also listen for changes to the device configuration
                 let device_id = if input {
                     let mut input_device: AudioObjectID = 0;
                     let mut prop_size = std::mem::size_of::<AudioObjectID>() as u32;
-                    let result = coreaudio::AudioObjectGetPropertyData(
-                        kAudioObjectSystemObject,
+                    let result = AudioObjectGetPropertyData(
+                        K_AUDIO_OBJECT_SYSTEM_OBJECT,
                         &AudioObjectPropertyAddress {
-                            mSelector: kAudioHardwarePropertyDefaultInputDevice,
-                            mScope: kAudioObjectPropertyScopeGlobal,
-                            mElement: kAudioObjectPropertyElementMaster,
+                            mSelector: K_AUDIO_HARDWARE_PROPERTY_DEFAULT_INPUT_DEVICE,
+                            mScope: K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
+                            mElement: K_AUDIO_OBJECT_PROPERTY_ELEMENT_MASTER,
                         },
                         0,
                         std::ptr::null(),
@@ -1365,12 +1447,12 @@ mod macos {
                 } else {
                     let mut output_device: AudioObjectID = 0;
                     let mut prop_size = std::mem::size_of::<AudioObjectID>() as u32;
-                    let result = coreaudio::AudioObjectGetPropertyData(
-                        kAudioObjectSystemObject,
+                    let result = AudioObjectGetPropertyData(
+                        K_AUDIO_OBJECT_SYSTEM_OBJECT,
                         &AudioObjectPropertyAddress {
-                            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-                            mScope: kAudioObjectPropertyScopeGlobal,
-                            mElement: kAudioObjectPropertyElementMaster,
+                            mSelector: K_AUDIO_HARDWARE_PROPERTY_DEFAULT_OUTPUT_DEVICE,
+                            mScope: K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
+                            mElement: K_AUDIO_OBJECT_PROPERTY_ELEMENT_MASTER,
                         },
                         0,
                         std::ptr::null(),
@@ -1387,20 +1469,23 @@ mod macos {
 
                 if device_id != 0 {
                     // Listen for format changes on the device
-                    coreaudio::Error::from_os_status(AudioObjectAddPropertyListener(
+                    let status = AudioObjectAddPropertyListener(
                         device_id,
                         &AudioObjectPropertyAddress {
-                            mSelector: coreaudio::kAudioDevicePropertyStreamFormat,
+                            mSelector: K_AUDIO_DEVICE_PROPERTY_STREAM_FORMAT,
                             mScope: if input {
-                                coreaudio::kAudioObjectPropertyScopeInput
+                                K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT
                             } else {
-                                coreaudio::kAudioObjectPropertyScopeOutput
+                                K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT
                             },
-                            mElement: kAudioObjectPropertyElementMaster,
+                            mElement: K_AUDIO_OBJECT_PROPERTY_ELEMENT_MASTER,
                         },
                         Some(property_listener_handler_shim),
                         &*callback as *const _ as *mut _,
-                    ))?;
+                    );
+                    if status != 0 {
+                        log::warn!("Failed to add device property listener: {}", status);
+                    }
                 }
 
                 device_id
@@ -1414,11 +1499,11 @@ mod macos {
             })
         }
     }
-    */
 
-    // Temporary implementation until CoreAudio APIs are available
+    // Fallback implementation for non-macOS platforms
+    #[cfg(not(target_os = "macos"))]
     impl super::DeviceChangeListenerApi for CoreAudioDefaultDeviceChangeListener {
-        fn new(_input: bool) -> anyhow::Result<Self> {
+        fn new(input: bool) -> anyhow::Result<Self> {
             let (tx, rx) = futures::channel::mpsc::unbounded();
             let callback = Box::new(PropertyListenerCallbackWrapper(Box::new(move || {
                 let _ = tx.unbounded_send(());
@@ -1427,28 +1512,27 @@ mod macos {
             Ok(Self {
                 rx,
                 callback,
-                input: _input,
-                device_id: 0, // Placeholder until CoreAudio is available
+                input,
+                device_id: 0, // Placeholder for non-macOS platforms
             })
         }
     }
 
-    // TODO: Fix Drop impl when coreaudio APIs are available
-    /*
+    #[cfg(target_os = "macos")]
     impl Drop for CoreAudioDefaultDeviceChangeListener {
         fn drop(&mut self) {
             unsafe {
                 // Remove the system-level property listener
                 AudioObjectRemovePropertyListener(
-                    kAudioObjectSystemObject,
+                    K_AUDIO_OBJECT_SYSTEM_OBJECT,
                     &AudioObjectPropertyAddress {
                         mSelector: if self.input {
-                            kAudioHardwarePropertyDefaultInputDevice
+                            K_AUDIO_HARDWARE_PROPERTY_DEFAULT_INPUT_DEVICE
                         } else {
-                            kAudioHardwarePropertyDefaultOutputDevice
+                            K_AUDIO_HARDWARE_PROPERTY_DEFAULT_OUTPUT_DEVICE
                         },
-                        mScope: kAudioObjectPropertyScopeGlobal,
-                        mElement: kAudioObjectPropertyElementMaster,
+                        mScope: K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
+                        mElement: K_AUDIO_OBJECT_PROPERTY_ELEMENT_MASTER,
                     },
                     Some(property_listener_handler_shim),
                     &*self.callback as *const _ as *mut _,
@@ -1459,13 +1543,13 @@ mod macos {
                     AudioObjectRemovePropertyListener(
                         self.device_id,
                         &AudioObjectPropertyAddress {
-                            mSelector: coreaudio::kAudioDevicePropertyStreamFormat,
+                            mSelector: K_AUDIO_DEVICE_PROPERTY_STREAM_FORMAT,
                             mScope: if self.input {
-                                coreaudio::kAudioObjectPropertyScopeInput
+                                K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT
                             } else {
-                                coreaudio::kAudioObjectPropertyScopeOutput
+                                K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT
                             },
-                            mElement: kAudioObjectPropertyElementMaster,
+                            mElement: K_AUDIO_OBJECT_PROPERTY_ELEMENT_MASTER,
                         },
                         Some(property_listener_handler_shim),
                         &*self.callback as *const _ as *mut _,
@@ -1474,7 +1558,6 @@ mod macos {
             }
         }
     }
-    */
 
     impl futures::Stream for CoreAudioDefaultDeviceChangeListener {
         type Item = ();

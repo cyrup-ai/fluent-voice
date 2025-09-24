@@ -95,34 +95,29 @@ impl FluentVoiceTts {
         }
 
         // Create cancellation receiver for this synthesis
-        let mut cancellation_rx = self.cancellation_tx.subscribe();
+        let _cancellation_rx = self.cancellation_tx.subscribe();
         let text_clone = text.clone();
         let voice_path = self.current_voice_path.clone();
 
-        // Spawn cancellable synthesis task
-        let task = tokio::spawn(async move {
-            tokio::select! {
-                result = Self::synthesize_speech_internal(text_clone.clone(), voice_path) => {
-                    match result {
-                        Ok(player) => {
-                            match player.play().await {
-                                Ok(_) => {
-                                    tracing::info!("Speech synthesis completed for text: {}", text_clone);
-                                }
-                                Err(e) => {
-                                    tracing::error!("Audio playback failed: {}", e);
-                                }
-                            }
+        // Spawn synthesis task on blocking thread to avoid Send requirements
+        let task = tokio::task::spawn_blocking(move || {
+            // Use block_on to run the async synthesis in the blocking context
+            let rt = tokio::runtime::Handle::current();
+            rt.block_on(async move {
+                match Self::synthesize_speech_internal(text_clone.clone(), voice_path).await {
+                    Ok(player) => match player.play().await {
+                        Ok(_) => {
+                            tracing::info!("Speech synthesis completed for text: {}", text_clone);
                         }
                         Err(e) => {
-                            tracing::error!("TTS generation failed: {}", e);
+                            tracing::error!("Audio playback failed: {}", e);
                         }
+                    },
+                    Err(e) => {
+                        tracing::error!("TTS generation failed: {}", e);
                     }
                 }
-                _ = cancellation_rx.recv() => {
-                    tracing::info!("Speech synthesis cancelled for text: {}", text_clone);
-                }
-            }
+            })
         });
 
         self.active_task = Some(task);

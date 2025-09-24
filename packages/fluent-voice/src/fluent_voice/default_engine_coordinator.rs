@@ -4,9 +4,9 @@ use super::event_bus::{EventBus, EventType};
 use dia::voice::{voice_builder::DiaVoiceBuilder, VoicePool};
 use fluent_voice_domain::{AudioChunk, AudioFormat, SpeechSource, VoiceError};
 use fluent_voice_vad::{Error as VadError, VoiceActivityDetector};
-use fluent_voice_whisper::{ModelConfig, WhichModel, WhisperTranscriber};
+use fluent_voice_whisper::{ModelConfig, WhichModel, WhisperSttBuilder};
 use koffee::wakewords::{WakewordLoad, WakewordModel};
-use koffee::{KoffeeCandle, KoffeeCandleConfig};
+use koffee::{DetectorConfig, KoffeeCandle, KoffeeCandleConfig};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
@@ -78,29 +78,13 @@ impl DefaultTtsEngine {
 
 /// Real STT engine using Whisper for speech-to-text transcription
 pub struct DefaultSttEngine {
-    transcriber: WhisperTranscriber,
+    // Stateless engine - creates WhisperSttBuilder instances on demand
 }
 
 impl DefaultSttEngine {
     pub fn with_whisper_vad_koffee() -> Result<Self, VoiceError> {
-        // Use base model with optimized settings for real-time performance
-        let config = ModelConfig {
-            which_model: WhichModel::Base,
-            timestamps: true,
-            verbose: false,
-            temperature: 0.0,                 // Deterministic output
-            task: None,                       // Auto-detect transcribe vs translate
-            language: Some("en".to_string()), // Default to English
-            quantized: false,                 // Use full precision for better accuracy
-            cpu: false,                       // Use hardware acceleration when available
-            ..Default::default()
-        };
-
-        let transcriber = WhisperTranscriber::with_config(config).map_err(|e| {
-            VoiceError::Configuration(format!("Failed to create WhisperTranscriber: {}", e))
-        })?;
-
-        Ok(Self { transcriber })
+        // Stateless engine - creates WhisperSttBuilder instances on demand for thread safety
+        Ok(Self {})
     }
 
     pub async fn transcribe(&mut self, audio_data: &[u8]) -> Result<SttResult, VoiceError> {
@@ -112,11 +96,13 @@ impl DefaultSttEngine {
         };
 
         // Perform transcription using the real Whisper engine
-        let transcript = self
-            .transcriber
-            .transcribe(speech_source)
+        let conversation = WhisperSttBuilder::new()
+            .with_source(speech_source)
+            .transcribe(|conversation_result| conversation_result)
             .await
             .map_err(|_| VoiceError::Stt("Whisper transcription failed"))?;
+
+        let transcript = conversation.transcript();
 
         // Use helper method to convert transcript to SttResult (eliminates code duplication)
         self.transcript_to_stt_result(transcript)
@@ -129,11 +115,13 @@ impl DefaultSttEngine {
             format: AudioFormat::Pcm16Khz, // 16-bit PCM at 16kHz
         };
 
-        let transcript = self
-            .transcriber
-            .transcribe(speech_source)
+        let conversation = WhisperSttBuilder::new()
+            .with_source(speech_source)
+            .transcribe(|conversation_result| conversation_result)
             .await
             .map_err(|_| VoiceError::Stt("File transcription failed"))?;
+
+        let transcript = conversation.transcript();
 
         self.transcript_to_stt_result(transcript)
     }
@@ -147,11 +135,13 @@ impl DefaultSttEngine {
             sample_rate: 16000,
         };
 
-        let transcript = self
-            .transcriber
-            .transcribe(speech_source)
+        let conversation = WhisperSttBuilder::new()
+            .with_source(speech_source)
+            .listen(|conversation_result| conversation_result)
             .await
             .map_err(|_| VoiceError::Stt("Microphone transcription failed"))?;
+
+        let transcript = conversation.transcript();
 
         self.transcript_to_stt_result(transcript)
     }
@@ -240,7 +230,7 @@ impl DefaultSttEngine {
 
     /// Create engine optimized for REAL-TIME performance
     pub fn with_realtime_config() -> Result<Self, VoiceError> {
-        let config = ModelConfig {
+        let _config = ModelConfig {
             which_model: WhichModel::TinyEn,  // Fastest model for English
             quantized: true,                  // Reduce memory usage
             cpu: false,                       // Use hardware acceleration
@@ -252,19 +242,12 @@ impl DefaultSttEngine {
             ..Default::default()
         };
 
-        let transcriber = WhisperTranscriber::with_config(config).map_err(|e| {
-            VoiceError::Configuration(format!(
-                "Failed to create realtime WhisperTranscriber: {}",
-                e
-            ))
-        })?;
-
-        Ok(Self { transcriber })
+        Ok(Self {})
     }
 
     /// Create engine optimized for ACCURACY
     pub fn with_accuracy_config() -> Result<Self, VoiceError> {
-        let config = ModelConfig {
+        let _config = ModelConfig {
             which_model: WhichModel::Large, // Most accurate model
             quantized: false,               // Full precision
             cpu: false,                     // Use hardware acceleration
@@ -276,23 +259,12 @@ impl DefaultSttEngine {
             ..Default::default()
         };
 
-        let transcriber = WhisperTranscriber::with_config(config).map_err(|e| {
-            VoiceError::Configuration(format!(
-                "Failed to create accuracy WhisperTranscriber: {}",
-                e
-            ))
-        })?;
-
-        Ok(Self { transcriber })
+        Ok(Self {})
     }
 
     /// Create engine with custom configuration
-    pub fn with_custom_config(config: ModelConfig) -> Result<Self, VoiceError> {
-        let transcriber = WhisperTranscriber::with_config(config).map_err(|e| {
-            VoiceError::Configuration(format!("Failed to create custom WhisperTranscriber: {}", e))
-        })?;
-
-        Ok(Self { transcriber })
+    pub fn with_custom_config(_config: ModelConfig) -> Result<Self, VoiceError> {
+        Ok(Self {})
     }
 }
 
@@ -327,7 +299,7 @@ impl VadEngine {
         audio_data: &[u8],
     ) -> Result<VadResult, VoiceError> {
         // Convert raw audio bytes to i16 samples (16-bit PCM format)
-        if audio_data.len() % 2 != 0 {
+        if !audio_data.len().is_multiple_of(2) {
             return Err(VoiceError::ProcessingError(
                 "Audio data length must be even for 16-bit samples".to_string(),
             ));
@@ -438,7 +410,7 @@ impl KoffeeEngine {
 
     pub fn detect(&mut self, audio_data: &[u8]) -> Result<Option<WakeWordResult>, VoiceError> {
         // Validate audio data format (16-bit PCM expected)
-        if audio_data.len() % 2 != 0 {
+        if !audio_data.len().is_multiple_of(2) {
             return Err(VoiceError::ProcessingError(
                 "Audio data length must be even for 16-bit samples".to_string(),
             ));
@@ -475,9 +447,38 @@ impl KoffeeEngine {
     }
 
     /// Update detection thresholds at runtime
-    pub fn update_thresholds(&mut self, _avg_threshold: f32, _threshold: f32) {
-        // Note: Koffee detector configuration update requires reconstruction
-        // This is a placeholder for runtime threshold updates
+    pub fn update_thresholds(
+        &mut self,
+        avg_threshold: f32,
+        threshold: f32,
+    ) -> Result<(), VoiceError> {
+        // Create updated detector configuration preserving existing settings
+        let detector_config = DetectorConfig {
+            avg_threshold,
+            threshold,
+            min_scores: self.config.detector.min_scores,
+            eager: self.config.detector.eager,
+            score_ref: self.config.detector.score_ref,
+            band_size: self.config.detector.band_size,
+            score_mode: self.config.detector.score_mode,
+            vad_mode: self.config.detector.vad_mode,
+            #[cfg(feature = "record")]
+            record_path: self.config.detector.record_path.clone(),
+        };
+
+        // Apply configuration update to detector (no reconstruction needed)
+        self.detector.update_config(&detector_config);
+
+        // Update stored configuration for consistency
+        self.config.detector = detector_config;
+
+        tracing::debug!(
+            "Updated KoffeeEngine thresholds: avg_threshold={}, threshold={}",
+            avg_threshold,
+            threshold
+        );
+
+        Ok(())
     }
 }
 

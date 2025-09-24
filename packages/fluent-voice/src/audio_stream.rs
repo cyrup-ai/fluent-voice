@@ -58,7 +58,7 @@ impl AudioStream {
                             ))
                         })?;
 
-                    let sink = Sink::connect_new(&stream_handle.mixer());
+                    let sink = Sink::connect_new(stream_handle.mixer());
 
                     // Stack-allocated buffer for zero-allocation audio processing
                     const BUFFER_SIZE: usize = 4096;

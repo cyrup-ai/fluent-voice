@@ -139,7 +139,12 @@ impl SttConversationBuilder for DefaultSTTConversationBuilder {
         self
     }
 
-    fn on_chunk<F>(self, f: F) -> impl crate::stt_conversation::SttPostChunkBuilder<Conversation = <Self as crate::stt_conversation::SttConversationBuilder>::Conversation>
+    fn on_chunk<F>(
+        self,
+        f: F,
+    ) -> impl crate::stt_conversation::SttPostChunkBuilder<
+        Conversation = <Self as crate::stt_conversation::SttConversationBuilder>::Conversation,
+    >
     where
         F: FnMut(Result<TranscriptionSegmentImpl, VoiceError>) -> TranscriptionSegmentImpl
             + Send

@@ -121,7 +121,7 @@ impl AudioStreamManager {
                         .iter()
                         .map(|&sample| sample as f32 / i8::MAX as f32)
                         .collect();
-                    if let Err(_) = sender.try_send(float_data) {
+                    if sender.try_send(float_data).is_err() {
                         tracing::warn!("Audio channel full, dropping audio data");
                     }
                 },
@@ -137,7 +137,7 @@ impl AudioStreamManager {
                         .iter()
                         .map(|&sample| sample as f32 / i16::MAX as f32)
                         .collect();
-                    if let Err(_) = sender.try_send(float_data) {
+                    if sender.try_send(float_data).is_err() {
                         tracing::warn!("Audio channel full, dropping audio data");
                     }
                 },
@@ -153,7 +153,7 @@ impl AudioStreamManager {
                         .iter()
                         .map(|&sample| sample as f32 / i32::MAX as f32)
                         .collect();
-                    if let Err(_) = sender.try_send(float_data) {
+                    if sender.try_send(float_data).is_err() {
                         tracing::warn!("Audio channel full, dropping audio data");
                     }
                 },
@@ -169,7 +169,7 @@ impl AudioStreamManager {
                         .iter()
                         .map(|&sample| (sample as f32 - 128.0) / 128.0)
                         .collect();
-                    if let Err(_) = sender.try_send(float_data) {
+                    if sender.try_send(float_data).is_err() {
                         tracing::warn!("Audio channel full, dropping audio data");
                     }
                 },
@@ -185,7 +185,7 @@ impl AudioStreamManager {
                         .iter()
                         .map(|&sample| (sample as f32 - 32768.0) / 32768.0)
                         .collect();
-                    if let Err(_) = sender.try_send(float_data) {
+                    if sender.try_send(float_data).is_err() {
                         tracing::warn!("Audio channel full, dropping audio data");
                     }
                 },
@@ -201,7 +201,7 @@ impl AudioStreamManager {
                         .iter()
                         .map(|&sample| (sample as f32 - 2147483648.0) / 2147483648.0)
                         .collect();
-                    if let Err(_) = sender.try_send(float_data) {
+                    if sender.try_send(float_data).is_err() {
                         tracing::warn!("Audio channel full, dropping audio data");
                     }
                 },
@@ -213,7 +213,7 @@ impl AudioStreamManager {
             cpal::SampleFormat::F32 => device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                    if let Err(_) = sender.try_send(data.to_vec()) {
+                    if sender.try_send(data.to_vec()).is_err() {
                         tracing::warn!("Audio channel full, dropping audio data");
                     }
                 },
@@ -226,7 +226,7 @@ impl AudioStreamManager {
                 &stream_config,
                 move |data: &[f64], _: &cpal::InputCallbackInfo| {
                     let float_data: Vec<f32> = data.iter().map(|&sample| sample as f32).collect();
-                    if let Err(_) = sender.try_send(float_data) {
+                    if sender.try_send(float_data).is_err() {
                         tracing::warn!("Audio channel full, dropping audio data");
                     }
                 },

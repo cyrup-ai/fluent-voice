@@ -184,6 +184,15 @@ pub enum EncoderError {
     /// Error during resampler construction.
     #[error(transparent)]
     Construct(#[from] ResamplerConstructionError),
+    /// Generic error with custom message.
+    #[error("{0}")]
+    Generic(String),
+}
+
+impl From<&str> for EncoderError {
+    fn from(msg: &str) -> Self {
+        EncoderError::Generic(msg.to_string())
+    }
 }
 
 type Result<T> = std::result::Result<T, EncoderError>;
@@ -398,9 +407,15 @@ impl AudioEncoder {
         };
 
         if let Some(rs) = &mut self.resampler {
-            // SAFETY: buffers allocated in `new`; length always matches rubato’s contract
-            let in_buf = self.resampler_in.as_mut().expect("in-buf not allocated");
-            let out_buf = self.resampler_out.as_mut().expect("out-buf not allocated");
+            // SAFETY: buffers allocated in `new`; length always matches rubato's contract
+            let in_buf = match self.resampler_in.as_mut() {
+                Some(buf) => buf,
+                None => return Err("Resampler input buffer not allocated".into()),
+            };
+            let out_buf = match self.resampler_out.as_mut() {
+                Some(buf) => buf,
+                None => return Err("Resampler output buffer not allocated".into()),
+            };
 
             // Handle channel assignment based on actual channel count
             if self.src_channels == 1 {

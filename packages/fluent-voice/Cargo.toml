@@ -64,6 +64,7 @@ mkl = [
 
 # Audio processing features
 microphone = ["dep:cpal", "dep:rubato"]
+record = ["microphone"]
 encodec = ["dep:cpal", "dep:symphonia", "dep:rubato"]
 mimi = ["dep:cpal", "dep:symphonia", "dep:rubato"]
 snac = ["dep:cpal", "dep:symphonia", "dep:rubato"]
@@ -145,6 +146,7 @@ tracing = "0.1.41"
 hashbrown = "0.16"
 rodio = { version = "0.21.1", features = ["wav"] }
 fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+reqwest = "0.12.23"
 
 [dev-dependencies]
 # tokio is in workspace-hack

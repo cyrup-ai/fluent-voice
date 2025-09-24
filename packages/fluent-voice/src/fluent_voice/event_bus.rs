@@ -171,7 +171,7 @@ impl EventBus {
         let subscribers = self.subscribers.read().await;
         subscribers
             .get(&event_type)
-            .map_or(false, |handlers| !handlers.is_empty())
+            .is_some_and(|handlers| !handlers.is_empty())
     }
 
     /// Get the number of subscribers for a given event type

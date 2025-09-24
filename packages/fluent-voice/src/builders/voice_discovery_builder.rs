@@ -292,24 +292,10 @@ print("ECAPA-TDNN model loaded successfully")
     }
 
     async fn get_voice_database(&self) -> Result<Vec<VoiceDatabaseEntry>, VoiceError> {
-        // For now, return a mock database entry
-        // In a real implementation, this would query an actual voice database
-        let dummy_metadata = VoiceMetadata {
-            language: self.language.clone(),
-            category: self.category.clone(),
-            voice_type: self.voice_type.clone(),
-            labels: self.labels.clone(),
-            gender: Some("Unknown".to_string()),
-            age_range: Some("Adult".to_string()),
-        };
-
-        let dummy_entry = VoiceDatabaseEntry {
-            voice_id: VoiceId::new("dummy_voice"),
-            audio_path: "dummy_path.wav".to_string(),
-            metadata: dummy_metadata,
-        };
-
-        Ok(vec![dummy_entry])
+        // Return empty database until proper voice database integration is implemented
+        // Voice discovery will work with empty results and similarity matching can be tested
+        // with the with_audio_search() method when real voice entries are eventually added
+        Ok(Vec::new())
     }
 
     async fn extract_embedding(&self, audio_path: &str) -> Result<Vec<f32>, VoiceError> {

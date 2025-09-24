@@ -21,6 +21,7 @@
 //! module focuses only on the data type and its helpers.
 
 use crate::types::TtsChunk;
+use std::ops::Index;
 
 /// A completed speech-to-text result containing every decoded chunk.
 ///
@@ -53,6 +54,21 @@ impl Transcript {
         &self.chunks
     }
 
+    /// Returns the number of chunks in the transcript.
+    pub fn len(&self) -> usize {
+        self.chunks.len()
+    }
+
+    /// Returns true if the transcript contains no chunks.
+    pub fn is_empty(&self) -> bool {
+        self.chunks.is_empty()
+    }
+
+    /// Returns an iterator over the chunks.
+    pub fn iter(&self) -> impl Iterator<Item = &TtsChunk> {
+        self.chunks.iter()
+    }
+
     /* ----------------------------------------------------------------
     Internal helpers – used by the builder / stream collector.
     ---------------------------------------------------------------- */
@@ -60,12 +76,17 @@ impl Transcript {
     /// Create an empty transcript.
     #[allow(dead_code)] // Library code - used by fluent-voice builders
     #[inline]
-    pub fn new() -> Self {
+    pub fn new(chunks: Vec<TtsChunk>) -> Self {
+        Self { chunks }
+    }
+
+    /// Create an empty transcript.
+    #[inline]
+    pub fn empty() -> Self {
         Self { chunks: Vec::new() }
     }
 
     /// Push a single chunk; used while collecting the stream.
-    #[allow(dead_code)] // Library code - used by fluent-voice builders
     #[inline]
     pub(crate) fn push(&mut self, chunk: TtsChunk) {
         self.chunks.push(chunk);
@@ -76,5 +97,13 @@ impl Transcript {
     #[inline]
     pub(crate) fn into_inner(self) -> Vec<TtsChunk> {
         self.chunks
+    }
+}
+
+impl Index<usize> for Transcript {
+    type Output = TtsChunk;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.chunks[index]
     }
 }

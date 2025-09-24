@@ -2055,7 +2055,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe6d2e5af09e8c8ad56c969f2157a3d4238cebc7c55f0a517728c38f7b200f81"
 dependencies = [
  "serde",
- "termcolor",
+ "termcolor 1.4.1",
  "unicode-width 0.2.0",
 ]
 
@@ -4560,6 +4560,7 @@ dependencies = [
  "futures-util",
  "half",
  "intel-mkl-src",
+ "livekit",
  "metal 0.32.0",
  "progresshub",
  "rand 0.9.2",
@@ -4673,7 +4674,7 @@ dependencies = [
  "regex-automata",
  "regex-syntax",
  "reqwest 0.12.23",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-pemfile 2.2.0",
  "rustls-webpki 0.103.6",
  "scopeguard",
@@ -4752,15 +4753,18 @@ dependencies = [
  "metal 0.32.0",
  "nanoid",
  "objc2 0.6.2",
+ "objc2-av-foundation",
  "objc2-core-foundation",
  "objc2-core-graphics",
+ "objc2-core-media",
+ "objc2-core-video",
  "objc2-foundation 0.3.1",
  "parking_lot",
  "pollster 0.4.0",
  "postage",
  "raw-window-handle",
  "rkyv",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-platform-verifier",
  "scap 0.1.0-beta.1",
  "scopeguard",
@@ -4834,6 +4838,7 @@ dependencies = [
  "pyo3",
  "rand 0.9.2",
  "rand_distr 0.5.1",
+ "reqwest 0.12.23",
  "ringbuf",
  "rodio",
  "rubato 0.16.2",
@@ -4928,8 +4933,11 @@ dependencies = [
  "fluent_voice_domain",
  "futures",
  "futures-channel",
+ "futures-core",
  "futures-util",
  "half",
+ "hashbrown 0.16.0",
+ "hmac",
  "hound",
  "http 1.3.1",
  "intel-mkl-src",
@@ -4939,9 +4947,10 @@ dependencies = [
  "quote",
  "reqwest 0.12.23",
  "rodio",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "serde",
  "serde_json",
+ "sha1",
  "srtparse",
  "strum 0.27.2",
  "symphonia",
@@ -4974,6 +4983,7 @@ dependencies = [
  "core-foundation 0.10.1",
  "core-video",
  "coreaudio-rs 0.13.0",
+ "coreaudio-sys",
  "cpal 0.16.0",
  "crossbeam-queue",
  "cudarc 0.17.3",
@@ -4991,11 +5001,12 @@ dependencies = [
  "metal 0.32.0",
  "nanoid",
  "objc2 0.6.2",
+ "objc2-core-audio",
  "parking_lot",
  "pollster 0.4.0",
  "postage",
  "raw-window-handle",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-platform-verifier",
  "scap 0.0.8",
  "sha2 0.11.0-rc.2",
@@ -5060,6 +5071,7 @@ dependencies = [
  "enterpolation",
  "fluent-voice-workspace-hack",
  "fluent_voice_domain",
+ "futures",
  "futures-core",
  "half",
  "hf-hub",
@@ -5075,7 +5087,6 @@ dependencies = [
  "num-traits",
  "palette",
  "pdf2image",
- "progresshub",
  "pyo3",
  "rand 0.9.2",
  "rayon",
@@ -5084,9 +5095,11 @@ dependencies = [
  "serde_json",
  "smallvec 2.0.0-alpha.11",
  "symphonia",
+ "termcolor 2.0.0",
  "thiserror 2.0.16",
  "tokenizers 0.22.0",
  "tokio",
+ "tokio-stream",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
@@ -6363,7 +6376,9 @@ dependencies = [
  "http 1.3.1",
  "hyper 1.7.0",
  "hyper-util",
- "rustls 0.23.31",
+ "log",
+ "rustls 0.23.32",
+ "rustls-native-certs 0.8.1",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls 0.26.3",
@@ -8375,9 +8390,9 @@ dependencies = [
  "libc",
  "objc2 0.5.2",
  "objc2-core-data",
- "objc2-core-image",
+ "objc2-core-image 0.2.2",
  "objc2-foundation 0.2.2",
- "objc2-quartz-core",
+ "objc2-quartz-core 0.2.2",
 ]
 
 [[package]]
@@ -8405,6 +8420,35 @@ dependencies = [
  "objc2-core-audio",
  "objc2-core-audio-types",
  "objc2-core-foundation",
+ "objc2-foundation 0.3.1",
+]
+
+[[package]]
+name = "objc2-av-foundation"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e085a2e16c61dadbad7a808fc9d5b5f8472b1b825b53d529c9f64ccac78e722"
+dependencies = [
+ "bitflags 2.9.4",
+ "block2 0.6.1",
+ "dispatch2 0.3.0",
+ "objc2 0.6.2",
+ "objc2-avf-audio",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-core-image 0.3.1",
+ "objc2-core-video",
+ "objc2-foundation 0.3.1",
+ "objc2-quartz-core 0.3.1",
+]
+
+[[package]]
+name = "objc2-avf-audio"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfc1d11521c211a7ebe17739fc806719da41f56c6b3f949d9861b459188ce910"
+dependencies = [
+ "objc2 0.6.2",
  "objc2-foundation 0.3.1",
 ]
 
@@ -8438,10 +8482,13 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca44961e888e19313b808f23497073e3f6b3c22bb485056674c8b49f3b025c82"
 dependencies = [
+ "block2 0.6.1",
  "dispatch2 0.3.0",
+ "libc",
  "objc2 0.6.2",
  "objc2-core-audio-types",
  "objc2-core-foundation",
+ "objc2-foundation 0.3.1",
 ]
 
 [[package]]
@@ -8508,6 +8555,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-core-image"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79b3dc0cc4386b6ccf21c157591b34a7f44c8e75b064f85502901ab2188c007e"
+dependencies = [
+ "objc2 0.6.2",
+ "objc2-foundation 0.3.1",
+]
+
+[[package]]
 name = "objc2-core-location"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8517,6 +8574,37 @@ dependencies = [
  "objc2 0.5.2",
  "objc2-contacts",
  "objc2-foundation 0.2.2",
+]
+
+[[package]]
+name = "objc2-core-media"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0b7afa6822e2fa20dfc88d10186b2432bf8560b5ed73ec9d31efd78277bc878"
+dependencies = [
+ "bitflags 2.9.4",
+ "block2 0.6.1",
+ "dispatch2 0.3.0",
+ "objc2 0.6.2",
+ "objc2-core-audio",
+ "objc2-core-audio-types",
+ "objc2-core-foundation",
+ "objc2-core-video",
+]
+
+[[package]]
+name = "objc2-core-video"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1989c3e76c7e978cab0ba9e6f4961cd00ed14ca21121444cc26877403bfb6303"
+dependencies = [
+ "bitflags 2.9.4",
+ "block2 0.6.1",
+ "objc2 0.6.2",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-io-surface",
+ "objc2-metal 0.3.1",
 ]
 
 [[package]]
@@ -8614,6 +8702,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-quartz-core"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90ffb6a0cd5f182dc964334388560b12a57f7b74b3e2dec5e2722aa2dfb2ccd5"
+dependencies = [
+ "bitflags 2.9.4",
+ "objc2 0.6.2",
+ "objc2-foundation 0.3.1",
+]
+
+[[package]]
 name = "objc2-symbols"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8634,11 +8733,11 @@ dependencies = [
  "objc2 0.5.2",
  "objc2-cloud-kit",
  "objc2-core-data",
- "objc2-core-image",
+ "objc2-core-image 0.2.2",
  "objc2-core-location",
  "objc2-foundation 0.2.2",
  "objc2-link-presentation",
- "objc2-quartz-core",
+ "objc2-quartz-core 0.2.2",
  "objc2-symbols",
  "objc2-uniform-type-identifiers",
  "objc2-user-notifications",
@@ -9583,7 +9682,7 @@ dependencies = [
  "serde",
  "sha1",
  "sha2 0.10.9",
- "termcolor",
+ "termcolor 1.4.1",
  "tokio",
  "tracing",
  "tracing-appender",
@@ -9612,7 +9711,7 @@ dependencies = [
  "serde",
  "serde_json",
  "term_size",
- "termcolor",
+ "termcolor 1.4.1",
  "thiserror 2.0.16",
  "tokio",
  "tokio-stream",
@@ -9737,7 +9836,7 @@ dependencies = [
  "serde_json",
  "tachyonfx",
  "term_size",
- "termcolor",
+ "termcolor 1.4.1",
  "thiserror 2.0.16",
  "tokio",
  "tokio-stream",
@@ -9999,7 +10098,7 @@ dependencies = [
  "quinn-proto",
  "quinn-udp",
  "rustc-hash 2.1.1",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "socket2 0.6.0",
  "thiserror 2.0.16",
  "tokio",
@@ -10019,7 +10118,7 @@ dependencies = [
  "rand 0.9.2",
  "ring",
  "rustc-hash 2.1.1",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-pki-types",
  "slab",
  "thiserror 2.0.16",
@@ -10057,7 +10156,9 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "crossbeam-utils",
  "cyrup_sugars",
+ "env_logger",
  "hashbrown 0.16.0",
  "http 1.3.1",
  "log",
@@ -10108,14 +10209,15 @@ dependencies = [
  "hostname",
  "http 1.3.1",
  "http-body 1.0.1",
- "http-body-util",
  "httpdate",
  "hyper 1.7.0",
+ "hyper-rustls 0.27.7",
  "hyper-util",
  "keyring",
  "lazy_static",
  "log",
  "memchr",
+ "mio",
  "once_cell",
  "pem",
  "pin-project-lite",
@@ -10124,9 +10226,10 @@ dependencies = [
  "rcgen",
  "regex",
  "ring",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-native-certs 0.8.1",
  "rustls-pemfile 2.2.0",
+ "rustls-platform-verifier",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -10737,7 +10840,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quinn",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -10957,9 +11060,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.31"
+version = "0.23.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0ebcbd2f03de0fc1122ad9bb24b127a5a6cd51d72604a3f3c50ac459762b6cc"
+checksum = "cd3c25631629d034ce7cd9940adc9d45762d46de2b0f57193c4443b92c6d4d40"
 dependencies = [
  "aws-lc-rs",
  "log",
@@ -11034,7 +11137,7 @@ dependencies = [
  "jni",
  "log",
  "once_cell",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-native-certs 0.8.1",
  "rustls-platform-verifier-android",
  "rustls-webpki 0.103.6",
@@ -11725,7 +11828,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16257adbfaef1ee58b1363bdc0664c9b8e1e30aed86049635fb5f147d065a9c0"
 dependencies = [
  "log",
- "termcolor",
+ "termcolor 1.4.1",
  "time",
 ]
 
@@ -12606,6 +12709,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "termcolor"
+version = "2.0.0"
+dependencies = [
+ "fluent-voice-workspace-hack",
+ "winapi-util",
+]
+
+[[package]]
 name = "terminfo"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12988,7 +13099,7 @@ version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f63835928ca123f1bef57abbcd23bb2ba0ac9ae1235f1e65bda0d06e7786bd"
 dependencies = [
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "tokio",
 ]
 
@@ -13039,7 +13150,7 @@ dependencies = [
  "futures-util",
  "log",
  "native-tls",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-pki-types",
  "tokio",
  "tokio-native-tls",
@@ -13411,7 +13522,7 @@ dependencies = [
  "log",
  "native-tls",
  "rand 0.9.2",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-pki-types",
  "sha1",
  "thiserror 2.0.16",
@@ -13705,7 +13816,7 @@ dependencies = [
  "log",
  "native-tls",
  "once_cell",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -13725,7 +13836,7 @@ dependencies = [
  "log",
  "native-tls",
  "percent-encoding",
- "rustls 0.23.31",
+ "rustls 0.23.32",
  "rustls-pemfile 2.2.0",
  "rustls-pki-types",
  "socks",

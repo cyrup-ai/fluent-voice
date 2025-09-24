@@ -137,13 +137,13 @@ async fn detect_wake_words(cmd: cli::DetectCommand) -> Result<()> {
     let stream = device.build_input_stream(
         &config.into(),
         move |data: &[f32], _: &cpal::InputCallbackInfo| {
-            if let Ok(mut detector_guard) = detector_clone.lock() {
-                if let Some(detection) = detector_guard.process_samples(data) {
-                    info!(
-                        "Wake word detected: {} (score: {:.3})",
-                        detection.name, detection.score
-                    );
-                }
+            if let Ok(mut detector_guard) = detector_clone.lock()
+                && let Some(detection) = detector_guard.process_samples(data)
+            {
+                info!(
+                    "Wake word detected: {} (score: {:.3})",
+                    detection.name, detection.score
+                );
             }
         },
         |err| error!("Audio stream error: {}", err),

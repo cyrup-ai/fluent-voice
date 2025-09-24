@@ -22,7 +22,7 @@ impl AudioStreamPlayer {
             AudioStreamError::DeviceError(format!("Failed to open audio output: {}", e))
         })?;
 
-        let sink = Sink::connect_new(&stream.mixer());
+        let sink = Sink::connect_new(stream.mixer());
 
         // Set reasonable volume (70%)
         sink.set_volume(0.7);
@@ -128,7 +128,7 @@ struct AudioChunkSource {
 impl AudioChunkSource {
     fn new(chunk: AudioChunk) -> Result<Self, AudioStreamError> {
         // Convert bytes to i16 samples
-        if chunk.audio_data.len() % 2 != 0 {
+        if !chunk.audio_data.len().is_multiple_of(2) {
             return Err(AudioStreamError::FormatError(
                 "Audio data length must be even for i16 samples".to_string(),
             ));

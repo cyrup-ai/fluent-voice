@@ -25,9 +25,10 @@ pub enum PipelineResult {
 }
 
 /// Current state of the pipeline processing
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum PipelineState {
     /// Pipeline is idle and waiting for input
+    #[default]
     Idle,
     /// Currently listening for wake words
     ListeningForWakeWord,
@@ -39,12 +40,6 @@ pub enum PipelineState {
     SynthesizingResponse,
     /// Error state - pipeline needs reset
     Error,
-}
-
-impl Default for PipelineState {
-    fn default() -> Self {
-        PipelineState::Idle
-    }
 }
 
 /// Coordinated stream that manages all default engines
@@ -149,7 +144,7 @@ impl CoordinatedVoiceStream {
                     *state = PipelineState::Idle;
                 }
 
-                return Ok(PipelineResult::SpeechTranscribed(stt_result));
+                Ok(PipelineResult::SpeechTranscribed(stt_result))
             } else {
                 // Publish voice activity ended event if no voice detected
                 self.event_bus
@@ -158,7 +153,7 @@ impl CoordinatedVoiceStream {
                     })
                     .await?;
 
-                return Ok(PipelineResult::VoiceActivityDetected(vad_result));
+                Ok(PipelineResult::VoiceActivityDetected(vad_result))
             }
         }
     }

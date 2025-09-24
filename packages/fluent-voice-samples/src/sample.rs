@@ -165,7 +165,7 @@ impl AudioSample {
                         }
                         AudioBufferRef::S16(buf) => {
                             const SCALE: f32 = 1.0 / (i16::MAX as f32);
-                            audio_samples.extend(buf.chan(0).iter().map(|&s| s as f32 * SCALE));
+                            audio_samples.extend(buf.chan(0).iter().map(|&s| f32::from(s) * SCALE));
                         }
                         AudioBufferRef::U32(buf) => {
                             const OFFSET: f32 = (u32::MAX / 2) as f32;
@@ -176,14 +176,16 @@ impl AudioSample {
                         AudioBufferRef::U16(buf) => {
                             const OFFSET: f32 = (u16::MAX / 2) as f32;
                             const SCALE: f32 = 1.0 / OFFSET;
-                            audio_samples
-                                .extend(buf.chan(0).iter().map(|&s| (s as f32 - OFFSET) * SCALE));
+                            audio_samples.extend(
+                                buf.chan(0).iter().map(|&s| (f32::from(s) - OFFSET) * SCALE),
+                            );
                         }
                         AudioBufferRef::U8(buf) => {
                             const OFFSET: f32 = (u8::MAX / 2) as f32;
                             const SCALE: f32 = 1.0 / OFFSET;
-                            audio_samples
-                                .extend(buf.chan(0).iter().map(|&s| (s as f32 - OFFSET) * SCALE));
+                            audio_samples.extend(
+                                buf.chan(0).iter().map(|&s| (f32::from(s) - OFFSET) * SCALE),
+                            );
                         }
                         AudioBufferRef::S24(buf) => {
                             const SCALE: f32 = 1.0 / 8_388_607.0; // 2^23 - 1
@@ -201,7 +203,7 @@ impl AudioSample {
                         }
                         AudioBufferRef::S8(buf) => {
                             const SCALE: f32 = 1.0 / (i8::MAX as f32);
-                            audio_samples.extend(buf.chan(0).iter().map(|&s| s as f32 * SCALE));
+                            audio_samples.extend(buf.chan(0).iter().map(|&s| f32::from(s) * SCALE));
                         }
                     }
                 }

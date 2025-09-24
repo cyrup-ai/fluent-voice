@@ -5,6 +5,8 @@
 //! A comprehensive language model system built with the Candle framework,
 //! providing state-of-the-art text generation capabilities with conditioning support.
 
+#![recursion_limit = "256"]
+
 pub mod asr;
 pub mod audio;
 pub mod conditioner;

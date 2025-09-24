@@ -8,7 +8,8 @@ use candle_core::{DType, Device};
 const AUDIO_BUFFER_SIZE: usize = 16384;
 
 /// Configuration for speech generation engine
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct GeneratorConfig {
     /// TTS model configuration
     pub tts_config: TtsConfig,
@@ -29,8 +30,10 @@ pub struct GeneratorConfig {
     /// Audio buffer size for streaming
     pub stream_buffer_size: usize,
     /// Device for computation
+    #[serde(skip)]
     pub device: Device,
     /// Data type for tensors
+    #[serde(skip)]
     pub dtype: DType,
     /// Speaker PCM processing configuration
     pub speaker_pcm: SpeakerPcmConfig,

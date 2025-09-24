@@ -5,6 +5,7 @@ use fluent_voice_domain::{
     AudioFormat, Language, ModelId, VoiceError, VoiceId,
     voice_labels::{VoiceCategory, VoiceDetails, VoiceLabels, VoiceType},
 };
+use std::path::PathBuf;
 
 /// Voice discovery builder for Kyutai voices
 #[derive(Debug, Clone)]
@@ -228,6 +229,11 @@ impl SpeechToSpeechBuilder for KyutaiSpeechToSpeechBuilder {
 
     #[inline]
     fn similarity_boost(self, _boost: f32) -> Self {
+        self
+    }
+
+    #[inline]
+    fn with_voice_reference_path<P: Into<PathBuf>>(self, _path: P) -> Self {
         self
     }
 

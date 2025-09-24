@@ -73,7 +73,10 @@ impl HakariManager {
             self.metadata_cache = Some(metadata);
         }
         
-        Ok(self.metadata_cache.as_ref().unwrap())
+        self.metadata_cache.as_ref()
+            .ok_or_else(|| HakariError::CacheNotInitialized(
+                "Metadata cache not properly initialized. Call initialize_cache() first.".to_string()
+            ))
     }
     
     /// Initialize workspace-hack using cargo-hakari

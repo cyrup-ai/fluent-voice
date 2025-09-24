@@ -68,7 +68,6 @@ impl KyutaiModelManager {
     /// Download all required Kyutai models
     #[instrument(name = "download_models", skip(self))]
     pub async fn download_models(&self) -> Result<KyutaiModelPaths, MoshiError> {
-        let _span = tracing::info_span!("kyutai_model_download").entered();
         info!("Starting Kyutai model downloads...");
 
         // Download Moshi language model
@@ -120,7 +119,6 @@ impl KyutaiModelManager {
     /// Download the Moshi language model
     #[instrument(name = "download_moshi_model", skip(self))]
     async fn download_moshi_model(&self) -> Result<DownloadResult, MoshiError> {
-        let _span = tracing::info_span!("moshi_model_download").entered();
         info!("Downloading Moshi model from {}", self.config.moshi_repo);
 
         let mut builder = ProgressHub::builder().model(&self.config.moshi_repo);
@@ -155,7 +153,6 @@ impl KyutaiModelManager {
     /// Download TTS voices for speaker conditioning
     #[instrument(name = "download_tts_voices", skip(self))]
     async fn download_tts_voices(&self) -> Result<DownloadResult, MoshiError> {
-        let _span = tracing::info_span!("tts_voices_download").entered();
         info!(
             "Downloading TTS voices from {}",
             self.config.tts_voices_repo

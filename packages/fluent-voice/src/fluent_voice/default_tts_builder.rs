@@ -65,6 +65,14 @@ pub struct DefaultTtsBuilder {
     // Add callback storage following existing TTS builder patterns
     result_callback:
         Option<Box<dyn FnOnce(Result<DefaultTtsConversation, VoiceError>) + Send + 'static>>,
+    // Add chunk processor storage for on_chunk method
+    chunk_processor: Option<Box<dyn FnMut(Result<AudioChunk, VoiceError>) -> AudioChunk + Send + 'static>>,
+}
+
+impl Default for DefaultTtsBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DefaultTtsBuilder {
@@ -75,6 +83,7 @@ impl DefaultTtsBuilder {
             synthesis_parameters: None,
             synthesis_session: None,
             result_callback: None, // Initialize callback storage
+            chunk_processor: None, // Initialize chunk processor storage
         }
     }
 
@@ -244,6 +253,15 @@ impl TtsConversationBuilder for DefaultTtsBuilder {
         self
     }
 
+    fn on_chunk<F>(mut self, processor: F) -> Self::ChunkBuilder
+    where
+        F: FnMut(Result<AudioChunk, VoiceError>) -> AudioChunk + Send + 'static,
+    {
+        // Store the chunk processor following the same pattern as STT
+        self.chunk_processor = Some(Box::new(processor));
+        self
+    }
+
     fn synthesize<M, R>(self, matcher: M) -> R
     where
         M: FnOnce(Result<Self::Conversation, fluent_voice_domain::VoiceError>) -> R
@@ -295,6 +313,7 @@ impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder 
         let speaker_id_clone = self.speaker_id.clone();
         let voice_clone_path = self.voice_clone_path.clone();
         let synthesis_parameters = self.synthesis_parameters.clone();
+        let mut chunk_processor = self.chunk_processor;
 
         // Single async_stream that handles both error and success cases
         Box::pin(async_stream::stream! {
@@ -306,7 +325,13 @@ impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder 
                     speaker_id_clone.clone(),
                     "ResourceValidation"
                 );
-                yield error_chunk;
+                // Apply chunk processor to error chunk if available
+                let final_error_chunk = if let Some(ref mut processor) = chunk_processor {
+                    processor(Err(e))
+                } else {
+                    error_chunk
+                };
+                yield final_error_chunk;
                 return;
             }
 
@@ -319,7 +344,13 @@ impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder 
                         speaker_id_clone.clone(),
                         "Configuration"
                     );
-                    yield error_chunk;
+                    // Apply chunk processor to error chunk if available
+                    let final_error_chunk = if let Some(ref mut processor) = chunk_processor {
+                        processor(Err(validation_error))
+                    } else {
+                        error_chunk
+                    };
+                    yield final_error_chunk;
                     return;
                 }
             }
@@ -337,7 +368,13 @@ impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder 
                         speaker_id_clone.clone(),
                         "Configuration"
                     );
-                    yield error_chunk;
+                    // Apply chunk processor to error chunk if available
+                    let final_error_chunk = if let Some(ref mut processor) = chunk_processor {
+                        processor(Err(VoiceError::Configuration(format!("Failed to create voice pool: {}", e))))
+                    } else {
+                        error_chunk
+                    };
+                    yield final_error_chunk;
                     return;
                 }
             };
@@ -378,7 +415,13 @@ impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder 
                         speaker_id_clone.clone(),
                         "Synthesis"
                     );
-                    yield error_chunk;
+                    // Apply chunk processor to error chunk if available
+                    let final_error_chunk = if let Some(ref mut processor) = chunk_processor {
+                        processor(Err(e))
+                    } else {
+                        error_chunk
+                    };
+                    yield final_error_chunk;
                     return;
                 }
             };
@@ -391,7 +434,13 @@ impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder 
                     speaker_id_clone.clone(),
                     "AudioProcessing"
                 );
-                yield error_chunk;
+                // Apply chunk processor to error chunk if available
+                let final_error_chunk = if let Some(ref mut processor) = chunk_processor {
+                    processor(Err(VoiceError::ProcessingError("Audio data length must be even for 16-bit samples".to_string())))
+                } else {
+                    error_chunk
+                };
+                yield final_error_chunk;
                 return;
             }
 
@@ -402,7 +451,13 @@ impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder 
                     speaker_id_clone.clone(),
                     "Synthesis"
                 );
-                yield error_chunk;
+                // Apply chunk processor to error chunk if available
+                let final_error_chunk = if let Some(ref mut processor) = chunk_processor {
+                    processor(Err(VoiceError::ProcessingError("Synthesis failed: No audio data generated".to_string())))
+                } else {
+                    error_chunk
+                };
+                yield final_error_chunk;
                 return;
             }
 
@@ -415,16 +470,24 @@ impl crate::tts_conversation::TtsConversationChunkBuilder for DefaultTtsBuilder 
                 0
             };
 
-            // Yield properly formatted AudioChunk with real synthesis results
+            // Create properly formatted AudioChunk with real synthesis results
             let result_chunk = AudioChunk::with_metadata(
                 audio_data,                    // Real synthesized audio data from DiaVoiceBuilder
                 duration_ms,                   // Calculated duration
                 0,                             // start_ms
-                speaker_id_clone,              // speaker_id from builder
+                speaker_id_clone.clone(),      // speaker_id from builder
                 Some(synthesis_text),          // Real synthesis text
                 Some(AudioFormat::Pcm16Khz),  // format
             );
-            yield result_chunk;
+
+            // Apply chunk processor if available, following STT pattern
+            let final_chunk = if let Some(ref mut processor) = chunk_processor {
+                processor(Ok(result_chunk))
+            } else {
+                result_chunk
+            };
+
+            yield final_chunk;
         })
     }
 }

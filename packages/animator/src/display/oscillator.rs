@@ -15,6 +15,7 @@ pub struct Oscillator {
 }
 
 impl DisplayMode for Oscillator {
+    #[allow(warnings)]
     fn axis(&self, cfg: &GraphConfig, ui_mode: UIMode, dimension: Dimension) -> Axis {
         match dimension {
             Dimension::X => {

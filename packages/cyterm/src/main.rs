@@ -24,7 +24,9 @@ async fn main() -> Result<()> {
             // For this integration, we just print the prediction.
             print!("\r\x1B[K"); // Clear line and move cursor to start
             print!("{} [prediction: {}]", transcription, prediction);
-            std::io::Write::flush(&mut std::io::stdout()).unwrap();
+            if let Err(e) = std::io::Write::flush(&mut std::io::stdout()) {
+                eprintln!("Failed to flush stdout: {}", e);
+            }
         })
         .on_chunk(|result| match result {
             Ok(segment) => segment,

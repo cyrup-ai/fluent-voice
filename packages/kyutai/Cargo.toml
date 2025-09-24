@@ -31,6 +31,7 @@ fluent_voice = { path = "../fluent-voice" }
 fluent_voice_whisper = { path = "../whisper", features = ["mimi"] }
 # LiveKit integration for real-time streaming
 fluent_voice_livekit = { path = "../livekit" }
+livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", features = ["native-tls"] }
 
 # Cyrup sugars for ChunkHandler pattern
 cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", branch = "main", features = ["all"] }

@@ -81,6 +81,8 @@ console_error_panic_hook = { version = "0.1.7", optional = true }
 # futures-util   = { version = "0.3.31", optional = true } # in workspace-hack
 async-stream   = { version = "0.3.6", optional = true }
 futures-core = "0.3.31"
+futures = "0.3.31"
+tokio-stream = "0.1"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.20"
 # candle-transformers already defined above as optional
@@ -103,10 +105,11 @@ pyo3 = { version = "0.26.0", features = ["auto-initialize", "abi3-py311"], optio
 pdf2image = { version = "0.1.3", optional = true }
 safetensors = { version = "0.6", optional = true }
 csv = { version = "1.3.1", optional = true }
-progresshub = { path = "../../../progresshub/packages/progresshub" }
+# progresshub = { path = "../../../progresshub/packages/progresshub" }
 hf-hub = "0.4.3"
 dirs = "6.0.0"
 fluent-voice-workspace-hack = { path = "../../workspace-hack" }
+termcolor = { path = "../termcolor" }
 
 # ------------------------------------------------
 #  Feature flags

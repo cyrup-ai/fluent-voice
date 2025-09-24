@@ -19,6 +19,7 @@ pub struct SpeechAnimator {
 /// Represents the current state of lip synchronization
 #[derive(Debug, Clone)]
 struct LipSyncState {
+    #[allow(dead_code)]
     current_phoneme: String,
     mouth_openness: f32,
     transition_progress: f32,

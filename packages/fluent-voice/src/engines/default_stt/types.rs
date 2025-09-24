@@ -28,7 +28,7 @@ impl MessageChunk for TranscriptionSegmentWrapper {
 
     fn error(&self) -> Option<&str> {
         if self.0.text().starts_with("[ERROR]") {
-            Some(&self.0.text()[8..].trim())
+            Some(self.0.text()[8..].trim())
         } else {
             None
         }

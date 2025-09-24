@@ -31,7 +31,7 @@ impl MessageChunk for AudioChunkWrapper {
     fn is_error(&self) -> bool {
         self.0
             .text()
-            .map_or(false, |text| text.starts_with("[ERROR]"))
+            .is_some_and(|text| text.starts_with("[ERROR]"))
     }
 }
 

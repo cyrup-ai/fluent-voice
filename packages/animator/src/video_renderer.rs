@@ -218,6 +218,10 @@ impl RendererInternal {
             mip_level_count: Some(1),
             base_array_layer: 0,
             array_layer_count: Some(1),
+            usage: Some(
+                egui_wgpu::wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | egui_wgpu::wgpu::TextureUsages::TEXTURE_BINDING,
+            ),
         };
 
         self.texture_view = self.texture.as_ref().map(|t| t.create_view(&view_desc));

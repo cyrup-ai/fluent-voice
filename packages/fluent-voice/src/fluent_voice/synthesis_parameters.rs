@@ -44,6 +44,12 @@ pub enum SessionStatus {
     Completed,
     Failed(String),
 }
+impl Default for SynthesisParameters {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SynthesisParameters {
     pub fn new() -> Self {
         let now = SystemTime::now();

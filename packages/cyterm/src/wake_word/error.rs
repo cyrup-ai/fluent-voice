@@ -88,5 +88,42 @@ impl From<fluent_voice_vad::Error> for WakeWordError {
     }
 }
 
+/// Model creation specific errors with detailed context
+#[derive(Debug, Clone, PartialEq)]
+pub enum ModelError {
+    /// Model creation failed with detailed context
+    CreationFailed {
+        /// Length of the weights vector provided
+        weights_len: usize,
+        /// Bias value provided  
+        bias_value: f32,
+        /// Underlying error message
+        underlying_error: String,
+        /// Context about when/where this occurred
+        context: String,
+    },
+}
+
+impl fmt::Display for ModelError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ModelError::CreationFailed {
+                weights_len,
+                bias_value,
+                underlying_error,
+                context,
+            } => {
+                write!(
+                    f,
+                    "Model creation failed in {}: weights_len={}, bias={}, error={}",
+                    context, weights_len, bias_value, underlying_error
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for ModelError {}
+
 /// Result type for wake word operations.
 pub type Result<T> = std::result::Result<T, WakeWordError>;

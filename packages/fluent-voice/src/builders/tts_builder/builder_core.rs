@@ -81,7 +81,7 @@ where
                 };
 
                 let mut cumulative_time_ms = 0u64;
-                for (_chunk_index, line) in lines.into_iter().enumerate() {
+                for line in lines.into_iter() {
                     match super::synthesis::synthesize_speech_internal(
                         &pool, &line.id, &line.text, None,
                     )

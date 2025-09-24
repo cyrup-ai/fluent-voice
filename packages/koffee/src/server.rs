@@ -148,10 +148,10 @@ impl ConnectionManager {
         // Rate limiting check
         {
             let mut connections = self.connections.write().await;
-            if let Some(session) = connections.get_mut(&addr) {
-                if !session.check_rate_limit() {
-                    return Err("Rate limit exceeded".to_string());
-                }
+            if let Some(session) = connections.get_mut(&addr)
+                && !session.check_rate_limit()
+            {
+                return Err("Rate limit exceeded".to_string());
             }
         }
 
@@ -219,13 +219,13 @@ impl ClientSession {
         }
 
         // Check if we need to reset the minute counter
-        if let Ok(mut last_reset) = self.last_minute_reset.lock() {
-            if now.duration_since(*last_reset) >= Duration::from_secs(60) {
-                if let Ok(mut count) = self.request_count.lock() {
-                    *count = 0;
-                }
-                *last_reset = now;
+        if let Ok(mut last_reset) = self.last_minute_reset.lock()
+            && now.duration_since(*last_reset) >= Duration::from_secs(60)
+        {
+            if let Ok(mut count) = self.request_count.lock() {
+                *count = 0;
             }
+            *last_reset = now;
         }
 
         // Check rate limit
@@ -428,7 +428,7 @@ fn serialize_error(error_msg: &str) -> Result<Vec<u8>> {
 
 /// Convert audio bytes to f32 samples for processing
 fn convert_audio_bytes_to_samples(data: &[u8]) -> Result<Vec<f32>> {
-    if data.len() % 2 != 0 {
+    if !data.len().is_multiple_of(2) {
         return Err("Invalid audio data length".to_string());
     }
 

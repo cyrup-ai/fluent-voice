@@ -117,6 +117,7 @@ impl DisplayMode for Vector {
         "live".into()
     }
 
+    #[allow(warnings)]
     fn axis(&self, cfg: &GraphConfig, ui_mode: UIMode, dimension: Dimension) -> Axis {
         let (name, bounds) = match dimension {
             Dimension::X => ("left/right", [-cfg.scale, cfg.scale]),

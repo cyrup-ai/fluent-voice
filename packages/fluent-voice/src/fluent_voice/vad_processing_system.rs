@@ -26,23 +26,12 @@ pub struct RealTimeVadSystem {
 }
 
 /// Current state of the VAD processing system
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ProcessingState {
     pub is_active: bool,
     pub current_voice_state: bool,
     pub last_activity_timestamp: Option<u64>,
     pub turn_count: u64,
-}
-
-impl Default for ProcessingState {
-    fn default() -> Self {
-        Self {
-            is_active: false,
-            current_voice_state: false,
-            last_activity_timestamp: None,
-            turn_count: 0,
-        }
-    }
 }
 
 /// Performance metrics for monitoring system health
@@ -53,6 +42,12 @@ pub struct PerformanceMetrics {
     pub turn_detection_count: u64,
     pub error_count: u64,
     start_time: Instant,
+}
+
+impl Default for PerformanceMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PerformanceMetrics {
@@ -274,10 +269,13 @@ mod tests {
     async fn test_real_time_vad_system_creation() {
         let event_bus = Arc::new(EventBus::new());
         let vad_engine_result = VadEngine::new();
-        if vad_engine_result.is_err() {
-            return; // Skip test if VAD engine can't be created
-        }
-        let vad_engine = Arc::new(Mutex::new(vad_engine_result.unwrap()));
+        let vad_engine = match vad_engine_result {
+            Ok(engine) => Arc::new(Mutex::new(engine)),
+            Err(e) => {
+                eprintln!("VAD engine creation failed: {}", e);
+                return; // Skip test if VAD engine can't be created
+            }
+        };
         let vad_system = RealTimeVadSystem::new(event_bus, vad_engine);
 
         assert!(
@@ -290,10 +288,13 @@ mod tests {
     async fn test_vad_processing_stream() {
         let event_bus = Arc::new(EventBus::new());
         let vad_engine_result = VadEngine::new();
-        if vad_engine_result.is_err() {
-            return; // Skip test if VAD engine can't be created
-        }
-        let vad_engine = Arc::new(Mutex::new(vad_engine_result.unwrap()));
+        let vad_engine = match vad_engine_result {
+            Ok(engine) => Arc::new(Mutex::new(engine)),
+            Err(e) => {
+                eprintln!("VAD engine creation failed: {}", e);
+                return; // Skip test if VAD engine can't be created
+            }
+        };
         let mut vad_system = RealTimeVadSystem::new(event_bus, vad_engine);
 
         let audio_stream = create_test_audio_stream();

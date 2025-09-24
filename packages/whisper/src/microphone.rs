@@ -6,17 +6,17 @@ extern crate intel_mkl_src;
 
 use anyhow::{Error as E, Result};
 use candle_core::{Device, IndexOp, Tensor};
-use candle_nn::{VarBuilder, ops::softmax};
+use candle_nn::ops::softmax;
 use clap::{Parser, ValueEnum};
-use progresshub::{ProgressHub, ZeroOneOrMany};
+// use progresshub::{ProgressHub, ZeroOneOrMany};
 use rand::{SeedableRng, distr::Distribution};
+use rubato::Resampler;
 use tokenizers::Tokenizer;
 
 use crate::token_filtering;
-use candle_transformers::models::whisper::{self as m, Config, audio};
+use candle_transformers::models::whisper::{self as m, Config};
 
-#[cfg(feature = "microphone")]
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+// Removed unused cpal::traits imports
 
 pub enum Model {
     Normal(m::model::Whisper),
@@ -78,6 +78,7 @@ struct Segment {
     dr: DecodingResult,
 }
 
+#[allow(dead_code)]
 struct Decoder {
     model: Model,
     rng: rand::rngs::StdRng,
@@ -95,6 +96,7 @@ struct Decoder {
     language_token: Option<u32>,
 }
 
+#[allow(dead_code)]
 impl Decoder {
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -351,13 +353,7 @@ impl Decoder {
         self.language_token = language_token;
     }
 
-    #[allow(dead_code)]
-    fn reset_kv_cache(&mut self) {
-        match &mut self.model {
-            Model::Normal(m) => m.reset_kv_cache(),
-            Model::Quantized(m) => m.reset_kv_cache(),
-        }
-    }
+    // reset_kv_cache method removed - not available in whisper models
 
     fn model(&mut self) -> &mut Model {
         &mut self.model
@@ -401,6 +397,7 @@ enum WhichModel {
     DistilLargeV2,
 }
 
+#[allow(dead_code)]
 impl WhichModel {
     fn is_multilingual(&self) -> bool {
         match self {
@@ -490,301 +487,581 @@ struct Args {
     device: Option<String>,
 }
 
-/// Extract model file paths from progresshub download result
-fn extract_model_files(
-    model_result: &progresshub::ModelResult,
-) -> Result<(String, String, String)> {
-    // Debug: Print all available files
-    println!("DEBUG: Available files from progresshub:");
-    for file in &model_result.files {
-        println!(
-            "DEBUG:   filename='{}', path='{}', exists={}",
-            file.filename,
-            file.path.display(),
-            file.path.exists()
-        );
-    }
+// /// Extract model file paths from progresshub download result
+// fn extract_model_files(
+//     model_result: &progresshub::ModelResult,
+// ) -> Result<(String, String, String)> {
+//     // Debug: Print all available files
+//     println!("DEBUG: Available files from progresshub:");
+//     for file in &model_result.files {
+//         println!(
+//             "DEBUG:   filename='{}', path='{}', exists={}",
+//             file.filename,
+//             file.path.display(),
+//             file.path.exists()
+//         );
+//     }
+//
+//     let config_path = model_result
+//         .files
+//         .iter()
+//         .find(|f| f.filename == "config.json")
+//         .ok_or_else(|| anyhow::anyhow!("Config file not found"))?
+//         .path
+//         .to_string_lossy()
+//         .to_string();
+//
+//     let tokenizer_path = model_result
+//         .files
+//         .iter()
+//         .find(|f| f.filename == "tokenizer.json")
+//         .ok_or_else(|| anyhow::anyhow!("Tokenizer file not found"))?
+//         .path
+//         .to_string_lossy()
+//         .to_string();
+//
+//     let weights_path = model_result
+//         .files
+//         .iter()
+//         .find(|f| f.filename.ends_with(".safetensors") || f.filename.ends_with(".bin"))
+//         .ok_or_else(|| anyhow::anyhow!("Weights file not found"))?
+//         .path
+//         .to_string_lossy()
+//         .to_string();
+//
+//     println!("DEBUG: Selected paths:");
+//     println!("DEBUG:   config: {}", config_path);
+//     println!("DEBUG:   tokenizer: {}", tokenizer_path);
+//     println!("DEBUG:   weights: {}", weights_path);
+//
+//     Ok((config_path, tokenizer_path, weights_path))
+// }
 
-    let config_path = model_result
-        .files
-        .iter()
-        .find(|f| f.filename == "config.json")
-        .ok_or_else(|| anyhow::anyhow!("Config file not found"))?
-        .path
-        .to_string_lossy()
-        .to_string();
+// #[cfg(feature = "microphone")]
+// pub async fn record() -> Result<()> {
+//     use tracing_chrome::ChromeLayerBuilder;
+//     use tracing_subscriber::prelude::*;
+//
+//     let args = Args::parse();
+//     let _guard = if args.tracing {
+//         let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
+//         tracing_subscriber::registry().with(chrome_layer).init();
+//         Some(guard)
+//     } else {
+//         None
+//     };
+//     let device = if args.cpu {
+//         Device::Cpu
+//     } else {
+//         Device::new_metal(0).unwrap_or(Device::Cpu)
+//     };
+//     let model_id = args.model_id.unwrap_or_else(|| {
+//         if args.quantized {
+//             "lmz/candle-whisper".to_string()
+//         } else {
+//             let (model_id, _) = args.model.model_and_revision();
+//             model_id.to_string()
+//         }
+//     });
+//
+//     // Download model using ProgressHub
+//     let model_download = ProgressHub::builder()
+//         .model(&model_id)
+//         .with_cli_progress()
+//         .download()
+//         .await?;
+//
+//     // Extract first download result
+//     let download_result = model_download
+//         .into_iter()
+//         .next()
+//         .ok_or_else(|| anyhow::anyhow!("No download results returned"))?;
+//
+//     let model_result = match download_result.models {
+//         ZeroOneOrMany::Zero => anyhow::bail!("No models downloaded"),
+//         ZeroOneOrMany::One(model) => model,
+//         ZeroOneOrMany::Many(mut models) => models
+//             .pop()
+//             .ok_or_else(|| anyhow::anyhow!("No models in result"))?,
+//     };
+//
+//     let (config_filename, tokenizer_filename, weights_filename) = if args.quantized {
+//         let ext = match args.model {
+//             WhichModel::TinyEn => "tiny-en",
+//             WhichModel::Tiny => "tiny",
+//             _ => anyhow::bail!("no quantized support for {:?}", args.model),
+//         };
+//         (
+//             model_result
+//                 .files
+//                 .iter()
+//                 .find(|f| {
+//                     f.path.file_name().and_then(|n| n.to_str())
+//                         == Some(&format!("config-{ext}.json"))
+//                 })
+//                 .ok_or_else(|| anyhow::anyhow!("config-{ext}.json not found"))?
+//                 .path
+//                 .to_string_lossy()
+//                 .to_string(),
+//             model_result
+//                 .files
+//                 .iter()
+//                 .find(|f| {
+//                     f.path.file_name().and_then(|n| n.to_str())
+//                         == Some(&format!("tokenizer-{ext}.json"))
+//                 })
+//                 .ok_or_else(|| anyhow::anyhow!("tokenizer-{ext}.json not found"))?
+//                 .path
+//                 .to_string_lossy()
+//                 .to_string(),
+//             model_result
+//                 .files
+//                 .iter()
+//                 .find(|f| {
+//                     f.path.file_name().and_then(|n| n.to_str())
+//                         == Some(&format!("model-{ext}-q80.gguf"))
+//                 })
+//                 .ok_or_else(|| anyhow::anyhow!("model-{ext}-q80.gguf not found"))?
+//                 .path
+//                 .to_string_lossy()
+//                 .to_string(),
+//         )
+//     } else {
+//         extract_model_files(&model_result)?
+//     };
+//     let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
+//     let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
+//     let model = if args.quantized {
+//         let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(
+//             &weights_filename,
+//             &device,
+//         )?;
+//         Model::Quantized(m::quantized_model::Whisper::load(&vb, config.clone())?)
+//     } else {
+//         let vb =
+//             unsafe { VarBuilder::from_mmaped_safetensors(&[weights_filename], m::DTYPE, &device)? };
+//         Model::Normal(m::model::Whisper::load(&vb, config.clone())?)
+//     };
+//     let mut decoder = Decoder::new(
+//         model,
+//         tokenizer.clone(),
+//         args.seed,
+//         &device,
+//         /* language_token */ None,
+//         args.task,
+//         args.timestamps,
+//         args.verbose,
+//     )?;
+//
+//     let mel_bytes = match config.num_mel_bins {
+//         80 => include_bytes!("melfilters.bytes").as_slice(),
+//         128 => include_bytes!("melfilters128.bytes").as_slice(),
+//         nmel => anyhow::bail!("unexpected num_mel_bins {nmel}"),
+//     };
+//     let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
+//     <byteorder::LittleEndian as byteorder::ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
+//
+//     // Set up the input device and stream with the default input config.
+//     let host = cpal::default_host();
+//     let audio_device = match args.device.as_ref() {
+//         None => host.default_input_device(),
+//         Some(device) => host
+//             .input_devices()?
+//             .find(|x| x.name().map_or(false, |y| &y == device)),
+//     }
+//     .ok_or_else(|| anyhow::anyhow!("Failed to find the specified audio input device"))?;
+//
+//     let audio_config = audio_device
+//         .default_input_config()
+//         .map_err(|e| anyhow::anyhow!("Failed to get default input config: {}", e))?;
+//     println!("audio config {audio_config:?}");
+//
+//     let channel_count = audio_config.channels() as usize;
+//     let in_sample_rate = audio_config.sample_rate().0 as usize;
+//     let resample_ratio = 16000. / in_sample_rate as f64;
+//     let mut resampler = rubato::FastFixedIn::new(
+//         resample_ratio,
+//         10.,
+//         rubato::PolynomialDegree::Septic,
+//         1024,
+//         1,
+//     )?;
+//     let (tx, rx) = std::sync::mpsc::channel();
+//     let stream = audio_device.build_input_stream(
+//         &audio_config.config(),
+//         move |pcm: &[f32], _: &cpal::InputCallbackInfo| {
+//             let pcm = pcm
+//                 .iter()
+//                 .step_by(channel_count)
+//                 .copied()
+//                 .collect::<Vec<f32>>();
+//             if !pcm.is_empty() {
+//                 if let Err(e) = tx.send(pcm) {
+//                     eprintln!("Failed to send PCM data through channel: {}", e);
+//                 }
+//             }
+//         },
+//         move |err| {
+//             eprintln!("an error occurred on stream: {}", err);
+//         },
+//         None,
+//     )?;
+//     stream.play()?;
+//
+//     // loop to process the audio data forever (until the user stops the program)
+//     println!("transcribing audio...");
+//     let mut buffered_pcm = vec![];
+//     let mut language_token_set = false;
+//     while let Ok(pcm) = rx.recv() {
+//         #[cfg(feature = "microphone")]
+//         use rubato::Resampler;
+//
+//         buffered_pcm.extend_from_slice(&pcm);
+//         if buffered_pcm.len() < 10 * in_sample_rate {
+//             continue;
+//         }
+//         let mut resampled_pcm = vec![];
+//         // resample the audio, one chunk of 1024 samples at a time.
+//         // in case the audio input failed to produce an exact multiple of 1024 samples,
+//         // process the remainder on the next iteration of the loop.
+//         let full_chunks = buffered_pcm.len() / 1024;
+//         let remainder = buffered_pcm.len() % 1024;
+//         for chunk in 0..full_chunks {
+//             let buffered_pcm = &buffered_pcm[chunk * 1024..(chunk + 1) * 1024];
+//             let pcm = resampler.process(&[&buffered_pcm], None)?;
+//             resampled_pcm.extend_from_slice(&pcm[0]);
+//         }
+//         let pcm = resampled_pcm;
+//         println!("{} {}", buffered_pcm.len(), pcm.len());
+//         if remainder == 0 {
+//             buffered_pcm.clear();
+//         } else {
+//             // efficiently copy the remainder to the beginning of the `buffered_pcm` buffer and
+//             // truncate it.  That's more efficient then allocating a new vector and copying into it
+//             println!(
+//                 "audio device produced partial chunk with {remainder} samples; processing the remainder on the next iteration of the loop"
+//             );
+//             buffered_pcm.copy_within(full_chunks * 1024.., 0);
+//             buffered_pcm.truncate(remainder);
+//         }
+//         let mel = audio::pcm_to_mel(&config, &pcm, &mel_filters);
+//         let mel_len = mel.len();
+//         let mel = Tensor::from_vec(
+//             mel,
+//             (1, config.num_mel_bins, mel_len / config.num_mel_bins),
+//             &device,
+//         )?;
+//
+//         // on the first iteration, we detect the language and set the language token.
+//         if !language_token_set {
+//             let language_token = match (args.model.is_multilingual(), args.language.clone()) {
+//                 (true, None) => Some(crate::multilingual::detect_language(
+//                     decoder.model(),
+//                     &tokenizer,
+//                     &mel,
+//                 )?),
+//                 (false, None) => None,
+//                 (true, Some(language)) => match token_id(&tokenizer, &format!("<|{language}|>")) {
+//                     Ok(token_id) => Some(token_id),
+//                     Err(_) => anyhow::bail!("language {language} is not supported"),
+//                 },
+//                 (false, Some(_)) => {
+//                     anyhow::bail!("a language cannot be set for non-multilingual models")
+//                 }
+//             };
+//             println!("language_token: {:?}", language_token);
+//             decoder.set_language_token(language_token);
+//             language_token_set = true;
+//         }
+//         decoder.run(&mel, None)?;
+//         decoder.reset_kv_cache();
+//     }
+//
+//     Ok(())
+//     Err(anyhow::anyhow!("CLI record() function disabled - use record_with_builder() instead"))
+// } // End commented out CLI record function
 
-    let tokenizer_path = model_result
-        .files
-        .iter()
-        .find(|f| f.filename == "tokenizer.json")
-        .ok_or_else(|| anyhow::anyhow!("Tokenizer file not found"))?
-        .path
-        .to_string_lossy()
-        .to_string();
-
-    let weights_path = model_result
-        .files
-        .iter()
-        .find(|f| f.filename.ends_with(".safetensors") || f.filename.ends_with(".bin"))
-        .ok_or_else(|| anyhow::anyhow!("Weights file not found"))?
-        .path
-        .to_string_lossy()
-        .to_string();
-
-    println!("DEBUG: Selected paths:");
-    println!("DEBUG:   config: {}", config_path);
-    println!("DEBUG:   tokenizer: {}", tokenizer_path);
-    println!("DEBUG:   weights: {}", weights_path);
-
-    Ok((config_path, tokenizer_path, weights_path))
+#[cfg(not(feature = "microphone"))]
+pub fn record() -> Result<()> {
+    Err(anyhow::anyhow!(
+        "Microphone recording requires microphone feature"
+    ))
 }
 
 #[cfg(feature = "microphone")]
-pub async fn record() -> Result<()> {
-    use tracing_chrome::ChromeLayerBuilder;
-    use tracing_subscriber::prelude::*;
+/// Record from microphone with builder configuration and optional callback support
+pub async fn record_with_builder<F>(
+    mut model: Model,
+    tokenizer: tokenizers::Tokenizer,
+    device: Device,
+    mel_filters: Vec<f32>,
+    config: candle_transformers::models::whisper::Config,
+    task: Option<crate::whisper::Task>,
+    language: Option<String>,
+    mut callback: Option<F>,
+) -> Result<crate::transcript::Transcript>
+where
+    F: FnMut(crate::types::TtsChunk) + Send + 'static,
+{
+    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
-    let args = Args::parse();
-    let _guard = if args.tracing {
-        let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
-        tracing_subscriber::registry().with(chrome_layer).init();
-        Some(guard)
+    // Check if model is multilingual for language detection
+    let is_multilingual = model.config().vocab_size == 51864;
+
+    // Audio setup similar to existing record() function
+    let host = cpal::default_host();
+    let audio_device = host
+        .default_input_device()
+        .ok_or_else(|| anyhow::anyhow!("No input device available"))?;
+
+    let audio_config = audio_device.default_input_config()?;
+    let sample_rate = audio_config.sample_rate().0 as f32;
+    let channels = audio_config.channels() as usize;
+
+    println!("Default input config: {:?}", audio_config);
+
+    let in_sample_rate = sample_rate as usize;
+    let out_sample_rate = 16000;
+
+    // Set up audio resampler
+    let mut resampler = if in_sample_rate != out_sample_rate {
+        Some(rubato::FftFixedIn::<f32>::new(
+            in_sample_rate,
+            out_sample_rate,
+            1024,
+            2,
+            1,
+        )?)
     } else {
         None
     };
-    let device = if args.cpu {
-        Device::Cpu
-    } else {
-        Device::new_metal(0).unwrap_or(Device::Cpu)
-    };
-    let model_id = args.model_id.unwrap_or_else(|| {
-        if args.quantized {
-            "lmz/candle-whisper".to_string()
-        } else {
-            let (model_id, _) = args.model.model_and_revision();
-            model_id.to_string()
-        }
-    });
 
-    // Download model using ProgressHub
-    let model_download = ProgressHub::builder()
-        .model(&model_id)
-        .with_cli_progress()
-        .download()
-        .await?;
+    // Set up audio stream using channel for communication
+    let (tx, rx) = std::sync::mpsc::channel::<Vec<f32>>();
 
-    // Extract first download result
-    let download_result = model_download
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("No download results returned"))?;
-
-    let model_result = match download_result.models {
-        ZeroOneOrMany::Zero => anyhow::bail!("No models downloaded"),
-        ZeroOneOrMany::One(model) => model,
-        ZeroOneOrMany::Many(mut models) => models
-            .pop()
-            .ok_or_else(|| anyhow::anyhow!("No models in result"))?,
-    };
-
-    let (config_filename, tokenizer_filename, weights_filename) = if args.quantized {
-        let ext = match args.model {
-            WhichModel::TinyEn => "tiny-en",
-            WhichModel::Tiny => "tiny",
-            _ => anyhow::bail!("no quantized support for {:?}", args.model),
-        };
-        (
-            model_result
-                .files
-                .iter()
-                .find(|f| {
-                    f.path.file_name().and_then(|n| n.to_str())
-                        == Some(&format!("config-{ext}.json"))
-                })
-                .ok_or_else(|| anyhow::anyhow!("config-{ext}.json not found"))?
-                .path
-                .to_string_lossy()
-                .to_string(),
-            model_result
-                .files
-                .iter()
-                .find(|f| {
-                    f.path.file_name().and_then(|n| n.to_str())
-                        == Some(&format!("tokenizer-{ext}.json"))
-                })
-                .ok_or_else(|| anyhow::anyhow!("tokenizer-{ext}.json not found"))?
-                .path
-                .to_string_lossy()
-                .to_string(),
-            model_result
-                .files
-                .iter()
-                .find(|f| {
-                    f.path.file_name().and_then(|n| n.to_str())
-                        == Some(&format!("model-{ext}-q80.gguf"))
-                })
-                .ok_or_else(|| anyhow::anyhow!("model-{ext}-q80.gguf not found"))?
-                .path
-                .to_string_lossy()
-                .to_string(),
-        )
-    } else {
-        extract_model_files(&model_result)?
-    };
-    let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
-    let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
-    let model = if args.quantized {
-        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(
-            &weights_filename,
-            &device,
-        )?;
-        Model::Quantized(m::quantized_model::Whisper::load(&vb, config.clone())?)
-    } else {
-        let vb =
-            unsafe { VarBuilder::from_mmaped_safetensors(&[weights_filename], m::DTYPE, &device)? };
-        Model::Normal(m::model::Whisper::load(&vb, config.clone())?)
-    };
-    let mut decoder = Decoder::new(
-        model,
-        tokenizer.clone(),
-        args.seed,
-        &device,
-        /* language_token */ None,
-        args.task,
-        args.timestamps,
-        args.verbose,
-    )?;
-
-    let mel_bytes = match config.num_mel_bins {
-        80 => include_bytes!("melfilters.bytes").as_slice(),
-        128 => include_bytes!("melfilters128.bytes").as_slice(),
-        nmel => anyhow::bail!("unexpected num_mel_bins {nmel}"),
-    };
-    let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
-    <byteorder::LittleEndian as byteorder::ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
-
-    // Set up the input device and stream with the default input config.
-    let host = cpal::default_host();
-    let audio_device = match args.device.as_ref() {
-        None => host.default_input_device(),
-        Some(device) => host
-            .input_devices()?
-            .find(|x| x.name().map_or(false, |y| &y == device)),
-    }
-    .ok_or_else(|| anyhow::anyhow!("Failed to find the specified audio input device"))?;
-
-    let audio_config = audio_device
-        .default_input_config()
-        .map_err(|e| anyhow::anyhow!("Failed to get default input config: {}", e))?;
-    println!("audio config {audio_config:?}");
-
-    let channel_count = audio_config.channels() as usize;
-    let in_sample_rate = audio_config.sample_rate().0 as usize;
-    let resample_ratio = 16000. / in_sample_rate as f64;
-    let mut resampler = rubato::FastFixedIn::new(
-        resample_ratio,
-        10.,
-        rubato::PolynomialDegree::Septic,
-        1024,
-        1,
-    )?;
-    let (tx, rx) = std::sync::mpsc::channel();
     let stream = audio_device.build_input_stream(
-        &audio_config.config(),
-        move |pcm: &[f32], _: &cpal::InputCallbackInfo| {
-            let pcm = pcm
-                .iter()
-                .step_by(channel_count)
-                .copied()
+        &audio_config.into(),
+        move |data: &[f32], _: &cpal::InputCallbackInfo| {
+            let pcm = data
+                .chunks(channels)
+                .map(|chunk| chunk[0]) // Take first channel if stereo
                 .collect::<Vec<f32>>();
-            if !pcm.is_empty() {
-                if let Err(e) = tx.send(pcm) {
-                    eprintln!("Failed to send PCM data through channel: {}", e);
-                }
+            if !pcm.is_empty()
+                && let Err(e) = tx.send(pcm)
+            {
+                eprintln!("Failed to send PCM data through channel: {}", e);
             }
         },
         move |err| {
-            eprintln!("an error occurred on stream: {}", err);
+            eprintln!("An error occurred on stream: {}", err);
         },
         None,
     )?;
+
     stream.play()?;
 
-    // loop to process the audio data forever (until the user stops the program)
-    println!("transcribing audio...");
-    let mut buffered_pcm = vec![];
-    let mut language_token_set = false;
-    while let Ok(pcm) = rx.recv() {
-        #[cfg(feature = "microphone")]
-        use rubato::Resampler;
+    // Determine language token before creating decoder
+    let language_token = if is_multilingual {
+        match &language {
+            Some(lang) => {
+                // Use specified language
+                match token_id(&tokenizer, &format!("<|{lang}|>")) {
+                    Ok(token_id) => Some(token_id),
+                    Err(_) => {
+                        eprintln!(
+                            "Warning: language {lang} is not supported, defaulting to English"
+                        );
+                        Some(token_id(&tokenizer, "<|en|>")?)
+                    }
+                }
+            }
+            None => {
+                // Implement automatic language detection using the first audio chunk
+                println!("No language specified, performing automatic language detection...");
 
+                // Collect initial audio chunk for language detection
+                let mut detection_pcm = vec![];
+                let detection_duration = 3.0; // 3 seconds for language detection
+                let required_samples = (detection_duration * in_sample_rate as f32) as usize;
+
+                println!(
+                    "Collecting {} samples for language detection...",
+                    required_samples
+                );
+
+                while detection_pcm.len() < required_samples {
+                    if let Ok(pcm) = rx.recv() {
+                        detection_pcm.extend_from_slice(&pcm);
+                    } else {
+                        break;
+                    }
+                }
+
+                if detection_pcm.len() >= required_samples {
+                    // Resample detection audio if needed
+                    let detection_resampled = if let Some(ref mut resampler) = resampler {
+                        let mut resampled = vec![];
+                        let chunks = detection_pcm.chunks(1024);
+                        for chunk in chunks {
+                            if chunk.len() == 1024
+                                && let Ok(result) = resampler.process(&[chunk], None)
+                            {
+                                resampled.extend_from_slice(&result[0]);
+                            }
+                        }
+                        resampled
+                    } else {
+                        detection_pcm.clone()
+                    };
+
+                    // Convert to mel spectrogram for language detection
+                    let detection_mel = candle_transformers::models::whisper::audio::pcm_to_mel(
+                        &config,
+                        &detection_resampled,
+                        &mel_filters,
+                    );
+                    let mel_len = detection_mel.len();
+                    let detection_mel_tensor = candle_core::Tensor::from_vec(
+                        detection_mel,
+                        (1, config.num_mel_bins, mel_len / config.num_mel_bins),
+                        &device,
+                    )?;
+
+                    // Perform language detection directly with the model
+                    match crate::multilingual::detect_language(
+                        &mut model,
+                        &tokenizer,
+                        &detection_mel_tensor,
+                    ) {
+                        Ok(detected_token) => {
+                            println!("Language detection completed successfully");
+                            Some(detected_token)
+                        }
+                        Err(e) => {
+                            eprintln!("Language detection failed: {}, defaulting to English", e);
+                            Some(token_id(&tokenizer, "<|en|>")?)
+                        }
+                    }
+                } else {
+                    eprintln!("Insufficient audio for language detection, defaulting to English");
+                    Some(token_id(&tokenizer, "<|en|>")?)
+                }
+            }
+        }
+    } else {
+        // Non-multilingual model - no language token needed
+        if language.is_some() {
+            eprintln!("Warning: language specified for non-multilingual model, ignoring");
+        }
+        None
+    };
+
+    // Create decoder with determined language token
+    let mut decoder = crate::whisper::Decoder::new(
+        model,
+        tokenizer.clone(),
+        299792458, // Default seed
+        &device,
+        language_token,
+        task,
+        true,  // timestamps
+        false, // verbose
+    )?;
+
+    // Process audio similar to existing record() function
+    let mut transcript = crate::transcript::Transcript::empty();
+    let mut buffered_pcm = vec![];
+
+    // Process audio chunks continuously until stream ends or error occurs
+
+    while let Ok(pcm) = rx.recv() {
         buffered_pcm.extend_from_slice(&pcm);
         if buffered_pcm.len() < 10 * in_sample_rate {
             continue;
         }
+
         let mut resampled_pcm = vec![];
-        // resample the audio, one chunk of 1024 samples at a time.
-        // in case the audio input failed to produce an exact multiple of 1024 samples,
-        // process the remainder on the next iteration of the loop.
-        let full_chunks = buffered_pcm.len() / 1024;
-        let remainder = buffered_pcm.len() % 1024;
-        for chunk in 0..full_chunks {
-            let buffered_pcm = &buffered_pcm[chunk * 1024..(chunk + 1) * 1024];
-            let pcm = resampler.process(&[&buffered_pcm], None)?;
-            resampled_pcm.extend_from_slice(&pcm[0]);
-        }
-        let pcm = resampled_pcm;
-        println!("{} {}", buffered_pcm.len(), pcm.len());
-        if remainder == 0 {
-            buffered_pcm.clear();
+
+        if let Some(ref mut resampler) = resampler {
+            // Resample the audio, one chunk of 1024 samples at a time
+            let full_chunks = buffered_pcm.len() / 1024;
+            let remainder = buffered_pcm.len() % 1024;
+
+            for chunk in 0..full_chunks {
+                let buffered_pcm = &buffered_pcm[chunk * 1024..(chunk + 1) * 1024];
+                let pcm = resampler.process(&[&buffered_pcm], None)?;
+                resampled_pcm.extend_from_slice(&pcm[0]);
+            }
+
+            if remainder == 0 {
+                buffered_pcm.clear();
+            } else {
+                buffered_pcm.copy_within(full_chunks * 1024.., 0);
+                buffered_pcm.truncate(remainder);
+            }
         } else {
-            // efficiently copy the remainder to the beginning of the `buffered_pcm` buffer and
-            // truncate it.  That's more efficient then allocating a new vector and copying into it
-            println!(
-                "audio device produced partial chunk with {remainder} samples; processing the remainder on the next iteration of the loop"
-            );
-            buffered_pcm.copy_within(full_chunks * 1024.., 0);
-            buffered_pcm.truncate(remainder);
+            resampled_pcm = buffered_pcm.clone();
+            buffered_pcm.clear();
         }
-        let mel = audio::pcm_to_mel(&config, &pcm, &mel_filters);
+
+        let pcm = resampled_pcm;
+
+        // Convert to mel spectrogram
+        let mel =
+            candle_transformers::models::whisper::audio::pcm_to_mel(&config, &pcm, &mel_filters);
         let mel_len = mel.len();
-        let mel = Tensor::from_vec(
+        let mel_tensor = candle_core::Tensor::from_vec(
             mel,
             (1, config.num_mel_bins, mel_len / config.num_mel_bins),
             &device,
         )?;
 
-        // on the first iteration, we detect the language and set the language token.
-        if !language_token_set {
-            let language_token = match (args.model.is_multilingual(), args.language.clone()) {
-                (true, None) => Some(crate::multilingual::detect_language(
-                    decoder.model(),
-                    &tokenizer,
-                    &mel,
-                )?),
-                (false, None) => None,
-                (true, Some(language)) => match token_id(&tokenizer, &format!("<|{language}|>")) {
-                    Ok(token_id) => Some(token_id),
-                    Err(_) => anyhow::bail!("language {language} is not supported"),
-                },
-                (false, Some(_)) => {
-                    anyhow::bail!("a language cannot be set for non-multilingual models")
-                }
-            };
-            println!("language_token: {:?}", language_token);
-            decoder.set_language_token(language_token);
-            language_token_set = true;
+        // Decoder was already created before the loop
+
+        // Use callback if provided, otherwise use regular run
+        let segments = if let Some(mut cb) = callback.take() {
+            decoder.run_with_callback(&mel_tensor, &mut move |chunk| {
+                cb(chunk);
+            })?
+        } else {
+            decoder.run(&mel_tensor)?
+        };
+
+        // Add segments to transcript
+        for segment in segments {
+            let chunk = crate::types::TtsChunk::new(
+                segment.start,
+                segment.start + segment.duration,
+                segment.dr.tokens,
+                segment.dr.text,
+                segment.dr.avg_logprob,
+                segment.dr.no_speech_prob,
+                segment.dr.temperature,
+                segment.dr.compression_ratio,
+            );
+            transcript.push(chunk);
         }
-        decoder.run(&mel, None)?;
-        decoder.reset_kv_cache();
+
+        // decoder.reset_kv_cache(); // Method does not exist in whisper::Decoder
     }
 
-    Ok(())
-} // End unreachable_code block
+    Ok(transcript)
+}
 
 #[cfg(not(feature = "microphone"))]
-pub fn record() -> Result<()> {
+pub async fn record_with_builder<F>(
+    _model: crate::whisper::Model,
+    _tokenizer: tokenizers::Tokenizer,
+    _device: candle_core::Device,
+    _mel_filters: Vec<f32>,
+    _config: candle_transformers::models::whisper::Config,
+    _task: Option<crate::whisper::Task>,
+    _language: Option<String>,
+    _callback: Option<F>,
+) -> Result<crate::transcript::Transcript>
+where
+    F: FnMut(crate::types::TtsChunk) + Send + 'static,
+{
     Err(anyhow::anyhow!(
         "Microphone recording requires microphone feature"
     ))

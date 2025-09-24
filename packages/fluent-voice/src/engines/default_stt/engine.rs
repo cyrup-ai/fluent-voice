@@ -24,7 +24,7 @@ use super::types::SendableClosure;
 /// - Real-time VAD with zero-copy tensor operations
 /// - Comprehensive error recovery without panic paths
 ///
-/// Zero-allocation, no-locking architecture: creates WhisperTranscriber instances on demand
+/// Zero-allocation, no-locking architecture: creates WhisperSttBuilder instances on demand
 /// for optimal performance and thread safety.
 pub struct DefaultSTTEngine {
     /// VAD configuration for voice activity detection
@@ -73,8 +73,8 @@ impl SttEngine for DefaultSTTEngine {
 
     fn conversation(&self) -> Self::Conv {
         DefaultSTTConversationBuilder {
-            vad_config: self.vad_config.clone(),
-            wake_word_config: self.wake_word_config.clone(),
+            vad_config: self.vad_config,
+            wake_word_config: self.wake_word_config,
             speech_source: None,
             vad_mode: None,
             noise_reduction: None,

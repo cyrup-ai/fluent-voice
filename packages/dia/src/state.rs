@@ -344,8 +344,10 @@ impl DecoderInferenceState {
                 // batch_idx 1 = conditional (use actual token validity)
                 mask_data[batch_idx * seq_len + seq_idx] = if batch_idx == 0 {
                     0u8 // Unconditional = padding
+                } else if is_real {
+                    1u8
                 } else {
-                    if is_real { 1u8 } else { 0u8 }
+                    0u8
                 };
             }
         }

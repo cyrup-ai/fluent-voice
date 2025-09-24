@@ -24,6 +24,10 @@ fn conv_stereo_to_mono<T>(
     }
 }
 
+/// Decode audio files using Symphonia - supports multiple formats
+///
+/// This function handles F32, U8, U16, U24, U32, S8, S16, S24, S32, F64 audio formats
+/// and properly converts stereo to mono audio.
 pub fn pcm_decode<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<(Vec<f32>, u32)> {
     // Open the media source.
     let src = std::fs::File::open(path)?;

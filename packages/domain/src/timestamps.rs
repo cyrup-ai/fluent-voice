@@ -131,7 +131,7 @@ pub struct WordTimestamp {
 }
 
 /// Synthesis/transcription configuration and metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SynthesisMetadata {
     /// Voice ID used
     pub voice_id: String,
@@ -145,19 +145,6 @@ pub struct SynthesisMetadata {
     pub output_format: String,
     /// Language detected/specified
     pub language: Option<String>,
-}
-
-impl Default for SynthesisMetadata {
-    fn default() -> Self {
-        Self {
-            voice_id: String::new(),
-            model_id: String::new(),
-            text: String::new(),
-            voice_settings: None,
-            output_format: String::new(),
-            language: None,
-        }
-    }
 }
 
 /// Configuration context for timestamp generation
@@ -294,16 +281,16 @@ impl TimestampMetadata {
         }
 
         // Handle final word
-        if !current_word.is_empty() {
-            if let Some(last_char) = self.character_alignments.last() {
-                words.push(WordTimestamp {
-                    word: current_word,
-                    start_seconds: word_start_seconds,
-                    end_seconds: last_char.end_seconds,
-                    word_position: word_start_pos,
-                    character_range: (char_start_pos, self.character_alignments.len()),
-                });
-            }
+        if !current_word.is_empty()
+            && let Some(last_char) = self.character_alignments.last()
+        {
+            words.push(WordTimestamp {
+                word: current_word,
+                start_seconds: word_start_seconds,
+                end_seconds: last_char.end_seconds,
+                word_position: word_start_pos,
+                character_range: (char_start_pos, self.character_alignments.len()),
+            });
         }
 
         self.word_alignments = Some(words);
@@ -318,10 +305,10 @@ impl TimestampMetadata {
 
     /// Finalize metadata when synthesis completes
     pub fn finalize(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.synthesis_end = Some(SystemTime::now());
+        let end_time = SystemTime::now();
+        self.synthesis_end = Some(end_time);
         self.processing_time_ms = Some(
-            self.synthesis_end
-                .expect("synthesis_end should be set immediately above")
+            end_time
                 .duration_since(self.synthesis_start)
                 .map_err(|e| format!("Time calculation error: {}", e))?
                 .as_millis() as u64,

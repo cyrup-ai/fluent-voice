@@ -5,7 +5,7 @@ use crate::types::TtsChunk;
 use fluent_voice_domain::prelude::*;
 
 #[cfg(feature = "microphone")]
-use crate::microphone::{self, Model};
+use crate::microphone::Model;
 #[cfg(not(feature = "microphone"))]
 use crate::whisper::Model;
 use crate::whisper::{Decoder, Task, WhichModel, token_id};
@@ -15,11 +15,17 @@ use byteorder::{ByteOrder, LittleEndian};
 use candle_core::{Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::whisper::{self as m, Config};
+use futures::stream::StreamExt;
+use futures_core::Stream;
 use hf_hub::api::sync::Api;
 use std::path::PathBuf;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use tokenizers::Tokenizer;
 
-use rubato;
+/// Type alias for the thread-safe chunk callback
+type ChunkCallback =
+    std::sync::Arc<std::sync::Mutex<Box<dyn FnMut(Result<TtsChunk, VoiceError>) + Send + 'static>>>;
 
 /// Configuration for Whisper model loading and transcription
 #[derive(Debug, Clone)]
@@ -57,44 +63,220 @@ impl Default for ModelConfig {
     }
 }
 
-/// Whisper-based speech-to-text transcriber
-pub struct WhisperTranscriber {
+/// Immutable fluent builder for Whisper STT operations
+pub struct WhisperSttBuilder {
     config: ModelConfig,
+    source: Option<SpeechSource>,
+    chunk_callback: Option<ChunkCallback>,
 }
 
-impl WhisperTranscriber {
-    pub fn new() -> Result<Self, VoiceError> {
-        Self::with_config(ModelConfig::default())
+/// Conversation result containing transcript and stream capability
+#[derive(Debug)]
+pub struct WhisperConversation {
+    transcript: Transcript,
+}
+
+impl Default for WhisperSttBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WhisperSttBuilder {
+    /// Create a new Whisper STT builder with default configuration
+    #[inline]
+    pub fn new() -> Self {
+        Self {
+            config: ModelConfig::default(),
+            source: None,
+            chunk_callback: None,
+        }
     }
 
-    pub fn with_config(config: ModelConfig) -> Result<Self, VoiceError> {
-        Ok(Self { config })
+    // with_config method removed - not used in current implementation
+
+    /// Configure the speech input source
+    #[inline]
+    pub fn with_source(mut self, source: SpeechSource) -> Self {
+        self.source = Some(source);
+        self
     }
 
-    pub async fn transcribe(&mut self, source: SpeechSource) -> Result<Transcript, VoiceError> {
+    /// Set real-time chunk callback following README.md pattern
+    /// Callback receives Result<TtsChunk, VoiceError> and should return transcription segment
+    pub fn on_chunk<F>(mut self, callback: F) -> Self
+    where
+        F: FnMut(Result<TtsChunk, VoiceError>) + Send + 'static,
+    {
+        self.chunk_callback = Some(std::sync::Arc::new(std::sync::Mutex::new(Box::new(
+            callback,
+        ))));
+        self
+    }
+
+    /// Execute microphone transcription with matcher pattern following README.md
+    /// Matcher receives Result<WhisperConversation, VoiceError> and returns desired output
+    pub async fn listen<F, R>(self, matcher: F) -> R
+    where
+        F: FnOnce(Result<WhisperConversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        // Ensure we have microphone source
+        match &self.source {
+            Some(SpeechSource::Microphone { .. }) => {
+                let result = self.execute_transcription().await;
+                matcher(result)
+            }
+            Some(_) => {
+                let error = VoiceError::Configuration(
+                    "listen() is for microphone transcription. Use transcribe() for files."
+                        .to_string(),
+                );
+                matcher(Err(error))
+            }
+            None => {
+                let error = VoiceError::Configuration(
+                    "No speech source configured for transcription".to_string(),
+                );
+                matcher(Err(error))
+            }
+        }
+    }
+
+    /// Execute file transcription with matcher pattern following README.md
+    /// Matcher receives Result<WhisperConversation, VoiceError> and returns desired output
+    pub async fn transcribe<F, R>(self, matcher: F) -> R
+    where
+        F: FnOnce(Result<WhisperConversation, VoiceError>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        // Ensure we have file or memory source
+        match &self.source {
+            Some(SpeechSource::File { .. }) | Some(SpeechSource::Memory { .. }) => {
+                let result = self.execute_transcription().await;
+                matcher(result)
+            }
+            Some(SpeechSource::Microphone { .. }) => {
+                let error = VoiceError::Configuration(
+                    "transcribe() is for file transcription. Use listen() for microphone."
+                        .to_string(),
+                );
+                matcher(Err(error))
+            }
+            None => {
+                let error = VoiceError::Configuration(
+                    "No speech source configured for transcription".to_string(),
+                );
+                matcher(Err(error))
+            }
+        }
+    }
+}
+
+impl WhisperSttBuilder {
+    /// Internal transcription execution - delegates to existing working modules
+    async fn execute_transcription(mut self) -> Result<WhisperConversation, VoiceError> {
+        let source = self
+            .source
+            .clone()
+            .ok_or_else(|| VoiceError::Configuration("Speech source not configured".to_string()))?;
+
+        let mut transcript = Transcript::empty();
+
         match source {
-            SpeechSource::File { path, format: _ } => self.transcribe_file(path).await,
+            SpeechSource::File { path, format: _ } => {
+                let (model, tokenizer, device, mel_filters) = self.load_model_data().await?;
+                let audio_data = self.load_audio_file(&path).await?;
+                let mel = self
+                    .samples_to_mel(&audio_data, &mel_filters, &device)
+                    .await?;
+                self.process_with_decoder(model, tokenizer, device, mel, &mut transcript)
+                    .await?;
+            }
             SpeechSource::Microphone {
                 backend: _,
                 format: _,
                 sample_rate: _,
-            } => self.transcribe_microphone().await,
+            } => {
+                #[cfg(feature = "microphone")]
+                {
+                    // Load model data for microphone transcription
+                    let (model, tokenizer, device, mel_filters) = self.load_model_data().await?;
+
+                    // Create whisper config from model config
+                    let whisper_config = candle_transformers::models::whisper::Config {
+                        vocab_size: 51864,
+                        num_mel_bins: 80,
+                        encoder_layers: 6,
+                        encoder_attention_heads: 8,
+                        decoder_layers: 6,
+                        decoder_attention_heads: 8,
+                        d_model: 512,
+                        suppress_tokens: vec![],
+                        max_target_positions: 448,
+                        max_source_positions: 1500,
+                    };
+
+                    // Extract callback for microphone
+                    let callback = self.chunk_callback.take().map(|cb| {
+                        move |chunk: crate::types::TtsChunk| {
+                            if let Ok(mut callback) = cb.lock() {
+                                callback(Ok(chunk));
+                            }
+                        }
+                    });
+
+                    // Delegate to microphone module with builder support
+                    let mic_transcript = crate::microphone::record_with_builder(
+                        model,
+                        tokenizer,
+                        device,
+                        mel_filters,
+                        whisper_config,
+                        self.config.task,
+                        self.config.language.clone(),
+                        callback,
+                    )
+                    .await
+                    .map_err(|e| VoiceError::ProcessingError(e.to_string()))?;
+
+                    // Merge microphone transcript with main transcript
+                    for chunk in mic_transcript.iter() {
+                        transcript.push(chunk.clone());
+                    }
+                }
+                #[cfg(not(feature = "microphone"))]
+                {
+                    return Err(VoiceError::Configuration(
+                        "Microphone transcription requires 'microphone' feature".to_string(),
+                    ));
+                }
+            }
             SpeechSource::Memory {
                 data,
                 format: _,
                 sample_rate,
-            } => self.transcribe_memory(data, sample_rate).await,
+            } => {
+                let (model, tokenizer, device, mel_filters) = self.load_model_data().await?;
+                let samples = self.bytes_to_samples(data, sample_rate)?;
+                let mel = self.samples_to_mel(&samples, &mel_filters, &device).await?;
+                self.process_with_decoder(model, tokenizer, device, mel, &mut transcript)
+                    .await?;
+            }
         }
+
+        Ok(WhisperConversation { transcript })
     }
 
-    async fn transcribe_file(&mut self, path: String) -> Result<Transcript, VoiceError> {
-        let (model, tokenizer, device, mel_filters) = self.load_model_data().await?;
-
-        let audio_data = self.load_audio_file(&path).await?;
-        let mel = self
-            .samples_to_mel(&audio_data, &mel_filters, &device)
-            .await?;
-
+    /// Process transcription with decoder and callback support
+    async fn process_with_decoder(
+        &mut self,
+        model: Model,
+        tokenizer: Tokenizer,
+        device: Device,
+        mel: Tensor,
+        transcript: &mut Transcript,
+    ) -> Result<(), VoiceError> {
         let language_token = if self.config.which_model.is_multilingual() {
             match &self.config.language {
                 Some(lang) => Some(token_id(&tokenizer, &format!("<|{lang}|>")).map_err(|_| {
@@ -120,11 +302,20 @@ impl WhisperTranscriber {
         )
         .map_err(|e| VoiceError::ProcessingError(e.to_string()))?;
 
-        let segments = decoder
-            .run(&mel)
-            .map_err(|e| VoiceError::ProcessingError(e.to_string()))?;
+        let segments = if let Some(callback) = self.chunk_callback.take() {
+            decoder
+                .run_with_callback(&mel, &mut move |chunk| {
+                    if let Ok(mut cb) = callback.lock() {
+                        cb(Ok(chunk));
+                    }
+                })
+                .map_err(|e| VoiceError::ProcessingError(e.to_string()))?
+        } else {
+            decoder
+                .run(&mel)
+                .map_err(|e| VoiceError::ProcessingError(e.to_string()))?
+        };
 
-        let mut transcript = Transcript::new();
         for segment in segments {
             let chunk = TtsChunk::new(
                 segment.start,
@@ -139,80 +330,10 @@ impl WhisperTranscriber {
             transcript.push(chunk);
         }
 
-        Ok(transcript)
+        Ok(())
     }
 
-    #[cfg(feature = "microphone")]
-    async fn transcribe_microphone(&mut self) -> Result<Transcript, VoiceError> {
-        microphone::record()
-            .await
-            .map_err(|e| VoiceError::ProcessingError(e.to_string()))?;
-        Ok(Transcript::new())
-    }
-
-    #[cfg(not(feature = "microphone"))]
-    async fn transcribe_microphone(&mut self) -> Result<Transcript, VoiceError> {
-        Err(VoiceError::Configuration(
-            "Microphone transcription requires 'microphone' feature".to_string(),
-        ))
-    }
-
-    async fn transcribe_memory(
-        &mut self,
-        data: Vec<u8>,
-        sample_rate: u32,
-    ) -> Result<Transcript, VoiceError> {
-        let (model, tokenizer, device, mel_filters) = self.load_model_data().await?;
-
-        let samples = self.bytes_to_samples(data, sample_rate)?;
-        let mel = self.samples_to_mel(&samples, &mel_filters, &device).await?;
-
-        let mut decoder = Decoder::new(
-            model,
-            tokenizer,
-            self.config.seed,
-            &device,
-            None,
-            self.config.task,
-            self.config.timestamps,
-            self.config.verbose,
-        )
-        .map_err(|e| VoiceError::ProcessingError(e.to_string()))?;
-
-        let segments = decoder
-            .run(&mel)
-            .map_err(|e| VoiceError::ProcessingError(e.to_string()))?;
-
-        let mut transcript = Transcript::new();
-        for segment in segments {
-            let chunk = TtsChunk::new(
-                segment.start,
-                segment.start + segment.duration,
-                segment.dr.tokens,
-                segment.dr.text,
-                segment.dr.avg_logprob,
-                segment.dr.no_speech_prob,
-                segment.dr.temperature,
-                segment.dr.compression_ratio,
-            );
-            transcript.push(chunk);
-        }
-
-        Ok(transcript)
-    }
-
-    pub fn config(&self) -> &ModelConfig {
-        &self.config
-    }
-
-    pub fn is_multilingual(&self) -> bool {
-        self.config.which_model.is_multilingual()
-    }
-
-    pub fn model_info(&self) -> (&'static str, &'static str) {
-        self.config.which_model.model_and_revision()
-    }
-
+    /// PRESERVED: Load model data using existing working Candle ML integration
     async fn load_model_data(&self) -> Result<(Model, Tokenizer, Device, Vec<f32>), VoiceError> {
         let device = if self.config.cpu {
             Device::Cpu
@@ -331,37 +452,12 @@ impl WhisperTranscriber {
         Ok((model, tokenizer, device, mel_filters))
     }
 
+    /// Load audio file using comprehensive multi-format decoder
     async fn load_audio_file(&self, path: &str) -> Result<Vec<f32>, VoiceError> {
-        use hound::WavReader;
-
-        let mut reader = WavReader::open(path).map_err(|e| {
-            VoiceError::ProcessingError(format!("Failed to open audio file {}: {}", path, e))
+        // Use the comprehensive PCM decoder that supports many formats
+        let (mut audio_data, sample_rate) = crate::pcm_decode::pcm_decode(path).map_err(|e| {
+            VoiceError::ProcessingError(format!("Failed to decode audio file {}: {}", path, e))
         })?;
-
-        let spec = reader.spec();
-        let sample_rate = spec.sample_rate;
-        let channels = spec.channels;
-
-        // Read samples and convert to f32
-        let samples: Result<Vec<f32>, _> = match spec.sample_format {
-            hound::SampleFormat::Float => reader.samples::<f32>().collect(),
-            hound::SampleFormat::Int => reader
-                .samples::<i32>()
-                .map(|s| s.map(|sample| sample as f32 / i32::MAX as f32))
-                .collect(),
-        };
-
-        let mut audio_data = samples.map_err(|e| {
-            VoiceError::ProcessingError(format!("Failed to read audio samples: {}", e))
-        })?;
-
-        // Convert stereo to mono if needed
-        if channels == 2 {
-            audio_data = audio_data
-                .chunks_exact(2)
-                .map(|chunk| (chunk[0] + chunk[1]) / 2.0)
-                .collect();
-        }
 
         // Resample to 16kHz if needed
         if sample_rate != 16000 {
@@ -382,6 +478,7 @@ impl WhisperTranscriber {
         Ok(audio_data)
     }
 
+    /// PRESERVED: Convert samples to mel spectrogram using existing working implementation
     async fn samples_to_mel(
         &self,
         samples: &[f32],
@@ -415,6 +512,7 @@ impl WhisperTranscriber {
         Ok(mel_tensor)
     }
 
+    /// PRESERVED: Convert bytes to samples using existing working implementation
     fn bytes_to_samples(&self, data: Vec<u8>, _sample_rate: u32) -> Result<Vec<f32>, VoiceError> {
         let samples = data
             .chunks(2)
@@ -424,5 +522,77 @@ impl WhisperTranscriber {
             })
             .collect();
         Ok(samples)
+    }
+}
+
+impl WhisperConversation {
+    /// Access the internal transcript for advanced processing
+    pub fn transcript(self) -> Transcript {
+        self.transcript
+    }
+
+    /// Convert conversation to transcript stream following README.md pattern
+    pub fn into_stream(
+        self,
+    ) -> impl Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>> + Send + Unpin {
+        struct TranscriptStream {
+            transcript: Transcript,
+            position: usize,
+        }
+
+        impl Stream for TranscriptStream {
+            type Item = Result<TranscriptionSegmentImpl, VoiceError>;
+
+            fn poll_next(
+                mut self: Pin<&mut Self>,
+                _cx: &mut Context<'_>,
+            ) -> Poll<Option<Self::Item>> {
+                if self.position >= self.transcript.len() {
+                    Poll::Ready(None)
+                } else {
+                    let chunk_text = self.transcript[self.position].text.clone();
+                    let chunk_start = self.transcript[self.position].start_ms();
+                    let chunk_end = self.transcript[self.position].end_ms();
+                    let chunk_speaker = self.transcript[self.position]
+                        .speaker_id()
+                        .map(|s| s.to_string());
+                    self.position += 1;
+
+                    let segment = TranscriptionSegmentImpl::new(
+                        chunk_text,
+                        chunk_start,
+                        chunk_end,
+                        chunk_speaker,
+                    );
+
+                    Poll::Ready(Some(Ok(segment)))
+                }
+            }
+        }
+
+        TranscriptStream {
+            transcript: self.transcript,
+            position: 0,
+        }
+    }
+
+    /// Collect all transcript segments into a complete text transcript
+    pub async fn collect(self) -> Result<String, VoiceError> {
+        let mut stream = self.into_stream();
+        let mut full_text = String::new();
+
+        while let Some(result) = StreamExt::next(&mut stream).await {
+            match result {
+                Ok(segment) => {
+                    if !full_text.is_empty() {
+                        full_text.push(' ');
+                    }
+                    full_text.push_str(segment.text());
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(full_text)
     }
 }

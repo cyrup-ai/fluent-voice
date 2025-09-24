@@ -40,19 +40,36 @@ impl From<MoshiError> for SpeechGenerationError {
         match err {
             MoshiError::Config(msg) => SpeechGenerationError::Configuration(msg),
             MoshiError::Custom(msg) => SpeechGenerationError::AudioGeneration(msg),
-            MoshiError::Candle(e) => SpeechGenerationError::TensorOperation(e.to_string()),
-            MoshiError::ModelLoad(e) => SpeechGenerationError::ModelLoading(e.to_string()),
+            MoshiError::Candle(e) => SpeechGenerationError::TensorOperation(e),
+            MoshiError::ModelLoad(e) => SpeechGenerationError::ModelLoading(e),
             MoshiError::Audio(msg) => SpeechGenerationError::AudioProcessing(msg),
-            MoshiError::Io(e) => SpeechGenerationError::ModelLoading(e.to_string()),
-            MoshiError::Serde(e) => SpeechGenerationError::Configuration(e.to_string()),
+            MoshiError::Io(e) => SpeechGenerationError::ModelLoading(e),
+            MoshiError::Serde(e) => SpeechGenerationError::Configuration(e),
             MoshiError::Generation(msg) => SpeechGenerationError::AudioGeneration(msg),
-            MoshiError::Tokenization(e) => SpeechGenerationError::Configuration(e.to_string()),
+            MoshiError::Tokenization(e) => SpeechGenerationError::Configuration(e),
             MoshiError::MutexPoisoned(msg) => {
                 SpeechGenerationError::AudioGeneration(format!("Mutex poisoning: {}", msg))
             }
             MoshiError::StateCorruption(msg) => {
                 SpeechGenerationError::AudioGeneration(format!("State corruption: {}", msg))
             }
+            MoshiError::LiveKit(msg) => SpeechGenerationError::AudioProcessing(msg),
+            MoshiError::AudioBridge(msg) => SpeechGenerationError::AudioProcessing(msg),
+            MoshiError::DeviceError(msg) => SpeechGenerationError::TensorOperation(msg),
+            MoshiError::TensorCreationError(msg) => SpeechGenerationError::TensorOperation(msg),
+            MoshiError::EmptyVectorAccess(msg) => SpeechGenerationError::AudioGeneration(msg),
+            MoshiError::VectorSizeValidation(msg) => SpeechGenerationError::AudioGeneration(msg),
+            MoshiError::EmbeddingDimensionMismatch { expected, actual } => {
+                SpeechGenerationError::TensorOperation(format!(
+                    "Embedding dimension mismatch: expected {:?}, got {:?}",
+                    expected, actual
+                ))
+            }
+            MoshiError::TensorConcatenationError(msg) => {
+                SpeechGenerationError::TensorOperation(msg)
+            }
+            MoshiError::ShapeMismatch(msg) => SpeechGenerationError::TensorOperation(msg),
+            MoshiError::InvalidInput(msg) => SpeechGenerationError::Configuration(msg),
         }
     }
 }

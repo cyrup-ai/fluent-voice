@@ -249,7 +249,7 @@ impl AudioChunk {
             | crate::audio_format::AudioFormat::Pcm24Khz
             | crate::audio_format::AudioFormat::Pcm48Khz => {
                 // Convert raw bytes to i16 samples
-                if self.data.len() % 2 != 0 {
+                if !self.data.len().is_multiple_of(2) {
                     return None;
                 }
 

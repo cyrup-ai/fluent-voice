@@ -2,10 +2,17 @@
 
 use dia::voice::voice_builder::DiaVoiceBuilder;
 use fluent_voice_domain::TtsConversation;
+use fluent_voice_whisper::TtsChunk;
 
 /// Simple TTS conversation wrapper around DiaVoiceBuilder
 pub struct DefaultTtsConversation {
     dia_builder: Option<DiaVoiceBuilder>,
+}
+
+impl Default for DefaultTtsConversation {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DefaultTtsConversation {
@@ -23,7 +30,7 @@ impl DefaultTtsConversation {
     }
 
     /// Convert to audio stream synchronously using DiaVoiceBuilder high-level API
-    pub fn into_stream_sync(self) -> impl futures::Stream<Item = crate::TtsChunk> {
+    pub fn into_stream_sync(self) -> impl futures::Stream<Item = TtsChunk> {
         use futures::stream::StreamExt;
 
         async_stream::stream! {
@@ -36,7 +43,7 @@ impl DefaultTtsConversation {
                         let sample_rate = voice_player.sample_rate();
                         let duration = pcm_data.len() as f64 / sample_rate as f64;
 
-                        let tts_chunk = crate::TtsChunk::new(
+                        let tts_chunk = TtsChunk::new(
                             0.0, // timestamp_start
                             duration, // timestamp_end
                             Vec::new(), // tokens - dia doesn't provide these
@@ -50,7 +57,7 @@ impl DefaultTtsConversation {
                     }
                     Err(e) => {
                         // Yield error chunk with appropriate error information
-                        let error_chunk = crate::TtsChunk::new(
+                        let error_chunk = TtsChunk::new(
                             0.0, 0.0, Vec::new(),
                             format!("Synthesis error: {}", e),
                             -1.0, 1.0, 0.0, 0.0
@@ -60,7 +67,7 @@ impl DefaultTtsConversation {
                 }
             } else {
                 // No dia_builder provided - yield empty result
-                let empty_chunk = crate::TtsChunk::new(
+                let empty_chunk = TtsChunk::new(
                     0.0, 0.0, Vec::new(),
                     "No synthesis engine configured".to_string(),
                     -1.0, 1.0, 0.0, 0.0

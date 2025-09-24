@@ -34,13 +34,13 @@ pub enum AnimatorMode {
     /// GUI-based room visualizer with LiveKit integration
     Room {
         /// LiveKit server URL
-        #[arg(long, env = "LIVEKIT_URL")]
+        #[arg(long, env("LIVEKIT_URL"))]
         url: Option<String>,
         /// API key for LiveKit
-        #[arg(long, env = "LIVEKIT_API_KEY")]
+        #[arg(long, env("LIVEKIT_API_KEY"))]
         api_key: Option<String>,
         /// API secret for LiveKit
-        #[arg(long, env = "LIVEKIT_API_SECRET")]
+        #[arg(long, env("LIVEKIT_API_SECRET"))]
         api_secret: Option<String>,
         /// Room name to join
         #[arg(long, default_value = "fluent-voice-demo")]
@@ -58,11 +58,7 @@ fn main() -> Result<()> {
     let args = AnimatorArgs::parse();
 
     match args.mode {
-        AnimatorMode::Terminal {
-            source,
-            mut opts,
-            ui,
-        } => run_terminal_mode(source, opts, ui),
+        AnimatorMode::Terminal { source, opts, ui } => run_terminal_mode(source, opts, ui),
         AnimatorMode::Room {
             url,
             api_key,
@@ -183,7 +179,7 @@ fn run_gui_mode(
                 app.connect_to_room();
             }
 
-            Box::new(app)
+            Ok(Box::new(app))
         }),
     )
     .map_err(|e| anyhow::anyhow!("Failed to run GUI: {}", e))

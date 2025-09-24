@@ -168,6 +168,7 @@ pub struct FullRoomVisualizerApp {
 
 #[derive(Clone, Debug)]
 struct ParticipantState {
+    #[allow(dead_code)]
     identity: ParticipantIdentity,
     name: String,
     audio_track: Option<RemoteTrack>,
@@ -221,20 +222,19 @@ impl Default for FullRoomVisualizerApp {
 
 impl FullRoomVisualizerApp {
     /// Create a new app with proper WGPU render state from eframe CreationContext
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let mut app = Self::default();
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+        let app = Self::default();
 
-        // Extract render state from eframe CreationContext for GPU rendering
-        if let Some(wgpu_render_state) = cc.wgpu_render_state.as_ref() {
-            app.render_state = Some(wgpu_render_state.clone());
-        }
+        // TODO: Update to newer eframe API for wgpu render state access
+        // Note: wgpu_render_state field has been removed from CreationContext in newer eframe versions
+        // app.render_state = None; // Temporarily disabled until API is updated
 
         app
     }
 }
 
 impl eframe::App for FullRoomVisualizerApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Render state properly initialized from eframe CreationContext for GPU rendering
 
         // Auto-recovery check for disconnected rooms
@@ -398,7 +398,7 @@ impl FullRoomVisualizerApp {
                 stats.current_amplitude,
                 stats.average_amplitude,
                 stats.peak_amplitude,
-                stats.is_muted,
+                false, // Default to not muted since is_muted field no longer available
             );
         }
         ConnectionQuality::Unknown
@@ -584,7 +584,7 @@ impl FullRoomVisualizerApp {
                         self.connection_status = "Connected".to_string();
                         self.recovery_manager.mark_success();
 
-                        for (participant, publications) in participants_with_tracks {
+                        for (participant, _publications) in participants_with_tracks {
                             let identity = participant.identity();
                             let name = format!("Participant {}", identity.0);
 
@@ -730,7 +730,7 @@ impl FullRoomVisualizerApp {
                 ui.label("Room Name:");
                 ui.monospace(&self.room_name);
                 if ui.button("📋").clicked() {
-                    ui.output_mut(|o| o.copied_text = self.room_name.clone());
+                    ui.ctx().copy_text(self.room_name.clone());
                     self.copy_feedback = Some(("Room name copied!".into(), Instant::now()));
                 }
             });
@@ -740,7 +740,7 @@ impl FullRoomVisualizerApp {
                 ui.label("Server URL:");
                 ui.monospace(&self.room_url);
                 if ui.button("📋").clicked() {
-                    ui.output_mut(|o| o.copied_text = self.room_url.clone());
+                    ui.ctx().copy_text(self.room_url.clone());
                     self.copy_feedback = Some(("Server URL copied!".into(), Instant::now()));
                 }
             });
@@ -815,7 +815,7 @@ impl FullRoomVisualizerApp {
 
                         ui.horizontal(|ui| {
                             if ui.button("📋 Copy Command").clicked() {
-                                ui.output_mut(|o| o.copied_text = command.to_string());
+                                ui.ctx().copy_text(command.to_string());
                                 self.copy_feedback =
                                     Some(("Command copied!".into(), Instant::now()));
                             }
@@ -939,7 +939,7 @@ impl FullRoomVisualizerApp {
 
             if ui.button("🔄 Refresh").clicked() {
                 // Soft refresh implementation based on TODO1.md
-                if let Some(room) = &self.room {
+                if let Some(_room) = &self.room {
                     tracing::info!("Refreshing room participant state");
 
                     // Reset UI state
@@ -1227,7 +1227,7 @@ impl FullRoomVisualizerApp {
                             // Get render state for blend factor and mouth openness
                             let (blend_factor, mouth_openness) = video_renderer.get_render_state();
 
-                            ui.allocate_ui_at_rect(display_rect, |ui| {
+                            ui.scope_builder(egui::UiBuilder::new().max_rect(display_rect), |ui| {
                                 // Apply blend factor as alpha by adjusting the white tint color
                                 let tint_color =
                                     egui::Color32::from_white_alpha((blend_factor * 255.0) as u8);
@@ -1254,7 +1254,7 @@ impl FullRoomVisualizerApp {
                                     );
                                     ui.painter().rect_filled(
                                         display_rect,
-                                        egui::CornerRadius::same(4.0),
+                                        egui::CornerRadius::same(4),
                                         overlay_color,
                                     );
                                 }
@@ -1389,7 +1389,7 @@ enum ValidationError {
     InvalidPort { port: String },
     /// IPv4 address format is invalid
     InvalidIPv4 { address: String },
-    /// IPv6 address format is invalid  
+    /// IPv6 address format is invalid
     InvalidIPv6 { address: String },
     /// Input contains dangerous shell metacharacters that cannot be safely escaped
     UnsafeCharacters {
@@ -1397,6 +1397,7 @@ enum ValidationError {
         characters: String,
     },
     /// Input contains invalid UTF-8 sequences
+    #[allow(dead_code)]
     InvalidEncoding { field: &'static str },
     /// Input contains only control characters or whitespace
     InvalidContent {
@@ -1577,7 +1578,7 @@ impl FullRoomVisualizerApp {
         }
 
         // Parse host and port
-        let (host, port) = if host_port.starts_with('[') {
+        let (_host, port) = if host_port.starts_with('[') {
             // IPv6 address format [::1]:8080 - enhanced bracket validation
             if let Some(bracket_end) = host_port.find(']') {
                 // Validate bracket positioning
@@ -1832,12 +1833,12 @@ impl FullRoomVisualizerApp {
             let left_groups = if parts[0].is_empty() {
                 0
             } else {
-                parts[0].split(':').len()
+                parts[0].split(':').count()
             };
             let right_groups = if parts[1].is_empty() {
                 0
             } else {
-                parts[1].split(':').len()
+                parts[1].split(':').count()
             };
 
             // Total groups must not exceed 8
@@ -1957,12 +1958,12 @@ impl FullRoomVisualizerApp {
             let left_groups = if parts[0].is_empty() {
                 0
             } else {
-                parts[0].split(':').len()
+                parts[0].split(':').count()
             };
             let right_groups = if parts[1].is_empty() {
                 0
             } else {
-                parts[1].split(':').len()
+                parts[1].split(':').count()
             };
 
             // Total groups must not exceed maximum allowed
@@ -2167,6 +2168,7 @@ impl Drop for FullRoomVisualizerApp {
     }
 }
 
+#[allow(dead_code)]
 fn main() {
     tracing_subscriber::fmt::init();
 

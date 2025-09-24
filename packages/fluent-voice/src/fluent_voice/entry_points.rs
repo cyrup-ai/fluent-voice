@@ -8,6 +8,12 @@ use fluent_voice_domain::{SpeechSource, VadMode, VoiceError};
 /// Entry point for TTS operations providing .conversation() method
 pub struct TtsEntry;
 
+impl Default for TtsEntry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TtsEntry {
     pub fn new() -> Self {
         Self
@@ -21,6 +27,12 @@ impl TtsEntry {
 
 /// Entry point for STT operations providing .conversation() method  
 pub struct SttEntry;
+
+impl Default for SttEntry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SttEntry {
     pub fn new() -> Self {
@@ -53,7 +65,11 @@ impl SttEntry {
     /// Delegate method for on_chunk - forwards to conversation builder
     pub fn on_chunk<F>(self, f: F) -> impl SttPostChunkBuilder
     where
-        F: FnMut(Result<fluent_voice_domain::TranscriptionSegmentImpl, VoiceError>) -> fluent_voice_domain::TranscriptionSegmentImpl + Send + 'static,
+        F: FnMut(
+                Result<fluent_voice_domain::TranscriptionSegmentImpl, VoiceError>,
+            ) -> fluent_voice_domain::TranscriptionSegmentImpl
+            + Send
+            + 'static,
     {
         self.conversation().on_chunk(f)
     }
@@ -72,8 +88,9 @@ where
     pub fn listen<M, R>(self, matcher: M) -> R
     where
         M: FnOnce(Result<B::Conversation, VoiceError>) -> R + Send + 'static,
-        R: futures_core::Stream<Item = Result<fluent_voice_domain::TranscriptionSegmentImpl, VoiceError>>
-            + Send
+        R: futures_core::Stream<
+                Item = Result<fluent_voice_domain::TranscriptionSegmentImpl, VoiceError>,
+            > + Send
             + Unpin
             + 'static,
     {

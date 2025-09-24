@@ -1,7 +1,7 @@
 //! Text-to-Speech configuration types
 
 /// Configuration for Text-to-Speech model parameters
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TtsConfig {
     pub acoustic_delay: usize,
     pub text_pad_token: u32,

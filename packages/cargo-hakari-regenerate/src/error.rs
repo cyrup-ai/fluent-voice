@@ -63,6 +63,9 @@ pub enum HakariError {
     #[error("Hakari initialization failed: {reason}")]
     InitializationFailed { reason: String },
 
+    #[error("Metadata cache not initialized: {0}")]
+    CacheNotInitialized(String),
+
     #[error("Hakari generation failed: {reason}")]
     GenerationFailed { reason: String },
 

@@ -79,7 +79,7 @@ impl Generator for BasicGenerator {
     fn reset(&mut self) -> Result<()> {
         // Reset model state with error handling
         {
-            let mut model = self.model.lock().map_err(|e| {
+            let model = self.model.lock().map_err(|e| {
                 crate::error::MoshiError::MutexPoisoned(format!(
                     "Model mutex poisoned during reset: {}",
                     e

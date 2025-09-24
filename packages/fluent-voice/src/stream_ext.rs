@@ -29,7 +29,7 @@ pub fn default_transcript_error_handler(result: Result<String, VoiceError>) -> S
         Ok(text) => text,
         Err(e) => {
             log::error!("Transcript error: {}", e);
-            format!("[ERROR: {}]", e.to_string())
+            format!("[ERROR: {}]", e)
         }
     }
 }

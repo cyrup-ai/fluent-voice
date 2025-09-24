@@ -13,7 +13,7 @@ use candle_transformers::generation::LogitsProcessor;
 use std::collections::HashMap;
 use std::path::Path;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub lm: LmConfig,
     pub tts: TtsConfig,

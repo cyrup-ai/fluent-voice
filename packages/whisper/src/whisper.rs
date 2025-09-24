@@ -16,6 +16,8 @@ use rand::distr::Distribution;
 use rand::distr::weighted::WeightedIndex;
 use tokenizers::Tokenizer;
 
+use crate::types::TtsChunk;
+
 #[cfg(feature = "microphone")]
 use crate::microphone::Model;
 
@@ -372,8 +374,8 @@ impl Decoder {
             // If timestamps are more probable, suppress non-timestamp tokens
             if timestamp_sum > other_sum {
                 let mut modified_logits = logits_vec;
-                for i in 0..timestamp_start {
-                    modified_logits[i] = f32::NEG_INFINITY;
+                for item in modified_logits.iter_mut().take(timestamp_start) {
+                    *item = f32::NEG_INFINITY;
                 }
                 logits = Tensor::new(modified_logits.as_slice(), logits.device())?;
             }
@@ -551,6 +553,96 @@ impl Decoder {
                 duration: segment_duration,
                 dr,
             };
+            if self.timestamps {
+                println!(
+                    "{:.1}s -- {:.1}s",
+                    segment.start,
+                    segment.start + segment.duration,
+                );
+                let mut tokens_to_decode = vec![];
+                let mut prev_timestamp_s = 0f32;
+                for &token in segment.dr.tokens.iter() {
+                    if token == self.sot_token || token == self.eot_token {
+                        continue;
+                    }
+                    // The no_timestamp_token is the last before the timestamp ones.
+                    if token > self.no_timestamps_token {
+                        let timestamp_s = (token - self.no_timestamps_token + 1) as f32 / 50.;
+                        if !tokens_to_decode.is_empty() {
+                            let text = self
+                                .tokenizer
+                                .decode(&tokens_to_decode, true)
+                                .map_err(E::msg)?;
+                            println!("  {prev_timestamp_s:.1}s-{timestamp_s:.1}s: {text}");
+                            tokens_to_decode.clear()
+                        }
+                        prev_timestamp_s = timestamp_s;
+                    } else {
+                        tokens_to_decode.push(token)
+                    }
+                }
+                if !tokens_to_decode.is_empty() {
+                    let text = self
+                        .tokenizer
+                        .decode(&tokens_to_decode, true)
+                        .map_err(E::msg)?;
+                    if !text.is_empty() {
+                        println!("  {prev_timestamp_s:.1}s-...: {text}");
+                    }
+                    tokens_to_decode.clear()
+                }
+            } else {
+                println!(
+                    "{:.1}s -- {:.1}s: {}",
+                    segment.start,
+                    segment.start + segment.duration,
+                    segment.dr.text,
+                )
+            }
+            if self.verbose {
+                println!("{seek}: {segment:?}, in {:?}", start.elapsed());
+            }
+            segments.push(segment)
+        }
+        Ok(segments)
+    }
+
+    /// Access the underlying model for language detection (crate-private)
+    #[allow(dead_code)] // May be used for alternative language detection approaches
+    pub(crate) fn model(&mut self) -> &mut Model {
+        &mut self.model
+    }
+
+    /// Run transcription with real-time chunk callback
+    pub fn run_with_callback<F>(&mut self, mel: &Tensor, on_chunk: &mut F) -> Result<Vec<Segment>>
+    where
+        F: FnMut(TtsChunk) + Send + 'static,
+    {
+        let (_, _, content_frames) = mel.dims3()?;
+        let mut seek = 0;
+        let mut segments = vec![];
+        while seek < content_frames {
+            let start = std::time::Instant::now();
+            let time_offset = (seek * m::HOP_LENGTH) as f64 / m::SAMPLE_RATE as f64;
+            let segment_size = usize::min(content_frames - seek, m::N_FRAMES);
+            let mel_segment = mel.narrow(2, seek, segment_size)?;
+            let segment_duration = (segment_size * m::HOP_LENGTH) as f64 / m::SAMPLE_RATE as f64;
+            let dr = self.decode_with_fallback(&mel_segment)?;
+            seek += segment_size;
+            if dr.no_speech_prob > m::NO_SPEECH_THRESHOLD && dr.avg_logprob < m::LOGPROB_THRESHOLD {
+                println!("no speech detected, skipping {seek} {dr:?}");
+                continue;
+            }
+            let segment = Segment {
+                start: time_offset,
+                duration: segment_duration,
+                dr,
+            };
+
+            // Convert to TtsChunk and call user's real-time callback
+            let chunk = TtsChunk::from(segment.clone());
+            on_chunk(chunk);
+
             if self.timestamps {
                 println!(
                     "{:.1}s -- {:.1}s",
