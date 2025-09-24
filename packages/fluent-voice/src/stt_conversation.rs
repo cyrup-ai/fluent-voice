@@ -184,30 +184,26 @@ pub trait SttPostChunkBuilder: Sized + Send {
     /// Configure for file transcription.
     fn transcribe(self, path: impl Into<String>) -> impl TranscriptionBuilder;
 
-    /// Execute recognition and return a transcript stream.
+    /// Execute recognition and return an AsyncStream with collect() method.
     ///
     /// This method terminates the fluent chain and starts speech recognition,
-    /// returning a stream of transcript segments directly without Result wrapping.
-    /// Error handling is done through the stream processing with on_chunk() callbacks.
+    /// returning an AsyncStream that can be collected for final transcript.
     ///
     /// # Returns
     ///
-    /// A stream of transcript segments that can be processed with on_chunk() callbacks.
+    /// An AsyncStream that can be collected with .collect() method.
     ///
     /// # Examples
     ///
     /// ```ignore
-    /// let stream = FluentVoice::stt()
+    /// let transcript = FluentVoice::stt()
     ///     .on_chunk(|chunk| chunk.into())
-    ///     .listen();
+    ///     .listen(|conv| conv.into_stream())
+    ///     .collect();
     /// ```
-    fn listen<M, S>(self, matcher: M) -> S
+    fn listen<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<impl fluent_voice_domain::TranscriptionSegment>
     where
-        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
-            + Send
-            + Unpin
-            + 'static;
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<impl fluent_voice_domain::TranscriptionSegment> + Send + 'static;
 }
 
 /// Specialized builder for microphone-based speech recognition.
@@ -239,23 +235,17 @@ pub trait MicrophoneBuilder: Sized + Send {
     /// Enable or disable automatic punctuation insertion.
     fn punctuation(self, p: Punctuation) -> Self;
 
-    /// Execute live recognition with matcher closure (README.md syntax).
+    /// Execute live recognition and return AsyncStream with collect() method.
     ///
-    /// This method supports the exact README.md syntax:
+    /// This method returns an AsyncStream that can be collected:
     /// ```ignore
-    /// .listen(|conversation| {
-    ///     Ok  => conversation.into_stream(),
-    ///     Err(e) => Err(e),
-    /// })
-    /// .await?;
+    /// let transcript = FluentVoice::stt()
+    ///     .listen(|conversation| conversation.into_stream())
+    ///     .collect();
     /// ```
-    fn listen<M, S>(self, matcher: M) -> S
+    fn listen<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<impl fluent_voice_domain::TranscriptionSegment>
     where
-        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
-            + Send
-            + Unpin
-            + 'static;
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<impl fluent_voice_domain::TranscriptionSegment> + Send + 'static;
 }
 
 /// Specialized builder for file-based transcription.
@@ -316,28 +306,22 @@ pub trait TranscriptionBuilder: Sized + Send {
     /// Convenience: obtain a stream of plain text segments.
     fn into_text_stream(self) -> impl Stream<Item = String> + Send;
 
-    /// Execute transcription and return a transcript stream with JSON syntax support.
+    /// Execute transcription and return AsyncStream with collect() method.
     ///
     /// This method is IDENTICAL to listen() but for audio files instead of microphone.
-    /// It accepts a matcher closure with JSON syntax for handling transcription results.
+    /// Returns an AsyncStream that can be collected for final transcript.
     ///
     /// # Examples
     ///
     /// ```ignore
-    /// let stream = FluentVoice::stt()
+    /// let transcript = FluentVoice::stt()
     ///     .transcribe("audio.wav")
-    ///     .transcribe(|conversation| {
-    ///         Ok => conversation.into_stream(),
-    ///         Err(e) => Err(e),
-    ///     });
+    ///     .transcribe(|conversation| conversation.into_stream())
+    ///     .collect();
     /// ```
-    fn transcribe<M, S>(self, matcher: M) -> S
+    fn transcribe<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<impl fluent_voice_domain::TranscriptionSegment>
     where
-        M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
-            + Send
-            + Unpin
-            + 'static;
+        M: FnOnce(Result<Self::Transcript, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<impl fluent_voice_domain::TranscriptionSegment> + Send + 'static;
 }
 
 /// Whisper-based microphone builder that delegates to WhisperSttBuilder
@@ -432,13 +416,9 @@ impl MicrophoneBuilder for WhisperMicrophoneBuilder {
         self
     }
 
-    fn listen<M, S>(self, matcher: M) -> S
+    fn listen<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl>
     where
-        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
-            + Send
-            + Unpin
-            + 'static,
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl> + Send + 'static,
     {
         // Create whisper transcriber with optimized config
         let _config = self.build_whisper_config();
@@ -637,13 +617,9 @@ impl TranscriptionBuilder for WhisperTranscriptionBuilder {
         self.emit()
     }
 
-    fn transcribe<M, S>(self, matcher: M) -> S
+    fn transcribe<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl>
     where
-        M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
-            + Send
-            + Unpin
-            + 'static,
+        M: FnOnce(Result<Self::Transcript, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl> + Send + 'static,
     {
         let path_str = self.path.display().to_string();
 
@@ -703,13 +679,9 @@ impl SttPostChunkBuilder for SttPostChunkBuilderImpl {
         }
     }
 
-    fn listen<M, S>(self, matcher: M) -> S
+    fn listen<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl>
     where
-        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
-            + Send
-            + Unpin
-            + 'static,
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl> + Send + 'static,
     {
         // Create a real conversation using DefaultSTTConversationBuilder
         let conversation_result =
@@ -773,13 +745,9 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
         self
     }
 
-    fn listen<M, S>(self, matcher: M) -> S
+    fn listen<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl>
     where
-        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
-            + Send
-            + Unpin
-            + 'static,
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl> + Send + 'static,
     {
         // Connect to DefaultSTTConversation with microphone source
         let conversation_result = self
@@ -927,13 +895,9 @@ impl TranscriptionBuilder for DefaultTranscriptionBuilder {
         self.emit()
     }
 
-    fn transcribe<M, S>(self, matcher: M) -> S
+    fn transcribe<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl>
     where
-        M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
-            + Send
-            + Unpin
-            + 'static,
+        M: FnOnce(Result<Self::Transcript, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl> + Send + 'static,
     {
         use fluent_voice_whisper::WhisperSttBuilder;
 

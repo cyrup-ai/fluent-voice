@@ -115,14 +115,9 @@ where
     B: SttPostChunkBuilder,
 {
     /// Start listening for transcription
-    pub fn listen<M, R>(self, matcher: M) -> R
+    pub fn listen<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<fluent_voice_domain::TranscriptionSegmentImpl>
     where
-        M: FnOnce(Result<B::Conversation, VoiceError>) -> R + Send + 'static,
-        R: futures_core::Stream<
-                Item = Result<fluent_voice_domain::TranscriptionSegmentImpl, VoiceError>,
-            > + Send
-            + Unpin
-            + 'static,
+        M: FnOnce(Result<B::Conversation, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<fluent_voice_domain::TranscriptionSegmentImpl> + Send + 'static,
     {
         self.builder.listen(matcher)
     }

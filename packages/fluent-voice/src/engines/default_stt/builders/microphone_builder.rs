@@ -64,13 +64,9 @@ impl MicrophoneBuilder for DefaultMicrophoneBuilder {
         // Automatic punctuation configured for transcript segments
         self
     }
-    fn listen<M, S>(self, matcher: M) -> S
+    fn listen<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl>
     where
-        M: FnOnce(Result<Self::Conversation, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
-            + Send
-            + Unpin
-            + 'static,
+        M: FnOnce(Result<Self::Conversation, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl> + Send + 'static,
     {
         // Create AudioProcessor for wake word detection, VAD, and transcription
         let audio_processor = match AudioProcessor::new(self.wake_word_config) {

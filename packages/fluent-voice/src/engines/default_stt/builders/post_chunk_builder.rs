@@ -42,10 +42,9 @@ impl SttPostChunkBuilder for DefaultSTTPostChunkBuilder {
             progress_template: None,
         }
     }
-    fn listen<M, R>(self, matcher: M) -> R
+    fn listen<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl>
     where
-        M: FnOnce(Result<DefaultSTTConversation, VoiceError>) -> R + Send + 'static,
-        R: Send + 'static,
+        M: FnOnce(Result<DefaultSTTConversation, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl> + Send + 'static,
     {
         // Create AudioProcessor for wake word detection, VAD, and transcription
         let audio_processor = match AudioProcessor::new(self.inner.wake_word_config) {

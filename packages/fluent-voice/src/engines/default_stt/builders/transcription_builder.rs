@@ -31,13 +31,9 @@ pub struct DefaultTranscriptionBuilder {
 impl TranscriptionBuilder for DefaultTranscriptionBuilder {
     type Transcript = String;
 
-    fn transcribe<M, S>(self, matcher: M) -> S
+    fn transcribe<M>(self, matcher: M) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl>
     where
-        M: FnOnce(Result<Self::Transcript, VoiceError>) -> S + Send + 'static,
-        S: futures_core::Stream<Item = Result<TranscriptionSegmentImpl, VoiceError>>
-            + Send
-            + Unpin
-            + 'static,
+        M: FnOnce(Result<Self::Transcript, VoiceError>) -> cyrup_sugars::prelude::AsyncStream<TranscriptionSegmentImpl> + Send + 'static,
     {
         // Create a success result and let matcher handle stream creation
         let transcript_result = Ok(format!("Transcribing file: {}", self.path));

@@ -11,7 +11,7 @@ async fn main() -> Result<(), VoiceError> {
 
 
     // Complete fluent chain with microphone support, VAD and wake word detection
-    let _transcript = FluentVoice::stt()
+    let transcript = FluentVoice::stt()
         .with_source(SpeechSource::Microphone {
             backend: MicBackend::Default,
             format: AudioFormat::Pcm16Khz,
@@ -44,7 +44,8 @@ async fn main() -> Result<(), VoiceError> {
                 eprintln!("❌ STT conversation error: {}", _e);
                 panic!("STT failed: {}", _e);
             }
-        }); 
+        })
+        .collect();
 
     println!("✅ Microphone listening completed");
     Ok(())
