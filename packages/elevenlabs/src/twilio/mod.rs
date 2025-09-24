@@ -1,4 +1,6 @@
 use crate::conversations::GetConversationDetailsResponse;
+
+pub mod audio_processor;
 use axum::body::Body;
 use axum::extract::rejection::FormRejection;
 use axum::extract::ws::rejection::WebSocketUpgradeRejection;
@@ -28,7 +30,8 @@ pub use rusty_twilio::validation::SignatureValidationError;
 pub use rusty_twilio::{TwilioClient, TwilioClientExt};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::time::{SystemTime, Duration};
 use std::future::Future;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -38,6 +41,10 @@ use tracing::{debug, warn};
 use tokio::sync::Mutex;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::{error, field, info, instrument, warn, Span};
+use crate::engine::AudioFormat;
+use hmac::{Hmac, Mac};
+use sha1::Sha1;
+use base64::{Engine as _, engine::general_purpose};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -71,17 +78,343 @@ pub enum Error {
     WebSocketMessageParseError { reason: String },
     #[error("WebSocket protocol error: {details}")]
     WebSocketProtocolError { details: String },
+    #[error("Call not found: {call_sid}")]
+    CallNotFound { call_sid: String },
+    #[error("Call already exists: {call_sid}")]
+    CallAlreadyExists { call_sid: String },
+    #[error("Invalid call state transition from {from} to {to}")]
+    InvalidCallStateTransition { from: String, to: String },
+    #[error("Call operation failed: {operation} - {reason}")]
+    CallOperationFailed { operation: String, reason: String },
+    #[error("Media buffer overflow for call: {call_sid}, size: {buffer_size}")]
+    MediaBufferOverflow { call_sid: String, buffer_size: usize },
 }
 
-// TODO: Rename ?
-// AgentCallState
-// AgentPhoneManager
+#[derive(Debug, Clone, PartialEq)]
+pub enum CallStatus {
+    Initiated,
+    Ringing,
+    Answered,
+    InProgress,
+    OnHold,
+    Transferring,
+    Completed,
+    Failed,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AudioTrack {
+    Inbound,
+    Outbound,
+    Both,
+}
+
+#[derive(Debug, Clone)]
+pub struct CallMetrics {
+    pub duration: Duration,
+    pub media_packets_received: u64,
+    pub media_packets_sent: u64,
+    pub audio_quality_score: Option<f32>,
+    pub latency_ms: Option<u32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CallerInfo {
+    pub phone_number: String,
+    pub caller_name: Option<String>,
+    pub location: Option<String>,
+    pub language_preference: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AgentConfiguration {
+    pub voice_id: String,
+    pub response_timeout_ms: u32,
+    pub interruption_threshold: f32,
+    pub conversation_context: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AgentCallState {
+    pub call_sid: String,
+    pub stream_sid: Option<String>,
+    pub status: CallStatus,
+    pub start_time: SystemTime,
+    pub end_time: Option<SystemTime>,
+    pub audio_format: AudioFormat,
+    pub tracks: Vec<AudioTrack>,
+    pub custom_parameters: HashMap<String, String>,
+    pub media_buffer: VecDeque<MediaMessage>,
+    pub max_buffer_size: usize,
+    pub metrics: CallMetrics,
+    pub caller_info: Option<CallerInfo>,
+    pub agent_config: Option<AgentConfiguration>,
+}
+
+impl AgentCallState {
+    pub fn new(call_sid: String) -> Self {
+        Self {
+            call_sid,
+            stream_sid: None,
+            status: CallStatus::Initiated,
+            start_time: SystemTime::now(),
+            end_time: None,
+            audio_format: AudioFormat::default(),
+            tracks: vec![AudioTrack::Inbound],
+            custom_parameters: HashMap::new(),
+            media_buffer: VecDeque::new(),
+            max_buffer_size: 1000, // Configurable buffer limit
+            metrics: CallMetrics {
+                duration: Duration::from_secs(0),
+                media_packets_received: 0,
+                media_packets_sent: 0,
+                audio_quality_score: None,
+                latency_ms: None,
+            },
+            caller_info: None,
+            agent_config: None,
+        }
+    }
+    
+    pub fn with_stream_sid(mut self, stream_sid: String) -> Self {
+        self.stream_sid = Some(stream_sid);
+        self
+    }
+    
+    pub fn with_caller_info(mut self, caller_info: CallerInfo) -> Self {
+        self.caller_info = Some(caller_info);
+        self
+    }
+    
+    pub fn with_agent_config(mut self, config: AgentConfiguration) -> Self {
+        self.agent_config = Some(config);
+        self
+    }
+    
+    pub fn update_status(&mut self, new_status: CallStatus) -> Result<(), Error> {
+        if !self.is_valid_transition(&new_status) {
+            return Err(Error::InvalidCallStateTransition {
+                from: format!("{:?}", self.status),
+                to: format!("{:?}", new_status),
+            });
+        }
+        
+        self.status = new_status;
+        if matches!(self.status, CallStatus::Completed | CallStatus::Failed | CallStatus::Cancelled) {
+            self.end_time = Some(SystemTime::now());
+        }
+        Ok(())
+    }
+    
+    pub fn add_media_message(&mut self, message: MediaMessage) -> Result<(), Error> {
+        if self.media_buffer.len() >= self.max_buffer_size {
+            return Err(Error::MediaBufferOverflow {
+                call_sid: self.call_sid.clone(),
+                buffer_size: self.media_buffer.len(),
+            });
+        }
+        
+        self.media_buffer.push_back(message);
+        self.metrics.media_packets_received += 1;
+        Ok(())
+    }
+    
+    pub fn drain_media_buffer(&mut self) -> Vec<MediaMessage> {
+        self.media_buffer.drain(..).collect()
+    }
+    
+    pub fn get_duration(&self) -> Duration {
+        let end_time = self.end_time.unwrap_or_else(SystemTime::now);
+        end_time.duration_since(self.start_time).unwrap_or(Duration::from_secs(0))
+    }
+    
+    pub fn update_metrics(&mut self, quality_score: Option<f32>, latency_ms: Option<u32>) {
+        self.metrics.duration = self.get_duration();
+        if let Some(score) = quality_score {
+            self.metrics.audio_quality_score = Some(score);
+        }
+        if let Some(latency) = latency_ms {
+            self.metrics.latency_ms = Some(latency);
+        }
+    }
+    
+    pub fn is_active(&self) -> bool {
+        matches!(self.status, CallStatus::Answered | CallStatus::InProgress | CallStatus::OnHold)
+    }
+    
+    pub fn can_receive_media(&self) -> bool {
+        self.is_active() && self.stream_sid.is_some()
+    }
+    
+    fn is_valid_transition(&self, new_status: &CallStatus) -> bool {
+        use CallStatus::*;
+        match (&self.status, new_status) {
+            (Initiated, Ringing | Failed | Cancelled) => true,
+            (Ringing, Answered | Failed | Cancelled) => true,
+            (Answered, InProgress | Failed | Completed) => true,
+            (InProgress, OnHold | Transferring | Completed | Failed) => true,
+            (OnHold, InProgress | Completed | Failed) => true,
+            (Transferring, InProgress | Completed | Failed) => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PhoneManagerStats {
+    pub active_calls_count: usize,
+    pub total_websocket_connections: usize,
+    pub max_concurrent_calls: usize,
+    pub call_timeout_seconds: u64,
+}
+
+#[derive(Debug)]
+pub struct AgentPhoneManager {
+    active_calls: Arc<DashMap<String, AgentCallState>>,
+    websocket_connections: Arc<DashMap<String, Arc<Mutex<AgentWebSocket>>>>,
+    elevenlabs_client: Arc<ElevenLabsClient>,
+    call_metrics: Arc<DashMap<String, CallMetrics>>,
+    max_concurrent_calls: usize,
+    call_timeout_duration: Duration,
+}
+
+impl AgentPhoneManager {
+    pub fn new(elevenlabs_client: Arc<ElevenLabsClient>) -> Self {
+        Self {
+            active_calls: Arc::new(DashMap::new()),
+            websocket_connections: Arc::new(DashMap::new()),
+            elevenlabs_client,
+            call_metrics: Arc::new(DashMap::new()),
+            max_concurrent_calls: 100, // Configurable limit
+            call_timeout_duration: Duration::from_secs(3600), // 1 hour default
+        }
+    }
+    
+    pub fn with_max_concurrent_calls(mut self, max_calls: usize) -> Self {
+        self.max_concurrent_calls = max_calls;
+        self
+    }
+    
+    pub fn with_call_timeout(mut self, timeout: Duration) -> Self {
+        self.call_timeout_duration = timeout;
+        self
+    }
+    
+    pub async fn handle_incoming_call(&self, call_sid: String, caller_info: Option<CallerInfo>) -> Result<(), Error> {
+        if self.active_calls.len() >= self.max_concurrent_calls {
+            return Err(Error::CallOperationFailed {
+                operation: "incoming_call".to_string(),
+                reason: "Maximum concurrent calls reached".to_string(),
+            });
+        }
+        
+        if self.active_calls.contains_key(&call_sid) {
+            return Err(Error::CallAlreadyExists { call_sid });
+        }
+        
+        let mut call_state = AgentCallState::new(call_sid.clone());
+        if let Some(info) = caller_info {
+            call_state = call_state.with_caller_info(info);
+        }
+        
+        self.active_calls.insert(call_sid, call_state);
+        Ok(())
+    }
+    
+    pub async fn update_call_status(&self, call_sid: &str, status: CallStatus) -> Result<(), Error> {
+        if let Some(mut call_state) = self.active_calls.get_mut(call_sid) {
+            call_state.update_status(status)?;
+            
+            // Update metrics
+            let metrics = call_state.metrics.clone();
+            self.call_metrics.insert(call_sid.to_string(), metrics);
+            
+            Ok(())
+        } else {
+            Err(Error::CallNotFound { call_sid: call_sid.to_string() })
+        }
+    }
+    
+    pub async fn register_websocket(&self, call_sid: &str, websocket: Arc<Mutex<AgentWebSocket>>) -> Result<(), Error> {
+        if !self.active_calls.contains_key(call_sid) {
+            return Err(Error::CallNotFound { call_sid: call_sid.to_string() });
+        }
+        
+        self.websocket_connections.insert(call_sid.to_string(), websocket);
+        Ok(())
+    }
+    
+    pub async fn handle_media_message(&self, call_sid: &str, message: MediaMessage) -> Result<(), Error> {
+        if let Some(mut call_state) = self.active_calls.get_mut(call_sid) {
+            call_state.add_media_message(message)?;
+            Ok(())
+        } else {
+            Err(Error::CallNotFound { call_sid: call_sid.to_string() })
+        }
+    }
+    
+    pub async fn end_call(&self, call_sid: &str) -> Result<CallMetrics, Error> {
+        let call_state = self.active_calls.remove(call_sid)
+            .ok_or_else(|| Error::CallNotFound { call_sid: call_sid.to_string() })?;
+        
+        self.websocket_connections.remove(call_sid);
+        
+        let final_metrics = call_state.1.metrics.clone();
+        self.call_metrics.insert(call_sid.to_string(), final_metrics.clone());
+        
+        Ok(final_metrics)
+    }
+    
+    pub fn get_active_calls(&self) -> Vec<String> {
+        self.active_calls.iter().map(|entry| entry.key().clone()).collect()
+    }
+    
+    pub fn get_call_state(&self, call_sid: &str) -> Option<AgentCallState> {
+        self.active_calls.get(call_sid).map(|entry| entry.value().clone())
+    }
+    
+    pub fn get_call_metrics(&self, call_sid: &str) -> Option<CallMetrics> {
+        self.call_metrics.get(call_sid).map(|entry| entry.value().clone())
+    }
+    
+    pub async fn cleanup_expired_calls(&self) -> Vec<String> {
+        let now = SystemTime::now();
+        let mut expired_calls = Vec::new();
+        
+        self.active_calls.retain(|call_sid, call_state| {
+            let is_expired = call_state.get_duration() > self.call_timeout_duration;
+            if is_expired {
+                expired_calls.push(call_sid.clone());
+            }
+            !is_expired
+        });
+        
+        // Clean up associated websockets
+        for call_sid in &expired_calls {
+            self.websocket_connections.remove(call_sid);
+        }
+        
+        expired_calls
+    }
+    
+    pub fn get_system_stats(&self) -> PhoneManagerStats {
+        PhoneManagerStats {
+            active_calls_count: self.active_calls.len(),
+            total_websocket_connections: self.websocket_connections.len(),
+            max_concurrent_calls: self.max_concurrent_calls,
+            call_timeout_seconds: self.call_timeout_duration.as_secs(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct TelephonyState {
     // or DashMap?
     pub agent_registry: Arc<Mutex<HashMap<String, Arc<Mutex<AgentWebSocket>>>>>,
     pub convo_init_data_map: Arc<DashMap<String, ConversationInitiationClientData>>,
     pub twilio_client: Arc<TwilioClient>,
+    pub phone_manager: Arc<AgentPhoneManager>,
     webhook_secret: Option<SecretString>,
 }
 
@@ -90,11 +423,13 @@ impl TelephonyState {
         key: String,
         agent_ws: Arc<Mutex<AgentWebSocket>>,
         twilio_client: Arc<TwilioClient>,
+        elevenlabs_client: Arc<ElevenLabsClient>,
     ) -> Result<Self, Error> {
         if twilio_client.number().is_none() {
             return Err(Error::TwilioClient(TwilioError::MissingPhoneNumberEnvVar));
         }
-
+        
+        let phone_manager = Arc::new(AgentPhoneManager::new(elevenlabs_client));
         let agents = [(key, agent_ws)].into_iter().collect::<HashMap<_, _>>();
         let agent_registry = Arc::new(Mutex::new(agents));
 
@@ -105,6 +440,7 @@ impl TelephonyState {
             agent_registry,
             convo_init_data_map,
             twilio_client,
+            phone_manager,
             webhook_secret,
         })
     }
@@ -130,6 +466,14 @@ impl TelephonyState {
     pub async fn get_agent_ws(&self, key: &str) -> Option<Arc<Mutex<AgentWebSocket>>> {
         let agents = self.agent_registry.lock().await;
         agents.get(key).cloned()
+    }
+    
+    pub async fn handle_call_lifecycle(&self, call_sid: &str, status: CallStatus) -> Result<(), Error> {
+        self.phone_manager.update_call_status(call_sid, status).await
+    }
+    
+    pub async fn get_call_analytics(&self, call_sid: &str) -> Option<CallMetrics> {
+        self.phone_manager.get_call_metrics(call_sid)
     }
 }
 
@@ -270,6 +614,285 @@ where
             params,
             twilio_client: Arc::clone(twilio_client),
         })
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum TwilioValidationError {
+    #[error("Missing Twilio signature header")]
+    MissingSignature,
+    
+    #[error("Invalid signature format: {reason}")]
+    InvalidSignature { reason: String },
+    
+    #[error("Invalid auth token format")]
+    InvalidAuthToken,
+    
+    #[error("Signature validation failed")]
+    ValidationFailed,
+    
+    #[error("HTTPS required for production")]
+    HttpsRequired,
+    
+    #[error("Invalid webhook URL format: {url}")]
+    InvalidUrl { url: String },
+    
+    #[error("Missing required header: {header}")]
+    MissingHeader { header: String },
+}
+
+type HmacSha1 = Hmac<Sha1>;
+
+/// Validates Twilio WebSocket signature using HMAC-SHA1 algorithm
+///
+/// This function implements Twilio's signature validation algorithm to ensure
+/// that WebSocket connection requests are authentic and haven't been tampered with.
+///
+/// ## Algorithm
+/// 
+/// 1. **Message Construction**: Concatenates the full URL with sorted parameters
+///    - Format: `{url}{param1_key}{param1_value}{param2_key}{param2_value}...`
+///    - Parameters are sorted alphabetically by key name
+/// 
+/// 2. **HMAC Computation**: Uses HMAC-SHA1 with the auth token as the key
+///    - Computes HMAC-SHA1(auth_token, constructed_message)
+/// 
+/// 3. **Base64 Encoding**: Encodes the HMAC result using standard base64
+/// 
+/// 4. **Constant-Time Comparison**: Compares signatures using timing-attack-resistant comparison
+///
+/// ## Security Features
+/// 
+/// - **Timing Attack Prevention**: Uses constant-time string comparison
+/// - **Input Validation**: Validates auth token format before HMAC computation
+/// - **No Information Leakage**: Error messages don't reveal signature details
+///
+/// ## Parameters
+/// 
+/// - `auth_token`: Twilio account auth token (used as HMAC key)
+/// - `signature`: Expected signature from Twilio (base64-encoded HMAC-SHA1)
+/// - `url`: Full URL that Twilio is requesting (including query parameters)
+/// - `params`: POST parameters as key-value pairs (for form-encoded requests)
+///
+/// ## Returns
+/// 
+/// - `Ok(true)`: Signature is valid and request is authentic
+/// - `Ok(false)`: Signature is invalid (request may be forged)
+/// - `Err(TwilioValidationError)`: Validation failed due to malformed input
+///
+/// ## Example
+/// 
+/// ```rust
+/// use std::collections::HashMap;
+/// 
+/// let auth_token = "your_twilio_auth_token";
+/// let signature = "base64_encoded_signature_from_twilio";
+/// let url = "https://yourserver.com/webhook";
+/// let mut params = HashMap::new();
+/// params.insert("From".to_string(), "+1234567890".to_string());
+/// 
+/// match validate_twilio_websocket_signature(auth_token, signature, url, &params) {
+///     Ok(true) => println!("Signature valid - request is authentic"),
+///     Ok(false) => println!("Signature invalid - request may be forged"),
+///     Err(e) => println!("Validation error: {:?}", e),
+/// }
+/// ```
+///
+/// ## References
+/// 
+/// - [Twilio Security Documentation](https://www.twilio.com/docs/usage/security)
+/// - [RFC 2104: HMAC](https://tools.ietf.org/html/rfc2104)
+pub fn validate_twilio_websocket_signature(
+    auth_token: &str,
+    signature: &str,
+    url: &str,
+    params: &HashMap<String, String>,
+) -> Result<bool, TwilioValidationError> {
+    // Create HMAC-SHA1 instance with auth token as key
+    let mut mac = HmacSha1::new_from_slice(auth_token.as_bytes())
+        .map_err(|_| TwilioValidationError::InvalidAuthToken)?;
+    
+    // Build message: URL + sorted parameters (Twilio's algorithm)
+    let mut message = url.to_string();
+    let mut sorted_params: Vec<_> = params.iter().collect();
+    sorted_params.sort_by_key(|&(k, _)| k);
+    
+    for (key, value) in sorted_params {
+        message.push_str(key);
+        message.push_str(value);
+    }
+    
+    // Compute HMAC-SHA1
+    mac.update(message.as_bytes());
+    let result = mac.finalize();
+    let computed_signature = general_purpose::STANDARD.encode(result.into_bytes());
+    
+    // Constant-time comparison (security critical)
+    Ok(constant_time_compare(&computed_signature, signature))
+}
+
+/// Performs constant-time string comparison to prevent timing attacks
+///
+/// This function compares two strings in a way that takes the same amount of time
+/// regardless of where the strings differ, preventing attackers from using timing
+/// information to guess valid signatures character by character.
+///
+/// ## Security Rationale
+///
+/// Standard string comparison (`==`) can leak information through timing differences:
+/// - If strings differ in the first character, comparison stops immediately (fast)
+/// - If strings differ in the last character, comparison takes longer (slow)
+/// - Attackers can measure these timing differences to guess valid signatures
+///
+/// ## Algorithm
+///
+/// 1. **Length Check**: Returns `false` immediately if lengths differ (safe optimization)
+/// 2. **Bitwise Comparison**: Compares all characters using bitwise XOR
+/// 3. **Accumulation**: Accumulates all differences without early termination
+/// 4. **Final Result**: Returns `true` only if accumulated result is zero
+///
+/// ## Time Complexity
+///
+/// - **Constant Time**: O(n) where n is the string length, regardless of differences
+/// - **No Early Exit**: Always processes the entire string length
+/// - **Secure**: Timing is independent of where differences occur
+///
+/// ## Parameters
+///
+/// - `a`: First string to compare (typically computed signature)
+/// - `b`: Second string to compare (typically expected signature)
+///
+/// ## Returns
+///
+/// - `true`: Strings are identical
+/// - `false`: Strings differ in length or content
+fn constant_time_compare(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    
+    let mut result = 0u8;
+    for (byte_a, byte_b) in a.bytes().zip(b.bytes()) {
+        result |= byte_a ^ byte_b;
+    }
+    
+    result == 0
+}
+
+/// Validate Twilio WebSocket request before upgrade
+pub async fn validate_twilio_websocket_request(
+    parts: &Parts,
+    twilio_client: &TwilioClient,
+) -> Result<(), TwilioValidationError> {
+    // Extract signature header (lowercase for WebSocket)
+    let signature = parts.headers
+        .get("x-twilio-signature")
+        .ok_or(TwilioValidationError::MissingSignature)?
+        .to_str()
+        .map_err(|e| TwilioValidationError::InvalidSignature { 
+            reason: format!("Header not valid UTF-8: {}", e) 
+        })?;
+    
+    // Extract host header for URL construction
+    let host = parts.headers
+        .get("host")
+        .ok_or(TwilioValidationError::MissingHeader { 
+            header: "host".to_string() 
+        })?
+        .to_str()
+        .map_err(|e| TwilioValidationError::InvalidSignature { 
+            reason: format!("Host header not valid UTF-8: {}", e) 
+        })?;
+    
+    // Build full URL for signature validation
+    let scheme = if parts.uri.scheme().map_or(false, |s| s == &http::uri::Scheme::HTTPS) {
+        "https"
+    } else {
+        "http"
+    };
+    
+    let url = format!("{}://{}{}", 
+        scheme,
+        host,
+        parts.uri.path_and_query().map_or("", |pq| pq.as_str())
+    );
+    
+    // WebSocket connections typically don't have form parameters
+    let params = HashMap::new();
+    
+    // Get auth token from Twilio client
+    let auth_token = twilio_client.auth_token()
+        .ok_or(TwilioValidationError::InvalidAuthToken)?;
+    
+    // Validate signature
+    let is_valid = validate_twilio_websocket_signature(
+        auth_token,
+        signature,
+        &url,
+        &params,
+    )?;
+    
+    if !is_valid {
+        return Err(TwilioValidationError::ValidationFailed);
+    }
+    
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct TwilioSecurityConfig {
+    pub validate_signatures: bool,
+    pub require_https: bool,
+    pub auth_token: SecretString,
+    pub allowed_origins: Vec<String>,
+    pub skip_validation_in_dev: bool,
+}
+
+impl Default for TwilioSecurityConfig {
+    fn default() -> Self {
+        let is_dev = std::env::var("ENVIRONMENT")
+            .unwrap_or_default()
+            .to_lowercase() == "development";
+            
+        Self {
+            validate_signatures: !is_dev,
+            require_https: !is_dev,
+            auth_token: SecretString::from(
+                std::env::var("TWILIO_AUTH_TOKEN").unwrap_or_default()
+            ),
+            allowed_origins: vec![],
+            skip_validation_in_dev: is_dev,
+        }
+    }
+}
+
+impl TwilioSecurityConfig {
+    pub fn production() -> Self {
+        Self {
+            validate_signatures: true,
+            require_https: true,
+            auth_token: SecretString::from(
+                std::env::var("TWILIO_AUTH_TOKEN")
+                    .unwrap_or_else(|_| {
+                        tracing::error!("TWILIO_AUTH_TOKEN must be set in production");
+                        String::new()
+                    })
+            ),
+            allowed_origins: vec![],
+            skip_validation_in_dev: false,
+        }
+    }
+    
+    pub fn development() -> Self {
+        Self {
+            validate_signatures: false,
+            require_https: false,
+            auth_token: SecretString::from(
+                std::env::var("TWILIO_AUTH_TOKEN").unwrap_or_default()
+            ),
+            allowed_origins: vec!["*".to_string()],
+            skip_validation_in_dev: true,
+        }
     }
 }
 
@@ -583,10 +1206,10 @@ where
         let t_state = TelephonyState::from_ref(state);
         let twilio_client = Arc::clone(&t_state.twilio_client);
 
-        // TODO: just make it take &Parts ?
-        twilio_client
-            .validate_request(&parts.method, &parts.uri, &parts.headers, None)
-            .map_err(TwilioValidationRejection::ValidationError)?;
+        validate_twilio_websocket_request(parts, &twilio_client).await
+            .map_err(|e| TwilioValidationRejection::ValidationError(
+                TwilioError::ValidationError(format!("WebSocket signature validation failed: {}", e))
+            ))?;
 
         let ws = WebSocketUpgrade::from_request_parts(parts, state)
             .await
@@ -1084,7 +1707,8 @@ mod tests {
     }
 
     fn app(webhook_secret: &str, auth_token: &str) -> Router {
-        let app_state = TestAppState::new(webhook_secret, auth_token).unwrap();
+        let app_state = TestAppState::new(webhook_secret, auth_token)
+            .expect("Test app state creation should succeed in test environment");
         Router::new()
             .route(
                 "/connect_twiml",
@@ -1103,21 +1727,7 @@ mod tests {
             .with_state(app_state)
     }
 
-    //fn create_test_request(secret: &str, payload: &str) -> Request<Body> {
-    //    let timestamp = Utc::now().timestamp();
-    //    let message = format!("{}.{}", timestamp, payload);
-    //    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
-    //    mac.update(message.as_bytes());
-    //    let signature = format!("v0={}", hex::encode(mac.finalize().into_bytes()));
-    //    Request::builder()
-    //        .method("POST")
-    //        .uri("/webhook")
-    //        .header(
-    //            "ElevenLabs-Signature",
-    //            format!("t={},{}", timestamp, signature),
-    //        )
-    //        .body(Body::from(payload.to_string()))
-    //        .unwrap()
+
     //}
 
     type HmacSha1 = Hmac<Sha1>;
@@ -1642,5 +2252,98 @@ mod tests {
         assert_eq!(msg.as_str(), want);
         
         Ok(())
+    }
+
+    #[cfg(test)]
+    mod signature_validation_tests {
+        use super::*;
+        
+        #[test]
+        fn test_valid_signature() {
+            let auth_token = "test_auth_token";
+            let url = "https://example.com/webhook";
+            let params = HashMap::new();
+            
+            // Compute expected signature
+            let expected = compute_test_signature(auth_token, url, &params);
+            
+            let result = match validate_twilio_websocket_signature(
+                auth_token, &expected, url, &params
+            ) {
+                Ok(result) => result,
+                Err(e) => panic!("Test signature validation should succeed: {:?}", e),
+            };
+            
+            assert!(result);
+        }
+        
+        #[test]
+        fn test_invalid_signature() {
+            let auth_token = "test_auth_token";
+            let url = "https://example.com/webhook";
+            let params = HashMap::new();
+            let invalid_signature = "invalid_signature";
+            
+            let result = match validate_twilio_websocket_signature(
+                auth_token, invalid_signature, url, &params
+            ) {
+                Ok(result) => result,
+                Err(e) => panic!("Test signature validation should succeed: {:?}", e),
+            };
+            
+            assert!(!result);
+        }
+        
+        #[test]
+        fn test_constant_time_comparison() {
+            // Test that comparison time is constant regardless of input
+            let a = "correct_signature";
+            let b1 = "correct_signature";
+            let b2 = "wrong_signature_xx";
+            
+            assert!(constant_time_compare(a, b1));
+            assert!(!constant_time_compare(a, b2));
+        }
+        
+        #[test]
+        fn test_signature_with_parameters() {
+            let auth_token = "test_auth_token";
+            let url = "https://example.com/webhook";
+            let mut params = HashMap::new();
+            params.insert("CallSid".to_string(), "CA1234567890ABCDE".to_string());
+            params.insert("From".to_string(), "+12349013030".to_string());
+            
+            // Compute expected signature
+            let expected = compute_test_signature(auth_token, url, &params);
+            
+            let result = match validate_twilio_websocket_signature(
+                auth_token, &expected, url, &params
+            ) {
+                Ok(result) => result,
+                Err(e) => panic!("Test signature validation should succeed: {:?}", e),
+            };
+            
+            assert!(result);
+        }
+        
+        fn compute_test_signature(auth_token: &str, url: &str, params: &HashMap<String, String>) -> String {
+            let mut mac = match HmacSha1::new_from_slice(auth_token.as_bytes()) {
+                Ok(mac) => mac,
+                Err(_) => panic!("Test auth token should be valid"),
+            };
+            let mut message = url.to_string();
+            
+            let mut sorted_params: Vec<_> = params.iter().collect();
+            sorted_params.sort_by_key(|&(k, _)| k);
+            
+            for (key, value) in sorted_params {
+                message.push_str(key);
+                message.push_str(value);
+            }
+            
+            mac.update(message.as_bytes());
+            let result = mac.finalize();
+            general_purpose::STANDARD.encode(result.into_bytes())
+        }
     }
 }

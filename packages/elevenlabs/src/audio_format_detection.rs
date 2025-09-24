@@ -11,6 +11,7 @@ pub enum DetectionLayer {
     MagicNumber(FormatSignature),
     RodioAutomatic,
     SymphoniaAdvanced,
+    ContextualInference,
 }
 
 #[derive(Debug, Clone)]
@@ -451,6 +452,90 @@ impl AudioFormatDetector {
         }
 
         formats.join(", ")
+    }
+
+    /// Detect μ-law format with Twilio-specific context awareness
+    pub fn detect_twilio_mulaw(
+        &self,
+        headers: &HeaderMap,
+        _data: &[u8],
+    ) -> Option<FormatDetectionResult> {
+        // Priority 1: Explicit μ-law MIME types
+        if let Some(content_type) = headers.get("content-type") {
+            if let Ok(content_type_str) = content_type.to_str() {
+                let ct_lower = content_type_str.to_lowercase();
+                if ct_lower.contains("audio/basic")
+                    || ct_lower.contains("audio/x-mulaw")
+                    || ct_lower.contains("audio/ulaw")
+                {
+                    return Some(self.create_mulaw_detection_result(
+                        ConfidenceLevel::High,
+                        DetectionLayer::ContentTypeHeader(content_type_str.to_string()),
+                    ));
+                }
+            }
+        }
+
+        // Priority 2: Twilio WebSocket context indicators
+        if self.is_twilio_websocket_context(headers) {
+            return Some(self.create_mulaw_detection_result(
+                ConfidenceLevel::Medium,
+                DetectionLayer::ContextualInference,
+            ));
+        }
+
+        // Priority 3: Twilio HTTP context indicators
+        if self.is_twilio_http_context(headers) {
+            return Some(self.create_mulaw_detection_result(
+                ConfidenceLevel::Low,
+                DetectionLayer::ContextualInference,
+            ));
+        }
+
+        None
+    }
+
+    fn is_twilio_websocket_context(&self, headers: &HeaderMap) -> bool {
+        // Check for Twilio WebSocket signatures
+        headers.get("x-twilio-signature").is_some()
+            || headers.get("upgrade").map_or(false, |h| {
+                h.to_str().unwrap_or("").eq_ignore_ascii_case("websocket")
+            }) && headers.get("user-agent").map_or(false, |ua| {
+                let ua_str = ua.to_str().unwrap_or("");
+                ua_str.contains("TwilioProxy") || ua_str.contains("Twilio")
+            })
+    }
+
+    fn is_twilio_http_context(&self, headers: &HeaderMap) -> bool {
+        // Check for Twilio HTTP request indicators
+        headers.get("x-twilio-signature").is_some()
+            || headers.get("user-agent").map_or(false, |ua| {
+                ua.to_str().unwrap_or("").contains("TwilioProxy")
+            })
+    }
+
+    fn create_mulaw_detection_result(
+        &self,
+        confidence: ConfidenceLevel,
+        detection_method: DetectionLayer,
+    ) -> FormatDetectionResult {
+        FormatDetectionResult {
+            detected_format: DetectedFormat::Known {
+                output_format: OutputFormat::MuLaw8000Hz,
+                sample_rate: 8000,
+                channels: 1,
+                bit_depth: 8,
+            },
+            confidence,
+            detection_method,
+            metadata: Some(AudioMetadata {
+                sample_rate: Some(8000),
+                channels: Some(1),
+                bit_depth: Some(8),
+                duration: None,
+            }),
+            fallback_available: true,
+        }
     }
 }
 

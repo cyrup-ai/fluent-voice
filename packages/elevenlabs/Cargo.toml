@@ -56,7 +56,7 @@ symphonia = ["dep:symphonia"]
 [dependencies]
 fluent-voice-workspace-hack = { path = "../../workspace-hack" }
 fluent_voice_domain = { path = "../domain" }
-fluent_voice = { path = "../fluent-voice" }
+fluent_voice = { version = "0.1.0", path = "../fluent-voice" }
 koffee = { path = "../koffee" }
 cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", branch = "main", package = "cyrup_sugars", features = ["all"] }
 
@@ -124,6 +124,10 @@ symphonia = { version = "0.5.4", default-features = false, features = ["aac", "a
 srtparse = "0.2.0"
 vtt = "1.0.0"
 anyhow = "1.0.100"
+hmac = "0.12"
+sha1 = "0.10"
+hashbrown = "0.16.0"
+futures-core = "0.3.31"
 
 # OS-specific acceleration dependencies
 [target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
@@ -147,3 +151,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 syn = "2"
 tokio = { version = "1.47", features = ["full"] }
+
+[dev-dependencies]
+# Example dependencies for elevenlabs_tts.rs and elevenlabs_stt.rs
+bytes = "1.0"
+futures-util = "0.3" 
+hound = "3.5"
+tokio = { version = "1.47", features = ["full", "rt-multi-thread", "macros"] }

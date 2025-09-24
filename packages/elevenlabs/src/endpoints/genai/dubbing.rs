@@ -19,7 +19,7 @@
 //! ```rust
 //! use speakrs_elevenlabs::endpoints::genai::dubbing::*;
 //!
-//! let body = DubbingBody::from_file("video.mp4", "es")?
+//! let body = DubbingBody::from_file("video.mp4", "es").await?
 //!     .with_name("Spanish Dub")
 //!     .with_quality_settings(true, false);
 //!
@@ -40,7 +40,7 @@
 //!
 //! ### Advanced Configuration
 //! ```rust
-//! let body = DubbingBody::from_file("podcast.mp3", "de")?
+//! let body = DubbingBody::from_file("podcast.mp3", "de").await?
 //!     .with_source_language("en")
 //!     .with_target_accent("bavarian")
 //!     .with_content_filtering(true, false)
@@ -58,6 +58,7 @@ use serde::Deserialize;
 use std::path::Path;
 use std::string::ToString;
 use strum::Display;
+use tokio::fs;
 
 /// Maximum file size to cache in memory (100MB)
 /// Files larger than this will fall back to direct file reading
@@ -119,8 +120,50 @@ pub enum SourceType {
 }
 
 impl DubbingSource {
-    /// Validate the source and populate metadata
-    pub fn validate(&mut self) -> Result<()> {
+    /// Validate the source synchronously (for URL and Bytes sources)
+    pub fn validate_sync(&mut self) -> Result<()> {
+        match self {
+            DubbingSource::Url {
+                url,
+                expected_content_type,
+                ..
+            } => {
+                // Validate URL format
+                url::Url::parse(url).map_err(|e| {
+                    Box::new(Error::UrlValidationFailed {
+                        url: url.clone(),
+                        reason: format!("Invalid URL format: {}", e),
+                    })
+                })?;
+
+                // Validate expected content type if provided
+                if let Some(content_type) = expected_content_type {
+                    Self::validate_content_type(content_type)?;
+                }
+            }
+            DubbingSource::Bytes {
+                data, mime_type, ..
+            } => {
+                // Validate non-empty data
+                if data.is_empty() {
+                    return Err(Box::new(Error::InvalidDubbingSource(
+                        "Byte data cannot be empty".to_string(),
+                    )));
+                }
+
+                // Validate MIME type format
+                Self::validate_content_type(mime_type)?;
+            }
+            DubbingSource::File { .. } => {
+                // File validation requires async operations, skip for now
+                // Will be validated later when the request is made
+            }
+        }
+        Ok(())
+    }
+
+    /// Validate the source and populate metadata (async for File sources)
+    pub async fn validate(&mut self) -> Result<()> {
         match self {
             DubbingSource::File {
                 path,
@@ -131,8 +174,8 @@ impl DubbingSource {
             } => {
                 let file_path = Path::new(path);
 
-                // ATOMIC OPERATION: Read file and validate in single step
-                let file_data = std::fs::read(file_path).map_err(|e| {
+                // ASYNC FILE READING - No blocking!
+                let file_data = fs::read(file_path).await.map_err(|e| {
                     Box::new(Error::FileValidationFailed {
                         path: path.clone(),
                         reason: format!("Failed to read file: {}", e),
@@ -411,7 +454,28 @@ impl ElevenLabsEndpoint for DubAVideoOrAnAudioFile {
     type ResponseBody = DubAVideoOrAnAudioFileResponse;
 
     async fn request_body(&self) -> Result<RequestBody> {
-        TryInto::try_into(&self.body)
+        // Handle large file reading here if not cached
+        match &self.body.source {
+            DubbingSource::File {
+                path, cached_data, ..
+            } if cached_data.is_none() => {
+                // Large file: read asynchronously
+                let file_data = fs::read(path)
+                    .await
+                    .map_err(|e| format!("Failed to read large file '{}': {}", path, e))?;
+
+                // Create a temporary body with cached data for TryFrom
+                let mut temp_body = self.body.clone();
+                if let DubbingSource::File { cached_data, .. } = &mut temp_body.source {
+                    *cached_data = Some(file_data);
+                }
+                TryInto::try_into(&temp_body)
+            }
+            _ => {
+                // Small files (cached) and URLs/Bytes: use existing TryFrom
+                TryInto::try_into(&self.body)
+            }
+        }
     }
 
     async fn response_body(self, resp: Response) -> Result<Self::ResponseBody> {
@@ -462,7 +526,10 @@ pub struct DubAVideoOrAnAudioFileResponse {
 
 impl DubbingBody {
     /// Create from file path with validation
-    pub fn from_file(path: impl Into<String>, target_lang: impl Into<String>) -> Result<Self> {
+    pub async fn from_file(
+        path: impl Into<String>,
+        target_lang: impl Into<String>,
+    ) -> Result<Self> {
         let mut source = DubbingSource::File {
             path: path.into(),
             mime_type: None,
@@ -470,7 +537,7 @@ impl DubbingBody {
             extension: None,
             cached_data: None, // Will be populated during validation
         };
-        source.validate()?;
+        source.validate().await?;
 
         Ok(Self {
             source,
@@ -497,7 +564,7 @@ impl DubbingBody {
             url: url.into(),
             expected_content_type: None,
         };
-        source.validate()?;
+        source.validate_sync()?;
 
         Ok(Self {
             source,
@@ -531,7 +598,7 @@ impl DubbingBody {
             mime_type: mime_type.into(),
             source_description: None,
         };
-        source.validate()?;
+        source.validate_sync()?;
 
         Ok(Self {
             source,
@@ -1089,25 +1156,28 @@ impl TryFrom<&DubbingBody> for RequestBody {
                 size_bytes,
                 ..
             } => {
-                let file_bytes = match cached_data {
-                    Some(data) => {
-                        // Use cached data - eliminates race condition
-                        data.clone()
-                    }
-                    None => {
-                        // Fallback for large files - original behavior with race condition risk
-                        let file_path = Path::new(path);
-                        std::fs::read(file_path).map_err(|e| {
+                // At this point, data should always be cached (handled in request_body())
+                let file_bytes = cached_data
+                    .as_ref()
+                    .ok_or_else(|| format!(
+                        "File data not cached for '{}'. This should not happen with async implementation.", 
+                        path
+                    ))?
+                    .clone();
+
+                // Validate cached data size matches expected size
+                if let Some(expected_size) = size_bytes {
+                    let actual_size = file_bytes.len() as u64;
+                    if actual_size != *expected_size {
+                        return Err(Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
                             format!(
-                                "Failed to read large file '{}' (size: {} bytes): {}. \
-                                 File may have been deleted after validation.",
-                                path,
-                                size_bytes.unwrap_or(0),
-                                e
-                            )
-                        })?
+                                "File size mismatch for '{}': expected {} bytes, got {} bytes",
+                                path, expected_size, actual_size
+                            ),
+                        )));
                     }
-                };
+                }
 
                 let mut part = Part::bytes(file_bytes);
 

@@ -33,8 +33,12 @@ where
         pin_mut!(text_stream);
         while let Some(text) = text_stream.next().await {
             debug!("Processing text chunk: {} chars", text.len());
-            debug!("Buffer state: {} chars, ends_with_splitter: {}", buf.len(), buf.ends_with(splitters));
-            
+            debug!(
+                "Buffer state: {} chars, ends_with_splitter: {}",
+                buf.len(),
+                buf.ends_with(splitters)
+            );
+
             if buf.ends_with(splitters) {
                 let chunk = format!("{} ", buf.as_str());
                 if let Err(_) = tx.send(chunk.clone()) {
@@ -45,17 +49,18 @@ where
                 buf = text;
             } else if text.starts_with(splitters) {
                 // Safe character extraction with fallback
-                let first_char = text.char_indices().next()
-                    .map(|(_, c)| c)
-                    .unwrap_or(' '); // Provide safe default for empty strings
-                
+                let first_char = text.char_indices().next().map(|(_, c)| c).unwrap_or(' '); // Provide safe default for empty strings
+
                 let chunk = format!("{}{} ", buf.as_str(), first_char);
                 if let Err(_) = tx.send(chunk.clone()) {
                     error!("Failed to send text chunk with separator: receiver disconnected");
                     break; // Gracefully exit on receiver disconnection
                 }
-                debug!("Successfully sent text chunk with separator: {} chars", chunk.len());
-                
+                debug!(
+                    "Successfully sent text chunk with separator: {} chars",
+                    chunk.len()
+                );
+
                 // Safe string slicing with bounds check
                 buf = if text.len() > 1 {
                     text[1..].to_string()
@@ -66,7 +71,7 @@ where
                 buf.push_str(&text);
             }
         }
-        
+
         // Send final buffer if not empty
         if !buf.is_empty() {
             if let Err(_) = tx.send(buf.clone()) {
@@ -75,7 +80,7 @@ where
                 debug!("Successfully sent final text buffer: {} chars", buf.len());
             }
         }
-        
+
         debug!("Text chunker task completed");
     });
 
@@ -83,7 +88,7 @@ where
         while let Ok(buf) = rx.recv() {
             yield Ok(buf);
         }
-        
+
         // If we exit the loop, it means the sender was dropped
         // This is normal termination, not an error condition
         debug!("Text chunker stream completed: sender disconnected");

@@ -154,9 +154,9 @@ impl TtsEngineBuilder {
     }
 
     /// Load API key from environment
-    pub fn api_key_from_env(self) -> Result<Self> {
+    pub fn api_key_from_env(mut self) -> Result<Self> {
         // This will check for ELEVENLABS_API_KEY, ELEVEN_API_KEY, or ELEVEN_LABS_API_KEY
-        std::env::var("ELEVENLABS_API_KEY")
+        let api_key = std::env::var("ELEVENLABS_API_KEY")
             .or_else(|_| std::env::var("ELEVEN_API_KEY"))
             .or_else(|_| std::env::var("ELEVEN_LABS_API_KEY"))
             .map_err(|_| {
@@ -165,6 +165,7 @@ impl TtsEngineBuilder {
                         .into(),
                 )
             })?;
+        self.api_key = Some(api_key);
         Ok(self)
     }
 
